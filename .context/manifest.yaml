@@ -1,0 +1,664 @@
+# BrogueCE C Codebase Manifest
+# Maps every C source file to its responsibility, key exports, dependencies, and porting phase.
+# Used by AI agents to quickly locate functionality without scanning the codebase.
+#
+# Last updated: 2026-02-26
+# Source version: BrogueCE v1.15.1
+
+headers:
+  Rogue.h:
+    path: src/brogue/Rogue.h
+    lines: 3541
+    responsibility: >
+      Master header. All type definitions, enums, constants, struct definitions,
+      macro definitions, and function declarations for the entire game engine.
+    key_contents:
+      - All enums (displayGlyph, eventTypes, tileType, directions, monsterTypes, itemCategory, etc.)
+      - Core structs (pos, creature, creatureType, item, pcell, tcell, color, bolt, dungeonFeature, etc.)
+      - playerCharacter struct (the global game state)
+      - gameConstants struct (variant-specific constants)
+      - levelData struct (stored level state)
+      - Fixed-point arithmetic types and macros (fixpt, FP_BASE, FP_MUL, FP_DIV)
+      - Bitfield flag macro Fl(N)
+      - Display grid constants (COLS=100, ROWS=34, DCOLS=79, DROWS=29)
+      - All function declarations for the entire engine
+    porting_phase: 0
+    notes: >
+      This file IS the type system. Porting it to TypeScript interfaces, enums, and
+      type aliases is the very first task. It defines boolean as char, true/false as 1/0.
+
+  GlobalsBase.h:
+    path: src/brogue/GlobalsBase.h
+    lines: 136
+    responsibility: >
+      Declares all base global variables: map grids (tmap, pmap), creature/item lists,
+      message arrays, recording buffers, color constants, direction tables.
+    key_contents:
+      - extern declarations for pmap, tmap, scentMap, safetyMap, etc.
+      - Inline accessors (tmapAt, pmapAt, posNeighborInDirection)
+      - extern declarations for player, rogue, monsters, items, levels
+      - Color constant declarations (white, red, blue, etc.)
+      - Monster behavior/ability catalog declarations
+    porting_phase: 1
+
+  Globals.h:
+    path: src/brogue/Globals.h
+    lines: ~200
+    responsibility: >
+      Declares variant-specific global variables: monster catalog, item tables,
+      terrain tables, feature catalogs, horde catalog, blueprint catalog.
+    porting_phase: 1
+
+  platform.h:
+    path: src/platform/platform.h
+    lines: 121
+    responsibility: >
+      Defines the brogueConsole struct (platform abstraction interface) and
+      declares platform-specific functions and extern variables.
+    key_contents:
+      - brogueConsole struct with 9 function pointers
+      - Unicode glyph constants
+      - Platform backend extern declarations (sdlConsole, cursesConsole, webConsole, nullConsole)
+    porting_phase: 3
+
+# ============================================================
+# Game Logic — src/brogue/
+# ============================================================
+
+game_logic:
+  Math.c:
+    path: src/brogue/Math.c
+    lines: 288
+    responsibility: >
+      Random number generation (Bob Jenkins' small PRNG) and fixed-point arithmetic.
+      Foundation for all randomness and power calculations in the game.
+    includes: [Rogue.h, GlobalsBase.h]
+    key_exports:
+      - seedRandomGenerator     # Seeds both RNG streams; returns the seed used
+      - rand_range              # Random int in [lower, upper], uniform distribution
+      - rand_64bits             # Random 64-bit value
+      - rand_percent            # Boolean test with given probability
+      - randClump               # Random with clumped distribution
+      - randClumpedRange        # Random in range with clump factor
+      - shuffleList             # Fisher-Yates shuffle
+      - fillSequentialList      # Fill array with 0..n-1
+      - fp_round                # Fixed-point rounding
+      - fp_sqrt                 # Fixed-point square root (bisection method)
+      - fp_pow                  # Fixed-point exponentiation
+    owns:
+      - RNGState[2] (two PRNG contexts: RNG_SUBSTANTIVE and RNG_COSMETIC)
+      - ranctx struct (PRNG state: a, b, c, d)
+    porting_phase: 0
+    notes: >
+      CRITICAL first file to port. Every other file depends on rand_range().
+      The PRNG uses 32-bit unsigned overflow — needs >>> 0 in TypeScript.
+
+  Utilities.c:
+    path: src/brogue/Utilities.c
+    lines: 37
+    responsibility: String utility functions.
+    includes: [Rogue.h]
+    key_exports:
+      - endswith
+      - append
+    porting_phase: 0
+
+  GlobalsBase.c:
+    path: src/brogue/GlobalsBase.c
+    lines: 123
+    responsibility: >
+      Defines base global variables: map grids, direction tables, creature/item lists,
+      message arrays, recording state, color constants (white, red, blue, etc.),
+      monster behavior/ability description tables.
+    includes: [Rogue.h]
+    key_exports:
+      - pmap, tmap (dungeon grids)
+      - nbDirs, cDirs (direction offset tables)
+      - player (the player creature)
+      - rogue (playerCharacter — master game state)
+      - monsters, dormantMonsters, purgatory (creature lists)
+      - floorItems, packItems, monsterItemsHopper (item chains)
+      - Color constants (white, red, blue, gray, etc.)
+      - displayedMessage, messageArchive
+    porting_phase: 1
+
+  Globals.c:
+    path: src/brogue/Globals.c
+    lines: 1821
+    responsibility: >
+      Defines the large static data catalogs that describe all game content:
+      monster types, item tables, terrain types, dungeon features, bolts,
+      hordes, blueprints, level feelings, and feat definitions.
+    includes: [Rogue.h, GlobalsBase.h, Globals.h]
+    key_exports:
+      - monsterCatalog[]        # Stats and behavior for all ~120 monster types
+      - itemTable instances     # Stats for weapons, armor, potions, scrolls, etc.
+      - terrainTable[]          # Visual and behavioral properties of all terrain types
+      - dungeonFeatureCatalog[] # Dungeon features (gas spread, fire, flooding, etc.)
+      - boltCatalog[]           # Bolt/projectile types and their effects
+      - hordeCatalog[]          # Monster group spawn definitions
+      - blueprintCatalog[]      # Machine/room blueprint definitions
+      - lightCatalog[]          # Light source definitions
+      - featTable[]             # Achievement/feat definitions
+    porting_phase: 1
+    notes: >
+      Mostly static data tables. Tedious but mechanical to port. Many arrays are
+      indexed by enum values from Rogue.h.
+
+  PowerTables.c:
+    path: src/brogue/PowerTables.c
+    lines: 345
+    responsibility: >
+      Pre-computed power and enchantment lookup tables. Functions that calculate
+      weapon/armor/staff/charm/ring effects based on enchantment level.
+    includes: [Rogue.h, Globals.h, GlobalsBase.h]
+    key_exports:
+      - staffDamage, staffDamageLow, staffDamageHigh
+      - staffBlinkDistance, staffHasteDuration, staffBladeCount
+      - staffDiscordDuration, staffEntrancementDuration, staffProtection, staffPoison
+      - weaponParalysisDuration, weaponConfusionDuration, weaponForceDistance
+      - weaponSlowDuration, weaponImageCount, weaponImageDuration
+      - armorReprisalPercent, armorAbsorptionMax, armorImageCount
+      - charmEffectDuration, charmRechargeDelay, charmHealing, charmProtection
+      - charmShattering, charmGuardianLifespan, charmNegationRadius
+      - ringWisdomMultiplier, reflectionChance
+      - damageFraction, accuracyFraction, defenseFraction
+      - turnsForFullRegenInThousandths
+      - runicWeaponChance, wandDominate
+    porting_phase: 1
+    notes: Uses fixed-point arithmetic extensively via pre-computed lookup arrays.
+
+  Grid.c:
+    path: src/brogue/Grid.c
+    lines: 547
+    responsibility: >
+      2D grid allocation, manipulation, and querying. Provides the fundamental
+      data structure operations used by dungeon generation, pathfinding, and lighting.
+    includes: [Rogue.h, Globals.h, GlobalsBase.h]
+    key_exports:
+      - allocGrid / freeGrid    # Allocate/free a short[DCOLS][DROWS] grid
+      - copyGrid / fillGrid     # Copy or fill a grid with a value
+      - hiliteGrid              # Debug: highlight grid values on screen
+      - findReplaceGrid         # Replace values in a range
+      - floodFillGrid           # Flood fill from a point
+      - drawRectangleOnGrid     # Draw rectangle
+      - drawCircleOnGrid        # Draw circle
+      - getTerrainGrid          # Create grid marking cells with terrain flags
+      - getTMGrid               # Create grid marking cells with TM flags
+      - validLocationCount      # Count cells with a given value
+      - randomLocationInGrid    # Pick random cell with a given value
+      - getQualifyingPathLocNear # Find accessible location near target
+      - createBlobOnGrid        # Cellular automata blob generation (used for rooms)
+    porting_phase: 1
+
+  Dijkstra.c:
+    path: src/brogue/Dijkstra.c
+    lines: 259
+    responsibility: >
+      Dijkstra scanning algorithm for pathfinding distance maps.
+      Replacement for the original scanning algorithm in Movement.c.
+    includes: [Rogue.h, GlobalsBase.h, Globals.h]
+    key_exports:
+      - dijkstraScan            # Core Dijkstra scan on a cost/distance grid
+      - calculateDistances      # Build distance map from a point with terrain constraints
+      - pathingDistance          # Get shortest path distance between two points
+    porting_phase: 2
+
+  Light.c:
+    path: src/brogue/Light.c
+    lines: 412
+    responsibility: >
+      Lighting system: painting light sources, backing up/restoring lighting state,
+      updating all lights, darkness detection, visual flares, and cell discovery.
+    includes: [Rogue.h, GlobalsBase.h, Globals.h]
+    key_exports:
+      - paintLight              # Apply a light source to the lighting grid
+      - updateMinersLightRadius # Recalculate miner's light based on depth and rings
+      - backUpLighting          # Save current lighting state
+      - restoreLighting         # Restore saved lighting state
+      - updateLighting          # Recalculate all lights for the level
+      - playerInDarkness        # Check if player is in a dark area
+      - newFlare / createFlare  # Create visual flare effects
+      - animateFlares           # Animate pending flares
+      - deleteAllFlares         # Clean up all flares
+    porting_phase: 2
+
+  Combat.c:
+    path: src/brogue/Combat.c
+    lines: 1784
+    responsibility: >
+      Attack resolution, damage calculation, weapon/armor runic effects,
+      bolt/projectile combat, creature death, and combat messaging.
+    includes: [Rogue.h, GlobalsBase.h, Globals.h]
+    key_exports:
+      - attack                  # Resolve a melee attack
+      - attackHit               # Determine if an attack hits
+      - hitProbability          # Calculate hit chance
+      - inflictDamage           # Apply damage to a creature
+      - inflictLethalDamage     # Instant kill
+      - killCreature            # Handle creature death
+      - buildHitList            # Determine targets for sweep attacks
+      - strengthModifier        # Strength-based damage modifier
+      - netEnchant              # Effective enchantment level
+      - magicWeaponHit          # Apply runic weapon effects
+      - applyArmorRunicEffect   # Apply runic armor effects
+      - processStaggerHit       # Handle stagger on hit
+      - addPoison               # Apply poison damage
+      - splitMonster            # Handle jelly splitting
+      - flashMonster            # Visual flash on monster
+      - combatMessage           # Add combat text to display
+    porting_phase: 2
+
+  Movement.c:
+    path: src/brogue/Movement.c
+    lines: 2487
+    responsibility: >
+      Player and monster movement, pathfinding integration, travel/explore system,
+      field of view, scent tracking, stair usage, terrain interaction, and auto-play.
+    includes: [Rogue.h, GlobalsBase.h, Globals.h]
+    key_exports:
+      - playerMoves             # Process a player movement command
+      - playerRuns              # Auto-run in a direction
+      - travel / travelRoute    # Pathfinding travel to a destination
+      - explore                 # Auto-explore
+      - autoPlayLevel           # Full auto-play for a level
+      - nextStep                # Get next step from a distance map
+      - populateGenericCostMap  # Build cost map for pathfinding
+      - populateCreatureCostMap # Build cost map for a specific creature
+      - getExploreMap           # Build exploration priority map
+      - updateFieldOfView       # Calculate field of view
+      - updateFieldOfViewDisplay # Update FOV display
+      - getFOVMask / scanOctantFOV # Octant-based FOV calculation
+      - storeMemories           # Remember cell appearance
+      - useStairs               # Handle stair usage
+      - addScentToCell          # Update scent map
+      - handleWhipAttacks       # Reach weapon attacks
+      - handleSpearAttacks      # Spear thrust attacks
+      - diagonalBlocked         # Check diagonal movement blocking
+      - search / discover       # Searching and discovery
+    porting_phase: 2
+
+  Items.c:
+    path: src/brogue/Items.c
+    lines: 8040
+    responsibility: >
+      Complete item system: generation, identification, enchantment, usage,
+      inventory management, bolt/wand/staff/charm/potion/scroll effects,
+      throwing, equipping, targeting, and item descriptions.
+    includes: [Rogue.h, GlobalsBase.h, Globals.h]
+    key_exports:
+      - generateItem / makeItemInto # Create items
+      - initializeItem          # Initialize blank item
+      - populateItems           # Populate level with items
+      - placeItemAt / removeItemAt / pickUpItemAt # Floor item management
+      - addItemToPack           # Add to player inventory
+      - equipItem / unequipItem # Equip/unequip
+      - identify / autoIdentify # Item identification
+      - itemName / itemDetails  # Item description strings
+      - displayInventory        # Show inventory screen
+      - zap                     # Fire a bolt/wand/staff
+      - getLineCoordinates      # Calculate projectile path
+      - getImpactLoc            # Find bolt impact location
+      - readScroll / drinkPotion / eat # Use consumables
+      - apply / throwCommand    # Use/throw items
+      - chooseTarget / moveCursor / nextTargetAfter # Targeting
+      - recalculateEquipmentBonuses # Update stats from equipment
+      - updateRingBonuses       # Update ring effect bonuses
+      - shuffleFlavors          # Randomize item appearance names
+      - itemValue               # Calculate gold value
+      - negate / weaken / slow / haste / heal # Status effect application
+    porting_phase: 2
+    notes: >
+      Largest file in the codebase. Consider splitting into sub-modules during porting
+      (e.g., item-generation.ts, item-usage.ts, item-targeting.ts, item-display.ts).
+
+  Monsters.c:
+    path: src/brogue/Monsters.c
+    lines: 4826
+    responsibility: >
+      Monster AI, spawning, behavior, movement, abilities, status effects,
+      creature list management, and monster-related queries.
+    includes: [Rogue.h, GlobalsBase.h, Globals.h]
+    key_exports:
+      - generateMonster         # Create a monster from catalog
+      - initializeMonster       # Set up monster state
+      - spawnHorde              # Spawn a group of monsters
+      - populateMonsters        # Populate level with monsters
+      - monstersTurn            # Execute one monster's turn
+      - updateMonsterState      # Update AI state (hunting, wandering, etc.)
+      - decrementMonsterStatus  # Tick down status effects
+      - moveMonster             # Move a monster one cell
+      - setMonsterLocation      # Update monster position
+      - cloneMonster            # Duplicate a monster (jelly split, etc.)
+      - teleport                # Teleport a creature
+      - createCreatureList / prependCreature / removeCreature # List ops
+      - iterateCreatures / hasNextCreature / nextCreature # Iterator
+      - canSeeMonster / monsterIsHidden / monsterRevealed # Visibility
+      - monsterName             # Get display name
+      - monsterAvoids           # Check if monster avoids a cell
+      - alertMonster / wakeUp   # Alert/wake monsters
+      - monsterSummons          # Monster summoning abilities
+      - resurrectAlly           # Resurrect dead ally
+      - getQualifyingLocNear    # Find valid placement location
+    porting_phase: 2
+
+  Architect.c:
+    path: src/brogue/Architect.c
+    lines: 3837
+    responsibility: >
+      Dungeon level generation: room creation, corridor connection, lake/chasm placement,
+      machine (puzzle room) construction, stair placement, and level initialization.
+    includes: [Rogue.h, GlobalsBase.h, Globals.h]
+    key_exports:
+      - digDungeon              # Generate a complete dungeon level
+      - attachRooms             # Attach rooms to the dungeon grid
+      - buildAMachine           # Build a machine (quest room, trap, etc.)
+      - placeStairs             # Place up/down stairs
+      - initializeLevel         # Initialize level after generation
+      - analyzeMap              # Analyze map connectivity and chokepoints
+      - cellHasTerrainFlag      # Check terrain flags at a cell
+      - cellHasTMFlag           # Check terrain mechanism flags
+      - cellHasTerrainType      # Check for specific terrain type
+      - spawnDungeonFeature     # Spawn a dungeon feature (fire, gas, etc.)
+      - fillSpawnMap            # Fill spawn eligibility map
+      - updateMapToShore        # Calculate distance-to-shore map
+      - restoreMonster / restoreItems # Restore saved level state
+      - setUpWaypoints / refreshWaypoint # Navigation waypoints
+      - zeroOutGrid             # Zero out a char grid
+      - passableArcCount        # Count passable arcs around a cell
+      - levelIsDisconnectedWithBlockingMap # Check level connectivity
+    porting_phase: 2
+    notes: >
+      KEY VALIDATION TARGET. Same seed must produce same dungeon layout.
+      The blob generation (createBlobOnGrid in Grid.c) is used for room shapes.
+
+  Time.c:
+    path: src/brogue/Time.c
+    lines: 2640
+    responsibility: >
+      Turn processing, status effect ticking, environment updates (fire spread,
+      gas diffusion, water flow), vision updates, clairvoyance, safety map
+      computation, and player turn lifecycle.
+    includes: [Rogue.h, GlobalsBase.h, Globals.h]
+    key_exports:
+      - playerTurnEnded         # End-of-turn processing
+      - synchronizePlayerTimeState # Sync time state
+      - updateEnvironment       # Update environmental effects
+      - updateVision            # Recalculate vision/lighting
+      - updateClairvoyance      # Update clairvoyance effect
+      - updateSafetyMap         # Compute monster flee map
+      - updateAllySafetyMap     # Compute ally safety map
+      - updateSafeTerrainMap    # Compute safe terrain map
+      - demoteVisibility        # Decay visibility
+      - discoverCell            # Reveal a cell
+      - exposeTileToFire        # Spread fire to a tile
+      - exposeTileToElectricity # Electrical effect on a tile
+      - monstersFall            # Process falling through chasms
+      - monsterShouldFall       # Check if monster should fall
+      - applyInstantTileEffectsToCreature # Apply terrain effects
+      - exposeCreatureToFire    # Fire damage to creature
+      - activateMachine         # Trigger a machine
+      - promoteTile             # Promote terrain to next state
+      - burnItem                # Destroy item by fire
+      - autoRest / manualSearch # Rest and search actions
+      - staffChargeDuration     # Staff recharge timing
+      - rechargeItemsIncrementally # Incremental item recharging
+      - resetScentTurnNumber    # Reset scent tracking
+      - currentStealthRange     # Calculate stealth detection range
+    porting_phase: 2
+
+  Recordings.c:
+    path: src/brogue/Recordings.c
+    lines: 1519
+    responsibility: >
+      Game recording and playback system: recording player inputs, saving/loading
+      recordings and save files, playback execution, and out-of-sync detection.
+    includes: [Rogue.h, GlobalsBase.h, Globals.h]
+    key_exports:
+      - initRecording           # Initialize recording system
+      - recordEvent             # Record a game event
+      - recordKeystroke         # Record a keystroke
+      - recordMouseClick        # Record a mouse click
+      - recallEvent             # Recall next event from recording
+      - flushBufferToFile       # Flush recording buffer to disk
+      - fillBufferFromFile      # Load recording data from disk
+      - saveGame / saveGameNoPrompt # Save game state
+      - saveRecording / saveRecordingNoPrompt # Save recording
+      - loadSavedGame           # Load a saved game
+      - switchToPlaying         # Switch from playback to playing
+      - executePlaybackInput    # Execute a playback input
+      - OOSCheck / RNGCheck     # Out-of-sync detection
+      - pausePlayback           # Pause playback
+      - parseFile               # Parse recording file header
+    porting_phase: 2
+    notes: Uses binary file I/O. TypeScript version will need ArrayBuffer/DataView or similar.
+
+  IO.c:
+    path: src/brogue/IO.c
+    lines: 5128
+    responsibility: >
+      All in-game UI rendering: message display, sidebar, inventory screen,
+      targeting interface, color manipulation, cell rendering, text display,
+      input handling, help screen, high scores, and visual effects.
+    includes: [Rogue.h, GlobalsBase.h, Globals.h]
+    key_exports:
+      - mainInputLoop           # Main game input processing loop
+      - refreshScreen / displayLevel / commitDraws # Screen rendering
+      - plotCharWithColor / plotCharToBuffer / plotForegroundChar # Cell drawing
+      - refreshSideBar          # Sidebar rendering
+      - refreshDungeonCell      # Single cell refresh
+      - message / messageWithColor / flavorMessage / temporaryMessage # Messaging
+      - displayMoreSign / confirmMessages / waitForAcknowledgment # User prompts
+      - printString / printStringWithWrapping / wrapText / printTextBox # Text
+      - displayInventory        # Inventory screen (calls into Items.c)
+      - getInputTextString      # Text input box
+      - nextBrogueEvent / executeMouseClick / executeKeystroke # Input
+      - Color functions (applyColorMultiplier, bakeColor, shuffleTerrainColors, etc.)
+      - getCellAppearance       # Get visual appearance of a cell
+      - funkyFade / irisFadeBetweenBuffers / colorFlash # Visual effects
+      - saveDisplayBuffer / restoreDisplayBuffer / overlayDisplayBuffer # Buffer ops
+      - printHelpScreen / printHighScores / displayFeatsScreen # Info screens
+      - printMonsterInfo / printItemInfo / printTerrainInfo # Detail panels
+      - printMonsterDetails / printFloorItemDetails / printCarriedItemDetails # Detail views
+    porting_phase: 3
+    notes: >
+      Second largest file. All rendering goes through plotChar which delegates to
+      the platform's brogueConsole.plotChar. No direct platform dependencies.
+
+  Buttons.c:
+    path: src/brogue/Buttons.c
+    lines: 368
+    responsibility: >
+      Button/menu widget system for in-game menus: button state management,
+      drawing, input processing, and highlight gradients.
+    includes: [Rogue.h, GlobalsBase.h, Globals.h]
+    key_exports:
+      - initializeButton        # Set up a button
+      - setButtonText           # Set button label
+      - drawButton              # Draw a single button
+      - drawButtonsInState      # Draw all buttons in a button state
+      - initializeButtonState   # Initialize button state manager
+      - processButtonInput      # Process input for button state
+      - buttonInputLoop         # Run button input loop
+      - smoothHiliteGradient    # Calculate highlight gradient
+    porting_phase: 3
+
+  MainMenu.c:
+    path: src/brogue/MainMenu.c
+    lines: 1286
+    responsibility: >
+      Title screen, main menu navigation, new game/load/recording selection,
+      run history display, and file listing.
+    includes: [Rogue.h, GlobalsBase.h, Globals.h]
+    key_exports:
+      - mainBrogueJunction      # Main menu entry point
+      - dialogChooseFile        # File selection dialog
+      - dialogAlert             # Alert dialog
+      - quitImmediately         # Immediate quit
+    porting_phase: 3
+
+  Wizard.c:
+    path: src/brogue/Wizard.c
+    lines: 522
+    responsibility: >
+      Debug/wizard mode functionality: item/monster spawning dialog,
+      dungeon inspection tools.
+    includes: [Rogue.h, GlobalsBase.h, Globals.h]
+    key_exports:
+      - dialogCreateItemOrMonster # Debug spawn dialog
+    porting_phase: 3
+
+  RogueMain.c:
+    path: src/brogue/RogueMain.c
+    lines: 1414
+    responsibility: >
+      Game loop orchestration: initialization, level transitions, game over/victory
+      handling, save/load coordination, creature lifecycle management.
+    includes: [Rogue.h, GlobalsBase.h, Globals.h, variant headers]
+    key_exports:
+      - rogueMain               # Top-level game entry point
+      - initializeRogue         # Initialize all game state for a new game
+      - initializeGameVariant   # Load variant-specific constants
+      - startLevel              # Transition to a new dungeon level
+      - gameOver                # Handle player death
+      - victory                 # Handle player victory
+      - freeEverything          # Clean up all game state
+      - freeCreature            # Free a single creature
+      - removeDeadMonsters      # Remove dead monsters from lists
+      - executeEvent            # Dispatch a game event
+      - fileExists / chooseFile / openFile # File operations
+      - enableEasyMode          # Toggle easy mode
+      - unflag                  # Convert Fl(n) flag to n
+    porting_phase: 3
+
+  SeedCatalog.c:
+    path: src/brogue/SeedCatalog.c
+    lines: 317
+    responsibility: >
+      Seed catalog generation: run through seeds and output dungeon statistics
+      for regression testing and catalog generation.
+    includes: [Rogue.h, GlobalsBase.h, Globals.h]
+    key_exports:
+      - printSeedCatalog        # Generate seed catalog output
+    porting_phase: 4
+
+# ============================================================
+# Platform Layer — src/platform/
+# ============================================================
+
+platform:
+  main.c:
+    path: src/platform/main.c
+    lines: 357
+    responsibility: >
+      Program entry point. Parses command-line arguments, selects platform backend,
+      initializes the console, and starts the game loop.
+    porting_phase: 3
+    notes: Will be replaced by TypeScript entry points per platform.
+
+  platformdependent.c:
+    path: src/platform/platformdependent.c
+    lines: 700
+    responsibility: >
+      Platform-independent utilities shared across backends: glyph-to-unicode mapping,
+      keymap loading, high score file management, file listing, run history.
+    key_exports:
+      - glyphToUnicode          # Map displayGlyph enum to Unicode code point
+      - isEnvironmentGlyph      # Check if glyph is an environment tile
+      - loadKeymap              # Load key remapping config
+      - setHighScoresFilename   # Set high scores file path
+      - saveHighScore / getHighScoresList # High score management
+      - listFiles               # List save/recording files
+      - saveRunHistory / loadRunHistory # Run history
+    porting_phase: 3
+
+  sdl2-platform.c:
+    path: src/platform/sdl2-platform.c
+    lines: 448
+    responsibility: >
+      SDL2 graphical platform backend: window management, keyboard/mouse input,
+      sprite-based rendering, timing, and screenshots.
+    porting_phase: N/A
+    notes: Not ported. Browser Canvas2D replaces this.
+
+  curses-platform.c:
+    path: src/platform/curses-platform.c
+    lines: 234
+    responsibility: Terminal (ncurses) platform backend.
+    porting_phase: 4
+    notes: Replaced by Node.js terminal implementation.
+
+  web-platform.c:
+    path: src/platform/web-platform.c
+    lines: 335
+    responsibility: >
+      Web platform backend using Unix socket IPC. Sends cell updates and status
+      over a socket to an external web server process.
+    porting_phase: N/A
+    notes: >
+      Not ported directly. The TypeScript version runs natively in the browser,
+      eliminating the need for socket IPC. However, this file is useful as a
+      reference for the minimal platform interface needed.
+
+  null-platform.c:
+    path: src/platform/null-platform.c
+    lines: 36
+    responsibility: Headless/no-op platform for testing and seed catalogs.
+    porting_phase: 4
+
+  term.c:
+    path: src/platform/term.c
+    lines: 935
+    responsibility: >
+      Shared terminal rendering utilities: character grid management, screen
+      update batching, cell diffing for efficient redraws.
+    porting_phase: 3
+
+  tiles.c:
+    path: src/platform/tiles.c
+    lines: 812
+    responsibility: >
+      Tile/sprite rendering: loading tile sheets, mapping glyphs to sprites,
+      GPU-accelerated tile drawing via SDL2 textures.
+    porting_phase: N/A
+    notes: Not ported. Browser uses Canvas2D or WebGL for tile rendering.
+
+# ============================================================
+# Variants — src/variants/
+# ============================================================
+
+variants:
+  GlobalsBrogue.c:
+    path: src/variants/GlobalsBrogue.c
+    lines: 1092
+    responsibility: Standard Brogue variant constants and data tables.
+    porting_phase: 1
+
+  GlobalsRapidBrogue.c:
+    path: src/variants/GlobalsRapidBrogue.c
+    lines: 1096
+    responsibility: Rapid Brogue variant constants and data tables.
+    porting_phase: 1
+
+  GlobalsBulletBrogue.c:
+    path: src/variants/GlobalsBulletBrogue.c
+    lines: 1106
+    responsibility: Bullet Brogue variant constants and data tables.
+    porting_phase: 1
+
+# ============================================================
+# Summary Statistics
+# ============================================================
+
+summary:
+  total_game_logic_lines: 38164
+  total_platform_lines: 3857
+  total_variant_lines: 3294
+  total_lines: 45315
+  files_by_phase:
+    phase_0: [Math.c, Utilities.c, Rogue.h]
+    phase_1: [GlobalsBase.c, GlobalsBase.h, Globals.c, Globals.h, PowerTables.c, Grid.c, variant files]
+    phase_2: [Dijkstra.c, Light.c, Combat.c, Movement.c, Items.c, Monsters.c, Architect.c, Time.c, Recordings.c]
+    phase_3: [IO.c, Buttons.c, MainMenu.c, Wizard.c, RogueMain.c, platform.h, platformdependent.c, term.c, main.c]
+    phase_4: [SeedCatalog.c, null-platform.c, curses-platform.c]
+    not_ported: [sdl2-platform.c, web-platform.c, tiles.c]
