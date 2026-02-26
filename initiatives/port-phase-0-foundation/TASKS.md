@@ -7,7 +7,7 @@
 - [x] Verify build and test commands work (`tsc --noEmit`, `vitest run`)
 
 ## Codebase Manifest
-- [ ] Create `.context/manifest.yaml` mapping all 24 C source files in `src/brogue/`
+- [x] Create `.context/manifest.yaml` mapping all 24 C source files in `src/brogue/`
 
 ## Type System (Rogue.h → `ts/src/types/`)
 - [x] Port constants — `COLS`, `ROWS`, `DCOLS`, `DROWS`, `STAT_BAR_WIDTH`, `FP_BASE`, key constants, keyboard constants

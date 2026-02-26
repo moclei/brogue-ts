@@ -43,7 +43,7 @@ headers:
 
   Globals.h:
     path: src/brogue/Globals.h
-    lines: ~200
+    lines: 138
     responsibility: >
       Declares variant-specific global variables: monster catalog, item tables,
       terrain tables, feature catalogs, horde catalog, blueprint catalog.
