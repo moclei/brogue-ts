@@ -18,3 +18,7 @@ BrogueCE-*
 *.gcov
 *.desktop
 gmon.out
+
+# TypeScript port
+node_modules/
+ts/dist/
