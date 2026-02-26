@@ -1,0 +1,14 @@
+---
+alwaysApply: true
+---
+# TypeScript Port Context
+
+This project is a TypeScript port of BrogueCE (C roguelike). Before starting work:
+
+1. Read the master initiative: [BRIEF.md](mdc:initiatives/typescript-port/BRIEF.md), [PLAN.md](mdc:initiatives/typescript-port/PLAN.md), and [TASKS.md](mdc:initiatives/typescript-port/TASKS.md)
+2. Check which child initiative is currently active in TASKS.md and read its BRIEF/PLAN/TASKS
+3. Consult [manifest.yaml](mdc:.context/manifest.yaml) to locate C source files by responsibility
+4. Consult [PROJECT.md](mdc:.context/PROJECT.md) for overall project context
+5. Follow the workflow conventions in [WORKFLOW.md](mdc:.context/WORKFLOW.md)
+
+After completing a task, update both the active child initiative's TASKS.md and the master TASKS.md.
