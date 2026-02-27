@@ -9,15 +9,17 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
 - [x] `port-phase-1-data-layer` — Static catalogs (Globals.c, GlobalsBase.c), power tables, grid operations
 
 ## Phase 2: Core Systems
-- [ ] `port-core-dijkstra` — Pathfinding (Dijkstra.c, 259 lines)
-- [ ] `port-core-light` — Lighting, FOV, flares (Light.c, 412 lines)
-- [ ] `port-core-combat` — Attack resolution, bolts, damage (Combat.c, 1,784 lines)
-- [ ] `port-core-movement` — Player/monster movement, pathfinding (Movement.c, 2,487 lines)
-- [ ] `port-core-items` — Item generation, identification, usage (Items.c, 8,040 lines)
-- [ ] `port-core-monsters` — Monster AI, spawning, behavior (Monsters.c, 4,826 lines)
-- [ ] `port-core-architect` — Dungeon generation, machines (Architect.c, 3,837 lines)
-- [ ] `port-core-time` — Turn processing, environment updates (Time.c, 2,640 lines)
-- [ ] `port-core-recordings` — Game recording and playback (Recordings.c, 1,519 lines)
+- [ ] `port-phase-2-core-systems` — Umbrella initiative for all core game logic (~27K lines across 9 modules)
+  - [x] Game state foundation + shared helpers
+  - [x] Dijkstra.c (259 lines) — pathfinding
+  - [x] Light.c (412 lines) — lighting, FOV, flares
+  - [ ] Architect.c (3,837 lines) — dungeon generation, machines
+  - [ ] Items.c (8,040 lines) — item generation, identification, usage
+  - [ ] Monsters.c (4,826 lines) — monster AI, spawning, behavior
+  - [ ] Combat.c (1,784 lines) — attack resolution, bolts, damage
+  - [ ] Movement.c (2,487 lines) — player/monster movement
+  - [ ] Time.c (2,640 lines) — turn processing, environment updates
+  - [ ] Recordings.c (1,519 lines) — game recording and playback
 
 ## Phase 3: UI & Platform
 - [ ] `port-ui-io` — In-game UI: messages, sidebar, inventory, targeting (IO.c, 5,128 lines)
