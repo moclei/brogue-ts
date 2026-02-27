@@ -94,3 +94,12 @@ export type {
     MonsterSummonsContext,
     MonstersTurnContext,
 } from "./monster-actions.js";
+
+export {
+    createMonsterOps,
+    toggleMonsterDormancy,
+} from "./monster-ops.js";
+
+export type {
+    MonsterOpsContext,
+} from "./monster-ops.js";
