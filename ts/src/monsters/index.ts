@@ -49,3 +49,19 @@ export {
 export type {
     MonsterQueryContext,
 } from "./monster-queries.js";
+
+export {
+    distanceBetween,
+    alertMonster,
+    wakeUp,
+    empowerMonster,
+    chooseNewWanderDestination,
+    monsterFleesFrom,
+    monsterAvoids,
+    updateMonsterState,
+    decrementMonsterStatus,
+} from "./monster-state.js";
+
+export type {
+    MonsterStateContext,
+} from "./monster-state.js";
