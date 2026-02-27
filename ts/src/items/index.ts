@@ -70,3 +70,23 @@ export {
     checkForDisenchantment,
     canPickUpItem,
 } from "./item-inventory.js";
+
+export {
+    strengthModifier,
+    netEnchant,
+    effectiveRingEnchant,
+    apparentRingBonus,
+    enchantIncrement,
+    enchantMagnitude,
+    armorValueIfUnenchanted,
+    displayedArmorValue,
+    recalculateEquipmentBonuses,
+    updateRingBonuses,
+    updateEncumbrance,
+    strengthCheck,
+    equipItem,
+    unequipItem,
+    enchantItem,
+} from "./item-usage.js";
+
+export type { EquipmentState, EquipContext } from "./item-usage.js";

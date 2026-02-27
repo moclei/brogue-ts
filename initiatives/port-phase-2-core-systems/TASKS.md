@@ -103,9 +103,16 @@
 - [x] Port `itemValue`, `itemIsCarried`
 - [x] Tests for item-naming — 51 tests passing
 
-### Sub-step 4f: Item usage
-- [ ] Port `apply`, `throw`, `drop`, `equip`, `unequip`, `call`
-- [ ] Port `recalculateEquipmentBonuses`
+### Sub-step 4f: Item usage — `ts/src/items/item-usage.ts`
+- [x] Port `strengthModifier`, `netEnchant` (from Combat.c, pure calculations)
+- [x] Port `effectiveRingEnchant`, `apparentRingBonus`, `enchantIncrement`, `enchantMagnitude`
+- [x] Port `armorValueIfUnenchanted`, `displayedArmorValue`
+- [x] Port `recalculateEquipmentBonuses`, `updateRingBonuses`, `updateEncumbrance`
+- [x] Port `strengthCheck` (strength warning messages)
+- [x] Port `equipItem`, `unequipItem` (weapon/armor/ring slot management)
+- [x] Port `enchantItem` (scroll of enchanting effect)
+- [x] Tests for item-usage — 64 tests passing
+- [ ] Port interactive scroll/potion/wand handlers (deferred — needs UI/player turn system)
 
 ### Sub-step 4g: Bolt mechanics
 - [ ] Port bolt path resolution and bolt effects
