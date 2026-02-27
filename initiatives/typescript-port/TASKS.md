@@ -18,7 +18,7 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
   - [x] Monsters.c (4,826 lines) — monster AI, spawning, behavior (214 tests across 7 modules)
   - [x] Combat.c (1,784 lines) — attack resolution, runic effects, damage helpers (207 tests across 5 modules)
   - [x] Movement.c (2,487 lines) — player/monster movement, travel/explore, weapon attacks, ally management, cost maps, item helpers (153 tests across 7 modules)
-  - [ ] Time.c (2,640 lines) — turn processing, environment updates
+  - [x] Time.c (2,640 lines) — turn processing, environment updates, safety maps, vision, misc helpers (223 tests across 5 modules)
   - [ ] Recordings.c (1,519 lines) — game recording and playback
 
 ## Phase 3: UI & Platform

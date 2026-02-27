@@ -270,10 +270,47 @@
 **Total: 153 tests across 7 movement modules**
 
 ## Step 8: Time (2,640 lines)
-- [ ] Port turn processing (`playerTurnEnded`, `processCreatureTurn`)
-- [ ] Port status effect ticking
-- [ ] Port environment updates (tile effects, gas/fire, water)
-- [ ] Tests for time module
+
+### Sub-step 8a: Turn processing core — `ts/src/time/turn-processing.ts`
+- [x] Port `scentDistance`, `recordCurrentCreatureHealths`, `addXPXPToAlly`, `handleXPXP`
+- [x] Port `playerRecoversFromAttacking`, `synchronizePlayerTimeState`, `resetScentTurnNumber`
+- [x] Port `playerTurnEnded` (main orchestrator)
+- [x] DI via `TurnProcessingContext`
+- [x] Tests for turn-processing — 23 tests passing
+
+### Sub-step 8b: Status / creature effects — `ts/src/time/creature-effects.ts`
+- [x] Port `exposeCreatureToFire`, `extinguishFireOnCreature`, `burnItem`
+- [x] Port `applyInstantTileEffectsToCreature`, `applyGradualTileEffectsToCreature`
+- [x] Port `monsterShouldFall`, `monstersFall`, `decrementPlayerStatus`, `playerFalls`
+- [x] Port `checkNutrition`, `handleHealthAlerts`, `flashCreatureAlert`
+- [x] Port `updatePlayerUnderwaterness`, `updateFlavorText`
+- [x] DI via `CreatureEffectsContext`
+- [x] Tests for creature-effects — 83 tests passing
+
+### Sub-step 8c: Environment updates — `ts/src/time/environment.ts`
+- [x] Port `updateEnvironment`, `promoteTile`, `activateMachine`
+- [x] Port `circuitBreakersPreventActivation`, `exposeTileToFire`, `exposeTileToElectricity`
+- [x] Port `updateVolumetricMedia`
+- [x] DI via `EnvironmentContext`
+- [x] Tests for environment — 39 tests passing
+
+### Sub-step 8d: Safety maps & vision — `ts/src/time/safety-maps.ts`
+- [x] Port `updateClairvoyance`, `updateTelepathy`, `updateVision`
+- [x] Port `resetDistanceCellInGrid`, `updateAllySafetyMap`, `updateSafetyMap`, `updateSafeTerrainMap`
+- [x] DI via `SafetyMapsContext`
+- [x] Tests for safety-maps — 36 tests passing
+
+### Sub-step 8e: Misc helpers — `ts/src/time/misc-helpers.ts`
+- [x] Port `staffChargeDuration`, `rechargeItemsIncrementally`, `processIncrementalAutoID`
+- [x] Port `dangerChanged`, `autoRest`, `manualSearch`
+- [x] Port `updateYendorWardenTracking`, `monsterEntersLevel`, `monstersApproachStairs`
+- [x] DI via `MiscHelpersContext`
+- [x] Tests for misc-helpers — 42 tests passing
+
+### Sub-step 8f: Wire-up — `ts/src/time/index.ts`
+- [x] Barrel exports for all time functions and context types
+
+**Total: 223 tests across 5 time modules**
 
 ## Step 9: Recordings (1,519 lines)
 - [ ] Port recording/playback state machine
