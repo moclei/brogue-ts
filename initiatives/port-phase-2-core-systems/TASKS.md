@@ -3,7 +3,7 @@
 ## Step 0: Game State Foundation
 - [x] Define `GameState` interface and sub-interfaces (`MapState`, `EntityState`, etc.) — `ts/src/state/game-state.ts`
 - [x] Port shared helper functions (`terrainFlags`, `terrainMechFlags`, `cellHasTerrainFlag`, `cellHasTMFlag`, `cellHasTerrainType`, `discoveredTerrainFlagsAtLoc`) — `ts/src/state/helpers.ts`
-- [ ] Port deferred item tables from Phase 1 (key, food, weapon, armor, staff, ring)
+- [x] Port deferred item tables from Phase 1 (key, food, weapon, armor, staff, ring) — `ts/src/globals/item-catalog.ts`
 
 ## Step 1: Dijkstra (259 lines)
 - [x] Port `PdsLink`, `PdsMap` internal types
@@ -67,11 +67,66 @@
 - [x] Seed-based regression tests — 28 tests passing (determinism, depth variance)
 
 ## Step 4: Items (8,040 lines)
-- [ ] Port item generation (`makeItemInto`, `generateItems`, `populateItems`)
-- [ ] Port item identification and naming
-- [ ] Port item usage (apply, throw, drop, equip, unequip)
-- [ ] Port bolt mechanics
-- [ ] Tests for items module
+
+### Sub-step 4a: Item tables & catalog data — `ts/src/globals/item-catalog.ts`
+- [x] Port `potionTable`, `scrollTable`, `wandTable`, `charmTable` (from GlobalsBrogue.c)
+- [x] Port `keyTable`, `foodTable`, `weaponTable`, `armorTable`, `staffTable`, `ringTable` (from Globals.c)
+- [x] Port `meteredItemsGenerationTable`, `charmEffectTable`, `lumenstoneDistribution`
+- [x] Port `itemGenerationProbabilities`
+
+### Sub-step 4b: Item creation & generation core — `ts/src/items/item-generation.ts`
+- [x] Port `initializeItem`, `generateItem`, `makeItemInto`, `pickItemCategory`, `chooseKind`
+- [x] Port classification helpers: `itemIsThrowingWeapon`, `itemIsHeavyWeapon`, `itemIsPositivelyEnchanted`, `itemMagicPolarity`
+- [x] Port lookup helpers: `getTableForCategory`, `getKindCountForCategory`, `getItemCategoryGlyph`, `getHallucinatedItemCategory`
+- [x] Tests for item-generation — 43 tests passing
+
+### Sub-step 4c: Level item population — `ts/src/items/item-population.ts`
+- [x] Port `fillItemSpawnHeatMap`, `coolHeatMapAt`, `getItemSpawnLoc` (heat map helpers)
+- [x] Port `populateItems` with `PopulateItemsContext` DI pattern
+- [x] Tests for item-population — 20 tests passing
+
+### Sub-step 4d: Item chain management & inventory helpers — `ts/src/items/item-inventory.ts`
+- [x] Port `removeItemFromChain` → `removeItemFromArray`, `addItemToChain` → `addItemToArray` (array-based)
+- [x] Port `itemAtLoc`, `itemOfPackLetter`
+- [x] Port `numberOfItemsInPack`, `numberOfMatchingPackItems`
+- [x] Port `inventoryLetterAvailable`, `nextAvailableInventoryCharacter`
+- [x] Port `conflateItemCharacteristics`, `stackItems`
+- [x] Port `itemWillStackWithPack`, `addItemToPack` (with stacking logic)
+- [x] Port `itemIsSwappable`, `checkForDisenchantment`, `canPickUpItem`
+- [x] Tests for item-inventory — 60 tests passing
+
+### Sub-step 4e: Item naming, identification & flavors — `ts/src/items/item-naming.ts`
+- [x] Port `isVowelish`, `itemKindName`, `itemRunicName`, `itemName` (full name generation)
+- [x] Port `identify`, `identifyItemKind`, `tryIdentifyLastItemKinds`, `tryIdentifyLastItemKind`
+- [x] Port `tryGetLastUnidentifiedItemKind`, `magicPolarityRevealedItemKindCount`, `itemKindCount`
+- [x] Port `shuffleFlavors`, `resetItemTableEntry`, mutable flavor arrays
+- [x] Port `itemValue`, `itemIsCarried`
+- [x] Tests for item-naming — 51 tests passing
+
+### Sub-step 4f: Item usage — `ts/src/items/item-usage.ts`
+- [x] Port `strengthModifier`, `netEnchant` (from Combat.c, pure calculations)
+- [x] Port `effectiveRingEnchant`, `apparentRingBonus`, `enchantIncrement`, `enchantMagnitude`
+- [x] Port `armorValueIfUnenchanted`, `displayedArmorValue`
+- [x] Port `recalculateEquipmentBonuses`, `updateRingBonuses`, `updateEncumbrance`
+- [x] Port `strengthCheck` (strength warning messages)
+- [x] Port `equipItem`, `unequipItem` (weapon/armor/ring slot management)
+- [x] Port `enchantItem` (scroll of enchanting effect)
+- [x] Tests for item-usage — 64 tests passing
+- [ ] Port interactive scroll/potion/wand handlers (deferred — needs UI/player turn system)
+
+### Sub-step 4g: Bolt mechanics — `ts/src/items/bolt-geometry.ts`
+- [x] Port `getLineCoordinates` (fixed-point line tracing with waypoint offsets)
+- [x] Port `getImpactLoc` (bolt impact resolution with creature/terrain callbacks)
+- [x] Port `reflectBolt` (retrace and random-target reflection)
+- [x] Port `openPathBetween` (line-of-sight check)
+- [x] Tests for bolt-geometry — 24 tests passing
+
+### Sub-step 4h: Wire up ItemOps — `ts/src/items/item-ops.ts`
+- [x] Refactor `MachineItem` to drop `nextItem` (array-based, no linked lists)
+- [x] Refactor `MachineContext.floorItems`/`packItems` from `MachineItem | null` to `MachineItem[]`
+- [x] Rename `ItemOps.removeItemFromChain` to `removeItemFromArray`
+- [x] Implement `createItemOps()` factory bridging real item functions to `ItemOps` interface
+- [x] Tests for item-ops — 13 tests passing
 
 ## Step 5: Monsters (4,826 lines)
 - [ ] Port monster spawning (`spawnHorde`, `populateMonsters`)

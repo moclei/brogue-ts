@@ -89,7 +89,6 @@ function makeMachineItem(overrides: Partial<MachineItem> = {}): MachineItem {
         flags: 0,
         keyLoc: Array.from({ length: 4 }, () => ({ loc: { x: 0, y: 0 }, machine: 0, disposableHere: false })),
         originDepth: 0,
-        nextItem: null,
         ...overrides,
     };
 }

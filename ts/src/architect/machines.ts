@@ -48,7 +48,7 @@ const DIRECTION_COUNT = 8;
 
 /**
  * Minimal item interface for machine building.
- * The full Item type isn't ported yet, so we use this stub.
+ * Structurally compatible with the full `Item` type from types.ts.
  */
 export interface MachineItem {
     category: number;
@@ -57,8 +57,6 @@ export interface MachineItem {
     flags: number;
     keyLoc: Array<{ loc: Pos; machine: number; disposableHere: boolean }>;
     originDepth: number;
-    nextItem: MachineItem | null;
-    carriedItem?: MachineItem | null;
 }
 
 /**
@@ -76,13 +74,13 @@ export interface MachineCreature {
 
 /**
  * Callback interface for item operations during machine building.
- * These will be provided by the Items module once ported.
+ * Provided by the Items module via `createItemOps()`.
  */
 export interface ItemOps {
     generateItem(category: number, kind: number): MachineItem;
     deleteItem(item: MachineItem): void;
     placeItemAt(item: MachineItem, pos: Pos): void;
-    removeItemFromChain(item: MachineItem, chain: MachineItem | null): void;
+    removeItemFromArray(item: MachineItem, arr: MachineItem[]): void;
     itemIsHeavyWeapon(item: MachineItem): boolean;
     itemIsPositivelyEnchanted(item: MachineItem): boolean;
 }
@@ -170,9 +168,9 @@ export interface MachineContext {
     populateGenericCostMap(costMap: Grid): void;
     /** Pathing distance between two points (for addMachines context). */
     pathingDistance?(x1: number, y1: number, x2: number, y2: number): number;
-    /** Item chain references for sub-machine operations */
-    floorItems: MachineItem | null;
-    packItems: MachineItem | null;
+    /** Item array references for sub-machine operations */
+    floorItems: MachineItem[];
+    packItems: MachineItem[];
 }
 
 // =============================================================================
@@ -1645,9 +1643,8 @@ export function buildAMachine(
                         let subSuccess = false;
                         for (i = 10; i > 0; i--) {
                             if ((feature.flags & MF.MF_OUTSOURCE_ITEM_TO_MACHINE) && theItem) {
-                                ctx.itemOps.removeItemFromChain(theItem, ctx.floorItems);
-                                ctx.itemOps.removeItemFromChain(theItem, ctx.packItems);
-                                theItem.nextItem = null;
+                                ctx.itemOps.removeItemFromArray(theItem, ctx.floorItems);
+                                ctx.itemOps.removeItemFromArray(theItem, ctx.packItems);
                                 subSuccess = buildAMachine(ctx, -1, -1, -1, BP.BP_ADOPT_ITEM, theItem, p.spawnedItemsSub, p.spawnedMonstersSub);
                             } else if (feature.flags & MF.MF_BUILD_VESTIBULE) {
                                 subSuccess = buildAMachine(ctx, -1, featX, featY, BP.BP_VESTIBULE, null, p.spawnedItemsSub, p.spawnedMonstersSub);
@@ -1791,7 +1788,7 @@ export function buildAMachine(
         if (torchBearer.carriedItem) {
             ctx.itemOps.deleteItem(torchBearer.carriedItem);
         }
-        ctx.itemOps.removeItemFromChain(torch, ctx.floorItems);
+        ctx.itemOps.removeItemFromArray(torch, ctx.floorItems);
         torchBearer.carriedItem = torch;
     }
 
@@ -1825,8 +1822,8 @@ function abortItemsAndMonsters(
     spawnedMonsters: (MachineCreature | null)[],
 ): void {
     for (let i = 0; i < MACHINES_BUFFER_LENGTH && spawnedItems[i]; i++) {
-        ctx.itemOps.removeItemFromChain(spawnedItems[i]!, ctx.floorItems);
-        ctx.itemOps.removeItemFromChain(spawnedItems[i]!, ctx.packItems);
+        ctx.itemOps.removeItemFromArray(spawnedItems[i]!, ctx.floorItems);
+        ctx.itemOps.removeItemFromArray(spawnedItems[i]!, ctx.packItems);
         // Remove item from any monster that's carrying it
         for (let j = 0; j < MACHINES_BUFFER_LENGTH && spawnedMonsters[j]; j++) {
             if (spawnedMonsters[j]!.carriedItem === spawnedItems[i]) {
