@@ -22,10 +22,13 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
   - [x] Recordings.c (1,519 lines) — recording buffer, event codec, save/load, init (134 tests across 4 modules; playback UI deferred to Phase 3)
 
 ## Phase 3: UI & Platform
-- [ ] `port-ui-io` — In-game UI: messages, sidebar, inventory, targeting (IO.c, 5,128 lines)
-- [ ] `port-ui-menus` — Buttons, MainMenu, Wizard (Buttons.c + MainMenu.c + Wizard.c, 2,176 lines)
-- [ ] `port-platform-browser` — Canvas2D renderer for the 100x34 grid
-- [ ] `port-game-loop` — Game initialization, save/load, game loop (RogueMain.c, 1,414 lines)
+- [ ] `port-phase-3-ui-platform` — Umbrella initiative for UI, menus, game loop, and platform (~8,700 lines across 5 C files)
+  - [x] Step 1: IO Core — color manipulation (52 tests), display buffers (21 tests), cell appearance (19 tests), text rendering (33 tests) = 125 new tests
+  - [ ] Step 2: IO Game UI — messages, sidebar, inventory, targeting, input dispatch, visual effects
+  - [ ] Step 3: Menus & Wizard — buttons, title screen, main menu, debug mode
+  - [ ] Step 4: Game Loop — initializeRogue, startLevel, gameOver, victory, cleanup (RogueMain.c)
+  - [ ] Step 5: Platform — BrogueConsole interface, Canvas2D browser renderer, null platform
+  - [ ] Step 6: Wire-up — deferred Phase 2 stubs, interactive handlers, playable browser build
 
 ## Phase 4: Integration
 - [ ] `port-integration` — Full game loop, seed catalog regression tests, Node.js terminal platform
