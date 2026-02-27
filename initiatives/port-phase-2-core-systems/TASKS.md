@@ -180,9 +180,43 @@
 **Total: 214 tests across 7 monster modules**
 
 ## Step 6: Combat (1,784 lines)
-- [ ] Port attack resolution (`attack`, `buildHitList`, `attackHit`)
-- [ ] Port runic/enchantment effects
-- [ ] Tests for combat module
+
+### Sub-step 6a: Combat math — `ts/src/combat/combat-math.ts`
+- [x] Port `monsterDamageAdjustmentAmount`, `monsterDefenseAdjusted`, `monsterAccuracyAdjusted`
+- [x] Port `hitProbability`, `attackHit`, `diagonalBlocked`
+- [x] DI via `CombatMathContext`
+- [x] Tests for combat-math — 37 tests passing
+
+### Sub-step 6e: Damage & status helpers — `ts/src/combat/combat-damage.ts`
+- [x] Port `flashMonster`, `inflictLethalDamage`, `inflictDamage`
+- [x] Port `addPoison`, `killCreature`, `heal`, `unAlly`
+- [x] DI via `CombatDamageContext`
+- [x] Tests for combat-damage — 58 tests passing
+
+### Sub-step 6b: Attack resolution — `ts/src/combat/combat-attack.ts`
+- [x] Port `buildHitList`, `processStaggerHit`, `moralAttack`, `attack`
+- [x] DI via `AttackContext`
+- [x] Tests for combat-attack — 37 tests passing
+
+### Sub-step 6d: Runic weapon/armor effects — `ts/src/combat/combat-runics.ts`
+- [x] Port `specialHit`, `magicWeaponHit`, `applyArmorRunicEffect`
+- [x] DI via `RunicContext`
+- [x] Tests for combat-runics — 38 tests passing
+
+### Sub-step 6c: Combat helpers — `ts/src/combat/combat-helpers.ts`
+- [x] Port `splitMonster` (jelly splitting with contiguous grid logic)
+- [x] Port `anyoneWantABite`, `canAbsorb` (ally absorption targeting)
+- [x] Port `CombatMessageBuffer` (`combatMessage`, `displayCombatText`)
+- [x] Port `handlePaladinFeat`, `playerImmuneToMonster`, `decrementWeaponAutoIDTimer`
+- [x] Port `strLenWithoutEscapes`
+- [x] DI via `CombatHelperContext`
+- [x] Tests for combat-helpers — 37 tests passing
+
+### Sub-step 6f: Wire-up — `ts/src/combat/index.ts`
+- [x] Barrel exports for all combat functions and context types
+- [x] Verified integration with `MonsterStateContext.inflictDamage` and `killCreature` stubs
+
+**Total: 207 tests across 5 combat modules**
 
 ## Step 7: Movement (2,487 lines)
 - [ ] Port creature movement (`moveCreature`, `playerMoves`)
