@@ -114,8 +114,12 @@
 - [x] Tests for item-usage — 64 tests passing
 - [ ] Port interactive scroll/potion/wand handlers (deferred — needs UI/player turn system)
 
-### Sub-step 4g: Bolt mechanics
-- [ ] Port bolt path resolution and bolt effects
+### Sub-step 4g: Bolt mechanics — `ts/src/items/bolt-geometry.ts`
+- [x] Port `getLineCoordinates` (fixed-point line tracing with waypoint offsets)
+- [x] Port `getImpactLoc` (bolt impact resolution with creature/terrain callbacks)
+- [x] Port `reflectBolt` (retrace and random-target reflection)
+- [x] Port `openPathBetween` (line-of-sight check)
+- [x] Tests for bolt-geometry — 24 tests passing
 
 ### Sub-step 4h: Wire up ItemOps
 - [ ] Wire up `ItemOps` callbacks in `machines.ts` with real item functions

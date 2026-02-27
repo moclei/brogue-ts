@@ -90,3 +90,17 @@ export {
 } from "./item-usage.js";
 
 export type { EquipmentState, EquipContext } from "./item-usage.js";
+
+export {
+    getLineCoordinates,
+    getImpactLoc,
+    reflectBolt,
+    openPathBetween,
+    INVALID_POS,
+} from "./bolt-geometry.js";
+
+export type {
+    BoltPathEvaluator,
+    CellBlocksCheck,
+    CreatureAtCheck,
+} from "./bolt-geometry.js";
