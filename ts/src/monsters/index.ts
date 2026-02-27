@@ -80,3 +80,17 @@ export type {
     MonsterMovementContext,
     MoveMonsterContext,
 } from "./monster-movement.js";
+
+export {
+    prependCreature,
+    removeCreature,
+    canNegateCreatureStatusEffects,
+    negateCreatureStatusEffects,
+    monsterSummons,
+    monstersTurn,
+} from "./monster-actions.js";
+
+export type {
+    MonsterSummonsContext,
+    MonstersTurnContext,
+} from "./monster-actions.js";
