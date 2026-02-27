@@ -31,3 +31,21 @@ export {
 export type {
     SpawnContext,
 } from "./monster-spawning.js";
+
+export {
+    monsterRevealed,
+    monsterHiddenBySubmersion,
+    monsterIsHidden,
+    canSeeMonster,
+    canDirectlySeeMonster,
+    monsterName,
+    monsterIsInClass,
+    attackWouldBeFutile,
+    monsterWillAttackTarget,
+    monstersAreTeammates,
+    monstersAreEnemies,
+} from "./monster-queries.js";
+
+export type {
+    MonsterQueryContext,
+} from "./monster-queries.js";
