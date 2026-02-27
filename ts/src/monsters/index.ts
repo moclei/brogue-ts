@@ -65,3 +65,18 @@ export {
 export type {
     MonsterStateContext,
 } from "./monster-state.js";
+
+export {
+    canPass,
+    isPassableOrSecretDoor,
+    setMonsterLocation,
+    moveMonster,
+    findAlternativeHomeFor,
+    getQualifyingLocNear,
+    getQualifyingGridLocNear,
+} from "./monster-movement.js";
+
+export type {
+    MonsterMovementContext,
+    MoveMonsterContext,
+} from "./monster-movement.js";
