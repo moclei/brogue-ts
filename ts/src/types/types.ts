@@ -256,7 +256,7 @@ export interface DungeonProfile {
 }
 
 export interface DungeonFeature {
-    tile: TileType;
+    tile: TileType | 0;
     layer: DungeonLayer;
     startProbability: number;
     probabilityDecrement: number;
@@ -265,20 +265,20 @@ export interface DungeonFeature {
     lightFlare: LightType;
     flashColor: Color | null;
     effectRadius: number;
-    propagationTerrain: TileType;
-    subsequentDF: DungeonFeatureType;
+    propagationTerrain: TileType | 0;
+    subsequentDF: DungeonFeatureType | 0;
     messageDisplayed: boolean;
 }
 
 export interface FloorTileType {
-    displayChar: DisplayGlyph;
-    foreColor: Color;
-    backColor: Color;
+    displayChar: DisplayGlyph | number;
+    foreColor?: Color;
+    backColor?: Color;
     drawPriority: number;
     chanceToIgnite: number;
-    fireType: DungeonFeatureType;
-    discoverType: DungeonFeatureType;
-    promoteType: DungeonFeatureType;
+    fireType: DungeonFeatureType | 0;
+    discoverType: DungeonFeatureType | 0;
+    promoteType: DungeonFeatureType | 0;
     promoteChance: number;
     glowLight: LightType;
     flags: number;       // terrainFlagCatalog bitmask
@@ -345,7 +345,7 @@ export interface Mutation {
     defenseFactor: number;
     damageFactor: number;
     DFChance: number;
-    DFType: DungeonFeatureType;
+    DFType: DungeonFeatureType | 0;
     light: LightType;
     monsterFlags: number;
     monsterAbilityFlags: number;
