@@ -219,10 +219,55 @@
 **Total: 207 tests across 5 combat modules**
 
 ## Step 7: Movement (2,487 lines)
-- [ ] Port creature movement (`moveCreature`, `playerMoves`)
-- [ ] Port travel system
-- [ ] Port scent trail management
-- [ ] Tests for movement module
+
+### Sub-step 7a: Map query helpers — `ts/src/movement/map-queries.ts`
+- [x] Port `highestPriorityLayer`, `layerWithTMFlag`, `layerWithFlag`
+- [x] Port `tileFlavor`, `tileText`, `storeMemories`, `discover`
+- [x] Port `isDisturbed`, `addScentToCell`, `getLocationFlags`
+- [x] Port `describeLocation`, `printLocationDescription`
+- [x] DI via `MapQueryContext`
+- [x] Tests for map-queries — 29 tests passing
+
+### Sub-step 7b: Player movement — `ts/src/movement/player-movement.ts`
+- [x] Port `randValidDirectionFrom`, `vomit`, `moveEntrancedMonsters`
+- [x] Port `playerRuns`, `playerMoves` (~400 lines)
+- [x] DI via `PlayerMoveContext`
+- [x] Tests for player-movement — 18 tests passing
+
+### Sub-step 7c: Extended weapon attacks — `ts/src/movement/weapon-attacks.ts`
+- [x] Port `abortAttackAgainstAcidicTarget`, `abortAttackAgainstDiscordantAlly`, `abortAttack`
+- [x] Port `handleWhipAttacks`, `handleSpearAttacks`, `buildFlailHitList`
+- [x] DI via `WeaponAttackContext`
+- [x] Tests for weapon-attacks — 17 tests passing
+
+### Sub-step 7d: Ally/captive management — `ts/src/movement/ally-management.ts`
+- [x] Port `becomeAllyWith`, `freeCaptive`, `freeCaptivesEmbeddedAt`
+- [x] DI via `AllyManagementContext`
+- [x] Tests for ally-management — 13 tests passing
+
+### Sub-step 7e: Travel & explore — `ts/src/movement/travel-explore.ts`
+- [x] Port `nextStep`, `displayRoute`, `travelRoute`, `travelMap`, `travel`
+- [x] Port `adjacentFightingDir`, `startFighting`, `proposeOrConfirmLocation`, `useStairs`
+- [x] Port `getExploreMap`, `explore`, `autoPlayLevel`
+- [x] DI via `TravelExploreContext`
+- [x] Tests for travel-explore — 42 tests passing
+
+### Sub-step 7f: Cost maps & FOV display — `ts/src/movement/cost-maps-fov.ts`
+- [x] Port `populateGenericCostMap`, `populateCreatureCostMap`
+- [x] Port `updateFieldOfViewDisplay`
+- [x] DI via `CostMapFovContext`
+- [x] Tests for cost-maps-fov — 19 tests passing
+
+### Sub-step 7g: Item description helpers — `ts/src/movement/item-helpers.ts`
+- [x] Port `describedItemBasedOnParameters`, `describedItemName`
+- [x] Port `useKeyAt`, `search`
+- [x] DI via `ItemHelperContext`
+- [x] Tests for item-helpers — 15 tests passing
+
+### Sub-step 7h: Wire-up — `ts/src/movement/index.ts`
+- [x] Barrel exports for all movement functions and context types
+
+**Total: 153 tests across 7 movement modules**
 
 ## Step 8: Time (2,640 lines)
 - [ ] Port turn processing (`playerTurnEnded`, `processCreatureTurn`)
