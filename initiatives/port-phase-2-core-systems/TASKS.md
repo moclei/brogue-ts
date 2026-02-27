@@ -180,23 +180,178 @@
 **Total: 214 tests across 7 monster modules**
 
 ## Step 6: Combat (1,784 lines)
-- [ ] Port attack resolution (`attack`, `buildHitList`, `attackHit`)
-- [ ] Port runic/enchantment effects
-- [ ] Tests for combat module
+
+### Sub-step 6a: Combat math — `ts/src/combat/combat-math.ts`
+- [x] Port `monsterDamageAdjustmentAmount`, `monsterDefenseAdjusted`, `monsterAccuracyAdjusted`
+- [x] Port `hitProbability`, `attackHit`, `diagonalBlocked`
+- [x] DI via `CombatMathContext`
+- [x] Tests for combat-math — 37 tests passing
+
+### Sub-step 6e: Damage & status helpers — `ts/src/combat/combat-damage.ts`
+- [x] Port `flashMonster`, `inflictLethalDamage`, `inflictDamage`
+- [x] Port `addPoison`, `killCreature`, `heal`, `unAlly`
+- [x] DI via `CombatDamageContext`
+- [x] Tests for combat-damage — 58 tests passing
+
+### Sub-step 6b: Attack resolution — `ts/src/combat/combat-attack.ts`
+- [x] Port `buildHitList`, `processStaggerHit`, `moralAttack`, `attack`
+- [x] DI via `AttackContext`
+- [x] Tests for combat-attack — 37 tests passing
+
+### Sub-step 6d: Runic weapon/armor effects — `ts/src/combat/combat-runics.ts`
+- [x] Port `specialHit`, `magicWeaponHit`, `applyArmorRunicEffect`
+- [x] DI via `RunicContext`
+- [x] Tests for combat-runics — 38 tests passing
+
+### Sub-step 6c: Combat helpers — `ts/src/combat/combat-helpers.ts`
+- [x] Port `splitMonster` (jelly splitting with contiguous grid logic)
+- [x] Port `anyoneWantABite`, `canAbsorb` (ally absorption targeting)
+- [x] Port `CombatMessageBuffer` (`combatMessage`, `displayCombatText`)
+- [x] Port `handlePaladinFeat`, `playerImmuneToMonster`, `decrementWeaponAutoIDTimer`
+- [x] Port `strLenWithoutEscapes`
+- [x] DI via `CombatHelperContext`
+- [x] Tests for combat-helpers — 37 tests passing
+
+### Sub-step 6f: Wire-up — `ts/src/combat/index.ts`
+- [x] Barrel exports for all combat functions and context types
+- [x] Verified integration with `MonsterStateContext.inflictDamage` and `killCreature` stubs
+
+**Total: 207 tests across 5 combat modules**
 
 ## Step 7: Movement (2,487 lines)
-- [ ] Port creature movement (`moveCreature`, `playerMoves`)
-- [ ] Port travel system
-- [ ] Port scent trail management
-- [ ] Tests for movement module
+
+### Sub-step 7a: Map query helpers — `ts/src/movement/map-queries.ts`
+- [x] Port `highestPriorityLayer`, `layerWithTMFlag`, `layerWithFlag`
+- [x] Port `tileFlavor`, `tileText`, `storeMemories`, `discover`
+- [x] Port `isDisturbed`, `addScentToCell`, `getLocationFlags`
+- [x] Port `describeLocation`, `printLocationDescription`
+- [x] DI via `MapQueryContext`
+- [x] Tests for map-queries — 29 tests passing
+
+### Sub-step 7b: Player movement — `ts/src/movement/player-movement.ts`
+- [x] Port `randValidDirectionFrom`, `vomit`, `moveEntrancedMonsters`
+- [x] Port `playerRuns`, `playerMoves` (~400 lines)
+- [x] DI via `PlayerMoveContext`
+- [x] Tests for player-movement — 18 tests passing
+
+### Sub-step 7c: Extended weapon attacks — `ts/src/movement/weapon-attacks.ts`
+- [x] Port `abortAttackAgainstAcidicTarget`, `abortAttackAgainstDiscordantAlly`, `abortAttack`
+- [x] Port `handleWhipAttacks`, `handleSpearAttacks`, `buildFlailHitList`
+- [x] DI via `WeaponAttackContext`
+- [x] Tests for weapon-attacks — 17 tests passing
+
+### Sub-step 7d: Ally/captive management — `ts/src/movement/ally-management.ts`
+- [x] Port `becomeAllyWith`, `freeCaptive`, `freeCaptivesEmbeddedAt`
+- [x] DI via `AllyManagementContext`
+- [x] Tests for ally-management — 13 tests passing
+
+### Sub-step 7e: Travel & explore — `ts/src/movement/travel-explore.ts`
+- [x] Port `nextStep`, `displayRoute`, `travelRoute`, `travelMap`, `travel`
+- [x] Port `adjacentFightingDir`, `startFighting`, `proposeOrConfirmLocation`, `useStairs`
+- [x] Port `getExploreMap`, `explore`, `autoPlayLevel`
+- [x] DI via `TravelExploreContext`
+- [x] Tests for travel-explore — 42 tests passing
+
+### Sub-step 7f: Cost maps & FOV display — `ts/src/movement/cost-maps-fov.ts`
+- [x] Port `populateGenericCostMap`, `populateCreatureCostMap`
+- [x] Port `updateFieldOfViewDisplay`
+- [x] DI via `CostMapFovContext`
+- [x] Tests for cost-maps-fov — 19 tests passing
+
+### Sub-step 7g: Item description helpers — `ts/src/movement/item-helpers.ts`
+- [x] Port `describedItemBasedOnParameters`, `describedItemName`
+- [x] Port `useKeyAt`, `search`
+- [x] DI via `ItemHelperContext`
+- [x] Tests for item-helpers — 15 tests passing
+
+### Sub-step 7h: Wire-up — `ts/src/movement/index.ts`
+- [x] Barrel exports for all movement functions and context types
+
+**Total: 153 tests across 7 movement modules**
 
 ## Step 8: Time (2,640 lines)
-- [ ] Port turn processing (`playerTurnEnded`, `processCreatureTurn`)
-- [ ] Port status effect ticking
-- [ ] Port environment updates (tile effects, gas/fire, water)
-- [ ] Tests for time module
+
+### Sub-step 8a: Turn processing core — `ts/src/time/turn-processing.ts`
+- [x] Port `scentDistance`, `recordCurrentCreatureHealths`, `addXPXPToAlly`, `handleXPXP`
+- [x] Port `playerRecoversFromAttacking`, `synchronizePlayerTimeState`, `resetScentTurnNumber`
+- [x] Port `playerTurnEnded` (main orchestrator)
+- [x] DI via `TurnProcessingContext`
+- [x] Tests for turn-processing — 23 tests passing
+
+### Sub-step 8b: Status / creature effects — `ts/src/time/creature-effects.ts`
+- [x] Port `exposeCreatureToFire`, `extinguishFireOnCreature`, `burnItem`
+- [x] Port `applyInstantTileEffectsToCreature`, `applyGradualTileEffectsToCreature`
+- [x] Port `monsterShouldFall`, `monstersFall`, `decrementPlayerStatus`, `playerFalls`
+- [x] Port `checkNutrition`, `handleHealthAlerts`, `flashCreatureAlert`
+- [x] Port `updatePlayerUnderwaterness`, `updateFlavorText`
+- [x] DI via `CreatureEffectsContext`
+- [x] Tests for creature-effects — 83 tests passing
+
+### Sub-step 8c: Environment updates — `ts/src/time/environment.ts`
+- [x] Port `updateEnvironment`, `promoteTile`, `activateMachine`
+- [x] Port `circuitBreakersPreventActivation`, `exposeTileToFire`, `exposeTileToElectricity`
+- [x] Port `updateVolumetricMedia`
+- [x] DI via `EnvironmentContext`
+- [x] Tests for environment — 39 tests passing
+
+### Sub-step 8d: Safety maps & vision — `ts/src/time/safety-maps.ts`
+- [x] Port `updateClairvoyance`, `updateTelepathy`, `updateVision`
+- [x] Port `resetDistanceCellInGrid`, `updateAllySafetyMap`, `updateSafetyMap`, `updateSafeTerrainMap`
+- [x] DI via `SafetyMapsContext`
+- [x] Tests for safety-maps — 36 tests passing
+
+### Sub-step 8e: Misc helpers — `ts/src/time/misc-helpers.ts`
+- [x] Port `staffChargeDuration`, `rechargeItemsIncrementally`, `processIncrementalAutoID`
+- [x] Port `dangerChanged`, `autoRest`, `manualSearch`
+- [x] Port `updateYendorWardenTracking`, `monsterEntersLevel`, `monstersApproachStairs`
+- [x] DI via `MiscHelpersContext`
+- [x] Tests for misc-helpers — 42 tests passing
+
+### Sub-step 8f: Wire-up — `ts/src/time/index.ts`
+- [x] Barrel exports for all time functions and context types
+
+**Total: 223 tests across 5 time modules**
 
 ## Step 9: Recordings (1,519 lines)
-- [ ] Port recording/playback state machine
-- [ ] Port event serialization
-- [ ] Tests for recordings module
+
+### Sub-step 9a: Recording state, codec, buffer — `ts/src/recordings/recording-state.ts`
+- [x] Port `RecordingBuffer` interface and `RecordingBufferContext`
+- [x] Port `keystrokeTable`, `compressKeystroke`, `uncompressKeystroke`
+- [x] Port `numberToBytes`, `bytesToNumber` (variable-width number serialization)
+- [x] Port `createRecordingBuffer`, `recordChar`, `recallChar`
+- [x] Port `considerFlushingBufferToFile`, `flushBufferToFile`, `fillBufferFromFile`
+- [x] Port `writeHeaderInfo`, `parseHeaderInfo` (header encoding/decoding)
+- [x] Tests for recording-state — 44 tests passing
+
+### Sub-step 9b: Event recording & recall — `ts/src/recordings/recording-events.ts`
+- [x] Port `recordEvent`, `recordKeystroke`, `cancelKeystroke`, `recordKeystrokeSequence`, `recordMouseClick`
+- [x] Port `recallEvent` (event deserialization with compression)
+- [x] Port `playbackPanic`, `OOSCheck`, `RNGCheck`
+- [x] DI via `RecordingEventsContext`
+- [x] Tests for recording-events — 34 tests passing
+
+### Sub-step 9c: Recording init — `ts/src/recordings/recording-init.ts`
+- [x] Port `getPatchVersion` (version string parsing)
+- [x] Port `initRecording` (recording/playback state initialization)
+- [x] DI via `RecordingInitContext`
+- [x] Tests for recording-init — 25 tests passing
+
+### Sub-step 9d: Save/load & file path helpers — `ts/src/recordings/recording-save-load.ts`
+- [x] Port `characterForbiddenInFilename`, `getAvailableFilePath`, `getDefaultFilePath`, `formatSeedString`
+- [x] Port `saveGameNoPrompt`, `saveRecordingNoPrompt` (non-interactive save)
+- [x] Port `switchToPlaying` (playback → active play transition)
+- [x] DI via `SaveContext`, `SwitchToPlayingContext`
+- [x] Tests for recording-save-load — 31 tests passing
+- [ ] `saveGame`, `saveRecording` (interactive — deferred to Phase 3, needs UI dialogs)
+- [ ] `loadSavedGame` (deferred to Phase 3, needs initializeRogue/startLevel)
+
+### Sub-step 9e: Wire-up — `ts/src/recordings/index.ts`
+- [x] Barrel exports for all recording functions and context types
+- [x] Added to top-level `ts/src/index.ts`
+
+### Deferred to Phase 3:
+- [ ] `executePlaybackInput`, `seek`, `pausePlayback` (playback UI — heavily UI-dependent)
+- [ ] `displayAnnotation`, `loadNextAnnotation`, `parseFile` (annotation system)
+- [ ] `mainInputLoop` integration
+
+**Total: 134 tests across 4 recording modules**
