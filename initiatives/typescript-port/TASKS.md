@@ -9,7 +9,7 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
 - [x] `port-phase-1-data-layer` — Static catalogs (Globals.c, GlobalsBase.c), power tables, grid operations
 
 ## Phase 2: Core Systems
-- [ ] `port-phase-2-core-systems` — Umbrella initiative for all core game logic (~27K lines across 9 modules)
+- [x] `port-phase-2-core-systems` — Umbrella initiative for all core game logic (~27K lines across 9 modules)
   - [x] Game state foundation + shared helpers
   - [x] Dijkstra.c (259 lines) — pathfinding
   - [x] Light.c (412 lines) — lighting, FOV, flares
@@ -19,7 +19,7 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
   - [x] Combat.c (1,784 lines) — attack resolution, runic effects, damage helpers (207 tests across 5 modules)
   - [x] Movement.c (2,487 lines) — player/monster movement, travel/explore, weapon attacks, ally management, cost maps, item helpers (153 tests across 7 modules)
   - [x] Time.c (2,640 lines) — turn processing, environment updates, safety maps, vision, misc helpers (223 tests across 5 modules)
-  - [ ] Recordings.c (1,519 lines) — game recording and playback
+  - [x] Recordings.c (1,519 lines) — recording buffer, event codec, save/load, init (134 tests across 4 modules; playback UI deferred to Phase 3)
 
 ## Phase 3: UI & Platform
 - [ ] `port-ui-io` — In-game UI: messages, sidebar, inventory, targeting (IO.c, 5,128 lines)

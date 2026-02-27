@@ -313,6 +313,45 @@
 **Total: 223 tests across 5 time modules**
 
 ## Step 9: Recordings (1,519 lines)
-- [ ] Port recording/playback state machine
-- [ ] Port event serialization
-- [ ] Tests for recordings module
+
+### Sub-step 9a: Recording state, codec, buffer — `ts/src/recordings/recording-state.ts`
+- [x] Port `RecordingBuffer` interface and `RecordingBufferContext`
+- [x] Port `keystrokeTable`, `compressKeystroke`, `uncompressKeystroke`
+- [x] Port `numberToBytes`, `bytesToNumber` (variable-width number serialization)
+- [x] Port `createRecordingBuffer`, `recordChar`, `recallChar`
+- [x] Port `considerFlushingBufferToFile`, `flushBufferToFile`, `fillBufferFromFile`
+- [x] Port `writeHeaderInfo`, `parseHeaderInfo` (header encoding/decoding)
+- [x] Tests for recording-state — 44 tests passing
+
+### Sub-step 9b: Event recording & recall — `ts/src/recordings/recording-events.ts`
+- [x] Port `recordEvent`, `recordKeystroke`, `cancelKeystroke`, `recordKeystrokeSequence`, `recordMouseClick`
+- [x] Port `recallEvent` (event deserialization with compression)
+- [x] Port `playbackPanic`, `OOSCheck`, `RNGCheck`
+- [x] DI via `RecordingEventsContext`
+- [x] Tests for recording-events — 34 tests passing
+
+### Sub-step 9c: Recording init — `ts/src/recordings/recording-init.ts`
+- [x] Port `getPatchVersion` (version string parsing)
+- [x] Port `initRecording` (recording/playback state initialization)
+- [x] DI via `RecordingInitContext`
+- [x] Tests for recording-init — 25 tests passing
+
+### Sub-step 9d: Save/load & file path helpers — `ts/src/recordings/recording-save-load.ts`
+- [x] Port `characterForbiddenInFilename`, `getAvailableFilePath`, `getDefaultFilePath`, `formatSeedString`
+- [x] Port `saveGameNoPrompt`, `saveRecordingNoPrompt` (non-interactive save)
+- [x] Port `switchToPlaying` (playback → active play transition)
+- [x] DI via `SaveContext`, `SwitchToPlayingContext`
+- [x] Tests for recording-save-load — 31 tests passing
+- [ ] `saveGame`, `saveRecording` (interactive — deferred to Phase 3, needs UI dialogs)
+- [ ] `loadSavedGame` (deferred to Phase 3, needs initializeRogue/startLevel)
+
+### Sub-step 9e: Wire-up — `ts/src/recordings/index.ts`
+- [x] Barrel exports for all recording functions and context types
+- [x] Added to top-level `ts/src/index.ts`
+
+### Deferred to Phase 3:
+- [ ] `executePlaybackInput`, `seek`, `pausePlayback` (playback UI — heavily UI-dependent)
+- [ ] `displayAnnotation`, `loadNextAnnotation`, `parseFile` (annotation system)
+- [ ] `mainInputLoop` integration
+
+**Total: 134 tests across 4 recording modules**
