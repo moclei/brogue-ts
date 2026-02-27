@@ -3,10 +3,10 @@
 This is the master task list for the full TypeScript port of BrogueCE. Each task corresponds to a child initiative that is created when work on that phase/module begins. Update this file whenever a child initiative's status changes.
 
 ## Phase 0: Foundation
-- [ ] `port-phase-0-foundation` — Project scaffolding, type system (Rogue.h), RNG + fixed-point math (Math.c), validation harness
+- [x] `port-phase-0-foundation` — Project scaffolding, type system (Rogue.h), RNG + fixed-point math (Math.c), validation harness
 
 ## Phase 1: Data Layer
-- [ ] `port-phase-1-data-layer` — Static catalogs (Globals.c, GlobalsBase.c), power tables, grid operations
+- [x] `port-phase-1-data-layer` — Static catalogs (Globals.c, GlobalsBase.c), power tables, grid operations
 
 ## Phase 2: Core Systems
 - [ ] `port-core-dijkstra` — Pathfinding (Dijkstra.c, 259 lines)
