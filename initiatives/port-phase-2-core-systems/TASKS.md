@@ -21,10 +21,49 @@
 - [x] Tests for light module — 36 tests passing
 
 ## Step 3: Architect (3,837 lines)
-- [ ] Port room generation functions
-- [ ] Port room attachment and corridor logic
-- [ ] Port machine/blueprint placement
-- [ ] Port `digDungeon` orchestration
+
+### Sub-step 3a: Helpers — `ts/src/architect/helpers.ts`
+- [ ] Port `zeroOutGrid`, `oppositeDirection`, `cellIsPassableOrDoor`, `copyMap`
+- [ ] Port `passableArcCount`, `randomMatchingLocation`
+- [ ] Port `connectCell`, `levelIsDisconnectedWithBlockingMap` (connectivity checking)
+- [ ] Tests for helpers
+
+### Sub-step 3b: Rooms — `ts/src/architect/rooms.ts`
+- [ ] Port room shape functions: `designCavern`, `designEntranceRoom`, `designCrossRoom`, `designSymmetricalCrossRoom`, `designSmallRoom`, `designCircularRoom`, `designChunkyRoom`
+- [ ] Port door site logic: `directionOfDoorSite`, `chooseRandomDoorSites`
+- [ ] Port hallway: `attachHallwayTo`
+- [ ] Port random room dispatcher: `designRandomRoom`
+- [ ] Port room fitting: `roomFitsAt`, `insertRoomAt`, `attachRooms`
+- [ ] Tests for room design
+
+### Sub-step 3c: Lakes & Bridges — `ts/src/architect/lakes.ts`
+- [ ] Port `liquidType`, `designLakes`, `fillLake`, `lakeFloodFill`, `lakeDisruptsPassability`, `fillLakes`, `createWreath`
+- [ ] Port `cleanUpLakeBoundaries`, `removeDiagonalOpenings`
+- [ ] Port `buildABridge`
+- [ ] Port `finishWalls`, `finishDoors`
+- [ ] Tests for lakes
+
+### Sub-step 3d: Map Analysis — `ts/src/architect/analysis.ts`
+- [ ] Port `checkLoopiness`, `auditLoop`, `floodFillCount`
+- [ ] Port `analyzeMap` (loop & chokepoint detection)
+- [ ] Port `addLoops` (secondary connections via Dijkstra)
+- [ ] Tests for analysis
+
+### Sub-step 3e: Machines — `ts/src/architect/machines.ts`
+- [ ] Port blueprint catalog data from `src/variants/GlobalsBrogue.c` (~900 lines)
+- [ ] Port autogenerator catalog data
+- [ ] Port machine helpers: `blueprintQualifies`, `cellIsFeatureCandidate`, `addTileToMachineInteriorAndIterate`, `expandMachineInterior`, `fillInteriorForVestibuleMachine`, `redesignInterior`, `prepareInteriorWithMachineFlags`
+- [ ] Port `buildAMachine` (~750 lines) with callback interfaces for item/monster ops
+- [ ] Port `addMachines`, `runAutogenerators`
+- [ ] Port `fillSpawnMap`, `spawnDungeonFeature`, `spawnMapDF`
+- [ ] Tests for machines
+
+### Sub-step 3f: Orchestration — `ts/src/architect/architect.ts`
+- [ ] Port `clearLevel`, `carveDungeon`, `digDungeon`
+- [ ] Port `adjustDungeonProfileForDepth`, `adjustDungeonFirstRoomProfileForDepth`
+- [ ] Port `updateMapToShore`, `setUpWaypoints`, `refreshWaypoint`
+- [ ] Port `validStairLoc`, `prepareForStairs`, `placeStairs`
+- [ ] Port `initializeLevel`, `restoreMonster`, `restoreItems`
 - [ ] Seed-based regression tests (same seed → same dungeon layout)
 
 ## Step 4: Items (8,040 lines)

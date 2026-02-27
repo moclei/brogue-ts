@@ -80,10 +80,52 @@ Split into:
 
 ### 3. Architect (3,837 lines) — `ts/src/architect/`
 
-**Approach:** This is the key validation target (same seed → same dungeon). Consider splitting into sub-modules:
-- `rooms.ts` — room generation and attachment
-- `machines.ts` — machine placement (blueprints)
-- `architect.ts` — top-level `digDungeon`, level generation orchestration
+**Approach:** This is the key validation target (same seed → same dungeon). Split into 6 sub-steps following the natural functional groupings in the C source. Dependency chain: helpers → rooms → lakes → analysis → machines → orchestration.
+
+**Sub-modules:**
+
+- **`helpers.ts`** — Pure utility functions used across the architect module:
+  `zeroOutGrid`, `oppositeDirection`, `cellIsPassableOrDoor`, `copyMap`, `passableArcCount`,
+  `randomMatchingLocation`, `connectCell`, `levelIsDisconnectedWithBlockingMap`
+
+- **`rooms.ts`** — Room shape design and attachment:
+  `designCavern`, `designEntranceRoom`, `designCrossRoom`, `designSymmetricalCrossRoom`,
+  `designSmallRoom`, `designCircularRoom`, `designChunkyRoom`, `directionOfDoorSite`,
+  `chooseRandomDoorSites`, `attachHallwayTo`, `designRandomRoom`, `roomFitsAt`,
+  `insertRoomAt`, `attachRooms`.
+  Depends on: Grid (blob generation, rectangles, circles), RNG, helpers.
+
+- **`lakes.ts`** — Lake/chasm/lava generation, bridges, and wall/door finishing:
+  `liquidType`, `designLakes`, `fillLake`, `lakeFloodFill`, `lakeDisruptsPassability`,
+  `fillLakes`, `createWreath`, `cleanUpLakeBoundaries`, `removeDiagonalOpenings`,
+  `buildABridge`, `finishWalls`, `finishDoors`.
+  Depends on: Grid, RNG, Dijkstra (`pathingDistance` for bridges), helpers.
+
+- **`analysis.ts`** — Loop detection, chokepoint analysis, and secondary connections:
+  `checkLoopiness`, `auditLoop`, `floodFillCount`, `analyzeMap`, `addLoops`.
+  Depends on: Dijkstra (`dijkstraScan`), Grid, helpers.
+
+- **`machines.ts`** — Machine/blueprint placement (the most complex sub-module):
+  `blueprintQualifies`, `cellIsFeatureCandidate`, `addTileToMachineInteriorAndIterate`,
+  `expandMachineInterior`, `fillInteriorForVestibuleMachine`, `redesignInterior`,
+  `prepareInteriorWithMachineFlags`, `buildAMachine` (~750 lines), `addMachines`,
+  `runAutogenerators`, `fillSpawnMap`, `spawnDungeonFeature`, `spawnMapDF`.
+  Also includes porting the blueprint catalog data from `src/variants/GlobalsBrogue.c`
+  (~900 lines) and the autogenerator catalog.
+  Depends on: everything above + FOV, Dijkstra. Item/monster generation functions
+  (not yet ported) will be injected via context callbacks.
+
+- **`architect.ts`** — Top-level orchestration and level initialization:
+  `clearLevel`, `carveDungeon`, `digDungeon`, `adjustDungeonProfileForDepth`,
+  `adjustDungeonFirstRoomProfileForDepth`, `updateMapToShore`, `setUpWaypoints`,
+  `refreshWaypoint`, `validStairLoc`, `prepareForStairs`, `placeStairs`,
+  `initializeLevel`, `restoreMonster`, `restoreItems`.
+  Depends on: all other architect sub-modules.
+
+**Key challenge:** `buildAMachine` is ~750 lines and deeply intertwined with items/monsters
+(not ported until Steps 4–5). We'll define callback interfaces for `generateItem`,
+`generateMonster`, `spawnHorde`, `killCreature`, etc., so machines can be tested in
+isolation with stubs.
 
 ### 4. Items (8,040 lines) — `ts/src/items/`
 
