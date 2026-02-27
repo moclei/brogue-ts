@@ -50,13 +50,13 @@
 - [x] Tests for analysis — 21 tests passing
 
 ### Sub-step 3e: Machines — `ts/src/architect/machines.ts`
-- [ ] Port blueprint catalog data from `src/variants/GlobalsBrogue.c` (~900 lines)
-- [ ] Port autogenerator catalog data
-- [ ] Port machine helpers: `blueprintQualifies`, `cellIsFeatureCandidate`, `addTileToMachineInteriorAndIterate`, `expandMachineInterior`, `fillInteriorForVestibuleMachine`, `redesignInterior`, `prepareInteriorWithMachineFlags`
-- [ ] Port `buildAMachine` (~750 lines) with callback interfaces for item/monster ops
-- [ ] Port `addMachines`, `runAutogenerators`
-- [ ] Port `fillSpawnMap`, `spawnDungeonFeature`, `spawnMapDF`
-- [ ] Tests for machines
+- [x] Port blueprint catalog data from `src/variants/GlobalsBrogue.c` (~900 lines)
+- [x] Port autogenerator catalog data
+- [x] Port machine helpers: `blueprintQualifies`, `cellIsFeatureCandidate`, `addTileToMachineInteriorAndIterate`, `expandMachineInterior`, `fillInteriorForVestibuleMachine`, `redesignInterior`, `prepareInteriorWithMachineFlags`
+- [x] Port `buildAMachine` (~750 lines) with callback interfaces for item/monster ops
+- [x] Port `addMachines`, `runAutogenerators`
+- [x] Port `fillSpawnMap`, `spawnDungeonFeature`, `spawnMapDF`
+- [x] Tests for machines — 31 tests passing
 
 ### Sub-step 3f: Orchestration — `ts/src/architect/architect.ts`
 - [ ] Port `clearLevel`, `carveDungeon`, `digDungeon`
