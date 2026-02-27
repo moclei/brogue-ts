@@ -92,6 +92,36 @@ export function cellHasTerrainType(pmap: Pcell[][], pos: Pos, terrain: number): 
 }
 
 /**
+ * Returns the layer index of the terrain with the highest draw priority
+ * (i.e., the lowest drawPriority number, which is highest visual priority)
+ * at the given cell.
+ *
+ * C equivalent: `highestPriorityLayer(x, y, skipGas)` in Globals.c
+ *
+ * @param skipGas - if true, skip the Gas layer when checking priorities
+ */
+export function highestPriorityLayer(
+    pmap: Pcell[][],
+    x: number,
+    y: number,
+    skipGas: boolean,
+): DungeonLayer {
+    let bestPriority = 10000;
+    let bestLayer = DungeonLayer.Dungeon;
+
+    for (let layer = 0; layer < NUMBER_TERRAIN_LAYERS; layer++) {
+        if (skipGas && layer === DungeonLayer.Gas) continue;
+        const priority = tileCatalog[pmap[x][y].layers[layer]].drawPriority;
+        if (priority < bestPriority) {
+            bestPriority = priority;
+            bestLayer = layer as DungeonLayer;
+        }
+    }
+
+    return bestLayer;
+}
+
+/**
  * Returns the terrain flags that would be revealed if secrets at `pos` were
  * discovered. This is used for pathfinding — monsters can navigate through
  * secret doors because they know what's behind them.
