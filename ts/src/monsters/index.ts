@@ -16,3 +16,18 @@ export type {
     MonsterRNG,
     MonsterGenContext,
 } from "./monster-creation.js";
+
+export {
+    pickHordeType,
+    forbiddenFlagsForMonster,
+    avoidedFlagsForMonster,
+    monsterCanSubmergeNow,
+    spawnMinions,
+    spawnHorde,
+    populateMonsters,
+    spawnPeriodicHorde,
+} from "./monster-spawning.js";
+
+export type {
+    SpawnContext,
+} from "./monster-spawning.js";
