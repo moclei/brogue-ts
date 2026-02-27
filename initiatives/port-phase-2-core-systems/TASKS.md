@@ -85,10 +85,15 @@
 - [x] Port `populateItems` with `PopulateItemsContext` DI pattern
 - [x] Tests for item-population — 20 tests passing
 
-### Sub-step 4d: Item chain management & inventory helpers
-- [ ] Port `placeItemAt`, `removeItemFromChain`, `addItemToChain`
-- [ ] Port `pickUpItemAt`, `removeItemAt`, `itemAtLoc`
-- [ ] Port `itemWillStackWithPack`, `numberOfMatchingPackItems`
+### Sub-step 4d: Item chain management & inventory helpers — `ts/src/items/item-inventory.ts`
+- [x] Port `removeItemFromChain` → `removeItemFromArray`, `addItemToChain` → `addItemToArray` (array-based)
+- [x] Port `itemAtLoc`, `itemOfPackLetter`
+- [x] Port `numberOfItemsInPack`, `numberOfMatchingPackItems`
+- [x] Port `inventoryLetterAvailable`, `nextAvailableInventoryCharacter`
+- [x] Port `conflateItemCharacteristics`, `stackItems`
+- [x] Port `itemWillStackWithPack`, `addItemToPack` (with stacking logic)
+- [x] Port `itemIsSwappable`, `checkForDisenchantment`, `canPickUpItem`
+- [x] Tests for item-inventory — 60 tests passing
 
 ### Sub-step 4e: Item naming, identification & flavors
 - [ ] Port `itemName`, `identifyItemKind`, `autoIdentify`

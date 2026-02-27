@@ -27,3 +27,21 @@ export type {
     PopulateItemsContext,
     PopulateItemsState,
 } from "./item-population.js";
+
+export {
+    removeItemFromArray,
+    addItemToArray,
+    itemAtLoc,
+    itemOfPackLetter,
+    numberOfItemsInPack,
+    numberOfMatchingPackItems,
+    inventoryLetterAvailable,
+    nextAvailableInventoryCharacter,
+    conflateItemCharacteristics,
+    stackItems,
+    itemWillStackWithPack,
+    addItemToPack,
+    itemIsSwappable,
+    checkForDisenchantment,
+    canPickUpItem,
+} from "./item-inventory.js";
