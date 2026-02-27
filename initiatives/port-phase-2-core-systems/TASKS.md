@@ -129,10 +129,55 @@
 - [x] Tests for item-ops — 13 tests passing
 
 ## Step 5: Monsters (4,826 lines)
-- [ ] Port monster spawning (`spawnHorde`, `populateMonsters`)
-- [ ] Port monster AI (decision-making, targeting)
-- [ ] Port monster actions (abilities, summoning)
-- [ ] Tests for monsters module
+
+### Sub-step 5a: Monster catalogs — `ts/src/globals/monster-catalog.ts`, `ts/src/globals/horde-catalog.ts`
+- [x] Port `monsterCatalog` (68 entries from Globals.c)
+- [x] Port `hordeCatalog` (175 entries from GlobalsBrogue.c)
+- [x] Tests for catalogs — 14 tests passing
+
+### Sub-step 5b: Monster creation & initialization — `ts/src/monsters/monster-creation.ts`
+- [x] Port `mutateMonster`, `initializeStatus`, `initializeGender`, `createCreature` (= generateMonster)
+- [x] DI via `MonsterGenContext` and `MonsterRNG`
+- [x] Tests for monster-creation — 23 tests passing
+
+### Sub-step 5c: Monster spawning — `ts/src/monsters/monster-spawning.ts`
+- [x] Port `pickHordeType`, `spawnMinions`, `spawnHorde`, `populateMonsters`, `spawnPeriodicHorde`
+- [x] Port `forbiddenFlagsForMonster`, `avoidedFlagsForMonster`, `monsterCanSubmergeNow`
+- [x] DI via `SpawnContext`
+- [x] Tests for monster-spawning — 20 tests passing
+
+### Sub-step 5d: Monster queries & visibility — `ts/src/monsters/monster-queries.ts`
+- [x] Port `monsterRevealed`, `monsterHiddenBySubmersion`, `monsterIsHidden`, `canSeeMonster`, `canDirectlySeeMonster`
+- [x] Port `monsterName`, `monsterIsInClass`, `attackWouldBeFutile`, `monsterWillAttackTarget`
+- [x] Port `monstersAreTeammates`, `monstersAreEnemies`
+- [x] DI via `MonsterQueryContext`
+- [x] Tests for monster-queries — 45 tests passing
+
+### Sub-step 5e: Monster state & status — `ts/src/monsters/monster-state.ts`
+- [x] Port `empowerMonster`, `chooseNewWanderDestination`, `monsterAvoids`, `alertMonster`, `wakeUp`
+- [x] Port `updateMonsterState`, `decrementMonsterStatus`, `monsterFleesFrom`, `distanceBetween`
+- [x] DI via `MonsterStateContext`
+- [x] Tests for monster-state — 52 tests passing
+
+### Sub-step 5f: Monster movement helpers — `ts/src/monsters/monster-movement.ts`
+- [x] Port `canPass`, `isPassableOrSecretDoor`, `setMonsterLocation`, `moveMonster`
+- [x] Port `findAlternativeHomeFor`, `getQualifyingLocNear`, `getQualifyingGridLocNear`
+- [x] DI via `MonsterMovementContext` and `MoveMonsterContext`
+- [x] Tests for monster-movement — 27 tests passing
+
+### Sub-step 5g: Monster actions — `ts/src/monsters/monster-actions.ts`
+- [x] Port `prependCreature`, `removeCreature` (array-based creature list management)
+- [x] Port `canNegateCreatureStatusEffects`, `negateCreatureStatusEffects`
+- [x] Port `monsterSummons`, `monstersTurn` (main AI loop with full DI)
+- [x] DI via `MonsterSummonsContext` and `MonstersTurnContext`
+- [x] Tests for monster-actions — 34 tests passing
+
+### Sub-step 5h: MonsterOps bridge — `ts/src/monsters/monster-ops.ts`
+- [x] Implement `createMonsterOps()` factory (matching `createItemOps` pattern)
+- [x] Port `toggleMonsterDormancy`
+- [x] Tests for monster-ops — 13 tests passing
+
+**Total: 214 tests across 7 monster modules**
 
 ## Step 6: Combat (1,784 lines)
 - [ ] Port attack resolution (`attack`, `buildHitList`, `attackHit`)

@@ -15,7 +15,7 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
   - [x] Light.c (412 lines) — lighting, FOV, flares
   - [x] Architect.c (3,837 lines) — dungeon generation, machines
   - [x] Items.c (8,040 lines) — item generation, inventory, naming, usage, bolt geometry, ItemOps bridge (interactive scroll/potion/wand handlers deferred to UI phase)
-  - [ ] Monsters.c (4,826 lines) — monster AI, spawning, behavior
+  - [x] Monsters.c (4,826 lines) — monster AI, spawning, behavior (214 tests across 7 modules)
   - [ ] Combat.c (1,784 lines) — attack resolution, bolts, damage
   - [ ] Movement.c (2,487 lines) — player/monster movement
   - [ ] Time.c (2,640 lines) — turn processing, environment updates
