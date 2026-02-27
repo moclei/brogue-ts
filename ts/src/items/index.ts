@@ -29,6 +29,31 @@ export type {
 } from "./item-population.js";
 
 export {
+    isVowelish,
+    itemKindName,
+    itemRunicName,
+    itemName,
+    itemKindCount,
+    tryGetLastUnidentifiedItemKind,
+    magicPolarityRevealedItemKindCount,
+    tryIdentifyLastItemKind,
+    tryIdentifyLastItemKinds,
+    identifyItemKind,
+    identify,
+    resetItemTableEntry,
+    shuffleFlavors,
+    itemValue,
+    itemIsCarried,
+    itemColors,
+    itemWoods,
+    itemMetals,
+    itemGems,
+    itemTitles,
+} from "./item-naming.js";
+
+export type { ItemNamingContext } from "./item-naming.js";
+
+export {
     removeItemFromArray,
     addItemToArray,
     itemAtLoc,

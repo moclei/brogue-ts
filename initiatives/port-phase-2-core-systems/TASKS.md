@@ -95,9 +95,13 @@
 - [x] Port `itemIsSwappable`, `checkForDisenchantment`, `canPickUpItem`
 - [x] Tests for item-inventory — 60 tests passing
 
-### Sub-step 4e: Item naming, identification & flavors
-- [ ] Port `itemName`, `identifyItemKind`, `autoIdentify`
-- [ ] Port flavor text assignment, `resetItemTableEntry`
+### Sub-step 4e: Item naming, identification & flavors — `ts/src/items/item-naming.ts`
+- [x] Port `isVowelish`, `itemKindName`, `itemRunicName`, `itemName` (full name generation)
+- [x] Port `identify`, `identifyItemKind`, `tryIdentifyLastItemKinds`, `tryIdentifyLastItemKind`
+- [x] Port `tryGetLastUnidentifiedItemKind`, `magicPolarityRevealedItemKindCount`, `itemKindCount`
+- [x] Port `shuffleFlavors`, `resetItemTableEntry`, mutable flavor arrays
+- [x] Port `itemValue`, `itemIsCarried`
+- [x] Tests for item-naming — 51 tests passing
 
 ### Sub-step 4f: Item usage
 - [ ] Port `apply`, `throw`, `drop`, `equip`, `unequip`, `call`
