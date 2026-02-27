@@ -59,12 +59,12 @@
 - [x] Tests for machines — 31 tests passing
 
 ### Sub-step 3f: Orchestration — `ts/src/architect/architect.ts`
-- [ ] Port `clearLevel`, `carveDungeon`, `digDungeon`
-- [ ] Port `adjustDungeonProfileForDepth`, `adjustDungeonFirstRoomProfileForDepth`
-- [ ] Port `updateMapToShore`, `setUpWaypoints`, `refreshWaypoint`
-- [ ] Port `validStairLoc`, `prepareForStairs`, `placeStairs`
-- [ ] Port `initializeLevel`, `restoreMonster`, `restoreItems`
-- [ ] Seed-based regression tests (same seed → same dungeon layout)
+- [x] Port `clearLevel`, `carveDungeon`, `digDungeon`
+- [x] Port `adjustDungeonProfileForDepth`, `adjustDungeonFirstRoomProfileForDepth`
+- [x] Port `updateMapToShore`, `setUpWaypoints`, `refreshWaypoint`
+- [x] Port `validStairLoc`, `prepareForStairs`, `placeStairs`
+- [x] Port `initializeLevel`, `restoreMonster`, `restoreItems` (stubs — need Items/Monsters modules)
+- [x] Seed-based regression tests — 28 tests passing (determinism, depth variance)
 
 ## Step 4: Items (8,040 lines)
 - [ ] Port item generation (`makeItemInto`, `generateItems`, `populateItems`)
