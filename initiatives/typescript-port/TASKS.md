@@ -13,8 +13,8 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
   - [x] Game state foundation + shared helpers
   - [x] Dijkstra.c (259 lines) — pathfinding
   - [x] Light.c (412 lines) — lighting, FOV, flares
-  - [ ] Architect.c (3,837 lines) — dungeon generation, machines
-  - [ ] Items.c (8,040 lines) — item generation, identification, usage
+  - [x] Architect.c (3,837 lines) — dungeon generation, machines
+  - [ ] Items.c (8,040 lines) — item generation (4a–4c done: tables, generation, population), identification, usage
   - [ ] Monsters.c (4,826 lines) — monster AI, spawning, behavior
   - [ ] Combat.c (1,784 lines) — attack resolution, bolts, damage
   - [ ] Movement.c (2,487 lines) — player/monster movement

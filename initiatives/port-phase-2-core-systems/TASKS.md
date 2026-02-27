@@ -3,7 +3,7 @@
 ## Step 0: Game State Foundation
 - [x] Define `GameState` interface and sub-interfaces (`MapState`, `EntityState`, etc.) — `ts/src/state/game-state.ts`
 - [x] Port shared helper functions (`terrainFlags`, `terrainMechFlags`, `cellHasTerrainFlag`, `cellHasTMFlag`, `cellHasTerrainType`, `discoveredTerrainFlagsAtLoc`) — `ts/src/state/helpers.ts`
-- [ ] Port deferred item tables from Phase 1 (key, food, weapon, armor, staff, ring)
+- [x] Port deferred item tables from Phase 1 (key, food, weapon, armor, staff, ring) — `ts/src/globals/item-catalog.ts`
 
 ## Step 1: Dijkstra (259 lines)
 - [x] Port `PdsLink`, `PdsMap` internal types
@@ -67,11 +67,42 @@
 - [x] Seed-based regression tests — 28 tests passing (determinism, depth variance)
 
 ## Step 4: Items (8,040 lines)
-- [ ] Port item generation (`makeItemInto`, `generateItems`, `populateItems`)
-- [ ] Port item identification and naming
-- [ ] Port item usage (apply, throw, drop, equip, unequip)
-- [ ] Port bolt mechanics
-- [ ] Tests for items module
+
+### Sub-step 4a: Item tables & catalog data — `ts/src/globals/item-catalog.ts`
+- [x] Port `potionTable`, `scrollTable`, `wandTable`, `charmTable` (from GlobalsBrogue.c)
+- [x] Port `keyTable`, `foodTable`, `weaponTable`, `armorTable`, `staffTable`, `ringTable` (from Globals.c)
+- [x] Port `meteredItemsGenerationTable`, `charmEffectTable`, `lumenstoneDistribution`
+- [x] Port `itemGenerationProbabilities`
+
+### Sub-step 4b: Item creation & generation core — `ts/src/items/item-generation.ts`
+- [x] Port `initializeItem`, `generateItem`, `makeItemInto`, `pickItemCategory`, `chooseKind`
+- [x] Port classification helpers: `itemIsThrowingWeapon`, `itemIsHeavyWeapon`, `itemIsPositivelyEnchanted`, `itemMagicPolarity`
+- [x] Port lookup helpers: `getTableForCategory`, `getKindCountForCategory`, `getItemCategoryGlyph`, `getHallucinatedItemCategory`
+- [x] Tests for item-generation — 43 tests passing
+
+### Sub-step 4c: Level item population — `ts/src/items/item-population.ts`
+- [x] Port `fillItemSpawnHeatMap`, `coolHeatMapAt`, `getItemSpawnLoc` (heat map helpers)
+- [x] Port `populateItems` with `PopulateItemsContext` DI pattern
+- [x] Tests for item-population — 20 tests passing
+
+### Sub-step 4d: Item chain management & inventory helpers
+- [ ] Port `placeItemAt`, `removeItemFromChain`, `addItemToChain`
+- [ ] Port `pickUpItemAt`, `removeItemAt`, `itemAtLoc`
+- [ ] Port `itemWillStackWithPack`, `numberOfMatchingPackItems`
+
+### Sub-step 4e: Item naming, identification & flavors
+- [ ] Port `itemName`, `identifyItemKind`, `autoIdentify`
+- [ ] Port flavor text assignment, `resetItemTableEntry`
+
+### Sub-step 4f: Item usage
+- [ ] Port `apply`, `throw`, `drop`, `equip`, `unequip`, `call`
+- [ ] Port `recalculateEquipmentBonuses`
+
+### Sub-step 4g: Bolt mechanics
+- [ ] Port bolt path resolution and bolt effects
+
+### Sub-step 4h: Wire up ItemOps
+- [ ] Wire up `ItemOps` callbacks in `machines.ts` with real item functions
 
 ## Step 5: Monsters (4,826 lines)
 - [ ] Port monster spawning (`spawnHorde`, `populateMonsters`)

@@ -227,6 +227,5 @@ export const monsterBookkeepingFlagDescriptions: readonly string[] = [
     "is marked for demonic sacrifice",          // MB_MARKED_FOR_SACRIFICE
 ];
 
-// NOTE: keyTable, foodTable, weaponTable, armorTable, staffTable, ringTable
-// are deferred to Phase 2/3 as they reference mutable runtime arrays (itemWoods,
-// itemGems, etc.) and require the full item system to be in place.
+// Item tables (keyTable, foodTable, weaponTable, armorTable, staffTable, ringTable,
+// potionTable, scrollTable, wandTable, charmTable) are in item-catalog.ts.
