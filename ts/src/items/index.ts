@@ -104,3 +104,7 @@ export type {
     CellBlocksCheck,
     CreatureAtCheck,
 } from "./bolt-geometry.js";
+
+export { createItemOps } from "./item-ops.js";
+
+export type { ItemOpsContext } from "./item-ops.js";

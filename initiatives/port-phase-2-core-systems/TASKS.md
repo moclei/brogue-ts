@@ -121,8 +121,12 @@
 - [x] Port `openPathBetween` (line-of-sight check)
 - [x] Tests for bolt-geometry — 24 tests passing
 
-### Sub-step 4h: Wire up ItemOps
-- [ ] Wire up `ItemOps` callbacks in `machines.ts` with real item functions
+### Sub-step 4h: Wire up ItemOps — `ts/src/items/item-ops.ts`
+- [x] Refactor `MachineItem` to drop `nextItem` (array-based, no linked lists)
+- [x] Refactor `MachineContext.floorItems`/`packItems` from `MachineItem | null` to `MachineItem[]`
+- [x] Rename `ItemOps.removeItemFromChain` to `removeItemFromArray`
+- [x] Implement `createItemOps()` factory bridging real item functions to `ItemOps` interface
+- [x] Tests for item-ops — 13 tests passing
 
 ## Step 5: Monsters (4,826 lines)
 - [ ] Port monster spawning (`spawnHorde`, `populateMonsters`)
