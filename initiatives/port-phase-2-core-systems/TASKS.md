@@ -23,31 +23,31 @@
 ## Step 3: Architect (3,837 lines)
 
 ### Sub-step 3a: Helpers — `ts/src/architect/helpers.ts`
-- [ ] Port `zeroOutGrid`, `oppositeDirection`, `cellIsPassableOrDoor`, `copyMap`
-- [ ] Port `passableArcCount`, `randomMatchingLocation`
-- [ ] Port `connectCell`, `levelIsDisconnectedWithBlockingMap` (connectivity checking)
-- [ ] Tests for helpers
+- [x] Port `zeroOutGrid`, `oppositeDirection`, `cellIsPassableOrDoor`, `copyMap`
+- [x] Port `passableArcCount`, `randomMatchingLocation`
+- [x] Port `connectCell`, `levelIsDisconnectedWithBlockingMap` (connectivity checking)
+- [x] Tests for helpers — 28 tests passing
 
 ### Sub-step 3b: Rooms — `ts/src/architect/rooms.ts`
-- [ ] Port room shape functions: `designCavern`, `designEntranceRoom`, `designCrossRoom`, `designSymmetricalCrossRoom`, `designSmallRoom`, `designCircularRoom`, `designChunkyRoom`
-- [ ] Port door site logic: `directionOfDoorSite`, `chooseRandomDoorSites`
-- [ ] Port hallway: `attachHallwayTo`
-- [ ] Port random room dispatcher: `designRandomRoom`
-- [ ] Port room fitting: `roomFitsAt`, `insertRoomAt`, `attachRooms`
-- [ ] Tests for room design
+- [x] Port room shape functions: `designCavern`, `designEntranceRoom`, `designCrossRoom`, `designSymmetricalCrossRoom`, `designSmallRoom`, `designCircularRoom`, `designChunkyRoom`
+- [x] Port door site logic: `directionOfDoorSite`, `chooseRandomDoorSites`
+- [x] Port hallway: `attachHallwayTo`
+- [x] Port random room dispatcher: `designRandomRoom`
+- [x] Port room fitting: `roomFitsAt`, `insertRoomAt`, `attachRooms`
+- [x] Tests for room design — 25 tests passing
 
 ### Sub-step 3c: Lakes & Bridges — `ts/src/architect/lakes.ts`
-- [ ] Port `liquidType`, `designLakes`, `fillLake`, `lakeFloodFill`, `lakeDisruptsPassability`, `fillLakes`, `createWreath`
-- [ ] Port `cleanUpLakeBoundaries`, `removeDiagonalOpenings`
-- [ ] Port `buildABridge`
-- [ ] Port `finishWalls`, `finishDoors`
-- [ ] Tests for lakes
+- [x] Port `liquidType`, `designLakes`, `fillLake`, `lakeFloodFill`, `lakeDisruptsPassability`, `fillLakes`, `createWreath`
+- [x] Port `cleanUpLakeBoundaries`, `removeDiagonalOpenings`
+- [x] Port `buildABridge`
+- [x] Port `finishWalls`, `finishDoors`
+- [x] Tests for lakes — 16 tests passing
 
 ### Sub-step 3d: Map Analysis — `ts/src/architect/analysis.ts`
-- [ ] Port `checkLoopiness`, `auditLoop`, `floodFillCount`
-- [ ] Port `analyzeMap` (loop & chokepoint detection)
-- [ ] Port `addLoops` (secondary connections via Dijkstra)
-- [ ] Tests for analysis
+- [x] Port `checkLoopiness`, `auditLoop`, `floodFillCount`
+- [x] Port `analyzeMap` (loop & chokepoint detection)
+- [x] Port `addLoops` (secondary connections via Dijkstra)
+- [x] Tests for analysis — 21 tests passing
 
 ### Sub-step 3e: Machines — `ts/src/architect/machines.ts`
 - [ ] Port blueprint catalog data from `src/variants/GlobalsBrogue.c` (~900 lines)
