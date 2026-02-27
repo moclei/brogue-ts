@@ -14,11 +14,11 @@
 - [x] Tests for dijkstra module — 22 tests passing
 
 ## Step 2: Light (412 lines)
-- [ ] Port `paintLight`, `updateLighting`
-- [ ] Port `getFOVMask`
-- [ ] Port `backUpLighting`, `restoreLighting`
-- [ ] Port flare system (`createFlare`, `animateFlares`, `deleteAllFlares`)
-- [ ] Tests for light module
+- [x] Port FOV system (`betweenOctant1andN`, `scanOctantFOV`, `getFOVMask`) with `FOVContext` — `ts/src/light/fov.ts`
+- [x] Port `paintLight`, `updateLighting`, `updateMinersLightRadius`, `playerInDarkness` with `LightingContext` — `ts/src/light/light.ts`
+- [x] Port `backUpLighting`, `restoreLighting`, `recordOldLights`, `updateDisplayDetail`, `applyColorScalar`
+- [x] Port flare system (`newFlare`, `createFlare`, `flareIsActive`, `updateFlare`, `drawFlareFrame`, `animateFlares`, `deleteAllFlares`) — `ts/src/light/flares.ts`
+- [x] Tests for light module — 36 tests passing
 
 ## Step 3: Architect (3,837 lines)
 - [ ] Port room generation functions

@@ -12,7 +12,7 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
 - [ ] `port-phase-2-core-systems` — Umbrella initiative for all core game logic (~27K lines across 9 modules)
   - [x] Game state foundation + shared helpers
   - [x] Dijkstra.c (259 lines) — pathfinding
-  - [ ] Light.c (412 lines) — lighting, FOV, flares
+  - [x] Light.c (412 lines) — lighting, FOV, flares
   - [ ] Architect.c (3,837 lines) — dungeon generation, machines
   - [ ] Items.c (8,040 lines) — item generation, identification, usage
   - [ ] Monsters.c (4,826 lines) — monster AI, spawning, behavior
