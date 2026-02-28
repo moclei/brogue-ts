@@ -4,8 +4,8 @@
  *
  *  Ported from: src/brogue/Recordings.c (1,519 lines)
  *  Phase 2 scope: recording buffer, event codec, save/load, init.
- *  Phase 3 deferred: playback UI (executePlaybackInput, seek, pausePlayback),
- *                     annotation system, interactive save dialogs, loadSavedGame.
+ *  Phase 3 scope: playback UI (executePlaybackInput, seek, pausePlayback),
+ *                 annotation system.
  */
 
 // ── Recording state & buffer ────────────────────────────────────────────────
@@ -73,3 +73,32 @@ export type {
     SaveContext,
     SwitchToPlayingContext,
 } from "./recording-save-load.js";
+
+// ── Playback UI ─────────────────────────────────────────────────────────────
+export {
+    RecordingSeekMode,
+    loadNextAnnotation,
+    displayAnnotation,
+    printPlaybackHelpScreen,
+    pausePlayback,
+    executePlaybackInput,
+    describeKeystroke,
+    parseFile,
+} from "./recording-playback.js";
+
+export type {
+    PlaybackRogueState,
+    PlaybackContext,
+} from "./recording-playback.js";
+
+// ── Interactive save/load ───────────────────────────────────────────────────
+export {
+    saveGame,
+    saveRecording,
+    loadSavedGame,
+} from "./recording-interactive.js";
+
+export type {
+    InteractiveSaveRogueState,
+    InteractiveSaveContext,
+} from "./recording-interactive.js";

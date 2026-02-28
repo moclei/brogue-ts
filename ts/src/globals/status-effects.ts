@@ -96,4 +96,5 @@ export const statusEffectCatalog: readonly StatusEffectInfo[] = [
     { name: "Lifespan",        isNegatable: false, playerNegatedValue: 0 }, // STATUS_LIFESPAN_REMAINING
     { name: "Shielded",        isNegatable: true,  playerNegatedValue: 0 }, // STATUS_SHIELDED
     { name: "Invisible",       isNegatable: true,  playerNegatedValue: 0 }, // STATUS_INVISIBLE
+    { name: "Aggravating",    isNegatable: true,  playerNegatedValue: 0 }, // STATUS_AGGRAVATING
 ];

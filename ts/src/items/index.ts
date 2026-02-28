@@ -108,3 +108,23 @@ export type {
 export { createItemOps } from "./item-ops.js";
 
 export type { ItemOpsContext } from "./item-ops.js";
+
+// ── Interactive item handlers (Phase 3) ──
+export {
+    uncurse,
+    consumePackItem,
+    recordApplyItemCommand,
+    autoIdentify,
+    detectMagicOnItem,
+    magicMapCell,
+    updateIdentifiableItems,
+    magicCharDiscoverySuffix,
+    eat,
+    readScroll,
+    drinkPotion,
+    useStaffOrWand,
+    useCharm,
+    apply,
+} from "./item-handlers.js";
+
+export type { ItemHandlerContext } from "./item-handlers.js";
