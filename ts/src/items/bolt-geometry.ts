@@ -9,7 +9,7 @@
  *  injected via callbacks.
  */
 
-import type { Pos, Bolt, Fixpt } from "../types/types.js";
+import type { Pos, Bolt } from "../types/types.js";
 import { FP_FACTOR } from "../math/fixpt.js";
 import { DCOLS, DROWS, MAX_BOLT_LENGTH } from "../types/constants.js";
 import { coordinatesAreInMap } from "../globals/tables.js";

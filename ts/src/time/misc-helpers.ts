@@ -27,6 +27,7 @@ import {
     MonsterBookkeepingFlag,
     TileFlag,
     TerrainFlag,
+    T_DIVIDES_LEVEL,
 } from "../types/flags.js";
 
 // =============================================================================
@@ -434,7 +435,7 @@ export function monsterEntersLevel(
         monst.loc = ctx.getQualifyingPathLocNear(
             monst.loc,
             true,
-            TerrainFlag.T_DIVIDES_LEVEL & ctx.avoidedFlagsForMonster(monst.info),
+            T_DIVIDES_LEVEL & ctx.avoidedFlagsForMonster(monst.info),
             0,
             ctx.avoidedFlagsForMonster(monst.info),
             TileFlag.HAS_STAIRS,
@@ -453,7 +454,7 @@ export function monsterEntersLevel(
             prevMonst.loc = ctx.getQualifyingPathLocNear(
                 monst.loc,
                 true,
-                TerrainFlag.T_DIVIDES_LEVEL & ctx.avoidedFlagsForMonster(prevMonst.info),
+                T_DIVIDES_LEVEL & ctx.avoidedFlagsForMonster(prevMonst.info),
                 0,
                 ctx.avoidedFlagsForMonster(prevMonst.info),
                 TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER | TileFlag.HAS_STAIRS,

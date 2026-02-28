@@ -17,7 +17,6 @@
 import type { Color, Pos, Creature, ScreenDisplayBuffer, CellDisplayBuffer } from "../types/types.js";
 import type { DisplayGlyph } from "../types/enums.js";
 import { COLS, ROWS, DCOLS, DROWS, MESSAGE_LINES } from "../types/constants.js";
-import { TileFlag } from "../types/flags.js";
 import { coordinatesAreInMap } from "../globals/tables.js";
 import { black, white, teal } from "../globals/colors.js";
 import { MonsterBookkeepingFlag } from "../types/flags.js";
@@ -124,7 +123,7 @@ export interface EffectsContext {
  *
  * C: `blendAppearances` in IO.c (static)
  */
-export function blendAppearances(
+export function blendAppearancesCtx(
     fromForeColor: Readonly<Color>,
     fromBackColor: Readonly<Color>,
     fromChar: DisplayGlyph,
@@ -213,7 +212,7 @@ export function irisFadeBetweenBuffers(
                 const toForeColor = ctx.colorFromComponents(toBuf.cells[i][j].foreColorComponents);
                 const toChar = toBuf.cells[i][j].character;
 
-                const blended = blendAppearances(
+                const blended = blendAppearancesCtx(
                     fromForeColor, fromBackColor, fromChar,
                     toForeColor, toBackColor, toChar,
                     clamp(thisCellPercent, 0, 100),
@@ -341,7 +340,7 @@ export function flashCell(
  */
 export function colorFlash(
     theColor: Readonly<Color>,
-    reqTerrainFlags: number,
+    _reqTerrainFlags: number,
     reqTileFlags: number,
     frames: number,
     maxRadius: number,

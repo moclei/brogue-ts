@@ -25,14 +25,11 @@ import {
     GAME_SUFFIX,
     RECORDING_SUFFIX,
     LAST_GAME_NAME,
-    LAST_RECORDING_NAME,
 } from "../types/constants.js";
 import {
     recordChar,
     flushBufferToFile,
-    type RecordingBuffer,
     type RecordingBufferContext,
-    type RecordingFileIO,
 } from "./recording-state.js";
 import { EventType } from "../types/enums.js";
 import { MonsterBookkeepingFlag } from "../types/flags.js";

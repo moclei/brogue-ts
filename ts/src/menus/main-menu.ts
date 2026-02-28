@@ -39,7 +39,6 @@ import {
     UP_ARROW, DOWN_ARROW, PAGE_UP_KEY, PAGE_DOWN_KEY,
     NUMPAD_2, NUMPAD_8,
     GAME_SUFFIX, RECORDING_SUFFIX, LAST_GAME_NAME,
-    TEXT_MAX_LENGTH,
 } from "../types/constants.js";
 
 // =============================================================================

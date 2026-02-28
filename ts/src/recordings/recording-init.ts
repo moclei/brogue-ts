@@ -23,7 +23,6 @@ import {
     fillBufferFromFile,
     flushBufferToFile,
     type RecordingBuffer,
-    type RecordingBufferContext,
     type RecordingFileIO,
 } from "./recording-state.js";
 
@@ -45,13 +44,7 @@ export function getPatchVersion(
     versionString: string,
     patchVersionPattern: string,
 ): number | null {
-    // Convert C sscanf pattern to regex: replace %hu or %d with (\d+)
-    const regexStr = patchVersionPattern
-        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&") // escape regex special chars
-        .replace(/\\%hu|\\%d/g, "(\\d+)");         // put back capture group for %hu/%d
-
-    // But the above double-escapes. Let me do it properly:
-    // First escape special regex chars in the pattern, EXCEPT for the %hu placeholder
+    // Split on the format specifier (%hu or %d) and build a regex from the parts
     const parts = patchVersionPattern.split(/%hu|%d/);
     if (parts.length !== 2) {
         // Pattern doesn't contain exactly one format specifier

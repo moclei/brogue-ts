@@ -30,8 +30,6 @@ export {
     decrementPlayerStatus,
     playerFalls,
     checkNutrition,
-    handleHealthAlerts,
-    flashCreatureAlert,
     updatePlayerUnderwaterness,
     updateFlavorText,
     type CreatureEffectsContext,

@@ -7,7 +7,7 @@
  *  with the architect/machines module.
  */
 
-import type { Item, ItemTable, Pcell, GameConstants, Pos } from "../types/types.js";
+import type { Item, Pcell, Pos } from "../types/types.js";
 import type { ItemOps, MachineItem } from "../architect/machines.js";
 import { TileFlag } from "../types/flags.js";
 import { ItemFlag } from "../types/flags.js";

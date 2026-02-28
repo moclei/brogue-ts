@@ -1,31 +1,29 @@
 # Phase 4: Integration — Tasks
 
-## Step 1: Compile Clean (51 errors → 0)
+## Step 1: Compile Clean (51 errors → 0) ✅
 
-### 1a: Add missing flag constants
-- [ ] Add `T_DIVIDES_LEVEL` to `TerrainFlag` in `types/flags.ts` (used by `time/misc-helpers.ts`)
-- [ ] Add `T_RESPIRATION_IMMUNITIES` composite flag to `types/flags.ts` (used by `time/creature-effects.ts`)
-- [ ] Add `T_PATHING_BLOCKER` composite flag to `types/flags.ts` (used by `time/creature-effects.ts`)
-- [ ] Add `xpxpThisTurn` to creature effects context interface (used by `time/creature-effects.ts`)
+### 1a: Add missing flag constants ✅
+- [x] Import standalone `T_DIVIDES_LEVEL`, `T_RESPIRATION_IMMUNITIES`, `T_PATHING_BLOCKER` in consumer files
+- [x] Add `xpxpThisTurn` to creature effects context interface
 
-### 1b: Fix barrel export issues
-- [ ] Fix `io/index.ts` — resolve `blendAppearances` name collision between io-effects and io-appearance
-- [ ] Fix `recordings/index.ts` — remove non-existent `playbackPanic`, `RecordingEventsContext` exports; rename `RecordingInitContext` → `InitRecordingContext`
-- [ ] Fix `time/index.ts` — remove non-existent `handleHealthAlerts`, `flashCreatureAlert` exports
+### 1b: Fix barrel export issues ✅
+- [x] Resolve `blendAppearances` name collision (standalone in io-color, context version renamed to `blendAppearancesCtx` in io-effects)
+- [x] Fix `recordings/index.ts` — remove non-existent exports; rename `RecordingInitContext` → `InitRecordingContext`
+- [x] Fix `time/index.ts` — remove non-existent `handleHealthAlerts`, `flashCreatureAlert` exports
 
-### 1c: Fix type mismatches
-- [ ] Fix `io/io-screens.ts` — `WindowPos` object literals use `{x,y}` instead of correct field names
-- [ ] Fix `io/io-screens.ts` — `colorDance` → `colorDances` typo
-- [ ] Fix `io/io-inventory.ts` — `string` where `number` expected (line 444)
-- [ ] Fix `items/item-generation.ts` — `DisplayGlyph` enum vs `0` literal
-- [ ] Fix `monsters/monster-actions.ts` — impossible `CreatureState` comparison
+### 1c: Fix type mismatches ✅
+- [x] Fix `io/io-screens.ts` — `{x,y}` → `{windowX, windowY}` for `WindowPos`
+- [x] Fix `io/io-screens.ts` — `colorDance` → `colorDances` typo
+- [x] Fix `io/io-inventory.ts` — `String.fromCharCode(string)` → use string directly
+- [x] Fix `items/item-generation.ts` — `?? 0` → `?? (0 as DisplayGlyph)`
+- [x] Fix `monsters/monster-actions.ts` — cast to avoid impossible narrowing
 
-### 1d: Remove unused imports (32 errors)
-- [ ] Clean unused imports across io, items, menus, recordings, time modules
+### 1d: Remove unused imports (32 errors) ✅
+- [x] Cleaned unused imports across io, items, menus, recordings, time modules
 
-### 1e: Verify
-- [ ] `npx tsc --noEmit` produces zero errors
-- [ ] All existing tests still pass
+### 1e: Verify ✅
+- [x] `npx tsc --noEmit` produces zero errors
+- [x] All 2232 tests pass (64 test files)
 
 ## Step 2: Build & Launch
 

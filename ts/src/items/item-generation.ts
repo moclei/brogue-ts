@@ -21,7 +21,6 @@ import {
     ItemCategory,
     ALL_ITEMS,
     WeaponKind,
-    ArmorKind,
     StaffKind,
     ArmorEnchant,
     MonsterType,
@@ -83,19 +82,13 @@ export interface ItemGenContext {
 // Display glyph for item categories
 // =============================================================================
 
-const ITEM_CATEGORY_ORDER: readonly number[] = [
-    ItemCategory.FOOD,
-    ItemCategory.WEAPON,
-    ItemCategory.ARMOR,
-    ItemCategory.SCROLL,
-    ItemCategory.POTION,
-    ItemCategory.STAFF,
-    ItemCategory.WAND,
-    ItemCategory.GEM,
-    ItemCategory.RING,
-    ItemCategory.CHARM,
-    ItemCategory.KEY,
-    ItemCategory.GOLD,
+// ITEM_CATEGORY_ORDER — used by pickItemCategory (will be referenced in Phase 4)
+// prettier-ignore
+export const ITEM_CATEGORY_ORDER: readonly number[] = [
+    ItemCategory.FOOD,   ItemCategory.WEAPON,  ItemCategory.ARMOR,
+    ItemCategory.SCROLL, ItemCategory.POTION,  ItemCategory.STAFF,
+    ItemCategory.WAND,   ItemCategory.GEM,     ItemCategory.RING,
+    ItemCategory.CHARM,  ItemCategory.KEY,     ItemCategory.GOLD,
     ItemCategory.AMULET,
 ];
 
@@ -120,7 +113,7 @@ const ITEM_CATEGORY_GLYPH_MAP: ReadonlyMap<number, DisplayGlyph> = new Map([
  * Corresponds to C `getItemCategoryGlyph`.
  */
 export function getItemCategoryGlyph(category: number): DisplayGlyph {
-    return ITEM_CATEGORY_GLYPH_MAP.get(category) ?? 0;
+    return ITEM_CATEGORY_GLYPH_MAP.get(category) ?? (0 as DisplayGlyph);
 }
 
 // =============================================================================

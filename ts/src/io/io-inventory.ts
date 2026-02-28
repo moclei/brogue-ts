@@ -20,18 +20,15 @@ import type {
     Item,
 } from "../types/types.js";
 import type { DisplayGlyph } from "../types/enums.js";
-import { ItemCategory, PRENAMED_CATEGORY, ALL_ITEMS } from "../types/enums.js";
+import { ItemCategory, PRENAMED_CATEGORY } from "../types/enums.js";
 import { ButtonDrawState } from "../types/enums.js";
 import {
     COLS,
     ROWS,
     DCOLS,
-    DROWS,
     KEYBOARD_LABELS,
     MAX_PACK_ITEMS,
     INTERFACE_OPACITY,
-    ESCAPE_KEY,
-    ACKNOWLEDGE_KEY,
     UP_KEY,
     DOWN_KEY,
     APPLY_KEY,
@@ -441,7 +438,7 @@ export function displayInventory(
         buf = ctx.upperCase(buf);
 
         const isHoverEnabled = !!(buttons[i].flags & ButtonFlag.B_HOVER_ENABLED);
-        const letter = KEYBOARD_LABELS ? String.fromCharCode(theItem.inventoryLetter) : " ";
+        const letter = KEYBOARD_LABELS ? theItem.inventoryLetter : " ";
         const protectedChar = (theItem.flags & ItemFlag.ITEM_PROTECTED) ? "}" : closeParen;
         const equippedSuffix = (theItem.flags & ItemFlag.ITEM_EQUIPPED)
             ? (theItem.category & ItemCategory.WEAPON ? " (in hand) " : " (worn) ")

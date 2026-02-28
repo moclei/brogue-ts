@@ -332,7 +332,8 @@ export function monstersTurn(monst: Creature, ctx: MonstersTurnContext): void {
 
     ctx.updateMonsterState(monst);
 
-    if (monst.creatureState === CreatureState.Sleeping) {
+    // Re-check after updateMonsterState (may have changed state back to Sleeping)
+    if ((monst.creatureState as CreatureState) === CreatureState.Sleeping) {
         monst.ticksUntilTurn = monst.movementSpeed;
         return;
     }

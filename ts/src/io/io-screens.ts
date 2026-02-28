@@ -27,14 +27,11 @@ import {
 import {
     DisplayGlyph as G,
     ItemCategory,
-    ScrollKind,
-    PotionKind,
     StaffKind,
     RingKind,
     GameMode,
 } from "../types/enums.js";
 import { TerrainFlag, T_WAYPOINT_BLOCKER } from "../types/flags.js";
-import { BoltFlag } from "../types/flags.js";
 import {
     black, white, gray, darkGray,
     itemMessageColor, itemColor,
@@ -287,14 +284,14 @@ function printDiscoveries(
         let theColor: Readonly<Color>;
         if (theTable[i].identified) {
             theColor = white;
-            ctx.plotCharToBuffer(itemCharacter, { x, y: y + i }, itemColor, black, dbuf);
+            ctx.plotCharToBuffer(itemCharacter, { windowX: x, windowY: y + i }, itemColor, black, dbuf);
         } else {
             theColor = darkGray;
             const magic = ctx.magicCharDiscoverySuffix(category, i);
             if (magic === 1) {
-                ctx.plotCharToBuffer(G.G_GOOD_MAGIC, { x, y: y + i }, goodColor, black, dbuf);
+                ctx.plotCharToBuffer(G.G_GOOD_MAGIC, { windowX: x, windowY: y + i }, goodColor, black, dbuf);
             } else if (magic === -1) {
-                ctx.plotCharToBuffer(G.G_BAD_MAGIC, { x, y: y + i }, badColor, black, dbuf);
+                ctx.plotCharToBuffer(G.G_BAD_MAGIC, { windowX: x, windowY: y + i }, badColor, black, dbuf);
             }
         }
 
@@ -563,7 +560,7 @@ export function displayGrid(ctx: ScreenContext, map: number[][]): void {
             let score = 300 - Math.floor((map[i][j] - bottomRange) * 300 / range);
             const tempColor: Color = {
                 red: 0, green: 0, blue: 0,
-                redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDance: false,
+                redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false,
             };
             tempColor.blue = Math.max(Math.min(score, 100), 0);
             score -= 100;
