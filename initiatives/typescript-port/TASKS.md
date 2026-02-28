@@ -27,6 +27,7 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
   - [ ] Step 2: IO Game UI — messages, sidebar, inventory, targeting, input dispatch, visual effects
     - [x] 2a: Message system — io-messages.ts (64 tests: archive ring buffer, fold/format, display, combat text)
     - [x] 2b: Sidebar — io-sidebar.ts (72 tests: refreshSideBar, entity info panels, progress bars, entity collection/sorting)
+    - [x] 2c: Inventory display — io-inventory.ts (30 tests: displayInventory, printTextBox, rectangularShading, magic detection)
     - [x] 2d: Targeting & cursor — io-targeting.ts (38 tests: path following, hilite, snap map, cursor show/hide)
     - [x] 2f: Visual effects — io-effects.ts (35 tests: flashes, fades, alerts, blend, monster flashes)
   - [ ] Step 3: Menus & Wizard — buttons, title screen, main menu, debug mode

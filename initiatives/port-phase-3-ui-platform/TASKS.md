@@ -62,11 +62,14 @@
 - [x] Tests for io-sidebar (72 tests)
 - [x] Fix: Added missing `Aggravating` entry to `statusEffectCatalog`
 
-### Sub-step 2c: Inventory display — `ts/src/io/io-inventory.ts`
-- [ ] Port `displayInventory` (button-based inventory screen from Items.c)
-- [ ] Port `describeHallucinatedItem`
-- [ ] DI via `InventoryContext`
-- [ ] Tests for io-inventory
+### Sub-step 2c: Inventory display — `ts/src/io/io-inventory.ts` ✅
+- [x] Port `displayInventory` (~360 lines — button-based inventory screen from Items.c)
+- [x] Port `displayMagicCharForItem` helper
+- [x] Port `rectangularShading` (IO.c) — shaded rectangle with distance falloff
+- [x] Port `printTextBox` (IO.c) — text box with auto-positioning, wrapping, optional buttons
+- [x] ~~Port `describeHallucinatedItem`~~ (already in io-sidebar.ts)
+- [x] DI via `InventoryContext`
+- [x] Tests for io-inventory (30 tests)
 
 ### Sub-step 2d: Targeting & cursor — `ts/src/io/io-targeting.ts` ✅
 - [x] Port `showCursor`, `hideCursor`, `clearCursorPath`
