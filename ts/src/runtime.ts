@@ -91,6 +91,9 @@ import {
 } from "./io/io-inventory.js";
 import type { InventoryContext } from "./io/io-inventory.js";
 
+// -- Async helpers for browser ------------------------------------------------
+import { asyncPause } from "./platform/browser-renderer.js";
+
 // -- Color imports ------------------------------------------------------------
 import * as Colors from "./globals/colors.js";
 
@@ -286,13 +289,22 @@ export interface GameRuntime {
 }
 
 /**
+ * Extended console interface that adds async event waiting.
+ * The browser renderer returns this; future Node.js renderers will too.
+ */
+export interface AsyncBrogueConsole extends BrogueConsole {
+    /** Async wait for the next input event (keyboard or mouse). */
+    waitForEvent(): Promise<RogueEvent>;
+}
+
+/**
  * Create a game runtime from a platform console.
  *
  * This wires the BrogueConsole into all DI contexts and connects the
  * game lifecycle: mainBrogueJunction → initializeRogue → startLevel →
  * mainInputLoop.
  */
-export function createRuntime(browserConsole: BrogueConsole): GameRuntime {
+export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     // -- Shared state ---------------------------------------------------------
     const rogue = createRogueState();
     const displayBuffer = createScreenDisplayBuffer();
@@ -329,15 +341,24 @@ export function createRuntime(browserConsole: BrogueConsole): GameRuntime {
             restoreDisplayBufferFn(displayBuffer, saved);
             commitDraws();
         },
-        nextBrogueEvent(textInput, colorsDance, _realInputEvenInPlayback) {
+        async nextBrogueEvent(_textInput, _colorsDance, _realInputEvenInPlayback) {
             commitDraws();
-            return browserConsole.nextKeyOrMouseEvent(textInput, colorsDance);
+            return browserConsole.waitForEvent();
         },
-        pauseBrogue(ms) {
-            return browserConsole.pauseForMilliseconds(ms, { interruptForMouseMove: false });
+        async pauseBrogue(ms) {
+            commitDraws();
+            await asyncPause(ms);
+            // Check if an event arrived during the pause
+            const ev = browserConsole.nextKeyOrMouseEvent(false, false);
+            if (ev.eventType !== 0) { // EventType.Keystroke or mouse
+                return true; // interrupted
+            }
+            return false;
         },
-        pauseAnimation(ms) {
-            return browserConsole.pauseForMilliseconds(ms, { interruptForMouseMove: false });
+        async pauseAnimation(ms) {
+            commitDraws();
+            await asyncPause(ms);
+            return false;
         },
     };
 
@@ -379,7 +400,7 @@ export function createRuntime(browserConsole: BrogueConsole): GameRuntime {
         },
         strLenWithoutEscapes,
         wrapText,
-        buttonInputLoop(
+        async buttonInputLoop(
             buttons: BrogueButton[], count: number,
             winX: number, winY: number, winWidth: number, winHeight: number,
         ) {
@@ -502,10 +523,10 @@ export function createRuntime(browserConsole: BrogueConsole): GameRuntime {
         drawButtonsInState(state: ButtonState, dbuf: ScreenDisplayBuffer) {
             drawButtonsInStateFn(state, dbuf, buttonCtx);
         },
-        processButtonInput(state: ButtonState, event: RogueEvent) {
+        async processButtonInput(state: ButtonState, event: RogueEvent) {
             return processButtonInputFn(state, event, buttonCtx);
         },
-        buttonInputLoop(
+        async buttonInputLoop(
             buttons: BrogueButton[], buttonCount: number,
             winX: number, winY: number, winWidth: number, winHeight: number,
         ) {
@@ -522,11 +543,11 @@ export function createRuntime(browserConsole: BrogueConsole): GameRuntime {
             rectangularShadingFn(x, y, width, height, backColor, opacity, dbuf, inventoryCtxPartial);
         },
 
-        printTextBox(
+        async printTextBox(
             textBuf: string, x: number, y: number, width: number,
             foreColor: Readonly<Color>, backColor: Readonly<Color>,
             buttons?: BrogueButton[], buttonCount?: number,
-        ): number {
+        ) {
             return printTextBoxFn(
                 textBuf, x, y, width, foreColor, backColor,
                 inventoryCtxForTextBox,
@@ -535,35 +556,41 @@ export function createRuntime(browserConsole: BrogueConsole): GameRuntime {
         },
 
         // -- Events / timing --------------------------------------------------
-        nextBrogueEvent(textInput: boolean, colorsDance: boolean, _realInputEvenInPlayback: boolean): RogueEvent {
+        async nextBrogueEvent(_textInput: boolean, _colorsDance: boolean, _realInputEvenInPlayback: boolean) {
             commitDraws();
-            return browserConsole.nextKeyOrMouseEvent(textInput, colorsDance);
+            return browserConsole.waitForEvent();
         },
-        pauseBrogue(milliseconds: number, behavior?: PauseBehavior): boolean {
-            return browserConsole.pauseForMilliseconds(
-                milliseconds,
-                behavior ?? { interruptForMouseMove: false },
-            );
+        async pauseBrogue(milliseconds: number, _behavior?: PauseBehavior) {
+            commitDraws();
+            // Yield to the browser event loop for the specified duration
+            await asyncPause(milliseconds);
+            // Check if an event arrived during the pause
+            const ev = browserConsole.nextKeyOrMouseEvent(false, false);
+            if (ev.param1 !== 0 || ev.eventType !== 1) {
+                // An event is available — put it back for the caller to consume
+                return true; // interrupted
+            }
+            return false;
         },
 
         // -- Info screens / prompts -------------------------------------------
-        getInputTextString(
+        async getInputTextString(
             _prompt: string, _maxLength: number, _defaultEntry: string,
             _promptSuffix: string, _textEntryType: TextEntryType, _useDialogBox: boolean,
-        ): string | null {
+        ) {
             // TODO: Wire to io-input getInputTextString with full InputContext
             return null;
         },
-        printHighScores(_hiliteMostRecent: boolean): void {
+        async printHighScores(_hiliteMostRecent: boolean) {
             // TODO: Wire to io-screens printHighScores
         },
-        confirm(_prompt: string, _alsoDuringPlayback: boolean): boolean {
+        async confirm(_prompt: string, _alsoDuringPlayback: boolean) {
             // TODO: Wire to io-input confirm
             return false;
         },
-        waitForKeystrokeOrMouseClick(): void {
+        async waitForKeystrokeOrMouseClick() {
             commitDraws();
-            browserConsole.nextKeyOrMouseEvent(false, false);
+            await browserConsole.waitForEvent();
         },
         message(_msg: string, _flags: number): void {
             // TODO: Wire to io-messages message with full MessageContext

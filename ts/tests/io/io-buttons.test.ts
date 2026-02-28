@@ -66,15 +66,15 @@ function createCtx(overrides: Partial<ButtonContext> = {}): ButtonContext {
         overlayDisplayBuffer: vi.fn(),
         saveDisplayBuffer: vi.fn(() => ({ savedScreen: createScreenDisplayBuffer() })),
         restoreDisplayBuffer: vi.fn(),
-        nextBrogueEvent: vi.fn(() => ({
+        nextBrogueEvent: vi.fn(async () => ({
             eventType: EventType.Keystroke,
             param1: ESCAPE_KEY,
             param2: 0,
             controlKey: false,
             shiftKey: false,
         })),
-        pauseBrogue: vi.fn(() => false),
-        pauseAnimation: vi.fn(() => false),
+        pauseBrogue: vi.fn(async () => false),
+        pauseAnimation: vi.fn(async () => false),
         ...overrides,
     };
 }
@@ -106,7 +106,7 @@ function makeButton(overrides: Partial<BrogueButton> = {}): BrogueButton {
 // =============================================================================
 
 describe("initializeButton", () => {
-    it("creates a button with default flags", () => {
+    it("creates a button with default flags", async () => {
         const btn = initializeButton();
         expect(btn.flags & ButtonFlag.B_ENABLED).toBeTruthy();
         expect(btn.flags & ButtonFlag.B_GRADIENT).toBeTruthy();
@@ -115,36 +115,36 @@ describe("initializeButton", () => {
         expect(btn.flags & ButtonFlag.B_KEYPRESS_HIGHLIGHT).toBeTruthy();
     });
 
-    it("has empty text", () => {
+    it("has empty text", async () => {
         const btn = initializeButton();
         expect(btn.text).toBe("");
     });
 
-    it("has opacity 100", () => {
+    it("has opacity 100", async () => {
         const btn = initializeButton();
         expect(btn.opacity).toBe(100);
     });
 
-    it("uses interfaceButtonColor as default color", () => {
+    it("uses interfaceButtonColor as default color", async () => {
         const btn = initializeButton();
         expect(btn.buttonColor.red).toBe(interfaceButtonColor.red);
         expect(btn.buttonColor.green).toBe(interfaceButtonColor.green);
         expect(btn.buttonColor.blue).toBe(interfaceButtonColor.blue);
     });
 
-    it("has white text color", () => {
+    it("has white text color", async () => {
         const btn = initializeButton();
         expect(btn.textColor.red).toBe(white.red);
     });
 
-    it("uses itemMessageColor for hotkey text when KEYBOARD_LABELS is true", () => {
+    it("uses itemMessageColor for hotkey text when KEYBOARD_LABELS is true", async () => {
         const btn = initializeButton();
         if (KEYBOARD_LABELS) {
             expect(btn.hotkeyTextColor.red).toBe(itemMessageColor.red);
         }
     });
 
-    it("has empty hotkey and symbol arrays", () => {
+    it("has empty hotkey and symbol arrays", async () => {
         const btn = initializeButton();
         expect(btn.hotkey).toEqual([]);
         expect(btn.symbol).toEqual([]);
@@ -156,7 +156,7 @@ describe("initializeButton", () => {
 // =============================================================================
 
 describe("setButtonText", () => {
-    it("sets text with hotkey escapes when KEYBOARD_LABELS", () => {
+    it("sets text with hotkey escapes when KEYBOARD_LABELS", async () => {
         const ctx = createCtx({
             encodeMessageColor: vi.fn((c: Readonly<Color>) => `[C${c.red}]`),
         });
@@ -169,7 +169,7 @@ describe("setButtonText", () => {
         }
     });
 
-    it("uses textWithoutHotkey when KEYBOARD_LABELS is false", () => {
+    it("uses textWithoutHotkey when KEYBOARD_LABELS is false", async () => {
         // This test only makes sense if KEYBOARD_LABELS were false
         // Since it's true in our build, we just verify no crash
         const ctx = createCtx();
@@ -178,7 +178,7 @@ describe("setButtonText", () => {
         expect(btn.text.length).toBeGreaterThan(0);
     });
 
-    it("truncates to BUTTON_TEXT_SIZE", () => {
+    it("truncates to BUTTON_TEXT_SIZE", async () => {
         const ctx = createCtx();
         const btn = makeButton();
         const longText = "A".repeat(BUTTON_TEXT_SIZE + 100);
@@ -192,7 +192,7 @@ describe("setButtonText", () => {
 // =============================================================================
 
 describe("drawButton", () => {
-    it("does nothing when B_DRAW flag is not set", () => {
+    it("does nothing when B_DRAW flag is not set", async () => {
         const ctx = createCtx();
         const btn = makeButton({ flags: 0 });
         const dbuf = createScreenDisplayBuffer();
@@ -200,7 +200,7 @@ describe("drawButton", () => {
         expect(ctx.plotCharToBuffer).not.toHaveBeenCalled();
     });
 
-    it("plots each character of the button text", () => {
+    it("plots each character of the button text", async () => {
         const ctx = createCtx();
         const btn = makeButton({ text: "ABC", x: 5, y: 3 });
         const dbuf = createScreenDisplayBuffer();
@@ -208,7 +208,7 @@ describe("drawButton", () => {
         expect(ctx.plotCharToBuffer).toHaveBeenCalledTimes(3);
     });
 
-    it("uses white for enabled buttons, gray for disabled", () => {
+    it("uses white for enabled buttons, gray for disabled", async () => {
         const ctx = createCtx();
         const enabledBtn = makeButton({ text: "X", flags: ButtonFlag.B_DRAW | ButtonFlag.B_ENABLED });
         const dbuf = createScreenDisplayBuffer();
@@ -218,7 +218,7 @@ describe("drawButton", () => {
         expect(ctx.bakeColor).toHaveBeenCalled();
     });
 
-    it("replaces * with symbol characters", () => {
+    it("replaces * with symbol characters", async () => {
         const ctx = createCtx();
         const btn = makeButton({
             text: "a*b",
@@ -234,7 +234,7 @@ describe("drawButton", () => {
         expect(calls[1][0]).toBe(42); // symbol[0] replacing *
     });
 
-    it("sets opacity on dbuf cells", () => {
+    it("sets opacity on dbuf cells", async () => {
         const ctx = createCtx();
         const btn = makeButton({ text: "X", x: 5, y: 3, opacity: 80 });
         const dbuf = createScreenDisplayBuffer();
@@ -243,7 +243,7 @@ describe("drawButton", () => {
         expect(dbuf.cells[5][3].opacity).toBe(80);
     });
 
-    it("applies gradient when B_GRADIENT flag set", () => {
+    it("applies gradient when B_GRADIENT flag set", async () => {
         const ctx = createCtx();
         const btn = makeButton({
             text: "ABC",
@@ -257,7 +257,7 @@ describe("drawButton", () => {
         expect(ctx.applyColorAverage).toHaveBeenCalled();
     });
 
-    it("increases opacity for hover state", () => {
+    it("increases opacity for hover state", async () => {
         const ctx = createCtx();
         const btn = makeButton({ text: "X", x: 5, y: 3, opacity: 80 });
         const dbuf = createScreenDisplayBuffer();
@@ -266,7 +266,7 @@ describe("drawButton", () => {
         expect(dbuf.cells[5][3].opacity).toBe(84);
     });
 
-    it("does not draw past COLS", () => {
+    it("does not draw past COLS", async () => {
         const ctx = createCtx();
         const btn = makeButton({ text: "ABCDE", x: COLS - 2 });
         const dbuf = createScreenDisplayBuffer();
@@ -281,7 +281,7 @@ describe("drawButton", () => {
 // =============================================================================
 
 describe("drawButtonsInState", () => {
-    it("draws all drawable buttons", () => {
+    it("draws all drawable buttons", async () => {
         const ctx = createCtx();
         const state = initializeButtonState(
             [
@@ -296,7 +296,7 @@ describe("drawButtonsInState", () => {
         expect(ctx.plotCharToBuffer).toHaveBeenCalledTimes(2);
     });
 
-    it("draws focused button with Hover state", () => {
+    it("draws focused button with Hover state", async () => {
         const ctx = createCtx();
         const state = initializeButtonState(
             [makeButton({ text: "A" }), makeButton({ text: "B" })],
@@ -309,7 +309,7 @@ describe("drawButtonsInState", () => {
         expect(ctx.applyColorAverage).toHaveBeenCalled();
     });
 
-    it("skips non-drawable buttons", () => {
+    it("skips non-drawable buttons", async () => {
         const ctx = createCtx();
         const state = initializeButtonState(
             [
@@ -330,14 +330,14 @@ describe("drawButtonsInState", () => {
 // =============================================================================
 
 describe("initializeButtonState", () => {
-    it("sets all indices to -1", () => {
+    it("sets all indices to -1", async () => {
         const state = initializeButtonState([], 0, 0, 0, 10, 5);
         expect(state.buttonChosen).toBe(-1);
         expect(state.buttonFocused).toBe(-1);
         expect(state.buttonDepressed).toBe(-1);
     });
 
-    it("copies buttons into state", () => {
+    it("copies buttons into state", async () => {
         const buttons = [makeButton({ text: "A" }), makeButton({ text: "B" })];
         const state = initializeButtonState(buttons, 2, 5, 10, 30, 20);
         expect(state.buttons.length).toBe(2);
@@ -345,14 +345,14 @@ describe("initializeButtonState", () => {
         expect(state.buttons[1].text).toBe("B");
     });
 
-    it("makes copies, not references", () => {
+    it("makes copies, not references", async () => {
         const buttons = [makeButton({ text: "A" })];
         const state = initializeButtonState(buttons, 1, 0, 0, 10, 5);
         buttons[0].text = "Changed";
         expect(state.buttons[0].text).toBe("A");
     });
 
-    it("stores window dimensions", () => {
+    it("stores window dimensions", async () => {
         const state = initializeButtonState([], 0, 5, 10, 30, 20);
         expect(state.winX).toBe(5);
         expect(state.winY).toBe(10);
@@ -366,7 +366,7 @@ describe("initializeButtonState", () => {
 // =============================================================================
 
 describe("processButtonInput — mouse", () => {
-    it("focuses button on mouse move over it", () => {
+    it("focuses button on mouse move over it", async () => {
         const ctx = createCtx();
         const state = initializeButtonState(
             [makeButton({ text: "Click Me", x: 10, y: 5 })],
@@ -379,11 +379,11 @@ describe("processButtonInput — mouse", () => {
             controlKey: false,
             shiftKey: false,
         };
-        processButtonInput(state, event, ctx);
+        await processButtonInput(state, event, ctx);
         expect(state.buttonFocused).toBe(0);
     });
 
-    it("clears focus when mouse moves off button", () => {
+    it("clears focus when mouse moves off button", async () => {
         const ctx = createCtx();
         const state = initializeButtonState(
             [makeButton({ text: "Click Me", x: 10, y: 5 })],
@@ -397,11 +397,11 @@ describe("processButtonInput — mouse", () => {
             controlKey: false,
             shiftKey: false,
         };
-        processButtonInput(state, event, ctx);
+        await processButtonInput(state, event, ctx);
         expect(state.buttonFocused).toBe(-1);
     });
 
-    it("depresses button on mouse down", () => {
+    it("depresses button on mouse down", async () => {
         const ctx = createCtx();
         const state = initializeButtonState(
             [makeButton({ text: "OK", x: 10, y: 5 })],
@@ -414,11 +414,11 @@ describe("processButtonInput — mouse", () => {
             controlKey: false,
             shiftKey: false,
         };
-        processButtonInput(state, event, ctx);
+        await processButtonInput(state, event, ctx);
         expect(state.buttonDepressed).toBe(0);
     });
 
-    it("chooses button on mouse up when depressed and focused", () => {
+    it("chooses button on mouse up when depressed and focused", async () => {
         const ctx = createCtx();
         const state = initializeButtonState(
             [makeButton({ text: "OK", x: 10, y: 5 })],
@@ -432,11 +432,11 @@ describe("processButtonInput — mouse", () => {
             controlKey: false,
             shiftKey: false,
         };
-        const result = processButtonInput(state, event, ctx);
+        const result = await processButtonInput(state, event, ctx);
         expect(result.chosenButton).toBe(0);
     });
 
-    it("cancels on mouse up outside window when no button depressed", () => {
+    it("cancels on mouse up outside window when no button depressed", async () => {
         const ctx = createCtx();
         const state = initializeButtonState(
             [makeButton({ text: "OK", x: 10, y: 5 })],
@@ -450,11 +450,11 @@ describe("processButtonInput — mouse", () => {
             controlKey: false,
             shiftKey: false,
         };
-        const result = processButtonInput(state, event, ctx);
+        const result = await processButtonInput(state, event, ctx);
         expect(result.canceled).toBe(true);
     });
 
-    it("does not cancel on mouse up inside window", () => {
+    it("does not cancel on mouse up inside window", async () => {
         const ctx = createCtx();
         const state = initializeButtonState(
             [makeButton({ text: "OK", x: 10, y: 5 })],
@@ -468,11 +468,11 @@ describe("processButtonInput — mouse", () => {
             controlKey: false,
             shiftKey: false,
         };
-        const result = processButtonInput(state, event, ctx);
+        const result = await processButtonInput(state, event, ctx);
         expect(result.canceled).toBe(false);
     });
 
-    it("supports wide click area", () => {
+    it("supports wide click area", async () => {
         const ctx = createCtx();
         const btn = makeButton({ text: "Wide", x: 10, y: 5, flags: ButtonFlag.B_DRAW | ButtonFlag.B_ENABLED | ButtonFlag.B_WIDE_CLICK_AREA });
         const state = initializeButtonState([btn], 1, 0, 0, 40, 20);
@@ -483,7 +483,7 @@ describe("processButtonInput — mouse", () => {
             controlKey: false,
             shiftKey: false,
         };
-        processButtonInput(state, event, ctx);
+        await processButtonInput(state, event, ctx);
         expect(state.buttonFocused).toBe(0);
     });
 });
@@ -493,7 +493,7 @@ describe("processButtonInput — mouse", () => {
 // =============================================================================
 
 describe("processButtonInput — keystroke", () => {
-    it("chooses button by hotkey", () => {
+    it("chooses button by hotkey", async () => {
         const ctx = createCtx();
         const btn = makeButton({ text: "New", hotkey: ["n".charCodeAt(0)] });
         const state = initializeButtonState([btn], 1, 0, 0, 40, 20);
@@ -504,11 +504,11 @@ describe("processButtonInput — keystroke", () => {
             controlKey: false,
             shiftKey: false,
         };
-        const result = processButtonInput(state, event, ctx);
+        const result = await processButtonInput(state, event, ctx);
         expect(result.chosenButton).toBe(0);
     });
 
-    it("cancels on ESCAPE_KEY", () => {
+    it("cancels on ESCAPE_KEY", async () => {
         const ctx = createCtx();
         const state = initializeButtonState([makeButton()], 1, 0, 0, 40, 20);
         const event: RogueEvent = {
@@ -518,12 +518,12 @@ describe("processButtonInput — keystroke", () => {
             controlKey: false,
             shiftKey: false,
         };
-        const result = processButtonInput(state, event, ctx);
+        const result = await processButtonInput(state, event, ctx);
         expect(result.canceled).toBe(true);
         expect(result.chosenButton).toBe(-1);
     });
 
-    it("cancels on ACKNOWLEDGE_KEY", () => {
+    it("cancels on ACKNOWLEDGE_KEY", async () => {
         const ctx = createCtx();
         const state = initializeButtonState([makeButton()], 1, 0, 0, 40, 20);
         const event: RogueEvent = {
@@ -533,11 +533,11 @@ describe("processButtonInput — keystroke", () => {
             controlKey: false,
             shiftKey: false,
         };
-        const result = processButtonInput(state, event, ctx);
+        const result = await processButtonInput(state, event, ctx);
         expect(result.canceled).toBe(true);
     });
 
-    it("flashes button on keypress highlight", () => {
+    it("flashes button on keypress highlight", async () => {
         const ctx = createCtx();
         const btn = makeButton({
             text: "Go",
@@ -552,7 +552,7 @@ describe("processButtonInput — keystroke", () => {
             controlKey: false,
             shiftKey: false,
         };
-        processButtonInput(state, event, ctx);
+        await processButtonInput(state, event, ctx);
 
         // Should have saved/restored display and paused
         expect(ctx.saveDisplayBuffer).toHaveBeenCalled();
@@ -560,7 +560,7 @@ describe("processButtonInput — keystroke", () => {
         expect(ctx.restoreDisplayBuffer).toHaveBeenCalled();
     });
 
-    it("uses pauseAnimation during playback", () => {
+    it("uses pauseAnimation during playback", async () => {
         const ctx = createCtx({
             rogue: { playbackMode: true, playbackPaused: false },
         } as any);
@@ -577,11 +577,11 @@ describe("processButtonInput — keystroke", () => {
             controlKey: false,
             shiftKey: false,
         };
-        processButtonInput(state, event, ctx);
+        await processButtonInput(state, event, ctx);
         expect(ctx.pauseAnimation).toHaveBeenCalledWith(1000);
     });
 
-    it("ignores unmatched keystrokes", () => {
+    it("ignores unmatched keystrokes", async () => {
         const ctx = createCtx();
         const btn = makeButton({ text: "Go", hotkey: ["g".charCodeAt(0)] });
         const state = initializeButtonState([btn], 1, 0, 0, 40, 20);
@@ -592,12 +592,12 @@ describe("processButtonInput — keystroke", () => {
             controlKey: false,
             shiftKey: false,
         };
-        const result = processButtonInput(state, event, ctx);
+        const result = await processButtonInput(state, event, ctx);
         expect(result.chosenButton).toBe(-1);
         expect(result.canceled).toBe(false);
     });
 
-    it("supports multiple hotkeys per button", () => {
+    it("supports multiple hotkeys per button", async () => {
         const ctx = createCtx();
         const btn = makeButton({
             text: "Go",
@@ -611,7 +611,7 @@ describe("processButtonInput — keystroke", () => {
             controlKey: false,
             shiftKey: false,
         };
-        const result = processButtonInput(state, event, ctx);
+        const result = await processButtonInput(state, event, ctx);
         expect(result.chosenButton).toBe(0);
     });
 });
@@ -621,9 +621,9 @@ describe("processButtonInput — keystroke", () => {
 // =============================================================================
 
 describe("buttonInputLoop", () => {
-    it("returns chosen button when user presses hotkey", () => {
+    it("returns chosen button when user presses hotkey", async () => {
         const ctx = createCtx({
-            nextBrogueEvent: vi.fn(() => ({
+            nextBrogueEvent: vi.fn(async () => ({
                 eventType: EventType.Keystroke,
                 param1: "a".charCodeAt(0),
                 param2: 0,
@@ -632,13 +632,13 @@ describe("buttonInputLoop", () => {
             })),
         });
         const btn = makeButton({ text: "Alpha", hotkey: ["a".charCodeAt(0)] });
-        const result = buttonInputLoop([btn], 1, 0, 0, 40, 20, ctx);
+        const result = await buttonInputLoop([btn], 1, 0, 0, 40, 20, ctx);
         expect(result.chosenButton).toBe(0);
     });
 
-    it("returns -1 when user cancels with escape", () => {
+    it("returns -1 when user cancels with escape", async () => {
         const ctx = createCtx({
-            nextBrogueEvent: vi.fn(() => ({
+            nextBrogueEvent: vi.fn(async () => ({
                 eventType: EventType.Keystroke,
                 param1: ESCAPE_KEY,
                 param2: 0,
@@ -647,13 +647,13 @@ describe("buttonInputLoop", () => {
             })),
         });
         const btn = makeButton({ text: "Alpha", hotkey: ["a".charCodeAt(0)] });
-        const result = buttonInputLoop([btn], 1, 0, 0, 40, 20, ctx);
+        const result = await buttonInputLoop([btn], 1, 0, 0, 40, 20, ctx);
         expect(result.chosenButton).toBe(-1);
     });
 
-    it("returns the event that caused selection", () => {
+    it("returns the event that caused selection", async () => {
         const ctx = createCtx({
-            nextBrogueEvent: vi.fn(() => ({
+            nextBrogueEvent: vi.fn(async () => ({
                 eventType: EventType.Keystroke,
                 param1: "b".charCodeAt(0),
                 param2: 0,
@@ -662,14 +662,14 @@ describe("buttonInputLoop", () => {
             })),
         });
         const btn = makeButton({ text: "Beta", hotkey: ["b".charCodeAt(0)] });
-        const result = buttonInputLoop([btn], 1, 0, 0, 40, 20, ctx);
+        const result = await buttonInputLoop([btn], 1, 0, 0, 40, 20, ctx);
         expect(result.event.shiftKey).toBe(true);
     });
 
-    it("loops until a button is chosen or canceled", () => {
+    it("loops until a button is chosen or canceled", async () => {
         let callCount = 0;
         const ctx = createCtx({
-            nextBrogueEvent: vi.fn(() => {
+            nextBrogueEvent: vi.fn(async () => {
                 callCount++;
                 if (callCount < 3) {
                     // Non-decisive input
@@ -692,14 +692,14 @@ describe("buttonInputLoop", () => {
             }),
         });
         const btn = makeButton({ text: "Go" });
-        const result = buttonInputLoop([btn], 1, 0, 0, 40, 20, ctx);
+        const result = await buttonInputLoop([btn], 1, 0, 0, 40, 20, ctx);
         expect(callCount).toBe(3);
         expect(result.chosenButton).toBe(-1);
     });
 
-    it("saves and restores display each iteration", () => {
+    it("saves and restores display each iteration", async () => {
         const ctx = createCtx({
-            nextBrogueEvent: vi.fn(() => ({
+            nextBrogueEvent: vi.fn(async () => ({
                 eventType: EventType.Keystroke,
                 param1: ESCAPE_KEY,
                 param2: 0,
@@ -708,7 +708,7 @@ describe("buttonInputLoop", () => {
             })),
         });
         const btn = makeButton({ text: "X" });
-        buttonInputLoop([btn], 1, 0, 0, 10, 5, ctx);
+        await buttonInputLoop([btn], 1, 0, 0, 10, 5, ctx);
         expect(ctx.saveDisplayBuffer).toHaveBeenCalled();
         expect(ctx.restoreDisplayBuffer).toHaveBeenCalled();
         expect(ctx.overlayDisplayBuffer).toHaveBeenCalled();

@@ -163,22 +163,22 @@ function createCtx(overrides: Partial<MenuContext> = {}): MenuContext {
         })),
         drawButton: vi.fn(),
         drawButtonsInState: vi.fn(),
-        processButtonInput: vi.fn(() => ({ chosenButton: -1, canceled: false })),
-        buttonInputLoop: vi.fn(() => ({ chosenButton: -1, event: { eventType: EventType.Keystroke, param1: 0, param2: 0, controlKey: false, shiftKey: false } })),
+        processButtonInput: vi.fn(async () => ({ chosenButton: -1, canceled: false })),
+        buttonInputLoop: vi.fn(async () => ({ chosenButton: -1, event: { eventType: EventType.Keystroke, param1: 0, param2: 0, controlKey: false, shiftKey: false } })),
         rectangularShading: vi.fn(),
-        printTextBox: vi.fn(() => -1),
-        nextBrogueEvent: vi.fn(() => ({
+        printTextBox: vi.fn(async () => -1),
+        nextBrogueEvent: vi.fn(async () => ({
             eventType: EventType.Keystroke,
             param1: "q".charCodeAt(0),
             param2: 0,
             controlKey: false,
             shiftKey: false,
         })),
-        pauseBrogue: vi.fn(() => false),
-        getInputTextString: vi.fn(() => null),
-        printHighScores: vi.fn(),
-        confirm: vi.fn(() => true),
-        waitForKeystrokeOrMouseClick: vi.fn(),
+        pauseBrogue: vi.fn(async () => false),
+        getInputTextString: vi.fn(async () => null),
+        printHighScores: vi.fn(async () => {}),
+        confirm: vi.fn(async () => true),
+        waitForKeystrokeOrMouseClick: vi.fn(async () => {}),
         message: vi.fn(),
         smoothHiliteGradient: vi.fn((x: number, max: number) => Math.trunc(x * 100 / max)),
         initializeRogue: vi.fn(),
@@ -221,7 +221,7 @@ function createCtx(overrides: Partial<MenuContext> = {}): MenuContext {
 // =============================================================================
 
 describe("createFlameGrid", () => {
-    it("creates a grid of COLS x (ROWS + PADDING) with zeroed RGB", () => {
+    it("creates a grid of COLS x (ROWS + PADDING) with zeroed RGB", async () => {
         const grid = createFlameGrid();
         expect(grid.length).toBe(COLS);
         expect(grid[0].length).toBe(ROWS + MENU_FLAME_ROW_PADDING);
@@ -230,7 +230,7 @@ describe("createFlameGrid", () => {
 });
 
 describe("createFlameMask", () => {
-    it("creates a grid of COLS x ROWS filled with zeros", () => {
+    it("creates a grid of COLS x ROWS filled with zeros", async () => {
         const mask = createFlameMask();
         expect(mask.length).toBe(COLS);
         expect(mask[0].length).toBe(ROWS);
@@ -239,7 +239,7 @@ describe("createFlameMask", () => {
 });
 
 describe("createFlameColorGrid", () => {
-    it("creates a grid of COLS x (ROWS + PADDING) filled with null", () => {
+    it("creates a grid of COLS x (ROWS + PADDING) filled with null", async () => {
         const grid = createFlameColorGrid();
         expect(grid.length).toBe(COLS);
         expect(grid[0].length).toBe(ROWS + MENU_FLAME_ROW_PADDING);
@@ -248,7 +248,7 @@ describe("createFlameColorGrid", () => {
 });
 
 describe("createColorSources", () => {
-    it("creates an array of color sources with initial random values", () => {
+    it("creates an array of color sources with initial random values", async () => {
         const ctx = createCtx();
         const sources = createColorSources(ctx);
         expect(sources.length).toBe(1136);
@@ -261,7 +261,7 @@ describe("createColorSources", () => {
 // =============================================================================
 
 describe("antiAlias", () => {
-    it("fills intermediate values at edges of solid mask regions", () => {
+    it("fills intermediate values at edges of solid mask regions", async () => {
         const mask = createFlameMask();
         // Create a 3×3 block so the center has 4 neighbors and edges have ≥2
         for (let i = 5; i <= 7; i++) {
@@ -293,7 +293,7 @@ describe("antiAlias", () => {
         expect(mask[4][5]).toBe(0); // 1 neighbor → intensity[1] = 0
     });
 
-    it("does not affect cells with zero neighbors", () => {
+    it("does not affect cells with zero neighbors", async () => {
         const mask = createFlameMask();
         antiAlias(mask);
         // All still zero
@@ -304,7 +304,7 @@ describe("antiAlias", () => {
         }
     });
 
-    it("assigns correct values based on neighbor count", () => {
+    it("assigns correct values based on neighbor count", async () => {
         const mask = createFlameMask();
         // Create an L-shape so some cells have 2 block-neighbors:
         //  100 100
@@ -322,7 +322,7 @@ describe("antiAlias", () => {
         expect(mask[9][10]).toBe(0);
     });
 
-    it("uses higher intensity for cells with more neighbors", () => {
+    it("uses higher intensity for cells with more neighbors", async () => {
         const mask = createFlameMask();
         // Create a cross pattern centered at (10, 10):
         //     100
@@ -348,7 +348,7 @@ describe("antiAlias", () => {
 // =============================================================================
 
 describe("updateMenuFlames", () => {
-    it("flames propagate from color sources upward", () => {
+    it("flames propagate from color sources upward", async () => {
         const flames = createFlameGrid();
         const colors = createFlameColorGrid();
         const ctx = createCtx();
@@ -372,7 +372,7 @@ describe("updateMenuFlames", () => {
 // =============================================================================
 
 describe("drawMenuFlames", () => {
-    it("calls plotCharWithColor for each cell", () => {
+    it("calls plotCharWithColor for each cell", async () => {
         const ctx = createCtx();
         const flames = createFlameGrid();
         const mask = createFlameMask();
@@ -383,7 +383,7 @@ describe("drawMenuFlames", () => {
         expect(ctx.plotCharWithColor).toHaveBeenCalledTimes(COLS * ROWS);
     });
 
-    it("renders the version string in the bottom-right", () => {
+    it("renders the version string in the bottom-right", async () => {
         const ctx = createCtx();
         (ctx.strLenWithoutEscapes as any).mockReturnValue(6);
         const flames = createFlameGrid();
@@ -401,7 +401,7 @@ describe("drawMenuFlames", () => {
         expect(lastRowCalls[0][0]).toBe(ctx.gameConst.versionString.charCodeAt(0));
     });
 
-    it("uses black with mask=100", () => {
+    it("uses black with mask=100", async () => {
         const ctx = createCtx();
         const flames = createFlameGrid();
         const mask = createFlameMask();
@@ -424,7 +424,7 @@ describe("drawMenuFlames", () => {
 // =============================================================================
 
 describe("initializeMainMenuButton", () => {
-    it("creates a button with the given hotkeys and command", () => {
+    it("creates a button with the given hotkeys and command", async () => {
         const ctx = createCtx();
         const btn = initializeMainMenuButton(
             "  %sN%sew Game  ",
@@ -440,7 +440,7 @@ describe("initializeMainMenuButton", () => {
 });
 
 describe("initializeMainMenuButtons", () => {
-    it("creates 4 buttons with left triangles on the first 3", () => {
+    it("creates 4 buttons with left triangles on the first 3", async () => {
         const ctx = createCtx();
         const buttons = initializeMainMenuButtons(ctx);
         expect(buttons).toHaveLength(4);
@@ -452,7 +452,7 @@ describe("initializeMainMenuButtons", () => {
 });
 
 describe("stackButtons", () => {
-    it("stacks buttons top-to-bottom with correct spacing", () => {
+    it("stacks buttons top-to-bottom with correct spacing", async () => {
         const buttons = [makeButton(), makeButton(), makeButton()];
         stackButtons(buttons, 3, 10, 5, 2, true);
         expect(buttons[0].x).toBe(10);
@@ -461,7 +461,7 @@ describe("stackButtons", () => {
         expect(buttons[2].y).toBe(9);
     });
 
-    it("stacks buttons bottom-to-top with correct spacing", () => {
+    it("stacks buttons bottom-to-top with correct spacing", async () => {
         const buttons = [makeButton(), makeButton(), makeButton()];
         stackButtons(buttons, 3, 10, 10, 2, false);
         expect(buttons[2].x).toBe(10);
@@ -476,7 +476,7 @@ describe("stackButtons", () => {
 // =============================================================================
 
 describe("initializeMenu", () => {
-    it("creates button state and shadow buffer from positioned buttons", () => {
+    it("creates button state and shadow buffer from positioned buttons", async () => {
         const ctx = createCtx();
         const buttons = [makeButton({ x: 10, y: 5, text: "Hello" }), makeButton({ x: 10, y: 7, text: "World" })];
         const { state, shadowBuf } = initializeMenu(buttons, 2, ctx);
@@ -486,7 +486,7 @@ describe("initializeMenu", () => {
 });
 
 describe("initializeMainMenu", () => {
-    it("creates 4 buttons stacked bottom-to-top from quit position", () => {
+    it("creates 4 buttons stacked bottom-to-top from quit position", async () => {
         const ctx = createCtx();
         const { state, buttons, shadowBuf } = initializeMainMenu(60, 30, ctx);
         expect(buttons).toHaveLength(4);
@@ -501,7 +501,7 @@ describe("initializeMainMenu", () => {
 // =============================================================================
 
 describe("initializeFlyoutMenu", () => {
-    it("returns play flyout with 4 buttons when FlyoutPlay", () => {
+    it("returns play flyout with 4 buttons when FlyoutPlay", async () => {
         const ctx = createCtx();
         ctx.rogue.nextGame = NGCommand.FlyoutPlay;
         const flyout = initializeFlyoutMenu(59, 20, ctx);
@@ -509,7 +509,7 @@ describe("initializeFlyoutMenu", () => {
         expect(flyout!.buttons).toHaveLength(4);
     });
 
-    it("returns view flyout with 3 buttons when FlyoutView", () => {
+    it("returns view flyout with 3 buttons when FlyoutView", async () => {
         const ctx = createCtx();
         ctx.rogue.nextGame = NGCommand.FlyoutView;
         const flyout = initializeFlyoutMenu(59, 20, ctx);
@@ -517,7 +517,7 @@ describe("initializeFlyoutMenu", () => {
         expect(flyout!.buttons).toHaveLength(3);
     });
 
-    it("returns null for non-flyout commands", () => {
+    it("returns null for non-flyout commands", async () => {
         const ctx = createCtx();
         ctx.rogue.nextGame = NGCommand.NewGame;
         const flyout = initializeFlyoutMenu(59, 20, ctx);
@@ -530,12 +530,12 @@ describe("initializeFlyoutMenu", () => {
 // =============================================================================
 
 describe("isFlyoutActive", () => {
-    it("returns true for FlyoutPlay and FlyoutView", () => {
+    it("returns true for FlyoutPlay and FlyoutView", async () => {
         expect(isFlyoutActive(NGCommand.FlyoutPlay)).toBe(true);
         expect(isFlyoutActive(NGCommand.FlyoutView)).toBe(true);
     });
 
-    it("returns false for non-flyout commands", () => {
+    it("returns false for non-flyout commands", async () => {
         expect(isFlyoutActive(NGCommand.Nothing)).toBe(false);
         expect(isFlyoutActive(NGCommand.NewGame)).toBe(false);
         expect(isFlyoutActive(NGCommand.Quit)).toBe(false);
@@ -547,7 +547,7 @@ describe("isFlyoutActive", () => {
 // =============================================================================
 
 describe("getNextGameButtonPos", () => {
-    it("returns the position of the button with matching command", () => {
+    it("returns the position of the button with matching command", async () => {
         const buttons = [
             makeButton({ command: NGCommand.NewGame, x: 10, y: 5 }),
             makeButton({ command: NGCommand.FlyoutPlay, x: 10, y: 7 }),
@@ -558,7 +558,7 @@ describe("getNextGameButtonPos", () => {
         expect(pos).toEqual({ x: 10, y: 7 });
     });
 
-    it("returns null when no matching button", () => {
+    it("returns null when no matching button", async () => {
         const buttons = [
             makeButton({ command: NGCommand.NewGame }),
             makeButton({ command: NGCommand.FlyoutPlay }),
@@ -574,31 +574,31 @@ describe("getNextGameButtonPos", () => {
 // =============================================================================
 
 describe("chooseGameVariant", () => {
-    it("sets Brogue variant when user selects button 1", () => {
+    it("sets Brogue variant when user selects button 1", async () => {
         const ctx = createCtx();
-        (ctx.printTextBox as any).mockReturnValue(1);
-        chooseGameVariant(ctx);
+        (ctx.printTextBox as any).mockResolvedValue(1);
+        await chooseGameVariant(ctx);
         expect(ctx.setGameVariant).toHaveBeenCalledWith(GameVariant.Brogue);
     });
 
-    it("sets RapidBrogue variant when user selects button 0", () => {
+    it("sets RapidBrogue variant when user selects button 0", async () => {
         const ctx = createCtx();
-        (ctx.printTextBox as any).mockReturnValue(0);
-        chooseGameVariant(ctx);
+        (ctx.printTextBox as any).mockResolvedValue(0);
+        await chooseGameVariant(ctx);
         expect(ctx.setGameVariant).toHaveBeenCalledWith(GameVariant.RapidBrogue);
     });
 
-    it("sets BulletBrogue variant when user selects button 2", () => {
+    it("sets BulletBrogue variant when user selects button 2", async () => {
         const ctx = createCtx();
-        (ctx.printTextBox as any).mockReturnValue(2);
-        chooseGameVariant(ctx);
+        (ctx.printTextBox as any).mockResolvedValue(2);
+        await chooseGameVariant(ctx);
         expect(ctx.setGameVariant).toHaveBeenCalledWith(GameVariant.BulletBrogue);
     });
 
-    it("sets nextGame to Nothing when user cancels", () => {
+    it("sets nextGame to Nothing when user cancels", async () => {
         const ctx = createCtx();
-        (ctx.printTextBox as any).mockReturnValue(-1);
-        chooseGameVariant(ctx);
+        (ctx.printTextBox as any).mockResolvedValue(-1);
+        await chooseGameVariant(ctx);
         expect(ctx.rogue.nextGame).toBe(NGCommand.Nothing);
     });
 });
@@ -608,32 +608,32 @@ describe("chooseGameVariant", () => {
 // =============================================================================
 
 describe("chooseGameMode", () => {
-    it("sets Normal mode when user selects button 2", () => {
+    it("sets Normal mode when user selects button 2", async () => {
         const ctx = createCtx();
-        (ctx.printTextBox as any).mockReturnValue(2);
-        chooseGameMode(ctx);
+        (ctx.printTextBox as any).mockResolvedValue(2);
+        await chooseGameMode(ctx);
         expect(ctx.rogue.mode).toBe(GameMode.Normal);
     });
 
-    it("sets Easy mode when user selects button 1", () => {
+    it("sets Easy mode when user selects button 1", async () => {
         const ctx = createCtx();
-        (ctx.printTextBox as any).mockReturnValue(1);
-        chooseGameMode(ctx);
+        (ctx.printTextBox as any).mockResolvedValue(1);
+        await chooseGameMode(ctx);
         expect(ctx.rogue.mode).toBe(GameMode.Easy);
     });
 
-    it("sets Wizard mode when user selects button 0", () => {
+    it("sets Wizard mode when user selects button 0", async () => {
         const ctx = createCtx();
-        (ctx.printTextBox as any).mockReturnValue(0);
-        chooseGameMode(ctx);
+        (ctx.printTextBox as any).mockResolvedValue(0);
+        await chooseGameMode(ctx);
         expect(ctx.rogue.mode).toBe(GameMode.Wizard);
     });
 
-    it("always resets nextGame to Nothing", () => {
+    it("always resets nextGame to Nothing", async () => {
         const ctx = createCtx();
         ctx.rogue.nextGame = NGCommand.GameMode;
-        (ctx.printTextBox as any).mockReturnValue(-1);
-        chooseGameMode(ctx);
+        (ctx.printTextBox as any).mockResolvedValue(-1);
+        await chooseGameMode(ctx);
         expect(ctx.rogue.nextGame).toBe(NGCommand.Nothing);
     });
 });
@@ -643,9 +643,9 @@ describe("chooseGameMode", () => {
 // =============================================================================
 
 describe("dialogAlert", () => {
-    it("shows a dialog with an OK button", () => {
+    it("shows a dialog with an OK button", async () => {
         const ctx = createCtx();
-        dialogAlert("Test message!", ctx);
+        await dialogAlert("Test message!", ctx);
         expect(ctx.saveDisplayBuffer).toHaveBeenCalled();
         expect(ctx.printTextBox).toHaveBeenCalledTimes(1);
         expect(ctx.restoreDisplayBuffer).toHaveBeenCalled();
@@ -657,12 +657,12 @@ describe("dialogAlert", () => {
 // =============================================================================
 
 describe("quitImmediately", () => {
-    it("returns 0 (success)", () => {
+    it("returns 0 (success)", async () => {
         const ctx = createCtx();
         expect(quitImmediately(ctx)).toBe(0);
     });
 
-    it("saves game when recording and game in progress", () => {
+    it("saves game when recording and game in progress", async () => {
         const ctx = createCtx();
         ctx.rogue.recording = true;
         ctx.rogue.gameInProgress = true;
@@ -671,7 +671,7 @@ describe("quitImmediately", () => {
         expect(ctx.saveGameNoPrompt).toHaveBeenCalled();
     });
 
-    it("saves recording when recording but game ended", () => {
+    it("saves recording when recording but game ended", async () => {
         const ctx = createCtx();
         ctx.rogue.recording = true;
         ctx.rogue.gameHasEnded = true;
@@ -680,7 +680,7 @@ describe("quitImmediately", () => {
         expect(ctx.saveRecordingNoPrompt).toHaveBeenCalled();
     });
 
-    it("does not save when not recording", () => {
+    it("does not save when not recording", async () => {
         const ctx = createCtx();
         ctx.rogue.recording = false;
         quitImmediately(ctx);
@@ -693,57 +693,57 @@ describe("quitImmediately", () => {
 // =============================================================================
 
 describe("dialogChooseFile", () => {
-    it("shows alert when no matching files", () => {
+    it("shows alert when no matching files", async () => {
         const ctx = createCtx();
         (ctx.listFiles as any).mockReturnValue([]);
-        const result = dialogChooseFile(".broguesave", "Open game:", ctx);
+        const result = await dialogChooseFile(".broguesave", "Open game:", ctx);
         expect(result).toBeNull();
         expect(ctx.printTextBox).toHaveBeenCalled(); // dialogAlert
     });
 
-    it("returns selected file path", () => {
+    it("returns selected file path", async () => {
         const ctx = createCtx();
         const files: FileEntry[] = [
             { path: "game1.broguesave", date: new Date("2025-01-01") },
             { path: "game2.broguesave", date: new Date("2025-01-02") },
         ];
         (ctx.listFiles as any).mockReturnValue(files);
-        (ctx.buttonInputLoop as any).mockReturnValue({
+        (ctx.buttonInputLoop as any).mockResolvedValue({
             chosenButton: 0,
             event: { eventType: EventType.MouseUp, param1: 0, param2: 0, controlKey: false, shiftKey: false },
         });
 
-        const result = dialogChooseFile(".broguesave", "Open game:", ctx);
+        const result = await dialogChooseFile(".broguesave", "Open game:", ctx);
         // Files sorted by date descending, so index 0 = game2
         expect(result).toBe("game2.broguesave");
     });
 
-    it("returns null when user cancels", () => {
+    it("returns null when user cancels", async () => {
         const ctx = createCtx();
         const files: FileEntry[] = [{ path: "game1.broguesave", date: new Date("2025-01-01") }];
         (ctx.listFiles as any).mockReturnValue(files);
-        (ctx.buttonInputLoop as any).mockReturnValue({
+        (ctx.buttonInputLoop as any).mockResolvedValue({
             chosenButton: -1,
             event: { eventType: EventType.Keystroke, param1: 0x1b, param2: 0, controlKey: false, shiftKey: false },
         });
 
-        const result = dialogChooseFile(".broguesave", "Open game:", ctx);
+        const result = await dialogChooseFile(".broguesave", "Open game:", ctx);
         expect(result).toBeNull();
     });
 
-    it("filters files by suffix", () => {
+    it("filters files by suffix", async () => {
         const ctx = createCtx();
         const files: FileEntry[] = [
             { path: "game1.broguesave", date: new Date("2025-01-01") },
             { path: "rec1.broguerec", date: new Date("2025-01-02") },
         ];
         (ctx.listFiles as any).mockReturnValue(files);
-        (ctx.buttonInputLoop as any).mockReturnValue({
+        (ctx.buttonInputLoop as any).mockResolvedValue({
             chosenButton: 0,
             event: { eventType: EventType.MouseUp, param1: 0, param2: 0, controlKey: false, shiftKey: false },
         });
 
-        const result = dialogChooseFile(".broguesave", "Open game:", ctx);
+        const result = await dialogChooseFile(".broguesave", "Open game:", ctx);
         // Only one file matches, so button 0 = game1
         expect(result).toBe("game1.broguesave");
     });
@@ -754,7 +754,7 @@ describe("dialogChooseFile", () => {
 // =============================================================================
 
 describe("createGameStats", () => {
-    it("initializes all fields to zero", () => {
+    it("initializes all fields to zero", async () => {
         const stats = createGameStats();
         expect(stats.games).toBe(0);
         expect(stats.won).toBe(0);
@@ -763,13 +763,13 @@ describe("createGameStats", () => {
 });
 
 describe("addRunToGameStats", () => {
-    it("increments games count", () => {
+    it("increments games count", async () => {
         const stats = createGameStats();
         addRunToGameStats({ seed: 1n, dateNumber: 0, result: "Died", killedBy: "trap", gold: 10, lumenstones: 0, score: 100, turns: 50, deepestLevel: 5 }, stats);
         expect(stats.games).toBe(1);
     });
 
-    it("tracks wins correctly (Escaped)", () => {
+    it("tracks wins correctly (Escaped)", async () => {
         const stats = createGameStats();
         addRunToGameStats({ seed: 1n, dateNumber: 0, result: "Escaped", killedBy: "", gold: 100, lumenstones: 5, score: 1000, turns: 500, deepestLevel: 26 }, stats);
         expect(stats.won).toBe(1);
@@ -777,14 +777,14 @@ describe("addRunToGameStats", () => {
         expect(stats.currentWinStreak).toBe(1);
     });
 
-    it("tracks mastery separately", () => {
+    it("tracks mastery separately", async () => {
         const stats = createGameStats();
         addRunToGameStats({ seed: 1n, dateNumber: 0, result: "Mastered", killedBy: "", gold: 200, lumenstones: 25, score: 5000, turns: 1000, deepestLevel: 26 }, stats);
         expect(stats.mastered).toBe(1);
         expect(stats.currentMasteryStreak).toBe(1);
     });
 
-    it("resets win streak on death", () => {
+    it("resets win streak on death", async () => {
         const stats = createGameStats();
         addRunToGameStats({ seed: 1n, dateNumber: 0, result: "Escaped", killedBy: "", gold: 100, lumenstones: 5, score: 1000, turns: 500, deepestLevel: 26 }, stats);
         addRunToGameStats({ seed: 2n, dateNumber: 0, result: "Died", killedBy: "rat", gold: 5, lumenstones: 0, score: 50, turns: 20, deepestLevel: 3 }, stats);
@@ -792,21 +792,21 @@ describe("addRunToGameStats", () => {
         expect(stats.longestWinStreak).toBe(1);
     });
 
-    it("tracks highest score", () => {
+    it("tracks highest score", async () => {
         const stats = createGameStats();
         addRunToGameStats({ seed: 1n, dateNumber: 0, result: "Died", killedBy: "", gold: 0, lumenstones: 0, score: 500, turns: 100, deepestLevel: 10 }, stats);
         addRunToGameStats({ seed: 2n, dateNumber: 0, result: "Died", killedBy: "", gold: 0, lumenstones: 0, score: 200, turns: 50, deepestLevel: 5 }, stats);
         expect(stats.highestScore).toBe(500);
     });
 
-    it("tracks fewest turns win", () => {
+    it("tracks fewest turns win", async () => {
         const stats = createGameStats();
         addRunToGameStats({ seed: 1n, dateNumber: 0, result: "Escaped", killedBy: "", gold: 0, lumenstones: 0, score: 1000, turns: 500, deepestLevel: 26 }, stats);
         addRunToGameStats({ seed: 2n, dateNumber: 0, result: "Escaped", killedBy: "", gold: 0, lumenstones: 0, score: 1200, turns: 300, deepestLevel: 26 }, stats);
         expect(stats.fewestTurnsWin).toBe(300);
     });
 
-    it("computes win rate", () => {
+    it("computes win rate", async () => {
         const stats = createGameStats();
         addRunToGameStats({ seed: 1n, dateNumber: 0, result: "Escaped", killedBy: "", gold: 0, lumenstones: 0, score: 1000, turns: 500, deepestLevel: 26 }, stats);
         addRunToGameStats({ seed: 2n, dateNumber: 0, result: "Died", killedBy: "", gold: 0, lumenstones: 0, score: 50, turns: 20, deepestLevel: 3 }, stats);
@@ -815,9 +815,9 @@ describe("addRunToGameStats", () => {
 });
 
 describe("viewGameStats", () => {
-    it("displays stats screen and waits for input", () => {
+    it("displays stats screen and waits for input", async () => {
         const ctx = createCtx();
-        viewGameStats(ctx);
+        await viewGameStats(ctx);
         expect(ctx.saveDisplayBuffer).toHaveBeenCalled();
         expect(ctx.overlayDisplayBuffer).toHaveBeenCalled();
         expect(ctx.commitDraws).toHaveBeenCalled();
@@ -825,12 +825,12 @@ describe("viewGameStats", () => {
         expect(ctx.restoreDisplayBuffer).toHaveBeenCalled();
     });
 
-    it("offers reset button when there are recent stats", () => {
+    it("offers reset button when there are recent stats", async () => {
         const runs: RogueRun[] = [
             { seed: 1n, dateNumber: 0, result: "Died", killedBy: "trap", gold: 10, lumenstones: 0, score: 100, turns: 50, deepestLevel: 5 },
         ];
         const ctx = createCtx({ loadRunHistory: vi.fn(() => runs) });
-        viewGameStats(ctx);
+        await viewGameStats(ctx);
         // Should show button input loop for the reset button instead of waitForKeystrokeOrMouseClick
         expect(ctx.buttonInputLoop).toHaveBeenCalled();
     });
@@ -841,7 +841,7 @@ describe("viewGameStats", () => {
 // =============================================================================
 
 describe("titleMenu", () => {
-    it("seeds the RNG and initializes flames before entering the loop", () => {
+    it("seeds the RNG and initializes flames before entering the loop", async () => {
         const ctx = createCtx();
         ctx.rogue.nextGame = NGCommand.Nothing;
 
@@ -849,29 +849,29 @@ describe("titleMenu", () => {
         // processButtonInput returns chosenButton: 3 (Quit button).
         // Since nextGame(Nothing) !== mainButtons[3].command(Quit), nextGame gets set to Quit.
         // Inner loop exits (Keystroke event), outer loop exits (Quit is not flyout/Nothing).
-        (ctx.pauseBrogue as any).mockReturnValue(true);
-        (ctx.nextBrogueEvent as any).mockReturnValue({
+        (ctx.pauseBrogue as any).mockResolvedValue(true);
+        (ctx.nextBrogueEvent as any).mockResolvedValue({
             eventType: EventType.Keystroke,
             param1: "q".charCodeAt(0),
             param2: 0,
             controlKey: false,
             shiftKey: false,
         });
-        (ctx.processButtonInput as any).mockReturnValue({ chosenButton: 3, canceled: false });
+        (ctx.processButtonInput as any).mockResolvedValue({ chosenButton: 3, canceled: false });
 
         const dbuf = createScreenDisplayBuffer();
-        titleMenu(ctx, dbuf);
+        await titleMenu(ctx, dbuf);
 
         expect(ctx.seedRandomGenerator).toHaveBeenCalledWith(0n);
         expect(ctx.blackOutScreen).toHaveBeenCalledWith(dbuf);
     });
 
-    it("sets nextGame to NewGame when user presses 'n'", () => {
+    it("sets nextGame to NewGame when user presses 'n'", async () => {
         const ctx = createCtx();
         ctx.rogue.nextGame = NGCommand.Nothing;
 
-        (ctx.pauseBrogue as any).mockReturnValue(true);
-        (ctx.nextBrogueEvent as any).mockReturnValue({
+        (ctx.pauseBrogue as any).mockResolvedValue(true);
+        (ctx.nextBrogueEvent as any).mockResolvedValue({
             eventType: EventType.Keystroke,
             param1: "n".charCodeAt(0),
             param2: 0,
@@ -880,7 +880,7 @@ describe("titleMenu", () => {
         });
 
         const dbuf = createScreenDisplayBuffer();
-        titleMenu(ctx, dbuf);
+        await titleMenu(ctx, dbuf);
 
         expect(ctx.rogue.nextGame).toBe(NGCommand.NewGame);
     });
@@ -891,16 +891,16 @@ describe("titleMenu", () => {
 // =============================================================================
 
 describe("mainBrogueJunction", () => {
-    it("initializes game variant and launch arguments", () => {
+    it("initializes game variant and launch arguments", async () => {
         const ctx = createCtx();
         ctx.rogue.nextGame = NGCommand.Quit;
         const dbuf = createScreenDisplayBuffer();
-        mainBrogueJunction(ctx, dbuf);
+        await mainBrogueJunction(ctx, dbuf);
         expect(ctx.initializeGameVariant).toHaveBeenCalled();
         expect(ctx.initializeLaunchArguments).toHaveBeenCalled();
     });
 
-    it("creates a new game when nextGame is NewGame", () => {
+    it("creates a new game when nextGame is NewGame", async () => {
         const ctx = createCtx();
         ctx.rogue.nextGame = NGCommand.NewGame;
 
@@ -910,14 +910,14 @@ describe("mainBrogueJunction", () => {
         });
 
         const dbuf = createScreenDisplayBuffer();
-        mainBrogueJunction(ctx, dbuf);
+        await mainBrogueJunction(ctx, dbuf);
 
         expect(ctx.initializeRogue).toHaveBeenCalled();
         expect(ctx.startLevel).toHaveBeenCalled();
         expect(ctx.freeEverything).toHaveBeenCalled();
     });
 
-    it("shows high scores when nextGame is HighScores", () => {
+    it("shows high scores when nextGame is HighScores", async () => {
         const ctx = createCtx();
         ctx.rogue.nextGame = NGCommand.HighScores;
 
@@ -927,12 +927,12 @@ describe("mainBrogueJunction", () => {
         });
 
         const dbuf = createScreenDisplayBuffer();
-        mainBrogueJunction(ctx, dbuf);
+        await mainBrogueJunction(ctx, dbuf);
 
         expect(ctx.printHighScores).toHaveBeenCalledWith(false);
     });
 
-    it("shows game stats when nextGame is GameStats", () => {
+    it("shows game stats when nextGame is GameStats", async () => {
         const ctx = createCtx();
         ctx.rogue.nextGame = NGCommand.GameStats;
 
@@ -943,10 +943,10 @@ describe("mainBrogueJunction", () => {
         });
 
         const dbuf = createScreenDisplayBuffer();
-        mainBrogueJunction(ctx, dbuf);
+        await mainBrogueJunction(ctx, dbuf);
     });
 
-    it("opens game file when nextGame is OpenGame and path is pre-set", () => {
+    it("opens game file when nextGame is OpenGame and path is pre-set", async () => {
         const ctx = createCtx();
         ctx.rogue.nextGame = NGCommand.OpenGame;
         ctx.rogue.nextGamePath = "saved.broguesave";
@@ -956,30 +956,30 @@ describe("mainBrogueJunction", () => {
         });
 
         const dbuf = createScreenDisplayBuffer();
-        mainBrogueJunction(ctx, dbuf);
+        await mainBrogueJunction(ctx, dbuf);
 
         expect(ctx.openFile).toHaveBeenCalledWith("saved.broguesave");
         expect(ctx.mainInputLoop).toHaveBeenCalled();
     });
 
-    it("prompts for seed in NewGameWithSeed", () => {
+    it("prompts for seed in NewGameWithSeed", async () => {
         const ctx = createCtx();
         ctx.rogue.nextGame = NGCommand.NewGameWithSeed;
         ctx.rogue.nextGameSeed = 0n;
 
-        (ctx.getInputTextString as any).mockReturnValue("12345");
+        (ctx.getInputTextString as any).mockResolvedValue("12345");
         (ctx.mainInputLoop as any).mockImplementation(() => {
             ctx.rogue.nextGame = NGCommand.Quit;
         });
 
         const dbuf = createScreenDisplayBuffer();
-        mainBrogueJunction(ctx, dbuf);
+        await mainBrogueJunction(ctx, dbuf);
 
         expect(ctx.getInputTextString).toHaveBeenCalled();
         expect(ctx.initializeRogue).toHaveBeenCalled();
     });
 
-    it("uses pre-set seed in NewGameWithSeed when nextGameSeed > 0", () => {
+    it("uses pre-set seed in NewGameWithSeed when nextGameSeed > 0", async () => {
         const ctx = createCtx();
         ctx.rogue.nextGame = NGCommand.NewGameWithSeed;
         ctx.rogue.nextGameSeed = 42n;
@@ -989,34 +989,34 @@ describe("mainBrogueJunction", () => {
         });
 
         const dbuf = createScreenDisplayBuffer();
-        mainBrogueJunction(ctx, dbuf);
+        await mainBrogueJunction(ctx, dbuf);
 
         expect(ctx.getInputTextString).not.toHaveBeenCalled();
         expect(ctx.initializeRogue).toHaveBeenCalledWith(42n);
     });
 
-    it("cancels NewGameWithSeed when user cancels seed prompt", () => {
+    it("cancels NewGameWithSeed when user cancels seed prompt", async () => {
         const ctx = createCtx();
         ctx.rogue.nextGame = NGCommand.NewGameWithSeed;
         ctx.rogue.nextGameSeed = 0n;
 
         // getInputTextString returns null (cancelled)
-        (ctx.getInputTextString as any).mockReturnValue(null);
+        (ctx.getInputTextString as any).mockResolvedValue(null);
 
         // After nextGame resets to Nothing, titleMenu will be called.
         // Make titleMenu exit immediately by having pauseBrogue set Quit.
-        (ctx.pauseBrogue as any).mockReturnValue(true);
-        (ctx.nextBrogueEvent as any).mockReturnValue({
+        (ctx.pauseBrogue as any).mockResolvedValue(true);
+        (ctx.nextBrogueEvent as any).mockResolvedValue({
             eventType: EventType.Keystroke,
             param1: "q".charCodeAt(0),
             param2: 0,
             controlKey: false,
             shiftKey: false,
         });
-        (ctx.processButtonInput as any).mockReturnValue({ chosenButton: 3, canceled: false });
+        (ctx.processButtonInput as any).mockResolvedValue({ chosenButton: 3, canceled: false });
 
         const dbuf = createScreenDisplayBuffer();
-        mainBrogueJunction(ctx, dbuf);
+        await mainBrogueJunction(ctx, dbuf);
 
         expect(ctx.initializeRogue).not.toHaveBeenCalled();
     });

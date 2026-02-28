@@ -115,7 +115,7 @@ export interface InventoryContext {
         winY: number,
         winWidth: number,
         winHeight: number,
-    ): { chosenButton: number; event: RogueEvent };
+    ): Promise<{ chosenButton: number; event: RogueEvent }>;
 
     // -- Sidebar detail panels ------------------------------------------------
 
@@ -232,7 +232,7 @@ export function rectangularShading(
  *
  * C: `printTextBox` in IO.c
  */
-export function printTextBox(
+export async function printTextBox(
     textBuf: string,
     x: number,
     y: number,
@@ -242,7 +242,7 @@ export function printTextBox(
     ctx: InventoryContext,
     buttons?: BrogueButton[],
     buttonCount?: number,
-): number {
+): Promise<number> {
     let x2: number;
     let y2: number;
     const bCount = buttonCount ?? 0;
@@ -307,7 +307,7 @@ export function printTextBox(
     ctx.overlayDisplayBuffer(dbuf);
 
     if (bCount > 0 && buttons) {
-        const result = ctx.buttonInputLoop(buttons, bCount, x2, y2, width, (y2 + lineCount + 1 + padLines) - y2);
+        const result = await ctx.buttonInputLoop(buttons, bCount, x2, y2, width, (y2 + lineCount + 1 + padLines) - y2);
         return result.chosenButton;
     } else {
         return -1;
@@ -324,14 +324,14 @@ export function printTextBox(
  *
  * C: `displayInventory` in Items.c (~360 lines)
  */
-export function displayInventory(
+export async function displayInventory(
     categoryMask: number,
     requiredFlags: number,
     forbiddenFlags: number,
     waitForAcknowledge: boolean,
     includeButtons: boolean,
     ctx: InventoryContext,
-): string {
+): Promise<string> {
     ctx.clearCursorPath();
 
     const dbuf = ctx.createScreenDisplayBuffer();
@@ -559,7 +559,7 @@ export function displayInventory(
         let highlightItemLine = -1;
         ctx.restoreDisplayBuffer(rbuf);
 
-        const loopResult = ctx.buttonInputLoop(
+        const loopResult = await ctx.buttonInputLoop(
             buttons,
             itemCount + extraLineCount + 2,
             COLS - maxLength,

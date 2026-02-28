@@ -76,9 +76,9 @@ export interface ButtonContext {
 
     // -- Events / timing ------------------------------------------------------
 
-    nextBrogueEvent(textInput: boolean, colorsDance: boolean, realInputEvenInPlayback: boolean): RogueEvent;
-    pauseBrogue(milliseconds: number): boolean;
-    pauseAnimation(milliseconds: number): boolean;
+    nextBrogueEvent(textInput: boolean, colorsDance: boolean, realInputEvenInPlayback: boolean): Promise<RogueEvent>;
+    pauseBrogue(milliseconds: number): Promise<boolean>;
+    pauseAnimation(milliseconds: number): Promise<boolean>;
 }
 
 // =============================================================================
@@ -324,11 +324,11 @@ export interface ProcessButtonResult {
  *
  * C: `processButtonInput` in Buttons.c
  */
-export function processButtonInput(
+export async function processButtonInput(
     state: ButtonState,
     event: RogueEvent,
     ctx: ButtonContext,
-): ProcessButtonResult {
+): Promise<ProcessButtonResult> {
     let buttonUsed = false;
     let canceled = false;
 
@@ -400,9 +400,9 @@ export function processButtonInput(
                             ctx.overlayDisplayBuffer(dbuf);
 
                             if (!ctx.rogue.playbackMode || ctx.rogue.playbackPaused) {
-                                ctx.pauseBrogue(50);
+                                await ctx.pauseBrogue(50);
                             } else {
-                                ctx.pauseAnimation(1000);
+                                await ctx.pauseAnimation(1000);
                             }
 
                             ctx.restoreDisplayBuffer(rbuf);
@@ -447,7 +447,7 @@ export interface ButtonInputResult {
  *
  * C: `buttonInputLoop` in Buttons.c
  */
-export function buttonInputLoop(
+export async function buttonInputLoop(
     buttons: BrogueButton[],
     buttonCount: number,
     winX: number,
@@ -455,7 +455,7 @@ export function buttonInputLoop(
     winWidth: number,
     winHeight: number,
     ctx: ButtonContext,
-): ButtonInputResult {
+): Promise<ButtonInputResult> {
     const state = initializeButtonState(buttons, buttonCount, winX, winY, winWidth, winHeight);
 
     let chosenButton = -1;
@@ -477,10 +477,10 @@ export function buttonInputLoop(
         ctx.overlayDisplayBuffer(dbuf);
 
         // Get input
-        theEvent = ctx.nextBrogueEvent(true, false, false);
+        theEvent = await ctx.nextBrogueEvent(true, false, false);
 
         // Process input
-        const result = processButtonInput(state, theEvent, ctx);
+        const result = await processButtonInput(state, theEvent, ctx);
         chosenButton = result.chosenButton;
         canceled = result.canceled;
 

@@ -113,7 +113,7 @@ function createCtx(overrides: Partial<InventoryContext> = {}): InventoryContext 
             text: s,
             lineCount: Math.max(1, Math.ceil(s.length / Math.max(1, width))),
         })),
-        buttonInputLoop: vi.fn(() => ({
+        buttonInputLoop: vi.fn(async () => ({
             chosenButton: -1,
             event: {
                 eventType: EventType.Keystroke,
@@ -151,7 +151,7 @@ function createCtx(overrides: Partial<InventoryContext> = {}): InventoryContext 
 // =============================================================================
 
 describe("displayMagicCharForItem", () => {
-    it("returns true for magic-detected non-prenamed item", () => {
+    it("returns true for magic-detected non-prenamed item", async () => {
         const item = makeItem({
             category: ItemCategory.WEAPON,
             flags: ItemFlag.ITEM_MAGIC_DETECTED,
@@ -159,12 +159,12 @@ describe("displayMagicCharForItem", () => {
         expect(displayMagicCharForItem(item)).toBe(true);
     });
 
-    it("returns false when not magic-detected", () => {
+    it("returns false when not magic-detected", async () => {
         const item = makeItem({ category: ItemCategory.WEAPON, flags: 0 });
         expect(displayMagicCharForItem(item)).toBe(false);
     });
 
-    it("returns false for prenamed categories even if magic-detected", () => {
+    it("returns false for prenamed categories even if magic-detected", async () => {
         const item = makeItem({
             category: ItemCategory.FOOD,
             flags: ItemFlag.ITEM_MAGIC_DETECTED,
@@ -172,7 +172,7 @@ describe("displayMagicCharForItem", () => {
         expect(displayMagicCharForItem(item)).toBe(false);
     });
 
-    it("returns false for gold", () => {
+    it("returns false for gold", async () => {
         const item = makeItem({
             category: ItemCategory.GOLD,
             flags: ItemFlag.ITEM_MAGIC_DETECTED,
@@ -180,7 +180,7 @@ describe("displayMagicCharForItem", () => {
         expect(displayMagicCharForItem(item)).toBe(false);
     });
 
-    it("returns true for staff with detection", () => {
+    it("returns true for staff with detection", async () => {
         const item = makeItem({
             category: ItemCategory.STAFF,
             flags: ItemFlag.ITEM_MAGIC_DETECTED,
@@ -194,21 +194,21 @@ describe("displayMagicCharForItem", () => {
 // =============================================================================
 
 describe("rectangularShading", () => {
-    it("sets full opacity inside the rectangle", () => {
+    it("sets full opacity inside the rectangle", async () => {
         const dbuf = createScreenDisplayBuffer();
         const ctx = createCtx();
         rectangularShading(10, 5, 20, 10, { ...black }, 90, dbuf, ctx);
         expect(dbuf.cells[15][7].opacity).toBe(90);
     });
 
-    it("caps opacity at 100", () => {
+    it("caps opacity at 100", async () => {
         const dbuf = createScreenDisplayBuffer();
         const ctx = createCtx();
         rectangularShading(0, 0, 5, 5, { ...black }, 150, dbuf, ctx);
         expect(dbuf.cells[2][2].opacity).toBe(100);
     });
 
-    it("reduces opacity outside with distance falloff", () => {
+    it("reduces opacity outside with distance falloff", async () => {
         const dbuf = createScreenDisplayBuffer();
         const ctx = createCtx();
         rectangularShading(10, 10, 5, 5, { ...black }, 80, dbuf, ctx);
@@ -218,7 +218,7 @@ describe("rectangularShading", () => {
         expect(outerOpacity).toBeGreaterThan(0);
     });
 
-    it("sets opacity to 0 for very distant cells", () => {
+    it("sets opacity to 0 for very distant cells", async () => {
         const dbuf = createScreenDisplayBuffer();
         const ctx = createCtx();
         rectangularShading(10, 10, 5, 5, { ...black }, 20, dbuf, ctx);
@@ -226,7 +226,7 @@ describe("rectangularShading", () => {
         expect(dbuf.cells[0][0].opacity).toBe(0);
     });
 
-    it("stores color components for all cells", () => {
+    it("stores color components for all cells", async () => {
         const dbuf = createScreenDisplayBuffer();
         const ctx = createCtx();
         const color = makeColor(50, 60, 70);
@@ -240,37 +240,37 @@ describe("rectangularShading", () => {
 // =============================================================================
 
 describe("printTextBox", () => {
-    it("auto-calculates position when width <= 0 and x < center", () => {
+    it("auto-calculates position when width <= 0 and x < center", async () => {
         const ctx = createCtx();
-        printTextBox("Hello World", 5, 0, 0, white, black, ctx);
+        await printTextBox("Hello World", 5, 0, 0, white, black, ctx);
         expect(ctx.printStringWithWrapping).toHaveBeenCalled();
         expect(ctx.overlayDisplayBuffer).toHaveBeenCalled();
     });
 
-    it("auto-calculates position when width <= 0 and x >= center", () => {
+    it("auto-calculates position when width <= 0 and x >= center", async () => {
         const ctx = createCtx();
-        printTextBox("Hello World", DCOLS / 2, 0, 0, white, black, ctx);
+        await printTextBox("Hello World", DCOLS / 2, 0, 0, white, black, ctx);
         expect(ctx.printStringWithWrapping).toHaveBeenCalled();
     });
 
-    it("uses provided position when width > 0", () => {
+    it("uses provided position when width > 0", async () => {
         const ctx = createCtx();
-        printTextBox("Hello", 10, 5, 30, white, black, ctx);
+        await printTextBox("Hello", 10, 5, 30, white, black, ctx);
         // printStringWithWrapping should be called with x=10, y=5
         const call = (ctx.printStringWithWrapping as ReturnType<typeof vi.fn>).mock.calls[0];
         expect(call[1]).toBe(10);
         expect(call[2]).toBe(5);
     });
 
-    it("returns -1 when no buttons provided", () => {
+    it("returns -1 when no buttons provided", async () => {
         const ctx = createCtx();
-        const result = printTextBox("Hello", 10, 5, 30, white, black, ctx);
+        const result = await printTextBox("Hello", 10, 5, 30, white, black, ctx);
         expect(result).toBe(-1);
     });
 
-    it("runs button input loop when buttons provided", () => {
+    it("runs button input loop when buttons provided", async () => {
         const ctx = createCtx({
-            buttonInputLoop: vi.fn(() => ({
+            buttonInputLoop: vi.fn(async () => ({
                 chosenButton: 1,
                 event: { eventType: EventType.Keystroke, param1: 0, param2: 0, controlKey: false, shiftKey: false },
             })),
@@ -288,15 +288,15 @@ describe("printTextBox", () => {
             flags: ButtonFlag.B_DRAW | ButtonFlag.B_ENABLED,
             command: 0 as any,
         }];
-        const result = printTextBox("Choose", 10, 5, 30, white, black, ctx, buttons, 1);
+        const result = await printTextBox("Choose", 10, 5, 30, white, black, ctx, buttons, 1);
         expect(result).toBe(1);
         expect(ctx.buttonInputLoop).toHaveBeenCalled();
     });
 
-    it("applies rectangular shading", () => {
+    it("applies rectangular shading", async () => {
         const ctx = createCtx();
         const dbuf = createScreenDisplayBuffer();
-        printTextBox("Test", 10, 5, 20, white, black, ctx);
+        await printTextBox("Test", 10, 5, 20, white, black, ctx);
         // overlayDisplayBuffer should be called with a buffer that has shading
         expect(ctx.overlayDisplayBuffer).toHaveBeenCalled();
     });
@@ -307,9 +307,9 @@ describe("printTextBox", () => {
 // =============================================================================
 
 describe("displayInventory — empty pack", () => {
-    it("returns empty string with empty pack message", () => {
+    it("returns empty string with empty pack message", async () => {
         const ctx = createCtx({ packItems: [] });
-        const result = displayInventory(0xFFFF, 0, 0, true, false, ctx);
+        const result = await displayInventory(0xFFFF, 0, 0, true, false, ctx);
         expect(result).toBe("");
         expect(ctx.confirmMessages).toHaveBeenCalled();
         expect(ctx.message).toHaveBeenCalledWith("Your pack is empty!", 0);
@@ -321,7 +321,7 @@ describe("displayInventory — empty pack", () => {
 // =============================================================================
 
 describe("displayInventory — item listing", () => {
-    it("lists equipped items first", () => {
+    it("lists equipped items first", async () => {
         const sword = makeItem({ inventoryLetter: "a", flags: ItemFlag.ITEM_EQUIPPED, category: ItemCategory.WEAPON });
         const potion = makeItem({ inventoryLetter: "b", category: ItemCategory.POTION });
         const ctx = createCtx({
@@ -329,7 +329,7 @@ describe("displayInventory — item listing", () => {
             packItems: [sword, potion],
         });
 
-        displayInventory(0xFFFF, 0, 0, false, false, ctx);
+        await displayInventory(0xFFFF, 0, 0, false, false, ctx);
 
         // buttonInputLoop should have been called
         expect(ctx.buttonInputLoop).toHaveBeenCalled();
@@ -337,53 +337,53 @@ describe("displayInventory — item listing", () => {
         expect(ctx.drawButton).toHaveBeenCalled();
     });
 
-    it("returns item letter when item selected", () => {
+    it("returns item letter when item selected", async () => {
         const sword = makeItem({ inventoryLetter: "a", category: ItemCategory.WEAPON });
         const ctx = createCtx({
             packItems: [sword],
-            buttonInputLoop: vi.fn(() => ({
+            buttonInputLoop: vi.fn(async () => ({
                 chosenButton: 0,
                 event: { eventType: EventType.Keystroke, param1: "a".charCodeAt(0), param2: 0, controlKey: false, shiftKey: false },
             })),
         });
 
-        const result = displayInventory(0xFFFF, 0, 0, false, false, ctx);
+        const result = await displayInventory(0xFFFF, 0, 0, false, false, ctx);
         expect(result).toBe("a");
     });
 
-    it("returns empty string when user cancels", () => {
+    it("returns empty string when user cancels", async () => {
         const sword = makeItem({ inventoryLetter: "a" });
         const ctx = createCtx({
             packItems: [sword],
-            buttonInputLoop: vi.fn(() => ({
+            buttonInputLoop: vi.fn(async () => ({
                 chosenButton: -1,
                 event: { eventType: EventType.Keystroke, param1: ESCAPE_KEY, param2: 0, controlKey: false, shiftKey: false },
             })),
         });
 
-        const result = displayInventory(0xFFFF, 0, 0, false, false, ctx);
+        const result = await displayInventory(0xFFFF, 0, 0, false, false, ctx);
         expect(result).toBe("");
     });
 
-    it("clears cursor path before display", () => {
+    it("clears cursor path before display", async () => {
         const ctx = createCtx({ packItems: [makeItem()] });
-        displayInventory(0xFFFF, 0, 0, false, false, ctx);
+        await displayInventory(0xFFFF, 0, 0, false, false, ctx);
         expect(ctx.clearCursorPath).toHaveBeenCalled();
     });
 
-    it("includes room remaining text when waitForAcknowledge", () => {
+    it("includes room remaining text when waitForAcknowledge", async () => {
         const sword = makeItem({ inventoryLetter: "a" });
         const ctx = createCtx({
             packItems: [sword],
             numberOfItemsInPack: vi.fn(() => 1),
         });
-        displayInventory(0xFFFF, 0, 0, true, false, ctx);
+        await displayInventory(0xFFFF, 0, 0, true, false, ctx);
         // drawButton is called for the item + extra lines
         const drawCalls = (ctx.drawButton as ReturnType<typeof vi.fn>).mock.calls;
         expect(drawCalls.length).toBeGreaterThan(1);
     });
 
-    it("shows separator when equipped items exist", () => {
+    it("shows separator when equipped items exist", async () => {
         const sword = makeItem({
             inventoryLetter: "a",
             flags: ItemFlag.ITEM_EQUIPPED,
@@ -395,13 +395,13 @@ describe("displayInventory — item listing", () => {
             packItems: [sword, potion],
         });
 
-        displayInventory(0xFFFF, 0, 0, true, false, ctx);
+        await displayInventory(0xFFFF, 0, 0, true, false, ctx);
         // Should have extra buttons drawn (separator + info lines)
         const drawCalls = (ctx.drawButton as ReturnType<typeof vi.fn>).mock.calls;
         expect(drawCalls.length).toBeGreaterThanOrEqual(4); // 2 items + separator + info lines
     });
 
-    it("displays magic detection symbols for detected items", () => {
+    it("displays magic detection symbols for detected items", async () => {
         const staff = makeItem({
             inventoryLetter: "a",
             category: ItemCategory.STAFF,
@@ -412,7 +412,7 @@ describe("displayInventory — item listing", () => {
             itemMagicPolarity: vi.fn(() => 1),
         });
 
-        displayInventory(0xFFFF, 0, 0, false, false, ctx);
+        await displayInventory(0xFFFF, 0, 0, false, false, ctx);
         expect(ctx.itemMagicPolarity).toHaveBeenCalled();
     });
 });
@@ -422,12 +422,12 @@ describe("displayInventory — item listing", () => {
 // =============================================================================
 
 describe("displayInventory — detail view", () => {
-    it("shows item details on shift-click", () => {
+    it("shows item details on shift-click", async () => {
         const sword = makeItem({ inventoryLetter: "a" });
         let callCount = 0;
         const ctx = createCtx({
             packItems: [sword],
-            buttonInputLoop: vi.fn(() => {
+            buttonInputLoop: vi.fn(async () => {
                 callCount++;
                 if (callCount === 1) {
                     return {
@@ -456,16 +456,16 @@ describe("displayInventory — detail view", () => {
             printCarriedItemDetails: vi.fn(() => -1),
         });
 
-        displayInventory(0xFFFF, 0, 0, false, false, ctx);
+        await displayInventory(0xFFFF, 0, 0, false, false, ctx);
         expect(ctx.printCarriedItemDetails).toHaveBeenCalled();
     });
 
-    it("shows item details on waitForAcknowledge", () => {
+    it("shows item details on waitForAcknowledge", async () => {
         const sword = makeItem({ inventoryLetter: "a" });
         let callCount = 0;
         const ctx = createCtx({
             packItems: [sword],
-            buttonInputLoop: vi.fn(() => {
+            buttonInputLoop: vi.fn(async () => {
                 callCount++;
                 if (callCount === 1) {
                     return {
@@ -493,15 +493,15 @@ describe("displayInventory — detail view", () => {
             printCarriedItemDetails: vi.fn(() => -1),
         });
 
-        displayInventory(0xFFFF, 0, 0, true, false, ctx);
+        await displayInventory(0xFFFF, 0, 0, true, false, ctx);
         expect(ctx.printCarriedItemDetails).toHaveBeenCalled();
     });
 
-    it("returns empty string when action taken from detail view", () => {
+    it("returns empty string when action taken from detail view", async () => {
         const sword = makeItem({ inventoryLetter: "a" });
         const ctx = createCtx({
             packItems: [sword],
-            buttonInputLoop: vi.fn(() => ({
+            buttonInputLoop: vi.fn(async () => ({
                 chosenButton: 0,
                 event: {
                     eventType: EventType.Keystroke,
@@ -514,7 +514,7 @@ describe("displayInventory — detail view", () => {
             printCarriedItemDetails: vi.fn(() => EQUIP_KEY),
         });
 
-        const result = displayInventory(0xFFFF, 0, 0, false, false, ctx);
+        const result = await displayInventory(0xFFFF, 0, 0, false, false, ctx);
         expect(result).toBe("");
     });
 });
@@ -524,13 +524,13 @@ describe("displayInventory — detail view", () => {
 // =============================================================================
 
 describe("displayInventory — up/down navigation", () => {
-    it("handles up arrow button via hidden button", () => {
+    it("handles up arrow button via hidden button", async () => {
         const item1 = makeItem({ inventoryLetter: "a" });
         const item2 = makeItem({ inventoryLetter: "b" });
         let callCount = 0;
         const ctx = createCtx({
             packItems: [item1, item2],
-            buttonInputLoop: vi.fn(() => {
+            buttonInputLoop: vi.fn(async () => {
                 callCount++;
                 if (callCount === 1) {
                     // Up arrow button is at itemNumber + extraLineCount + 0
@@ -561,7 +561,7 @@ describe("displayInventory — up/down navigation", () => {
 
         // The up arrow maps to last item; but with shiftKey=true, it opens details
         // Since printCarriedItemDetails returns -1 (cancel), it loops back
-        const result = displayInventory(0xFFFF, 0, 0, false, false, ctx);
+        const result = await displayInventory(0xFFFF, 0, 0, false, false, ctx);
         // After the up arrow sets shiftKey, item details shown, then cancel on repeat
         expect(ctx.printCarriedItemDetails).toHaveBeenCalled();
     });
@@ -572,20 +572,20 @@ describe("displayInventory — up/down navigation", () => {
 // =============================================================================
 
 describe("displayInventory — filter", () => {
-    it("enables hover only for matching items", () => {
+    it("enables hover only for matching items", async () => {
         const weapon = makeItem({ inventoryLetter: "a", category: ItemCategory.WEAPON });
         const potion = makeItem({ inventoryLetter: "b", category: ItemCategory.POTION });
         const ctx = createCtx({
             packItems: [weapon, potion],
         });
 
-        displayInventory(ItemCategory.WEAPON, 0, 0, false, false, ctx);
+        await displayInventory(ItemCategory.WEAPON, 0, 0, false, false, ctx);
         // drawButton is called for both items
         const drawCalls = (ctx.drawButton as ReturnType<typeof vi.fn>).mock.calls;
         expect(drawCalls.length).toBeGreaterThanOrEqual(2);
     });
 
-    it("respects requiredFlags filter", () => {
+    it("respects requiredFlags filter", async () => {
         const equipped = makeItem({
             inventoryLetter: "a",
             flags: ItemFlag.ITEM_EQUIPPED,
@@ -596,7 +596,7 @@ describe("displayInventory — filter", () => {
             packItems: [equipped],
         });
 
-        displayInventory(0xFFFF, ItemFlag.ITEM_EQUIPPED, 0, false, false, ctx);
+        await displayInventory(0xFFFF, ItemFlag.ITEM_EQUIPPED, 0, false, false, ctx);
         expect(ctx.drawButton).toHaveBeenCalled();
     });
 });
