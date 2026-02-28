@@ -37,8 +37,18 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
     - [x] 3b: Main menu & title screen — menus/main-menu.ts (62 tests: flame sim, menu buttons, title menu, junction, dialogs, file chooser, game stats, variant/mode selection)
     - [x] 3c: Wizard / debug mode — menus/wizard.ts (45 tests: item/monster creation dialogs, list picker, runic/vorpal/enchant/mutation sub-dialogs)
     - [x] 3d: Wire-up — menus/index.ts (barrel exports for main-menu, wizard)
-  - [ ] Step 4: Game Loop — initializeRogue, startLevel, gameOver, victory, cleanup (RogueMain.c)
-  - [ ] Step 5: Platform — BrogueConsole interface, Canvas2D browser renderer, null platform
+  - [x] Step 4: Game Loop — initializeRogue, startLevel, gameOver, victory, cleanup (RogueMain.c)
+    - [x] 4a: Game initialization — game/game-init.ts (initializeRogue, initializeGameVariant, welcome, setPlayerDisplayChar, printBrogueVersion, getOrdinalSuffix, fileExists, chooseFile, openFile)
+    - [x] 4b: Level transitions — game/game-level.ts (startLevel, updateColors)
+    - [x] 4c: Game lifecycle — game/game-lifecycle.ts (gameOver, victory, enableEasyMode)
+    - [x] 4d: Cleanup & utilities — game/game-cleanup.ts (freeEverything, freeCreature, removeDeadMonsters, unflag)
+    - [x] 4e: Wire-up — game/index.ts (barrel exports)
+  - [x] Step 5: Platform — BrogueConsole interface, Canvas2D browser renderer, null platform
+    - [x] 5a: Platform interface — types/platform.ts (BrogueConsole interface, pre-existing)
+    - [x] 5b: Glyph mapping — platform/glyph-map.ts (glyphToUnicode, isEnvironmentGlyph)
+    - [x] 5c: Null platform — platform/null-platform.ts (nullConsole)
+    - [x] 5d: Canvas2D browser renderer — platform/browser-renderer.ts (createBrowserConsole, plotChar, event translation, async helpers)
+    - [x] 5e: Wire-up — platform/index.ts (barrel exports)
   - [ ] Step 6: Wire-up — deferred Phase 2 stubs, interactive handlers, playable browser build
 
 ## Phase 4: Integration

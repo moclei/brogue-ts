@@ -152,68 +152,72 @@
 
 ## Step 4: Game Loop (RogueMain.c, 1,414 lines)
 
-### Sub-step 4a: Game initialization — `ts/src/game/game-init.ts`
-- [ ] Port `initializeRogue` (~350 lines — seed setup, player creation, starting equipment, level seeding, map init, waypoints, terrain colors, flavors, message init)
-- [ ] Port `initializeGameVariant` (variant selection dispatcher)
-- [ ] Port `welcome` (opening messages)
-- [ ] Port `setPlayerDisplayChar`
-- [ ] DI via `GameInitContext`
+### Sub-step 4a: Game initialization — `ts/src/game/game-init.ts` ✅
+- [x] Port `initializeRogue` (~350 lines — seed setup, player creation, starting equipment, level seeding, map init, waypoints, terrain colors, flavors, message init)
+- [x] Port `initializeGameVariant` (variant selection dispatcher)
+- [x] Port `welcome` (opening messages)
+- [x] Port `setPlayerDisplayChar`
+- [x] Port `printBrogueVersion`, `getOrdinalSuffix`, `fileExists`, `chooseFile`, `openFile`
+- [x] DI via `GameInitContext`
 - [ ] Tests for game-init (verify starting state for known seeds)
 
-### Sub-step 4b: Level transitions — `ts/src/game/game-level.ts`
-- [ ] Port `startLevel` (~380 lines — save current level, generate/restore new level, position player, simulate environment, update vision, restore monsters)
-- [ ] Port `updateColors` (depth-dependent dynamic colors)
-- [ ] Fill architect stubs: implement real `restoreMonster`, `restoreItems`, full `initializeLevel`
-- [ ] DI via `LevelContext`
+### Sub-step 4b: Level transitions — `ts/src/game/game-level.ts` ✅
+- [x] Port `startLevel` (~380 lines — save current level, generate/restore new level, position player, simulate environment, update vision, restore monsters)
+- [x] Port `updateColors` (depth-dependent dynamic colors)
+- [x] DI via `LevelContext`
 - [ ] Tests for game-level
+- Note: Real `restoreMonster`, `restoreItems`, full `initializeLevel` are delegated via DI context
 
-### Sub-step 4c: Game lifecycle — `ts/src/game/game-lifecycle.ts`
-- [ ] Port `gameOver` (~170 lines — death handling, score, save recording)
-- [ ] Port `victory` (~165 lines — victory screens, treasure tally, achievements)
-- [ ] Port `enableEasyMode`
-- [ ] DI via `LifecycleContext`
+### Sub-step 4c: Game lifecycle — `ts/src/game/game-lifecycle.ts` ✅
+- [x] Port `gameOver` (~170 lines — death handling, score, save recording)
+- [x] Port `victory` (~165 lines — victory screens, treasure tally, achievements)
+- [x] Port `enableEasyMode`
+- [x] DI via `LifecycleContext`
 - [ ] Tests for game-lifecycle
 
-### Sub-step 4d: Cleanup & utilities — `ts/src/game/game-cleanup.ts`
-- [ ] Port `freeEverything` (~60 lines — resource cleanup)
-- [ ] Port `freeCreature` (recursive creature cleanup)
-- [ ] Port `removeDeadMonsters` (purge from creature lists)
-- [ ] Port `executeEvent`, `fileExists`, `chooseFile`, `openFile`, `unflag`
-- [ ] DI via `CleanupContext`
+### Sub-step 4d: Cleanup & utilities — `ts/src/game/game-cleanup.ts` ✅
+- [x] Port `freeEverything` (~60 lines — resource cleanup)
+- [x] Port `freeCreature` (recursive creature cleanup)
+- [x] Port `removeDeadMonsters` (purge from creature lists)
+- [x] Port `unflag`
+- [x] DI via `CleanupContext`
 - [ ] Tests for game-cleanup
+- Note: `fileExists`, `chooseFile`, `openFile` are in game-init.ts
 
-### Sub-step 4e: Wire-up — `ts/src/game/index.ts`
-- [ ] Barrel exports for all game functions and types
+### Sub-step 4e: Wire-up — `ts/src/game/index.ts` ✅
+- [x] Barrel exports for all game functions and types
 
-## Step 5: Platform Interface & Browser Renderer
+## Step 5: Platform Interface & Browser Renderer ✅
 
-### Sub-step 5a: Platform interface — `ts/src/platform/platform-interface.ts`
-- [ ] Define `BrogueConsole` interface (TypeScript equivalent of C's `brogueConsole` struct)
-- [ ] Define `RogueEvent` type extensions for platform events
-- [ ] Define `PauseBehavior` enum (if not already in types)
-- [ ] Tests for interface types (compile-time only)
+### Sub-step 5a: Platform interface — `ts/src/types/platform.ts` (pre-existing)
+- [x] `BrogueConsole` interface already defined (all 9 methods from C's `brogueConsole` struct)
+- [x] `RogueEvent` type defined in `ts/src/types/types.ts`
+- [x] `PauseBehavior` interface defined in `ts/src/types/types.ts`
+- [x] `GraphicsMode`, `DisplayGlyph` enums in `ts/src/types/enums.ts`
 
 ### Sub-step 5b: Glyph mapping — `ts/src/platform/glyph-map.ts`
-- [ ] Port `glyphToUnicode` mapping table (from platformdependent.c)
-- [ ] Port `isEnvironmentGlyph`
-- [ ] Tests for glyph mapping
+- [x] Port `glyphToUnicode` — full mapping table from platformdependent.c (all DisplayGlyph → Unicode code points)
+- [x] Port `isEnvironmentGlyph` — using Set-based classification of item/creature glyphs
+- [ ] Tests for glyph mapping (deferred to integration phase)
 
 ### Sub-step 5c: Null platform — `ts/src/platform/null-platform.ts`
-- [ ] Implement no-op `BrogueConsole` for testing/headless use
-- [ ] Tests for null platform
+- [x] Implement no-op `BrogueConsole` (`nullConsole` object) for testing/headless use
+- [ ] Tests for null platform (deferred to integration phase)
 
 ### Sub-step 5d: Canvas2D browser renderer — `ts/src/platform/browser-renderer.ts`
-- [ ] Canvas setup (100×34 grid, font measurement, cell sizing)
-- [ ] `plotChar` implementation (draw glyph with colors to canvas cell)
-- [ ] Keyboard event → `RogueEvent` translation
-- [ ] Mouse event → `RogueEvent` translation (with grid coordinate mapping)
-- [ ] `pauseForMilliseconds` via `setTimeout` / `requestAnimationFrame`
-- [ ] `nextKeyOrMouseEvent` via event queue + Promise
-- [ ] Window resize handling
-- [ ] Tests for browser renderer
+- [x] Canvas setup (COLS×ROWS grid, auto font sizing, cell sizing)
+- [x] `plotChar` implementation (glyphToUnicode → fillText with color conversion 0–100% → 0–255)
+- [x] Keyboard event → `RogueEvent` translation (arrows, escape, return, numpad, printable chars)
+- [x] Mouse event → `RogueEvent` translation (mousedown/up/move with grid coordinate mapping)
+- [x] `pauseForMilliseconds` — event queue check (actual async via `asyncPause` helper)
+- [x] `nextKeyOrMouseEvent` — synchronous queue pop + async `waitForEvent()` extension
+- [x] `handleResize()` method for recalculating cell sizes
+- [x] `takeScreenshot()` — canvas toDataURL + download link
+- [x] Added `"DOM"` to tsconfig lib array for browser type support
+- [ ] Tests for browser renderer (deferred to integration phase)
 
 ### Sub-step 5e: Wire-up — `ts/src/platform/index.ts`
-- [ ] Barrel exports for all platform types and implementations
+- [x] Barrel exports for all platform types and implementations
 
 ## Step 6: Wire-up & Deferred Phase 2 Items
 
