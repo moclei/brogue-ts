@@ -254,6 +254,54 @@ export function printStringWithWrapping(
 }
 
 // =============================================================================
+// Line splitting
+// =============================================================================
+
+/**
+ * Split newline-delimited wrapped text into buffer rows, carrying color escapes
+ * across line breaks. Writes `lineCount` rows into the returned array,
+ * positioned so the last line goes at index `bufferCursor`.
+ *
+ * Each output row is a self-contained string: if the previous line ended with
+ * a color in effect, the next row is prefixed with that color escape.
+ *
+ * C: `splitLines` (static) in IO.c
+ *
+ * @param lineCount - number of lines in the wrapped text
+ * @param wrapped - the newline-delimited wrapped text
+ * @param buffer - output array of strings (must be large enough)
+ * @param bufferCursor - index of the last output row
+ */
+export function splitLines(
+    lineCount: number,
+    wrapped: string,
+    buffer: string[],
+    bufferCursor: number,
+): void {
+    let color = "";      // current color escape (4 chars or empty)
+    let linesSeen = 0;
+    let start = 0;
+
+    for (let end = 0; end <= wrapped.length; end++) {
+        if (end < wrapped.length && wrapped.charCodeAt(end) === COLOR_ESCAPE) {
+            color = wrapped.substring(end, end + 4);
+            end += 3; // the for loop will +1 more, skipping past the 4-byte escape
+        } else if (end === wrapped.length || wrapped[end] === "\n") {
+            const segment = wrapped.substring(start, end);
+            const targetIdx = bufferCursor + 1 - lineCount + linesSeen;
+
+            if (targetIdx >= 0 && targetIdx < buffer.length) {
+                // Prepend the carried color to this line's content
+                buffer[targetIdx] = color + segment;
+            }
+
+            linesSeen++;
+            start = end + 1;
+        }
+    }
+}
+
+// =============================================================================
 // Sentence processing
 // =============================================================================
 

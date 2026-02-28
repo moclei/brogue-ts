@@ -40,15 +40,17 @@
 
 ## Step 2: IO Game UI (~1,850 lines from IO.c)
 
-### Sub-step 2a: Message system — `ts/src/io/io-messages.ts`
-- [ ] Port `message`, `messageWithColor`, `flavorMessage`, `temporaryMessage`
-- [ ] Port `displayRecentMessages`, `formatRecentMessages`
-- [ ] Port `displayMessageArchive`, `animateMessageArchive`, `scrollMessageArchive`
-- [ ] Port `displayMoreSign`, `displayMoreSignWithoutWaitingForAcknowledgment`
-- [ ] Port `confirmMessages`, `deleteMessages`, `updateMessageDisplay`, `clearMessageArchive`
-- [ ] Port `archivedMessage` type and ring buffer logic
-- [ ] DI via `MessageContext`
-- [ ] Tests for io-messages
+### Sub-step 2a: Message system — `ts/src/io/io-messages.ts` ✅
+- [x] Port `message`, `messageWithColor`, `flavorMessage`, `temporaryMessage`
+- [x] Port `displayRecentMessages`, `formatRecentMessages`
+- [x] Port `displayMessageArchive`, `animateMessageArchive`, `scrollMessageArchive`
+- [x] Port `displayMoreSign`, `displayMoreSignWithoutWaitingForAcknowledgment`
+- [x] Port `confirmMessages`, `deleteMessages`, `updateMessageDisplay`, `clearMessageArchive`
+- [x] Port `ArchivedMessage` type and ring buffer logic (`addMessageToArchive`, `getArchivedMessage`, `foldMessages`, `formatCountedMessage`)
+- [x] Port `combatMessage`, `displayCombatText` (from Combat.c)
+- [x] Port `splitLines` into io-text.ts (used by formatRecentMessages)
+- [x] DI via `MessageContext`
+- [x] Tests for io-messages (64 tests)
 
 ### Sub-step 2b: Sidebar — `ts/src/io/io-sidebar.ts`
 - [ ] Port `refreshSideBar` (~220 lines — entity collection, sorting, rendering)
