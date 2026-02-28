@@ -124,15 +124,19 @@
 - [x] DI via `ButtonContext`
 - [x] Tests for buttons (44 tests)
 
-### Sub-step 3b: Main menu & title screen — `ts/src/menus/main-menu.ts`
-- [ ] Port flame constants and types
-- [ ] Port `initializeMenuFlames`, `updateMenuFlames`, `drawMenuFlames`, `antiAlias`
-- [ ] Port `initializeMainMenuButtons`, `stackButtons`
-- [ ] Port `titleMenu` (animated title with button selection)
-- [ ] Port `mainBrogueJunction` (top-level menu dispatcher)
-- [ ] Port `dialogChooseFile`, `dialogAlert`
-- [ ] DI via `MenuContext`
-- [ ] Tests for main-menu
+### Sub-step 3b: Main menu & title screen — `ts/src/menus/main-menu.ts` ✅
+- [x] Port flame constants and types (`FlameGrid`, `ColorSource`, `FlameColorGrid`, `FlameMask`, `FileEntry`, `RogueRun`, `GameStats`)
+- [x] Port `initializeMenuFlames`, `updateMenuFlames`, `drawMenuFlames`, `antiAlias`
+- [x] Port `initializeMainMenuButton`, `initializeMainMenuButtons`, `stackButtons`
+- [x] Port `initializeMenu`, `initializeMainMenu`, `initializeFlyoutMenu`
+- [x] Port `isFlyoutActive`, `getNextGameButtonPos`, `redrawMainMenuButtons`
+- [x] Port `titleMenu` (animated title with button selection)
+- [x] Port `mainBrogueJunction` (top-level menu dispatcher)
+- [x] Port `dialogChooseFile`, `dialogAlert`, `quitImmediately`
+- [x] Port `chooseGameVariant`, `chooseGameMode`
+- [x] Port `viewGameStats`, `addRunToGameStats`, `createGameStats`
+- [x] DI via `MenuContext`
+- [x] Tests for main-menu (62 tests)
 
 ### Sub-step 3c: Wizard / debug mode — `ts/src/menus/wizard.ts`
 - [ ] Port `dialogCreateItemOrMonster` (main wizard dialog)
