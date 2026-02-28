@@ -110,14 +110,14 @@
 
 ## Step 3: Menus & Wizard (~2,176 lines)
 
-### Sub-step 3a: Button system — `ts/src/menus/buttons.ts`
-- [ ] Port `brogueButton` type, `buttonState` type, `buttonDrawStates` enum
-- [ ] Port `initializeButton`, `setButtonText`
-- [ ] Port `drawButton`, `drawButtonsInState`
-- [ ] Port `initializeButtonState`, `processButtonInput`, `buttonInputLoop`
+### Sub-step 3a: Button system — `ts/src/io/io-buttons.ts` ✅
+- [x] Types already exist: `BrogueButton`, `ButtonState`, `ButtonDrawState`, `ButtonFlag`
+- [x] Port `initializeButton`, `setButtonText`
+- [x] Port `drawButton`, `drawButtonsInState`
+- [x] Port `initializeButtonState`, `processButtonInput`, `buttonInputLoop`
 - [x] ~~Port `smoothHiliteGradient`~~ (moved to io-sidebar.ts in Step 2b)
-- [ ] DI via `ButtonContext`
-- [ ] Tests for buttons
+- [x] DI via `ButtonContext`
+- [x] Tests for buttons (44 tests)
 
 ### Sub-step 3b: Main menu & title screen — `ts/src/menus/main-menu.ts`
 - [ ] Port flame constants and types

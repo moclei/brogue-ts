@@ -11,3 +11,4 @@ export * from "./io-messages.js";
 export * from "./io-sidebar.js";
 export * from "./io-targeting.js";
 export * from "./io-effects.js";
+export * from "./io-buttons.js";
