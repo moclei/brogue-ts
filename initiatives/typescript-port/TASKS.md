@@ -26,6 +26,7 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
   - [x] Step 1: IO Core — color manipulation (52 tests), display buffers (21 tests), cell appearance (19 tests), text rendering (33 tests) = 125 new tests
   - [ ] Step 2: IO Game UI — messages, sidebar, inventory, targeting, input dispatch, visual effects
     - [x] 2a: Message system — io-messages.ts (64 tests: archive ring buffer, fold/format, display, combat text)
+    - [x] 2b: Sidebar — io-sidebar.ts (72 tests: refreshSideBar, entity info panels, progress bars, entity collection/sorting)
   - [ ] Step 3: Menus & Wizard — buttons, title screen, main menu, debug mode
   - [ ] Step 4: Game Loop — initializeRogue, startLevel, gameOver, victory, cleanup (RogueMain.c)
   - [ ] Step 5: Platform — BrogueConsole interface, Canvas2D browser renderer, null platform

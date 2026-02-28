@@ -52,12 +52,15 @@
 - [x] DI via `MessageContext`
 - [x] Tests for io-messages (64 tests)
 
-### Sub-step 2b: Sidebar — `ts/src/io/io-sidebar.ts`
-- [ ] Port `refreshSideBar` (~220 lines — entity collection, sorting, rendering)
-- [ ] Port `printMonsterInfo`, `printItemInfo`, `printTerrainInfo`
-- [ ] Port `printMonsterDetails`, `printFloorItemDetails`, `printCarriedItemDetails`
-- [ ] DI via `SidebarContext`
-- [ ] Tests for io-sidebar
+### Sub-step 2b: Sidebar — `ts/src/io/io-sidebar.ts` ✅
+- [x] Port `refreshSideBar` (~220 lines — entity collection, sorting, rendering)
+- [x] Port `printMonsterInfo`, `printItemInfo`, `printTerrainInfo`
+- [x] Port `printMonsterDetails`, `printFloorItemDetails`, `printCarriedItemDetails`
+- [x] Port `printProgressBar`, `smoothHiliteGradient`, `creatureHealthChangePercent`, `estimatedArmorValue`
+- [x] Port `collectSidebarEntities`, `describeHallucinatedItem`
+- [x] DI via `SidebarContext`
+- [x] Tests for io-sidebar (72 tests)
+- [x] Fix: Added missing `Aggravating` entry to `statusEffectCatalog`
 
 ### Sub-step 2c: Inventory display — `ts/src/io/io-inventory.ts`
 - [ ] Port `displayInventory` (button-based inventory screen from Items.c)
@@ -89,7 +92,7 @@
 ### Sub-step 2f: Visual effects — `ts/src/io/io-effects.ts`
 - [ ] Port `flashForeground`, `flashCell`, `colorFlash`
 - [ ] Port `funkyFade`, `irisFadeBetweenBuffers`
-- [ ] Port `printProgressBar`
+- [x] ~~Port `printProgressBar`~~ (moved to io-sidebar.ts in Step 2b)
 - [ ] Port `flashMessage`, `flashTemporaryAlert`, `displayCenteredAlert`
 - [ ] DI via `EffectsContext`
 - [ ] Tests for io-effects
@@ -109,7 +112,7 @@
 - [ ] Port `initializeButton`, `setButtonText`
 - [ ] Port `drawButton`, `drawButtonsInState`
 - [ ] Port `initializeButtonState`, `processButtonInput`, `buttonInputLoop`
-- [ ] Port `smoothHiliteGradient`
+- [x] ~~Port `smoothHiliteGradient`~~ (moved to io-sidebar.ts in Step 2b)
 - [ ] DI via `ButtonContext`
 - [ ] Tests for buttons
 
