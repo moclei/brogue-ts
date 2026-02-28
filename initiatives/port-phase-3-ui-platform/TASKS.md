@@ -105,13 +105,13 @@
 - [x] DI via `EffectsContext`
 - [x] Tests for io-effects (35 tests)
 
-### Sub-step 2g: Info screens — `ts/src/io/io-screens.ts`
-- [ ] Port `printHelpScreen`
-- [ ] Port `printHighScores`
-- [ ] Port `displayFeatsScreen`, `printDiscoveriesScreen`
-- [ ] Port `printSeed`, `displayGrid`
-- [ ] DI via `ScreenContext`
-- [ ] Tests for io-screens
+### Sub-step 2g: Info screens — `ts/src/io/io-screens.ts` ✅
+- [x] Port `printHelpScreen`
+- [x] Port `printHighScores`
+- [x] Port `displayFeatsScreen`, `printDiscoveriesScreen`, `printDiscoveries` (helper)
+- [x] Port `printSeed`, `displayGrid`
+- [x] DI via `ScreenContext`
+- [x] Tests for io-screens (57 tests)
 
 ## Step 3: Menus & Wizard (~2,176 lines)
 

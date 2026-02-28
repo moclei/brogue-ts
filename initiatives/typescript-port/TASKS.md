@@ -31,6 +31,7 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
     - [x] 2d: Targeting & cursor — io-targeting.ts (38 tests: path following, hilite, snap map, cursor show/hide)
     - [x] 2e: Input dispatch — io-input.ts (95 tests: keystroke/mouse dispatch, pause, events, text entry, action menu, main loop)
     - [x] 2f: Visual effects — io-effects.ts (35 tests: flashes, fades, alerts, blend, monster flashes)
+    - [x] 2g: Info screens — io-screens.ts (57 tests: printHelpScreen, printHighScores, displayFeatsScreen, printDiscoveriesScreen, displayGrid, printSeed)
   - [ ] Step 3: Menus & Wizard — buttons, title screen, main menu, debug mode
     - [x] 3a: Button system — io-buttons.ts (44 tests: init, draw, state, input processing, input loop)
   - [ ] Step 4: Game Loop — initializeRogue, startLevel, gameOver, victory, cleanup (RogueMain.c)
