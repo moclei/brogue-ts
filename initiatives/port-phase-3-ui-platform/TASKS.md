@@ -138,13 +138,14 @@
 - [x] DI via `MenuContext`
 - [x] Tests for main-menu (62 tests)
 
-### Sub-step 3c: Wizard / debug mode — `ts/src/menus/wizard.ts`
-- [ ] Port `dialogCreateItemOrMonster` (main wizard dialog)
-- [ ] Port `dialogSelectEntryFromList` (generic list picker)
-- [ ] Port item creation sub-dialogs (vorpal enemy, runic, category, kind, enchantment)
-- [ ] Port monster creation dialog
-- [ ] DI via `WizardContext`
-- [ ] Tests for wizard
+### Sub-step 3c: Wizard / debug mode — `ts/src/menus/wizard.ts` ✅
+- [x] Port `dialogCreateItemOrMonster` (main wizard dialog)
+- [x] Port `dialogSelectEntryFromList` (generic list picker)
+- [x] Port item creation sub-dialogs (vorpal enemy, runic, category, kind, enchantment)
+- [x] Port monster creation dialog
+- [x] Port `unflag` helper (from RogueMain.c)
+- [x] DI via `WizardContext`
+- [x] Tests for wizard (45 tests)
 
 ### Sub-step 3d: Wire-up — `ts/src/menus/index.ts`
 - [ ] Barrel exports for buttons, main-menu, wizard
