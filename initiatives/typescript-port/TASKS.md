@@ -52,7 +52,7 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
   - [ ] Step 6: Wire-up — deferred Phase 2 stubs, interactive handlers, playable browser build
     - [x] 6a: Interactive item handlers — items/item-handlers.ts (apply, readScroll, drinkPotion, useStaffOrWand, useCharm, eat, uncurse, autoIdentify, detectMagicOnItem, magicCharDiscoverySuffix, magicMapCell, consumePackItem, recordApplyItemCommand, updateIdentifiableItems)
     - [x] 6b: Playback UI — recordings/recording-playback.ts (executePlaybackInput, seek, resetPlayback, pausePlayback, printPlaybackHelpScreen, annotation system, parseFile)
-    - [ ] 6c: Interactive save/load — (saveGame, saveRecording, loadSavedGame)
+    - [x] 6c: Interactive save/load — recordings/recording-interactive.ts (saveGame, saveRecording, loadSavedGame)
     - [ ] 6d: Full integration — browser entry point, DI wire-up, mainBrogueJunction → game loop
 
 ## Phase 4: Integration

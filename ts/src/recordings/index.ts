@@ -90,3 +90,15 @@ export type {
     PlaybackRogueState,
     PlaybackContext,
 } from "./recording-playback.js";
+
+// ── Interactive save/load ───────────────────────────────────────────────────
+export {
+    saveGame,
+    saveRecording,
+    loadSavedGame,
+} from "./recording-interactive.js";
+
+export type {
+    InteractiveSaveRogueState,
+    InteractiveSaveContext,
+} from "./recording-interactive.js";

@@ -243,10 +243,12 @@
 - [x] Barrel exports in `recordings/index.ts`
 - [ ] Tests for playback UI
 
-### Sub-step 6c: Interactive save/load
-- [ ] Port `saveGame` (with text input dialog for filename)
-- [ ] Port `saveRecording` (with text input dialog)
-- [ ] Port `loadSavedGame` (requires `initializeRogue` + `startLevel` + progress bar)
+### Sub-step 6c: Interactive save/load ✅
+- [x] Port `saveGame` (with text input dialog for filename, overwrite confirmation)
+- [x] Port `saveRecording` (with text input dialog, fallback to LastRecording)
+- [x] Port `loadSavedGame` (initializeRogue + startLevel + progress bar + switchToPlaying)
+- [x] DI via `InteractiveSaveContext` (~30 injected deps)
+- [x] Barrel exports in `recordings/index.ts`
 - [ ] Tests for interactive save/load
 
 ### Sub-step 6d: Full integration
