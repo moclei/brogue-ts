@@ -80,19 +80,21 @@
 - [x] DI via `TargetingContext`
 - [x] Tests for io-targeting (38 tests)
 
-### Sub-step 2e: Input dispatch — `ts/src/io/io-input.ts`
-- [ ] Port `mainInputLoop` (~300 lines — cursor movement, map snapping, travel)
-- [ ] Port `nextBrogueEvent` (with playback support)
-- [ ] Port `executeKeystroke` (~270 lines — all key commands)
-- [ ] Port `executeMouseClick`
-- [ ] Port `actionMenu` (~160 lines — in-game command menu)
-- [ ] Port `pauseBrogue`, `pauseAnimation`
-- [ ] Port `waitForAcknowledgment`, `waitForKeystrokeOrMouseClick`, `confirm`
-- [ ] Port `getInputTextString` (~120 lines — text entry dialog)
-- [ ] Port `considerCautiousMode`, `stripShiftFromMovementKeystroke`
-- [ ] Port `displayMonsterFlashes`
-- [ ] DI via `InputContext`
-- [ ] Tests for io-input
+### Sub-step 2e: Input dispatch — `ts/src/io/io-input.ts` ✅
+- [x] Port `mainInputLoop` (~300 lines — cursor movement, map snapping, travel)
+- [x] Port `nextBrogueEvent` (with playback support)
+- [x] Port `executeKeystroke` (~270 lines — all key commands)
+- [x] Port `executeMouseClick`, `executeEvent`
+- [x] Port `actionMenu` (~160 lines — in-game command menu)
+- [x] Port `initializeMenuButtons`
+- [x] Port `pauseBrogue`, `pauseAnimation`
+- [x] Port `waitForAcknowledgment`, `waitForKeystrokeOrMouseClick`, `confirm`
+- [x] Port `getInputTextString` (~120 lines — text entry dialog)
+- [x] Port `nextKeyPress`
+- [x] Port `considerCautiousMode`, `stripShiftFromMovementKeystroke`
+- [x] ~~Port `displayMonsterFlashes`~~ (already in io-effects.ts in Step 2f)
+- [x] DI via `InputContext`
+- [x] Tests for io-input (95 tests)
 
 ### Sub-step 2f: Visual effects — `ts/src/io/io-effects.ts` ✅
 - [x] Port `flashForeground`, `flashCell`, `colorFlash`
