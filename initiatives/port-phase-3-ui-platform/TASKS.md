@@ -222,9 +222,12 @@
 ## Step 6: Wire-up & Deferred Phase 2 Items
 
 ### Sub-step 6a: Interactive item handlers
-- [ ] Port scroll handlers (enchanting, identify, teleportation, etc.) — wiring UI prompts into `ts/src/items/`
-- [ ] Port potion handlers (detect magic, telepathy, etc.)
-- [ ] Port wand/staff interactive effects (targeting, bolt animation)
+- [x] Port scroll handlers (readScroll: enchanting, identify, teleport, remove curse, recharging, protect armor/weapon, sanctuary, magic mapping, aggravate, summon, negation, shattering, discord)
+- [x] Port potion handlers (drinkPotion: life, strength, telepathy, levitation, detect magic, haste, fire immunity, invisibility, hallucination, incineration, darkness, descent, poison, paralysis, confusion, lichen)
+- [x] Port wand/staff interactive effects (useStaffOrWand: targeting, bolt dispatch)
+- [x] Port charm handlers (useCharm: health, protection, haste, fire immunity, invisibility, telepathy, levitation, shattering, guardian, teleportation, recharging, negation)
+- [x] Port apply dispatcher + helpers (apply, eat, consumePackItem, uncurse, autoIdentify, identifyItemKind, magicMapCell, detectMagicOnItem, magicCharDiscoverySuffix, recordApplyItemCommand, updateIdentifiableItems)
+- [x] Barrel exports in `items/index.ts`
 - [ ] Tests for interactive handlers
 
 ### Sub-step 6b: Playback UI
