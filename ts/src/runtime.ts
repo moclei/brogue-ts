@@ -98,7 +98,7 @@ import { asyncPause } from "./platform/browser-renderer.js";
 import * as Colors from "./globals/colors.js";
 
 // -- RNG imports --------------------------------------------------------------
-import { seedRandomGenerator, randRange } from "./math/rng.js";
+import { seedRandomGenerator, randRange, clamp } from "./math/rng.js";
 
 // -- Menu imports (for type reference) ----------------------------------------
 import type { MenuContext, MenuRogueState, FileEntry, RogueRun } from "./menus/main-menu.js";
@@ -155,8 +155,8 @@ export const BROGUE_GAME_CONSTANTS: GameConstants = {
     numberGoodWandKinds: 6,
     numberFeats: 0,
     companionFeatRequiredXP: 10400,
-    mainMenuTitleHeight: 19,
-    mainMenuTitleWidth: 33,
+    mainMenuTitleHeight: 26,
+    mainMenuTitleWidth: 68,
 };
 
 // =============================================================================
@@ -166,27 +166,34 @@ export const BROGUE_GAME_CONSTANTS: GameConstants = {
 // The title is stored as a flat string; each character maps to a cell in
 // a mainMenuTitleWidth × mainMenuTitleHeight grid. Non-space chars are
 // rendered as flame-lit glyphs on the title screen.
-// This is a simplified placeholder — the real title art is in GlobalsBrogue.c.
+// Ported from GlobalsBrogue.c — 68 chars wide × 26 rows.
 const BROGUE_TITLE_ART =
-    "                                 " +
-    "                                 " +
-    "                                 " +
-    "                                 " +
-    "                                 " +
-    "          ########               " +
-    "          ##    ##               " +
-    "          ##    ##  #####        " +
-    "          ########  ##  ##       " +
-    "          ##    ##  #####        " +
-    "          ##    ##  ##  ##       " +
-    "          ########  ##   ##      " +
-    "                                 " +
-    "            BROGUE               " +
-    "       Community Edition         " +
-    "                                 " +
-    "                                 " +
-    "                                 " +
-    "                                 ";
+    "                                                                    " +
+    "                                                                    " +
+    "                                                                    " +
+    "                                                                    " +
+    "                                                                    " +
+    "                                                                    " +
+    "                                                                    " +
+    "########  ########      ######         ######  ####    ### #########" +
+    " ##   ###  ##   ###   ##     ###     ##     ##  ##      #   ##     #" +
+    " ##    ##  ##    ##  ##       ###   ##       #  ##      #   ##     #" +
+    " ##    ##  ##    ##  #    #    ##   #        #  ##      #   ##      " +
+    " ##    ##  ##    ## ##   ##     ## ##           ##      #   ##    # " +
+    " ##   ##   ##   ##  ##   ###    ## ##           ##      #   ##    # " +
+    " ######    ## ###   ##   ####   ## ##           ##      #   ####### " +
+    " ##    ##  ##  ##   ##   ####   ## ##           ##      #   ##    # " +
+    " ##     ## ##   ##  ##    ###   ## ##     ##### ##      #   ##    # " +
+    " ##     ## ##   ##  ###    ##   ## ###      ##  ##      #   ##      " +
+    " ##     ## ##    ##  ##    #    #   ##      ##  ##      #   ##      " +
+    " ##     ## ##    ##  ###       ##   ###     ##  ###     #   ##     #" +
+    " ##    ##  ##     ##  ###     ##     ###   ###   ###   #    ##     #" +
+    "########  ####    ###   ######         ####       #####    #########" +
+    "                          ##                                        " +
+    "                      ##########                                    " +
+    "                          ##                                        " +
+    "                          ##                                        " +
+    "                         ####                                       ";
 
 // =============================================================================
 // Runtime state
@@ -317,6 +324,22 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
 
     const commitDraws = makeCommitDraws(displayBuffer, prevBuffer, browserConsole);
 
+    /** Apply overlay results back to the main display buffer, then render. */
+    function applyOverlay(dbuf: Readonly<ScreenDisplayBuffer>): void {
+        const results = overlayDisplayBufferFn(displayBuffer, dbuf as ScreenDisplayBuffer);
+        for (const r of results) {
+            const cell = displayBuffer.cells[r.x][r.y];
+            cell.character = r.character;
+            cell.foreColorComponents[0] = clamp(r.foreColor.red, 0, 100);
+            cell.foreColorComponents[1] = clamp(r.foreColor.green, 0, 100);
+            cell.foreColorComponents[2] = clamp(r.foreColor.blue, 0, 100);
+            cell.backColorComponents[0] = clamp(r.backColor.red, 0, 100);
+            cell.backColorComponents[1] = clamp(r.backColor.green, 0, 100);
+            cell.backColorComponents[2] = clamp(r.backColor.blue, 0, 100);
+        }
+        commitDraws();
+    }
+
     // -- ButtonContext (needed by several menu functions) ----------------------
     const buttonCtx: ButtonContext = {
         rogue,
@@ -331,8 +354,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         createScreenDisplayBuffer,
         clearDisplayBuffer(dbuf) { clearDisplayBuffer(dbuf); },
         overlayDisplayBuffer(dbuf) {
-            overlayDisplayBufferFn(displayBuffer, dbuf);
-            commitDraws();
+            applyOverlay(dbuf);
         },
         saveDisplayBuffer() {
             return saveDisplayBufferFn(displayBuffer);
@@ -379,8 +401,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         createScreenDisplayBuffer,
         clearDisplayBuffer(dbuf: ScreenDisplayBuffer) { clearDisplayBuffer(dbuf); },
         overlayDisplayBuffer(dbuf: ScreenDisplayBuffer) {
-            overlayDisplayBufferFn(displayBuffer, dbuf);
-            commitDraws();
+            applyOverlay(dbuf);
         },
         saveDisplayBuffer() { return saveDisplayBufferFn(displayBuffer); },
         restoreDisplayBuffer(saved: SavedDisplayBuffer) {
@@ -483,8 +504,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             clearDisplayBuffer(dbuf);
         },
         overlayDisplayBuffer(dbuf: Readonly<ScreenDisplayBuffer>) {
-            overlayDisplayBufferFn(displayBuffer, dbuf as ScreenDisplayBuffer);
-            commitDraws();
+            applyOverlay(dbuf);
         },
         saveDisplayBuffer(): SavedDisplayBuffer {
             return saveDisplayBufferFn(displayBuffer);
@@ -560,17 +580,17 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             commitDraws();
             return browserConsole.waitForEvent();
         },
-        async pauseBrogue(milliseconds: number, _behavior?: PauseBehavior) {
+        async pauseBrogue(milliseconds: number, behavior?: PauseBehavior) {
             commitDraws();
             // Yield to the browser event loop for the specified duration
             await asyncPause(milliseconds);
-            // Check if an event arrived during the pause
-            const ev = browserConsole.nextKeyOrMouseEvent(false, false);
-            if (ev.param1 !== 0 || ev.eventType !== 1) {
-                // An event is available — put it back for the caller to consume
-                return true; // interrupted
-            }
-            return false;
+            // Check if an input event arrived during the pause.
+            // pauseForMilliseconds peeks at the queue and pushes the event
+            // back if one was found, returning true (interrupted).
+            return browserConsole.pauseForMilliseconds(
+                0, // already paused; just check the queue
+                behavior ?? { interruptForMouseMove: false },
+            );
         },
 
         // -- Info screens / prompts -------------------------------------------
