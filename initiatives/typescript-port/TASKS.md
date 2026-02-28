@@ -22,7 +22,7 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
   - [x] Recordings.c (1,519 lines) — recording buffer, event codec, save/load, init (134 tests across 4 modules; playback UI deferred to Phase 3)
 
 ## Phase 3: UI & Platform
-- [ ] `port-phase-3-ui-platform` — Umbrella initiative for UI, menus, game loop, and platform (~8,700 lines across 5 C files)
+- [x] `port-phase-3-ui-platform` — Umbrella initiative for UI, menus, game loop, and platform (~8,700 lines across 5 C files)
   - [x] Step 1: IO Core — color manipulation (52 tests), display buffers (21 tests), cell appearance (19 tests), text rendering (33 tests) = 125 new tests
   - [x] Step 2: IO Game UI — messages, sidebar, inventory, targeting, input dispatch, visual effects
     - [x] 2a: Message system — io-messages.ts (64 tests: archive ring buffer, fold/format, display, combat text)
@@ -32,7 +32,7 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
     - [x] 2e: Input dispatch — io-input.ts (95 tests: keystroke/mouse dispatch, pause, events, text entry, action menu, main loop)
     - [x] 2f: Visual effects — io-effects.ts (35 tests: flashes, fades, alerts, blend, monster flashes)
     - [x] 2g: Info screens — io-screens.ts (57 tests: printHelpScreen, printHighScores, displayFeatsScreen, printDiscoveriesScreen, displayGrid, printSeed)
-  - [ ] Step 3: Menus & Wizard — buttons, title screen, main menu, debug mode
+  - [x] Step 3: Menus & Wizard — buttons, title screen, main menu, debug mode
     - [x] 3a: Button system — io-buttons.ts (44 tests: init, draw, state, input processing, input loop)
     - [x] 3b: Main menu & title screen — menus/main-menu.ts (62 tests: flame sim, menu buttons, title menu, junction, dialogs, file chooser, game stats, variant/mode selection)
     - [x] 3c: Wizard / debug mode — menus/wizard.ts (45 tests: item/monster creation dialogs, list picker, runic/vorpal/enchant/mutation sub-dialogs)
@@ -49,11 +49,11 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
     - [x] 5c: Null platform — platform/null-platform.ts (nullConsole)
     - [x] 5d: Canvas2D browser renderer — platform/browser-renderer.ts (createBrowserConsole, plotChar, event translation, async helpers)
     - [x] 5e: Wire-up — platform/index.ts (barrel exports)
-  - [ ] Step 6: Wire-up — deferred Phase 2 stubs, interactive handlers, playable browser build
+  - [x] Step 6: Wire-up — deferred Phase 2 stubs, interactive handlers, playable browser build
     - [x] 6a: Interactive item handlers — items/item-handlers.ts (apply, readScroll, drinkPotion, useStaffOrWand, useCharm, eat, uncurse, autoIdentify, detectMagicOnItem, magicCharDiscoverySuffix, magicMapCell, consumePackItem, recordApplyItemCommand, updateIdentifiableItems)
     - [x] 6b: Playback UI — recordings/recording-playback.ts (executePlaybackInput, seek, resetPlayback, pausePlayback, printPlaybackHelpScreen, annotation system, parseFile)
     - [x] 6c: Interactive save/load — recordings/recording-interactive.ts (saveGame, saveRecording, loadSavedGame)
-    - [ ] 6d: Full integration — browser entry point, DI wire-up, mainBrogueJunction → game loop
+    - [x] 6d: Full integration — browser entry point, DI wire-up, mainBrogueJunction → game loop (runtime.ts GameRuntime DI container, bootstrap.ts browser entry point)
 
 ## Phase 4: Integration
 - [ ] `port-integration` — Full game loop, seed catalog regression tests, Node.js terminal platform

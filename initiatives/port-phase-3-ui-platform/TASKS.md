@@ -251,9 +251,10 @@
 - [x] Barrel exports in `recordings/index.ts`
 - [ ] Tests for interactive save/load
 
-### Sub-step 6d: Full integration
-- [ ] Create browser entry point (`index.html` + bootstrap)
-- [ ] Wire `BrogueConsole` into all DI contexts
-- [ ] Connect `mainBrogueJunction` → `initializeRogue` → `startLevel` → `mainInputLoop` loop
-- [ ] Verify playable browser game
-- [ ] Update top-level `ts/src/index.ts` barrel exports
+### Sub-step 6d: Full integration ✅
+- [x] Create browser entry point (`index.html` + `bootstrap.ts`)
+- [x] Wire `BrogueConsole` into all DI contexts via `GameRuntime` container (`runtime.ts`)
+- [x] Connect `mainBrogueJunction` → `initializeRogue` → `startLevel` → `mainInputLoop` loop
+- [x] `createRuntime(browserConsole)` factory exposes `menuCtx` + `displayBuffer`
+- [x] Update top-level `ts/src/index.ts` barrel exports
+- [ ] Verify playable browser game (deferred to Phase 4 integration testing)
