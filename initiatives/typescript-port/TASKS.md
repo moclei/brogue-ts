@@ -36,6 +36,7 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
     - [x] 3a: Button system — io-buttons.ts (44 tests: init, draw, state, input processing, input loop)
     - [x] 3b: Main menu & title screen — menus/main-menu.ts (62 tests: flame sim, menu buttons, title menu, junction, dialogs, file chooser, game stats, variant/mode selection)
     - [x] 3c: Wizard / debug mode — menus/wizard.ts (45 tests: item/monster creation dialogs, list picker, runic/vorpal/enchant/mutation sub-dialogs)
+    - [x] 3d: Wire-up — menus/index.ts (barrel exports for main-menu, wizard)
   - [ ] Step 4: Game Loop — initializeRogue, startLevel, gameOver, victory, cleanup (RogueMain.c)
   - [ ] Step 5: Platform — BrogueConsole interface, Canvas2D browser renderer, null platform
   - [ ] Step 6: Wire-up — deferred Phase 2 stubs, interactive handlers, playable browser build

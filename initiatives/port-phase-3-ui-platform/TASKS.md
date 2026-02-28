@@ -147,8 +147,8 @@
 - [x] DI via `WizardContext`
 - [x] Tests for wizard (45 tests)
 
-### Sub-step 3d: Wire-up — `ts/src/menus/index.ts`
-- [ ] Barrel exports for buttons, main-menu, wizard
+### Sub-step 3d: Wire-up — `ts/src/menus/index.ts` ✅
+- [x] Barrel exports for main-menu, wizard
 
 ## Step 4: Game Loop (RogueMain.c, 1,414 lines)
 
