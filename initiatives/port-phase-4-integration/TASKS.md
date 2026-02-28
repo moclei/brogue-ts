@@ -25,26 +25,30 @@
 - [x] `npx tsc --noEmit` produces zero errors
 - [x] All 2232 tests pass (64 test files)
 
-## Step 2: Build & Launch
+## Step 2: Build & Launch ✅
 
-### 2a: Bundler setup
-- [ ] Add Vite as dev dependency
-- [ ] Create `vite.config.ts` pointing at `index.html`
-- [ ] Add `npm run dev` script to `package.json`
-- [ ] Verify `npm run dev` serves the page and loads `bootstrap.js`
+### 2a: Bundler setup ✅
+- [x] Add Vite as dev dependency
+- [x] Create `vite.config.ts` pointing at `index.html`
+- [x] Add `npm run dev` script to `package.json`
+- [x] Verify `npm run dev` serves the page and loads `bootstrap.ts`
 
-### 2b: Async boundary
-- [ ] Audit call chain from `mainBrogueJunction` → `titleMenu` → `pauseBrogue`/`nextKeyOrMouseEvent`
-- [ ] Make `mainBrogueJunction`, `titleMenu`, and the flame animation loop async
-- [ ] Make `mainInputLoop`, `pauseBrogue`, `waitForAcknowledgment`, `nextBrogueEvent` async
-- [ ] Update all DI context method signatures that wrap async platform calls
-- [ ] Verify title screen renders with animated flames in browser
+### 2b: Async boundary ✅
+- [x] Audit call chain from `mainBrogueJunction` → `titleMenu` → `pauseBrogue`/`nextKeyOrMouseEvent`
+- [x] Make `mainBrogueJunction`, `titleMenu`, and the flame animation loop async
+- [x] Introduce `AsyncBrogueConsole` interface with `waitForEvent(): Promise<RogueEvent>`
+- [x] Update all DI context method signatures that wrap async platform calls
+- [x] Fix `overlayDisplayBuffer` to apply blended results back to display buffer
+- [x] Update all Vitest mocks and test callbacks for async/await
+- [x] Verify title screen renders with animated flames in browser
 
-### 2c: Title screen validation
-- [ ] Flame animation plays smoothly
-- [ ] Menu buttons render and highlight on hover
-- [ ] Keyboard navigation works (up/down arrows, enter)
-- [ ] "New Game" button triggers game initialization flow
+### 2c: Title screen validation ✅
+- [x] Flame animation plays smoothly (continuous)
+- [x] Menu buttons render and are visible
+- [x] Title ASCII art renders fully ("BROGUE")
+- [x] Version string visible
+- [ ] Keyboard navigation works (up/down arrows, enter) — deferred to Step 3
+- [ ] "New Game" button triggers game initialization flow — deferred to Step 3
 
 ## Step 3: Runtime Wiring
 
