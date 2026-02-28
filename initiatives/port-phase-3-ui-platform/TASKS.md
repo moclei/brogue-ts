@@ -230,11 +230,17 @@
 - [x] Barrel exports in `items/index.ts`
 - [ ] Tests for interactive handlers
 
-### Sub-step 6b: Playback UI
-- [ ] Port `executePlaybackInput` (playback keyboard controls)
-- [ ] Port `seek` (fast-forward to turn)
-- [ ] Port `pausePlayback`
-- [ ] Port annotation system: `displayAnnotation`, `loadNextAnnotation`, `parseFile`
+### Sub-step 6b: Playback UI ✅
+- [x] Port `executePlaybackInput` (playback keyboard controls — speed, pause, seek, omniscience, screen access, file management)
+- [x] Port `seek` (fast-forward to turn/depth with progress bar)
+- [x] Port `resetPlayback` (restart playback from beginning, preserving display preferences)
+- [x] Port `promptToAdvanceToLocation` (jump-to-turn dialog)
+- [x] Port `pausePlayback` (enter main input loop while paused)
+- [x] Port `printPlaybackHelpScreen` (overlay with color-escaped help text)
+- [x] Port annotation system: `displayAnnotation`, `loadNextAnnotation`
+- [x] Port debug tools: `parseFile`, `describeKeystroke`, `appendModifierKeyDescription`, `selectFile`
+- [x] DI via `PlaybackContext` (~50 injected deps)
+- [x] Barrel exports in `recordings/index.ts`
 - [ ] Tests for playback UI
 
 ### Sub-step 6c: Interactive save/load
