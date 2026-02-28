@@ -91,13 +91,14 @@
 - [ ] DI via `InputContext`
 - [ ] Tests for io-input
 
-### Sub-step 2f: Visual effects — `ts/src/io/io-effects.ts`
-- [ ] Port `flashForeground`, `flashCell`, `colorFlash`
-- [ ] Port `funkyFade`, `irisFadeBetweenBuffers`
+### Sub-step 2f: Visual effects — `ts/src/io/io-effects.ts` ✅
+- [x] Port `flashForeground`, `flashCell`, `colorFlash`
+- [x] Port `funkyFade`, `irisFadeBetweenBuffers`
 - [x] ~~Port `printProgressBar`~~ (moved to io-sidebar.ts in Step 2b)
-- [ ] Port `flashMessage`, `flashTemporaryAlert`, `displayCenteredAlert`
-- [ ] DI via `EffectsContext`
-- [ ] Tests for io-effects
+- [x] Port `flashMessage`, `flashTemporaryAlert`, `displayCenteredAlert`
+- [x] Port `blendAppearances`, `colorBlendCell`, `displayMonsterFlashes`
+- [x] DI via `EffectsContext`
+- [x] Tests for io-effects (35 tests)
 
 ### Sub-step 2g: Info screens — `ts/src/io/io-screens.ts`
 - [ ] Port `printHelpScreen`
