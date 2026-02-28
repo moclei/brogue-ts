@@ -56,4 +56,9 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
     - [x] 6d: Full integration — browser entry point, DI wire-up, mainBrogueJunction → game loop (runtime.ts GameRuntime DI container, bootstrap.ts browser entry point)
 
 ## Phase 4: Integration
-- [ ] `port-integration` — Full game loop, seed catalog regression tests, Node.js terminal platform
+- [ ] `port-phase-4-integration` — Compile clean, build tooling, runtime wiring, seed regression, recording playback, Node.js terminal platform
+  - [ ] Step 1: Compile Clean — fix 51 pre-existing TS errors (missing flags, unused imports, type mismatches, export collisions)
+  - [ ] Step 2: Build & Launch — Vite bundler, async boundary resolution, title screen rendering in browser
+  - [ ] Step 3: Runtime Wiring — fill DI stubs, connect full game loop (init → level gen → input → turns → game over)
+  - [ ] Step 4: Verification — seed regression tests, recording playback, manual testing
+  - [ ] Step 5: Terminal Platform — Node.js ANSI renderer, CLI entry point
