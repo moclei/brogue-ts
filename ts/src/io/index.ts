@@ -9,3 +9,4 @@ export * from "./io-appearance.js";
 export * from "./io-text.js";
 export * from "./io-messages.js";
 export * from "./io-sidebar.js";
+export * from "./io-targeting.js";

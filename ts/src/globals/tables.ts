@@ -10,7 +10,7 @@
  *  License, or (at your option) any later version.
  */
 
-import type { Color } from "../types/types.js";
+import type { Color, Pos } from "../types/types.js";
 import type { Fixpt } from "../types/types.js";
 import {
     minersLightStartColor, minersLightEndColor,
@@ -88,6 +88,15 @@ export function coordinatesAreInWindow(x: number, y: number): boolean {
 /** Check if a Pos is within the dungeon map */
 export function isPosInMap(pos: { x: number; y: number }): boolean {
     return pos.x >= 0 && pos.x < DCOLS && pos.y >= 0 && pos.y < DROWS;
+}
+
+/**
+ * Returns the Pos one cell away in the given direction.
+ *
+ * C: `posNeighborInDirection` in GlobalsBase.h (inline)
+ */
+export function posNeighborInDirection(p: Pos, direction: number): Pos {
+    return { x: p.x + nbDirs[direction][0], y: p.y + nbDirs[direction][1] };
 }
 
 // =============================================================================

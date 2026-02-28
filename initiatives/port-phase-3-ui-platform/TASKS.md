@@ -68,12 +68,14 @@
 - [ ] DI via `InventoryContext`
 - [ ] Tests for io-inventory
 
-### Sub-step 2d: Targeting & cursor — `ts/src/io/io-targeting.ts`
-- [ ] Port `showCursor`, `hideCursor`, `clearCursorPath`
-- [ ] Port `getPlayerPathOnMap`, `reversePath`, `hilitePath`
-- [ ] Port `getClosestValidLocationOnMap`, `processSnapMap`
-- [ ] DI via `TargetingContext`
-- [ ] Tests for io-targeting
+### Sub-step 2d: Targeting & cursor — `ts/src/io/io-targeting.ts` ✅
+- [x] Port `showCursor`, `hideCursor`, `clearCursorPath`
+- [x] Port `getPlayerPathOnMap`, `reversePath`, `hilitePath`
+- [x] Port `getClosestValidLocationOnMap`, `processSnapMap`
+- [x] Port `hiliteCell`
+- [x] Add `posNeighborInDirection` utility to `globals/tables.ts`
+- [x] DI via `TargetingContext`
+- [x] Tests for io-targeting (38 tests)
 
 ### Sub-step 2e: Input dispatch — `ts/src/io/io-input.ts`
 - [ ] Port `mainInputLoop` (~300 lines — cursor movement, map snapping, travel)
