@@ -180,6 +180,26 @@ int main(void) {
         if (i > 0) printf(", ");
         printf("%ld", rand_range(0, 99, 0));
     }
+    printf("],\n");
+
+    /* seed 1, first 20 rand_range(0, 999) */
+    seedRandomGenerator(1);
+    printf("    \"seed_1_range_0_999\": [");
+    for (int i = 0; i < 20; i++) {
+        if (i > 0) printf(", ");
+        printf("%ld", rand_range(0, 999, 0));
+    }
+    printf("],\n");
+
+    /* seed 1, backward-compatible level seeds (lo + hi*10000) */
+    seedRandomGenerator(1);
+    printf("    \"seed_1_level_seeds\": [");
+    for (int i = 0; i < 10; i++) {
+        long lo = rand_range(0, 9999, 0);
+        long hi = rand_range(0, 9999, 0);
+        if (i > 0) printf(", ");
+        printf("%ld", lo + hi * 10000);
+    }
     printf("]\n");
 
     printf("  },\n");

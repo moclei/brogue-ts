@@ -693,9 +693,8 @@ export function resetDFMessageEligibility(dungeonFeatureCatalog: DungeonFeature[
  *
  * C equivalent: `initializeLevel(upStairsLoc)` in Architect.c line 3764
  *
- * NOTE: This is a partial implementation. Full creature/item placement
- * depends on systems not yet ported (Monsters.c, Items.c).
- * Currently handles the FOV setup and restoreItems/restoreMonster stubs.
+ * On first visit, computes FOV from the up-stairway so monsters don't
+ * spawn in line-of-sight, then populates items and monsters.
  */
 export function initializeLevel(
     pmap: Pcell[][],
@@ -703,6 +702,8 @@ export function initializeLevel(
     depthLevel: number,
     levels: Array<{ visited: boolean }>,
     getFOVMask: (grid: Grid, x: number, y: number, maxRadius: bigint, forbiddenTerrain: number, forbiddenFlags: number, cautiousOnWalls: boolean) => void,
+    populateItemsFn?: (upLoc: Pos) => void,
+    populateMonstersFn?: () => void,
 ): void {
     let upLoc = { ...upStairsLoc };
 
@@ -733,8 +734,13 @@ export function initializeLevel(
         }
         freeGrid(grid);
 
-        // populateItems(upLoc) and populateMonsters() will be called here
-        // once the Items and Monsters modules are ported.
+        // Populate items and monsters on the level
+        if (populateItemsFn) {
+            populateItemsFn(upLoc);
+        }
+        if (populateMonstersFn) {
+            populateMonstersFn();
+        }
     }
 
     // restoreItems() and restoreMonster() stubs — will be implemented
