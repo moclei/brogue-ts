@@ -58,6 +58,7 @@ import {
     EventType,
     StatusEffect,
     ItemCategory,
+    DungeonLayer,
 } from "./types/enums.js";
 import {
     COLS, ROWS, DCOLS, DROWS,
@@ -161,7 +162,7 @@ import { seedRandomGenerator, randRange, rand64bits, randPercent, randClump, ran
 
 // -- Grid imports -------------------------------------------------------------
 import { allocGrid, freeGrid, fillGrid } from "./grid/grid.js";
-import { zeroOutGrid } from "./architect/helpers.js";
+import { zeroOutGrid, cellIsPassableOrDoor, passableArcCount, randomMatchingLocation } from "./architect/helpers.js";
 
 // -- Creature imports ---------------------------------------------------------
 import { createCreature, initializeGender, initializeStatus } from "./monsters/monster-creation.js";
@@ -228,14 +229,14 @@ import {
 } from "./architect/architect.js";
 import type { ArchitectContext } from "./architect/architect.js";
 import { analyzeMap as analyzeMapFn } from "./architect/analysis.js";
-import type { MachineContext, ItemOps, MonsterOps } from "./architect/machines.js";
+import type { MachineContext, ItemOps } from "./architect/machines.js";
 import type { BuildBridgeContext } from "./architect/lakes.js";
 
 // -- Flag imports -------------------------------------------------------------
 import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MonsterBookkeepingFlag, ItemFlag } from "./types/flags.js";
 
 // -- State helper imports -----------------------------------------------------
-import { cellHasTerrainFlag, cellHasTMFlag, terrainFlags, terrainMechFlags, discoveredTerrainFlagsAtLoc, highestPriorityLayer } from "./state/helpers.js";
+import { cellHasTerrainFlag, cellHasTMFlag, cellHasTerrainType, terrainFlags, terrainMechFlags, discoveredTerrainFlagsAtLoc, highestPriorityLayer } from "./state/helpers.js";
 import { coordinatesAreInMap, isPosInMap, nbDirs } from "./globals/tables.js";
 import { FP_FACTOR } from "./math/fixpt.js";
 
@@ -264,7 +265,13 @@ import type { EquipContext, EquipmentState } from "./items/item-usage.js";
 import { monsterCatalog as monsterCatalogData } from "./globals/monster-catalog.js";
 import { lightCatalog as lightCatalogData } from "./globals/light-catalog.js";
 import { meteredItemsGenerationTable as meteredItemsGenTable } from "./globals/item-catalog.js";
-import { scrollTable, potionTable } from "./globals/item-catalog.js";
+import { scrollTable, potionTable, lumenstoneDistribution } from "./globals/item-catalog.js";
+import { populateItems as populateItemsFn } from "./items/item-population.js";
+import { populateMonsters as populateMonstersFn, spawnHorde as spawnHordeFn } from "./monsters/monster-spawning.js";
+import { generateMonster as generateMonsterFn } from "./monsters/monster-creation.js";
+import { createMonsterOps, toggleMonsterDormancy as toggleMonsterDormancyFn } from "./monsters/monster-ops.js";
+import { hordeCatalog } from "./globals/horde-catalog.js";
+import { mutationCatalog } from "./globals/mutation-catalog.js";
 import { dynamicColorsBounds } from "./globals/tables.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
 import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
@@ -1251,6 +1258,80 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         return cls.memberList[randRange(0, cls.memberList.length - 1)];
     }
 
+    // -- Build SpawnContext (for monster population) ----------------------------
+    function buildSpawnContext(): import("./monsters/monster-spawning.js").SpawnContext {
+        return {
+            genCtx: {
+                rng: { randRange, randPercent },
+                gameConstants: gameConst,
+                depthLevel: rogue.depthLevel,
+                monsterCatalog,
+                mutationCatalog,
+                monsterItemsHopper,
+                itemsEnabled: true,
+            },
+            gameConstants: gameConst,
+            hordeCatalog,
+            monsterCatalog,
+            monsters,
+            monstersEnabled: true,
+
+            cellHasTerrainFlag(loc, flags) {
+                return cellHasTerrainFlag(pmap, loc, flags);
+            },
+            cellHasTMFlag(loc, flags) {
+                return cellHasTMFlag(pmap, loc, flags);
+            },
+            cellHasTerrainType(loc, terrainType) {
+                return cellHasTerrainType(pmap, loc, terrainType);
+            },
+            isPosInMap(loc) {
+                return coordinatesAreInMap(loc.x, loc.y);
+            },
+
+            monsterAtLoc: monsterAtLocFn,
+            killCreature(_creature, _quiet) {
+                // Stub — full killCreature needs CombatDamageContext
+            },
+            buildMachine(_machineType, _x, _y) {
+                // Stub — machine building during spawning (rare: captive hordes)
+            },
+            setCellFlag(loc, flag) {
+                pmap[loc.x][loc.y].flags |= flag;
+            },
+            clearCellFlag(loc, flag) {
+                pmap[loc.x][loc.y].flags &= ~flag;
+            },
+            refreshDungeonCell(_loc) {
+                // No-op during level generation
+            },
+            playerCanSeeOrSense(_x, _y) {
+                return false; // Not relevant during initial population
+            },
+            becomeAllyWith(_creature) {
+                // Stub — ally system
+            },
+            drawManacles(_loc) {
+                // Stub — visual manacles around captive location
+            },
+            allocGrid,
+            fillGrid,
+            getQualifyingPathLocNear(loc, _hallwaysAllowed, _blockingTerrainFlags, _blockingMapFlags, _forbiddenTerrainFlags, _forbiddenMapFlags, _deterministic) {
+                // Simplified — return the target location itself
+                return { ...loc };
+            },
+            randomMatchingLocation(dungeonType, liquidType, terrainType) {
+                return randomMatchingLocation(pmap, tileCatalog as any, dungeonType, liquidType, terrainType);
+            },
+            passableArcCount(x, y) {
+                return passableArcCount(pmap, x, y);
+            },
+            getPmapFlags(loc) {
+                return pmap[loc.x][loc.y].flags;
+            },
+        };
+    }
+
     // -- Build GameInitContext ------------------------------------------------
     function buildGameInitContext(): GameInitContext {
         return {
@@ -1531,14 +1612,28 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 itemIsHeavyWeapon() { return false; },
                 itemIsPositivelyEnchanted() { return false; },
             } satisfies ItemOps,
-            monsterOps: {
-                spawnHorde() { return null; },
-                monsterAtLoc: monsterAtLocFn as any,
-                killCreature() {},
-                generateMonster() { return null; },
-                toggleMonsterDormancy() {},
-                iterateMachineMonsters() { return []; },
-            } satisfies MonsterOps,
+            monsterOps: createMonsterOps({
+                monsters,
+                spawnHorde(leaderID, pos, forbiddenFlags, requiredFlags) {
+                    return spawnHordeFn(leaderID, pos, forbiddenFlags, requiredFlags, buildSpawnContext());
+                },
+                monsterAtLoc: monsterAtLocFn,
+                killCreature(_creature, _quiet) {
+                    // Stub — full killCreature needs CombatDamageContext
+                },
+                generateMonster(monsterID, _atDepth, summon) {
+                    return generateMonsterFn(monsterID, true, !summon, {
+                        rng: { randRange, randPercent },
+                        gameConstants: gameConst,
+                        depthLevel: rogue.depthLevel,
+                        monsterCatalog,
+                        mutationCatalog,
+                        monsterItemsHopper,
+                        itemsEnabled: true,
+                    });
+                },
+                toggleMonsterDormancy: toggleMonsterDormancyFn,
+            }),
             analyzeMap: analyzeMapWrapped,
             calculateDistances: calculateDistancesWrapped,
             getFOVMask: getFOVMaskWrapped,
@@ -1671,7 +1766,62 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 return { success: false, upStairsLoc: { x: 0, y: 0 } };
             },
             initializeLevel(upStairsLoc: Pos) {
-                initializeLevelFn(pmap, upStairsLoc, rogue.depthLevel, levels, getFOVMaskWrapped);
+                initializeLevelFn(
+                    pmap, upStairsLoc, rogue.depthLevel, levels, getFOVMaskWrapped,
+                    // populateItems callback
+                    (upLoc: Pos) => {
+                        const itemState = {
+                            depthLevel: rogue.depthLevel,
+                            depthAccelerator: gameConst.depthAccelerator,
+                            goldGenerated: rogue.goldGenerated,
+                            foodSpawned: rogue.foodSpawned,
+                            meteredItems: rogue.meteredItems,
+                        };
+                        populateItemsFn(upLoc, {
+                            state: itemState,
+                            gameConstants: gameConst,
+                            rng: { randRange, randPercent, randClump },
+                            scrollTable: mutableScrollTable,
+                            potionTable: mutablePotionTable,
+                            meteredItemsGenerationTable: meteredItemsGenTable,
+                            lumenstoneDistribution,
+                            cellHasTerrainFlag(pos, flags) {
+                                return cellHasTerrainFlag(pmap, pos, flags);
+                            },
+                            getCellFlags(x, y) {
+                                return pmap[x][y].flags;
+                            },
+                            getDungeonLayer(x, y) {
+                                return pmap[x][y].layers[DungeonLayer.Dungeon];
+                            },
+                            setDungeonLayer(x, y, value) {
+                                pmap[x][y].layers[DungeonLayer.Dungeon] = value;
+                            },
+                            isPassableOrSecretDoor(pos) {
+                                return cellIsPassableOrDoor(pmap, pos.x, pos.y);
+                            },
+                            passableArcCount(x, y) {
+                                return passableArcCount(pmap, x, y);
+                            },
+                            randomMatchingLocation(dungeonType, liquidType, terrainType) {
+                                return randomMatchingLocation(pmap, tileCatalog as any, dungeonType, liquidType, terrainType);
+                            },
+                            placeItemAt(item, loc) {
+                                item.loc = { ...loc };
+                                floorItems.push(item);
+                                pmap[loc.x][loc.y].flags |= TileFlag.HAS_ITEM;
+                            },
+                            chooseVorpalEnemy,
+                        });
+                        // Sync mutable state back to rogue
+                        rogue.goldGenerated = itemState.goldGenerated;
+                        rogue.foodSpawned = itemState.foodSpawned;
+                    },
+                    // populateMonsters callback
+                    () => {
+                        populateMonstersFn(buildSpawnContext());
+                    },
+                );
             },
             setUpWaypoints() {
                 const result = setUpWaypointsFn(pmap, populateGenericCostMapWrapped, getFOVMaskWrapped);
