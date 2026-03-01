@@ -12,7 +12,7 @@ import { black, white, teal } from "../../src/globals/colors.js";
 import { allocGrid, fillGrid } from "../../src/grid/grid.js";
 import {
     type EffectsContext,
-    blendAppearances,
+    blendAppearancesCtx as blendAppearances,
     irisFadeBetweenBuffers,
     colorBlendCell,
     flashForeground,

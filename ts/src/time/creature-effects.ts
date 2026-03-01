@@ -37,6 +37,8 @@ import {
     ItemFlag,
     MonsterBehaviorFlag,
     MonsterBookkeepingFlag,
+    T_RESPIRATION_IMMUNITIES,
+    T_PATHING_BLOCKER,
 } from "../types/flags.js";
 import { NUMBER_TERRAIN_LAYERS } from "../types/constants.js";
 
@@ -66,6 +68,7 @@ export interface CreatureEffectsContext {
         justRested: boolean;
         flares: any[];
         flareCount: number;
+        xpxpThisTurn: number;
         yendorWarden: Creature | null;
     };
 
@@ -291,7 +294,7 @@ export function updateFlavorText(
                     ctx.highestPriorityLayer(ctx.player.loc.x, ctx.player.loc.y, false)
                 ]
             ].flags &
-                TerrainFlag.T_RESPIRATION_IMMUNITIES
+                T_RESPIRATION_IMMUNITIES
         ) {
             ctx.flavorMessage("A pocket of cool, clean air swirls around you.");
         } else if (ctx.player.status[StatusEffect.Levitating]) {
@@ -364,8 +367,8 @@ export function discoverCell(
     ctx.pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY;
     if (!(ctx.pmap[x][y].flags & TileFlag.DISCOVERED)) {
         ctx.pmap[x][y].flags |= TileFlag.DISCOVERED;
-        if (!ctx.cellHasTerrainFlag({ x, y }, TerrainFlag.T_PATHING_BLOCKER)) {
-            ctx.rogue.xpxpThisTurn = (ctx.rogue as any).xpxpThisTurn ? (ctx.rogue as any).xpxpThisTurn + 1 : 1;
+        if (!ctx.cellHasTerrainFlag({ x, y }, T_PATHING_BLOCKER)) {
+            ctx.rogue.xpxpThisTurn++;
         }
     }
 }
@@ -1033,7 +1036,7 @@ export function applyInstantTileEffectsToCreature(
     // Toxic gases
     if (
         monst === ctx.player &&
-        ctx.cellHasTerrainFlag(pos, TerrainFlag.T_RESPIRATION_IMMUNITIES) &&
+        ctx.cellHasTerrainFlag(pos, T_RESPIRATION_IMMUNITIES) &&
         ctx.rogue.armor &&
         (ctx.rogue.armor.flags & ItemFlag.ITEM_RUNIC) &&
         ctx.rogue.armor.enchant2 === ArmorEnchant.Respiration

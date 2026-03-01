@@ -19,7 +19,7 @@
  */
 
 import type { Pos, Item, ItemTable, MeteredItem, GameConstants, MeteredItemGenerationTable } from "../types/types.js";
-import { ItemCategory, ALL_ITEMS, TileType, DungeonLayer, FoodKind, PotionKind } from "../types/enums.js";
+import { ItemCategory, ALL_ITEMS, TileType, FoodKind, PotionKind } from "../types/enums.js";
 import { TerrainFlag, TileFlag, T_PATHING_BLOCKER } from "../types/flags.js";
 import { DCOLS, DROWS } from "../types/constants.js";
 import { nbDirs, coordinatesAreInMap } from "../globals/tables.js";

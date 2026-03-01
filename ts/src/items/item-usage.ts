@@ -9,10 +9,10 @@
  *  Interactive scroll/potion/wand handlers are deferred to a later step.
  */
 
-import type { Item, ItemTable, Creature, GameConstants, Pos, Fixpt } from "../types/types.js";
-import { ItemCategory, RingKind, ScrollKind, StatusEffect, FoodKind } from "../types/enums.js";
+import type { Item, Creature, Fixpt } from "../types/types.js";
+import { ItemCategory, RingKind, ScrollKind, StatusEffect } from "../types/enums.js";
 import { ItemFlag } from "../types/flags.js";
-import { FP_FACTOR, fpFromInt } from "../math/fixpt.js";
+import { FP_FACTOR } from "../math/fixpt.js";
 import { damageFraction } from "../power/power-tables.js";
 import { scrollTable, ringTable, wandTable } from "../globals/item-catalog.js";
 import { getTableForCategory } from "./item-generation.js";

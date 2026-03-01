@@ -43,7 +43,7 @@ import {
 import { ButtonFlag, ItemFlag, MessageFlag, MonsterBehaviorFlag } from "../types/flags.js";
 import { MONST_NEVER_MUTATED, MA_NEVER_MUTATED } from "../types/flags.js";
 import {
-    COLS, KEYBOARD_LABELS, INTERFACE_OPACITY, MAX_PACK_ITEMS,
+    KEYBOARD_LABELS, INTERFACE_OPACITY, MAX_PACK_ITEMS,
     NUMBER_ITEM_CATEGORIES, MONSTER_CLASS_COUNT, NUMBER_MUTATORS,
     NUMBER_WEAPON_RUNIC_KINDS, NUMBER_GOOD_WEAPON_ENCHANT_KINDS,
 } from "../types/constants.js";
@@ -565,7 +565,8 @@ export function dialogCreateMonsterChooseMutation(
  * C: `dialogCreateMonster` in Wizard.c
  */
 export function dialogCreateMonster(ctx: WizardContext): void {
-    const CREATABLE_MONSTER_KINDS = ctx.monsterCatalog.length - 2; // Exclude lich and phoenix
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    void (ctx.monsterCatalog.length - 2); // CREATABLE_MONSTER_KINDS — used implicitly via monsterKinds loop
 
     // Copy monsters (excluding lich/phoenix), sort alphabetically
     const monsterKinds: CreatureType[] = [];

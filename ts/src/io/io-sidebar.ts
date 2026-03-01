@@ -17,11 +17,11 @@
  *  License, or (at your option) any later version.
  */
 
-import type { Color, ScreenDisplayBuffer, WindowPos, Pos, Creature, Item, Pcell, FloorTileType } from "../types/types.js";
+import type { Color, ScreenDisplayBuffer, Pos, Creature, Item, Pcell, FloorTileType } from "../types/types.js";
 import type { DisplayGlyph } from "../types/enums.js";
 import { StatusEffect, CreatureState, DungeonLayer } from "../types/enums.js";
 import {
-    COLS, ROWS, DCOLS, DROWS,
+    ROWS, DCOLS, DROWS,
     STOMACH_SIZE, HUNGER_THRESHOLD, WEAK_THRESHOLD, FAINT_THRESHOLD,
 } from "../types/constants.js";
 import { TileFlag, ItemFlag } from "../types/flags.js";

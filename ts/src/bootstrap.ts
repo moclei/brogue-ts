@@ -98,7 +98,7 @@ async function main(): Promise<void> {
     // 3. Launch the main menu junction — this is the top-level game loop
     //    that shows the title screen, handles menu choices, and dispatches
     //    to new games, saved games, recordings, etc.
-    mainBrogueJunction(runtime.menuCtx, runtime.displayBuffer);
+    await mainBrogueJunction(runtime.menuCtx, runtime.displayBuffer);
 }
 
 // =============================================================================

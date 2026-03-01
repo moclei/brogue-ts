@@ -26,9 +26,9 @@ import {
     weaponRunicNames, armorRunicNames,
 } from "../globals/string-tables.js";
 import {
-    foodTable, weaponTable, armorTable,
+    weaponTable, armorTable,
     potionTable, scrollTable,
-    ringTable, wandTable, staffTable, charmTable,
+    ringTable, wandTable, staffTable,
     keyTable,
 } from "../globals/item-catalog.js";
 import { getTableForCategory as getTableReadonly } from "./item-generation.js";

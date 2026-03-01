@@ -38,13 +38,13 @@ export {
     recordKeystrokeSequence,
     recordMouseClick,
     recallEvent,
-    playbackPanic,
     OOSCheck,
     RNGCheck,
 } from "./recording-events.js";
 
 export type {
-    RecordingEventsContext,
+    PlaybackPanicHandler,
+    RNGCheckContext,
 } from "./recording-events.js";
 
 // ── Recording init ──────────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ export {
 } from "./recording-init.js";
 
 export type {
-    RecordingInitContext,
+    InitRecordingContext,
 } from "./recording-init.js";
 
 // ── Save/load & file path helpers ───────────────────────────────────────────

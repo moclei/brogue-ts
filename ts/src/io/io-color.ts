@@ -423,10 +423,10 @@ export function decodeMessageColor(
 // =============================================================================
 
 /**
- * Blend between two cell appearances. Smoothly interpolates back colors,
- * picks the appropriate character at the 50% crossover point, and blends
- * fore colors using either straight average or cross-fade through the
- * back color.
+ * Blend between two cell appearances (standalone, no context required).
+ * Smoothly interpolates back colors, picks the appropriate character at
+ * the 50% crossover point, and blends fore colors using either straight
+ * average or cross-fade through the back color.
  *
  * C: `blendAppearances` (static) in IO.c
  */

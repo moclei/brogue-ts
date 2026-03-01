@@ -57,8 +57,14 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
 
 ## Phase 4: Integration
 - [ ] `port-phase-4-integration` — Compile clean, build tooling, runtime wiring, seed regression, recording playback, Node.js terminal platform
-  - [ ] Step 1: Compile Clean — fix 51 pre-existing TS errors (missing flags, unused imports, type mismatches, export collisions)
-  - [ ] Step 2: Build & Launch — Vite bundler, async boundary resolution, title screen rendering in browser
+  - [x] Step 1: Compile Clean — fix 51 pre-existing TS errors (missing flags, unused imports, type mismatches, export collisions)
+  - [x] Step 2: Build & Launch — Vite bundler, async boundary resolution, title screen rendering in browser (title art, flame animation, version string, menu buttons all rendering)
   - [ ] Step 3: Runtime Wiring — fill DI stubs, connect full game loop (init → level gen → input → turns → game over)
+    - [x] 3a: Menu → Game Init — expanded rogue state, shared data structures, wired initializeRogue/freeEverything/initializeGameVariant with full DI contexts
+    - [x] 3b: Level Generation + Display — pmap/tmap allocation, shared helpers (FOV/Dijkstra/terrain), getCellAppearance/displayLevel, ArchitectContext, LevelContext, startLevel wiring, async mainInputLoop
+    - [x] 3c: Input → Game Actions — full InputContext (~150 deps), movement/stairs/inventory/exploration/rest-search wiring, async dispatch chain, targeting stubs
+    - [x] 3d: Turn Processing — buildTurnProcessingContext(), playerTurnEnded wired to real function, monster AI/environment/status-effect stubs, FOV/scent/discovery wiring
+    - [x] 3e: Game Lifecycle — buildLifecycleContext(), gameOver/victory/enableEasyMode wired to real functions, display primitives, scoring stubs
+    - [x] 3f: Remaining DI stubs — enhanced getCellAppearance (items/monsters/fog-of-war/unexplored), sidebar/inventory deferred
   - [ ] Step 4: Verification — seed regression tests, recording playback, manual testing
   - [ ] Step 5: Terminal Platform — Node.js ANSI renderer, CLI entry point

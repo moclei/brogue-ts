@@ -177,11 +177,11 @@ export interface InputContext {
 
     initializeButton(): BrogueButton;
     initializeButtonState(state: ButtonState, buttons: BrogueButton[], count: number, winX: number, winY: number, winWidth: number, winHeight: number): void;
-    buttonInputLoop(buttons: BrogueButton[], count: number, winX: number, winY: number, winWidth: number, winHeight: number, event: RogueEvent | null): number;
+    buttonInputLoop(buttons: BrogueButton[], count: number, winX: number, winY: number, winWidth: number, winHeight: number, event: RogueEvent | null): number | Promise<number>;
 
     // -- Text box (from io-inventory.ts) --------------------------------------
 
-    printTextBox(text: string, x: number, y: number, width: number, foreColor: Readonly<Color>, backColor: Readonly<Color>, buttons: BrogueButton[], buttonCount: number): number;
+    printTextBox(text: string, x: number, y: number, width: number, foreColor: Readonly<Color>, backColor: Readonly<Color>, buttons: BrogueButton[], buttonCount: number): number | Promise<number>;
     rectangularShading(x: number, y: number, width: number, height: number, color: Readonly<Color>, opacity: number, dbuf: ScreenDisplayBuffer): void;
 
     // -- Events / timing ------------------------------------------------------
@@ -549,7 +549,7 @@ export function waitForKeystrokeOrMouseClick(ctx: InputContext): void {
  *
  * C: `confirm` in IO.c
  */
-export function confirm(ctx: InputContext, prompt: string, alsoDuringPlayback: boolean): boolean {
+export async function confirm(ctx: InputContext, prompt: string, alsoDuringPlayback: boolean): Promise<boolean> {
     if (ctx.rogue.autoPlayingLevel || (!alsoDuringPlayback && ctx.rogue.playbackMode)) {
         return true;
     }
@@ -572,7 +572,7 @@ export function confirm(ctx: InputContext, prompt: string, alsoDuringPlayback: b
     buttons.push(btn1);
 
     const rbuf = ctx.saveDisplayBuffer();
-    const retVal = ctx.printTextBox(
+    const retVal = await ctx.printTextBox(
         prompt,
         Math.floor(COLS / 3),
         Math.floor(ROWS / 3),
@@ -738,7 +738,7 @@ export function getInputTextString(
  *
  * C: `executeMouseClick` in IO.c
  */
-export function executeMouseClick(ctx: InputContext, theEvent: RogueEvent): void {
+export async function executeMouseClick(ctx: InputContext, theEvent: RogueEvent): Promise<void> {
     const mouse: WindowPos = { windowX: theEvent.param1, windowY: theEvent.param2 };
     const autoConfirm = theEvent.controlKey;
 
@@ -749,7 +749,7 @@ export function executeMouseClick(ctx: InputContext, theEvent: RogueEvent): void
             ctx.travel(ctx.windowToMap(mouse), autoConfirm);
         } else {
             ctx.rogue.cursorLoc = ctx.windowToMap(mouse);
-            mainInputLoop(ctx);
+            await mainInputLoop(ctx);
         }
     } else if (
         ctx.windowToMapX(mouse.windowX) >= 0 &&
@@ -809,7 +809,7 @@ function keystrokeToDirection(keystroke: number): number {
  *
  * C: `executeKeystroke` in IO.c
  */
-export function executeKeystroke(ctx: InputContext, keystroke: number, controlKey: boolean, shiftKey: boolean): void {
+export async function executeKeystroke(ctx: InputContext, keystroke: number, controlKey: boolean, shiftKey: boolean): Promise<void> {
     ctx.confirmMessages();
     keystroke = stripShiftFromMovementKeystroke(keystroke);
 
@@ -950,7 +950,7 @@ export function executeKeystroke(ctx: InputContext, keystroke: number, controlKe
                 ctx.exploreKey(controlKey);
                 break;
             case AUTOPLAY_KEY:
-                if (confirm(ctx, "Turn on autopilot?", false)) {
+                if (await confirm(ctx, "Turn on autopilot?", false)) {
                     ctx.autoPlayLevel(controlKey);
                 }
                 break;
@@ -975,18 +975,18 @@ export function executeKeystroke(ctx: InputContext, keystroke: number, controlKe
                 if (ctx.rogue.playbackMode || ctx.serverMode) {
                     return;
                 }
-                if (confirm(ctx, "Save this game and exit?", false)) {
+                if (await confirm(ctx, "Save this game and exit?", false)) {
                     ctx.saveGame();
                 }
                 break;
             case NEW_GAME_KEY:
-                if (ctx.rogue.playerTurnNumber < 50 || confirm(ctx, "End this game and begin a new game?", false)) {
+                if (ctx.rogue.playerTurnNumber < 50 || await confirm(ctx, "End this game and begin a new game?", false)) {
                     ctx.rogue.nextGame = 1; // NG_NEW_GAME
                     ctx.rogue.gameHasEnded = true;
                 }
                 break;
             case QUIT_KEY:
-                if (confirm(ctx, "Quit and abandon this game? (The save will be deleted.)", false)) {
+                if (await confirm(ctx, "Quit and abandon this game? (The save will be deleted.)", false)) {
                     ctx.recordKeystroke(QUIT_KEY, false, false);
                     ctx.rogue.quit = true;
                     ctx.gameOver("Quit", true);
@@ -1078,15 +1078,15 @@ export function executeKeystroke(ctx: InputContext, keystroke: number, controlKe
  *
  * C: `executeEvent` in RogueMain.c
  */
-export function executeEvent(ctx: InputContext, theEvent: RogueEvent): void {
+export async function executeEvent(ctx: InputContext, theEvent: RogueEvent): Promise<void> {
     ctx.rogue.playbackBetweenTurns = false;
     if (theEvent.eventType === EventType.Keystroke) {
-        executeKeystroke(ctx, theEvent.param1, theEvent.controlKey, theEvent.shiftKey);
+        await executeKeystroke(ctx, theEvent.param1, theEvent.controlKey, theEvent.shiftKey);
     } else if (
         theEvent.eventType === EventType.MouseUp ||
         theEvent.eventType === EventType.RightMouseUp
     ) {
-        executeMouseClick(ctx, theEvent);
+        await executeMouseClick(ctx, theEvent);
     }
 }
 
@@ -1201,7 +1201,7 @@ export function initializeMenuButtons(ctx: InputContext, state: ButtonState, but
  *
  * C: `actionMenu` (static) in IO.c
  */
-export function actionMenu(ctx: InputContext, x: number, playingBack: boolean): number {
+export async function actionMenu(ctx: InputContext, x: number, playingBack: boolean): Promise<number> {
     const yellowEsc = ctx.encodeMessageColor(itemMessageColor);
     const whiteEsc = ctx.encodeMessageColor(white);
     const darkGrayEsc = ctx.encodeMessageColor(black);
@@ -1451,7 +1451,7 @@ export function actionMenu(ctx: InputContext, x: number, playingBack: boolean): 
         ctx.clearDisplayBuffer(dbuf);
         ctx.rectangularShading(x - 1, y, longestName + 2, buttonCount, black, Math.floor(INTERFACE_OPACITY / 2), dbuf);
         ctx.overlayDisplayBuffer(dbuf);
-        buttonChosen = ctx.buttonInputLoop(buttons, buttonCount, x - 1, y, longestName + 2, buttonCount, null);
+        buttonChosen = await ctx.buttonInputLoop(buttons, buttonCount, x - 1, y, longestName + 2, buttonCount, null);
         ctx.restoreDisplayBuffer(rbuf);
 
         if (buttonChosen === -1) {
@@ -1464,7 +1464,7 @@ export function actionMenu(ctx: InputContext, x: number, playingBack: boolean): 
                 shiftKey: false,
                 controlKey: false,
             };
-            executeEvent(ctx, theEvent);
+            await executeEvent(ctx, theEvent);
         } else {
             return buttons[buttonChosen].hotkey[0];
         }
@@ -1483,7 +1483,7 @@ export function actionMenu(ctx: InputContext, x: number, playingBack: boolean): 
  *
  * C: `mainInputLoop` in IO.c
  */
-export function mainInputLoop(ctx: InputContext): void {
+export async function mainInputLoop(ctx: InputContext): Promise<void> {
     let oldTargetLoc: Pos = { x: 0, y: 0 };
     let steps: number;
     const path: Pos[] = new Array(1000);
@@ -1700,7 +1700,7 @@ export function mainInputLoop(ctx: InputContext): void {
 
             if (state.buttonChosen === 3) {
                 // Actions menu button
-                const buttonInput = actionMenu(ctx, buttons[3].x - 4, playingBack);
+                const buttonInput = await actionMenu(ctx, buttons[3].x - 4, playingBack);
                 if (buttonInput === -1) {
                     doEvent = false;
                 } else {
@@ -1848,7 +1848,7 @@ export function mainInputLoop(ctx: InputContext): void {
                 playingBack = ctx.rogue.playbackMode;
                 ctx.rogue.playbackMode = false;
             } else {
-                executeEvent(ctx, theEvent);
+                await executeEvent(ctx, theEvent);
                 if (ctx.rogue.playbackMode) {
                     playingBack = true;
                     ctx.rogue.playbackMode = false;

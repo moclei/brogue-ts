@@ -39,7 +39,6 @@ import {
     UP_ARROW, DOWN_ARROW, PAGE_UP_KEY, PAGE_DOWN_KEY,
     NUMPAD_2, NUMPAD_8,
     GAME_SUFFIX, RECORDING_SUFFIX, LAST_GAME_NAME,
-    TEXT_MAX_LENGTH,
 } from "../types/constants.js";
 
 // =============================================================================
@@ -248,7 +247,7 @@ export interface MenuContext {
 
     drawButton(button: BrogueButton, highlight: ButtonDrawState, dbuf: ScreenDisplayBuffer | null): void;
     drawButtonsInState(state: ButtonState, dbuf: ScreenDisplayBuffer): void;
-    processButtonInput(state: ButtonState, event: RogueEvent): { chosenButton: number; canceled: boolean };
+    processButtonInput(state: ButtonState, event: RogueEvent): Promise<{ chosenButton: number; canceled: boolean }>;
     buttonInputLoop(
         buttons: BrogueButton[],
         buttonCount: number,
@@ -256,7 +255,7 @@ export interface MenuContext {
         winY: number,
         winWidth: number,
         winHeight: number,
-    ): { chosenButton: number; event: RogueEvent };
+    ): Promise<{ chosenButton: number; event: RogueEvent }>;
 
     rectangularShading(
         x: number,
@@ -277,12 +276,12 @@ export interface MenuContext {
         backColor: Readonly<Color>,
         buttons?: BrogueButton[],
         buttonCount?: number,
-    ): number;
+    ): Promise<number>;
 
     // -- Events / timing ------------------------------------------------------
 
-    nextBrogueEvent(textInput: boolean, colorsDance: boolean, realInputEvenInPlayback: boolean): RogueEvent;
-    pauseBrogue(milliseconds: number, behavior?: PauseBehavior): boolean;
+    nextBrogueEvent(textInput: boolean, colorsDance: boolean, realInputEvenInPlayback: boolean): Promise<RogueEvent>;
+    pauseBrogue(milliseconds: number, behavior?: PauseBehavior): Promise<boolean>;
 
     // -- Info screens / prompts -----------------------------------------------
 
@@ -293,10 +292,10 @@ export interface MenuContext {
         promptSuffix: string,
         textEntryType: TextEntryType,
         useDialogBox: boolean,
-    ): string | null;
-    printHighScores(hiliteMostRecent: boolean): void;
-    confirm(prompt: string, alsoDuringPlayback: boolean): boolean;
-    waitForKeystrokeOrMouseClick(): void;
+    ): Promise<string | null>;
+    printHighScores(hiliteMostRecent: boolean): Promise<void>;
+    confirm(prompt: string, alsoDuringPlayback: boolean): Promise<boolean>;
+    waitForKeystrokeOrMouseClick(): Promise<void>;
     message(msg: string, flags: number): void;
 
     // -- Sidebar helper re-exported from io-sidebar ---------------------------
@@ -307,7 +306,7 @@ export interface MenuContext {
 
     initializeRogue(seed: bigint): void;
     startLevel(depth: number, stairDirection: number): void;
-    mainInputLoop(): void;
+    mainInputLoop(): Promise<void>;
     freeEverything(): void;
     initializeGameVariant(): void;
     initializeLaunchArguments(): void;
@@ -873,7 +872,7 @@ export function redrawMainMenuButtons(
  *
  * C: `chooseGameVariant` in MainMenu.c
  */
-export function chooseGameVariant(ctx: MenuContext): void {
+export async function chooseGameVariant(ctx: MenuContext): Promise<void> {
     const goldEsc = ctx.encodeMessageColor(ctx.yellow);
     const whiteEsc = ctx.encodeMessageColor(ctx.white);
 
@@ -893,7 +892,7 @@ export function chooseGameVariant(ctx: MenuContext): void {
     ];
 
     const rbuf = ctx.saveDisplayBuffer();
-    const choice = ctx.printTextBox(textBuf, 20, 7, 45, ctx.white, ctx.black, buttons, 3);
+    const choice = await ctx.printTextBox(textBuf, 20, 7, 45, ctx.white, ctx.black, buttons, 3);
     ctx.restoreDisplayBuffer(rbuf);
 
     if (choice === 0) {
@@ -916,7 +915,7 @@ export function chooseGameVariant(ctx: MenuContext): void {
  *
  * C: `chooseGameMode` in MainMenu.c
  */
-export function chooseGameMode(ctx: MenuContext): void {
+export async function chooseGameMode(ctx: MenuContext): Promise<void> {
     const goldEsc = ctx.encodeMessageColor(ctx.yellow);
     const whiteEsc = ctx.encodeMessageColor(ctx.white);
 
@@ -939,7 +938,7 @@ export function chooseGameMode(ctx: MenuContext): void {
     ];
 
     const rbuf = ctx.saveDisplayBuffer();
-    const choice = ctx.printTextBox(textBuf, 10, 5, 66, ctx.white, ctx.black, buttons, 3);
+    const choice = await ctx.printTextBox(textBuf, 10, 5, 66, ctx.white, ctx.black, buttons, 3);
     ctx.restoreDisplayBuffer(rbuf);
 
     if (choice === 0) {
@@ -962,13 +961,13 @@ export function chooseGameMode(ctx: MenuContext): void {
  *
  * C: `dialogAlert` in MainMenu.c
  */
-export function dialogAlert(message: string, ctx: MenuContext): void {
+export async function dialogAlert(message: string, ctx: MenuContext): Promise<void> {
     const button = ctx.initializeButton();
     button.text = "     OK     ";
     button.hotkey = [RETURN_KEY, ACKNOWLEDGE_KEY];
 
     const rbuf = ctx.saveDisplayBuffer();
-    ctx.printTextBox(
+    await ctx.printTextBox(
         message,
         Math.trunc(COLS / 3),
         Math.trunc(ROWS / 3),
@@ -1012,11 +1011,11 @@ export function quitImmediately(ctx: MenuContext): number {
  *
  * C: `dialogChooseFile` in MainMenu.c
  */
-export function dialogChooseFile(
+export async function dialogChooseFile(
     suffix: string,
     prompt: string,
     ctx: MenuContext,
-): string | null {
+): Promise<string | null> {
     let files = ctx.listFiles();
     const rbuf = ctx.saveDisplayBuffer();
     let maxPathLength = ctx.strLenWithoutEscapes(prompt);
@@ -1039,7 +1038,7 @@ export function dialogChooseFile(
 
     if (count === 0) {
         ctx.restoreDisplayBuffer(rbuf);
-        dialogAlert("No applicable files found.", ctx);
+        await dialogAlert("No applicable files found.", ctx);
         return null;
     }
 
@@ -1133,7 +1132,7 @@ export function dialogChooseFile(
         ctx.overlayDisplayBuffer(dbuf);
 
         const totalButtons = pageCount + (count > FILES_ON_PAGE_MAX ? 2 : 0);
-        const result = ctx.buttonInputLoop(buttons, totalButtons, x, y, width, height);
+        const result = await ctx.buttonInputLoop(buttons, totalButtons, x, y, width, height);
         ctx.restoreDisplayBuffer(rbuf);
 
         const i = result.chosenButton;
@@ -1234,7 +1233,7 @@ export function addRunToGameStats(run: RogueRun, stats: GameStats): void {
  *
  * C: `viewGameStats` in MainMenu.c
  */
-export function viewGameStats(ctx: MenuContext): void {
+export async function viewGameStats(ctx: MenuContext): Promise<void> {
     const allTimeStats = createGameStats();
     const recentStats = createGameStats();
 
@@ -1351,12 +1350,12 @@ export function viewGameStats(ctx: MenuContext): void {
         resetButtons[0].x = 74;
         resetButtons[0].y = row;
 
-        const result = ctx.buttonInputLoop(resetButtons, 1, 74, 25, 10, 3);
-        if (result.chosenButton === 0 && ctx.confirm("Reset recent stats?", false)) {
+        const result = await ctx.buttonInputLoop(resetButtons, 1, 74, 25, 10, 3);
+        if (result.chosenButton === 0 && await ctx.confirm("Reset recent stats?", false)) {
             ctx.saveResetRun();
         }
     } else {
-        ctx.waitForKeystrokeOrMouseClick();
+        await ctx.waitForKeystrokeOrMouseClick();
     }
 
     ctx.restoreDisplayBuffer(rbuf);
@@ -1372,7 +1371,7 @@ export function viewGameStats(ctx: MenuContext): void {
  *
  * C: `titleMenu` in MainMenu.c
  */
-export function titleMenu(ctx: MenuContext, displayBuffer: ScreenDisplayBuffer): void {
+export async function titleMenu(ctx: MenuContext, displayBuffer: ScreenDisplayBuffer): Promise<void> {
     // Initialize the RNG so the flames aren't always the same.
     ctx.seedRandomGenerator(0n);
 
@@ -1445,9 +1444,9 @@ export function titleMenu(ctx: MenuContext, displayBuffer: ScreenDisplayBuffer):
                 }
 
                 // Pause briefly
-                if (ctx.pauseBrogue(MENU_FLAME_UPDATE_DELAY, { interruptForMouseMove: true })) {
+                if (await ctx.pauseBrogue(MENU_FLAME_UPDATE_DELAY, { interruptForMouseMove: true })) {
                     // There was input during the pause! Get the input.
-                    theEvent = ctx.nextBrogueEvent(true, false, true);
+                    theEvent = await ctx.nextBrogueEvent(true, false, true);
 
                     // Quickstart a new game
                     if (theEvent.eventType === EventType.Keystroke &&
@@ -1459,20 +1458,20 @@ export function titleMenu(ctx: MenuContext, displayBuffer: ScreenDisplayBuffer):
                     // Process the flyout menu input as needed
                     let flyoutIndex = -1;
                     if (isFlyoutActive(ctx.rogue.nextGame) && flyoutMenu) {
-                        const flyoutResult = ctx.processButtonInput(flyoutMenu, theEvent);
+                        const flyoutResult = await ctx.processButtonInput(flyoutMenu, theEvent);
                         flyoutIndex = flyoutResult.chosenButton;
                         if (flyoutIndex !== -1 && (theEvent.eventType === EventType.MouseUp || theEvent.eventType === EventType.Keystroke)) {
                             ctx.rogue.nextGame = flyoutButtons[flyoutIndex].command;
                         }
                         if (ctx.rogue.nextGame === NGCommand.GameMode) {
-                            chooseGameMode(ctx);
+                            await chooseGameMode(ctx);
                         } else if (ctx.rogue.nextGame === NGCommand.GameVariant) {
-                            chooseGameVariant(ctx);
+                            await chooseGameVariant(ctx);
                         }
                     }
 
                     // Process the main menu input
-                    const mainResult = ctx.processButtonInput(mainMenu, theEvent);
+                    const mainResult = await ctx.processButtonInput(mainMenu, theEvent);
                     const mainIndex = mainResult.chosenButton;
 
                     if (theEvent.eventType === EventType.MouseUp || theEvent.eventType === EventType.Keystroke) {
@@ -1485,7 +1484,7 @@ export function titleMenu(ctx: MenuContext, displayBuffer: ScreenDisplayBuffer):
                     }
                 }
             } else {
-                ctx.pauseBrogue(64);
+                await ctx.pauseBrogue(64);
             }
         } while (
             theEvent.eventType !== EventType.MouseUp &&
@@ -1506,7 +1505,7 @@ export function titleMenu(ctx: MenuContext, displayBuffer: ScreenDisplayBuffer):
  *
  * C: `mainBrogueJunction` in MainMenu.c
  */
-export function mainBrogueJunction(ctx: MenuContext, displayBuffer: ScreenDisplayBuffer): void {
+export async function mainBrogueJunction(ctx: MenuContext, displayBuffer: ScreenDisplayBuffer): Promise<void> {
     // Clear screen and display buffer
     for (let i = 0; i < COLS; i++) {
         for (let j = 0; j < ROWS; j++) {
@@ -1533,7 +1532,7 @@ export function mainBrogueJunction(ctx: MenuContext, displayBuffer: ScreenDispla
 
         switch (ctx.rogue.nextGame) {
             case NGCommand.Nothing:
-                titleMenu(ctx, displayBuffer);
+                await titleMenu(ctx, displayBuffer);
                 break;
 
             case NGCommand.GameVariant:
@@ -1560,7 +1559,7 @@ export function mainBrogueJunction(ctx: MenuContext, displayBuffer: ScreenDispla
                             ? ""
                             : ctx.previousGameSeed.toString();
 
-                        const buf = ctx.getInputTextString(
+                        const buf = await ctx.getInputTextString(
                             "Generate dungeon with seed number:",
                             20, // length of "18446744073709551615" (2^64 - 1)
                             seedDefault,
@@ -1591,7 +1590,7 @@ export function mainBrogueJunction(ctx: MenuContext, displayBuffer: ScreenDispla
                 ctx.rogue.nextGame = NGCommand.Nothing;
                 ctx.initializeRogue(ctx.rogue.nextGameSeed);
                 ctx.startLevel(ctx.rogue.depthLevel, 1);
-                ctx.mainInputLoop();
+                await ctx.mainInputLoop();
 
                 if (ctx.serverMode) {
                     ctx.rogue.nextGame = NGCommand.Quit;
@@ -1608,14 +1607,14 @@ export function mainBrogueJunction(ctx: MenuContext, displayBuffer: ScreenDispla
                     ctx.rogue.currentGamePath = ctx.rogue.nextGamePath;
                     ctx.rogue.nextGamePath = "";
                 } else {
-                    const chosen = dialogChooseFile(GAME_SUFFIX, "Open saved game:", ctx);
+                    const chosen = await dialogChooseFile(GAME_SUFFIX, "Open saved game:", ctx);
                     if (chosen) gamePath = chosen;
                 }
 
                 if (gamePath && ctx.openFile(gamePath)) {
                     // loadSavedGame -> mainInputLoop is Step 4/6
                     // Stub: the actual implementation will call loadSavedGame()
-                    ctx.mainInputLoop();
+                    await ctx.mainInputLoop();
                     ctx.freeEverything();
                 }
                 ctx.rogue.playbackMode = false;
@@ -1635,7 +1634,7 @@ export function mainBrogueJunction(ctx: MenuContext, displayBuffer: ScreenDispla
                     ctx.rogue.currentGamePath = ctx.rogue.nextGamePath;
                     ctx.rogue.nextGamePath = "";
                 } else {
-                    const chosen = dialogChooseFile(RECORDING_SUFFIX, "View recording:", ctx);
+                    const chosen = await dialogChooseFile(RECORDING_SUFFIX, "View recording:", ctx);
                     if (chosen) recPath = chosen;
                 }
 
@@ -1661,7 +1660,7 @@ export function mainBrogueJunction(ctx: MenuContext, displayBuffer: ScreenDispla
                         if (ctx.rogue.gameHasEnded) break;
 
                         ctx.rogue.playbackBetweenTurns = true;
-                        const theEvent = ctx.nextBrogueEvent(false, true, false);
+                        const theEvent = await ctx.nextBrogueEvent(false, true, false);
 
                         ctx.executeEvent(theEvent);
                     }
@@ -1679,12 +1678,12 @@ export function mainBrogueJunction(ctx: MenuContext, displayBuffer: ScreenDispla
 
             case NGCommand.HighScores:
                 ctx.rogue.nextGame = NGCommand.Nothing;
-                ctx.printHighScores(false);
+                await ctx.printHighScores(false);
                 break;
 
             case NGCommand.GameStats:
                 ctx.rogue.nextGame = NGCommand.Nothing;
-                viewGameStats(ctx);
+                await viewGameStats(ctx);
                 break;
 
             case NGCommand.Quit:

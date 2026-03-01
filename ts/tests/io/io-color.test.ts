@@ -31,6 +31,7 @@ import {
     messageColorFromVictim,
     MIN_COLOR_DIFF,
 } from "../../src/io/io-color.js";
+
 import { black, white, goodMessageColor, badMessageColor } from "../../src/globals/colors.js";
 
 // =============================================================================
