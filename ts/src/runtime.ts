@@ -68,6 +68,7 @@ import {
     MONSTER_CLASS_COUNT,
     NUMBER_TERRAIN_LAYERS,
     REST_KEY, SEARCH_KEY, ESCAPE_KEY,
+    HUNGER_THRESHOLD, WEAK_THRESHOLD, FAINT_THRESHOLD,
 } from "./types/constants.js";
 // PAUSE_BEHAVIOR_DEFAULT imported inline where needed
 
@@ -188,6 +189,20 @@ import { zeroOutGrid, cellIsPassableOrDoor, passableArcCount, randomMatchingLoca
 // -- Creature imports ---------------------------------------------------------
 import { createCreature, initializeGender, initializeStatus } from "./monsters/monster-creation.js";
 import { distanceBetween } from "./monsters/monster-state.js";
+// moveMonster, prependCreature, removeCreature are used inline in contexts (not as direct imports)
+import { freeCaptive as freeCaptiveFn } from "./movement/ally-management.js";
+import type { AllyManagementContext } from "./movement/ally-management.js";
+import { promoteTile as promoteTileFn, updateEnvironment as updateEnvironmentFn } from "./time/environment.js";
+import type { EnvironmentContext } from "./time/environment.js";
+import {
+    applyInstantTileEffectsToCreature as applyInstantTileEffectsFn,
+    applyGradualTileEffectsToCreature as applyGradualTileEffectsFn,
+    monsterShouldFall as monsterShouldFallFn,
+    monstersFall as monstersFallFn,
+    playerFalls as playerFallsFn,
+    decrementPlayerStatus as decrementPlayerStatusFn,
+} from "./time/creature-effects.js";
+import type { CreatureEffectsContext } from "./time/creature-effects.js";
 
 // -- Player movement imports --------------------------------------------------
 import { playerMoves as playerMovesFn, playerRuns as playerRunsFn } from "./movement/player-movement.js";
@@ -214,7 +229,7 @@ import { playerTurnEnded as playerTurnEndedFn, scentDistance } from "./time/turn
 import type { TurnProcessingContext } from "./time/turn-processing.js";
 
 // -- Scent system imports -----------------------------------------------------
-import { addScentToCell } from "./movement/map-queries.js";
+import { addScentToCell, layerWithFlag as layerWithFlagFn } from "./movement/map-queries.js";
 
 // -- Game lifecycle imports ---------------------------------------------------
 import { gameOver as gameOverFn, victory as victoryFn, enableEasyMode as enableEasyModeFn } from "./game/game-lifecycle.js";
@@ -232,11 +247,15 @@ import {
     buildHitList as buildHitListFn,
 } from "./combat/combat-attack.js";
 import type { AttackContext } from "./combat/combat-attack.js";
-// inflictDamage and killCreature are called internally by attack(), not needed here directly
+// killCreature is also called directly from several contexts beyond attack()
+import { killCreature as killCreatureFn, inflictDamage as inflictDamageFn } from "./combat/combat-damage.js";
+import type { CombatDamageContext } from "./combat/combat-damage.js";
+import { splitMonster as splitMonsterFn, anyoneWantABite as anyoneWantABiteFn } from "./combat/combat-helpers.js";
+import type { CombatHelperContext } from "./combat/combat-helpers.js";
 import { playerRecoversFromAttacking as playerRecoversFromAttackingFn } from "./time/turn-processing.js";
 import { alertMonster } from "./monsters/monster-state.js";
 import { monsterIsInClass } from "./monsters/monster-queries.js";
-// Weapon attack functions (whip, spear, flail) require full WeaponAttackContext with bolt system — deferred
+// MonsterAbilityFlag and weapon attack functions (whip, spear, flail) require full WeaponAttackContext — deferred
 
 // -- Dijkstra scan import -----------------------------------------------------
 import { dijkstraScan as dijkstraScanFn } from "./dijkstra/dijkstra.js";
@@ -267,7 +286,7 @@ import type { MachineContext, ItemOps } from "./architect/machines.js";
 import type { BuildBridgeContext } from "./architect/lakes.js";
 
 // -- Flag imports -------------------------------------------------------------
-import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MonsterBookkeepingFlag, ItemFlag, T_OBSTRUCTS_SCENT } from "./types/flags.js";
+import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MonsterBookkeepingFlag, ItemFlag, MessageFlag, T_OBSTRUCTS_SCENT, ANY_KIND_OF_VISIBLE } from "./types/flags.js";
 
 // -- State helper imports -----------------------------------------------------
 import { cellHasTerrainFlag, cellHasTMFlag, cellHasTerrainType, terrainFlags, terrainMechFlags, discoveredTerrainFlagsAtLoc, highestPriorityLayer } from "./state/helpers.js";
@@ -301,9 +320,10 @@ import type { ItemHelperContext } from "./movement/item-helpers.js";
 
 // -- Catalog imports ----------------------------------------------------------
 import { monsterCatalog as monsterCatalogData } from "./globals/monster-catalog.js";
+import { monsterText } from "./globals/monster-text.js";
 import { lightCatalog as lightCatalogData } from "./globals/light-catalog.js";
 import { meteredItemsGenerationTable as meteredItemsGenTable } from "./globals/item-catalog.js";
-import { scrollTable, potionTable, lumenstoneDistribution, staffTable, ringTable, wandTable, charmTable } from "./globals/item-catalog.js";
+import { scrollTable, potionTable, lumenstoneDistribution, staffTable, ringTable, wandTable, charmTable, armorTable } from "./globals/item-catalog.js";
 import { populateItems as populateItemsFn } from "./items/item-population.js";
 import { populateMonsters as populateMonstersFn, spawnHorde as spawnHordeFn } from "./monsters/monster-spawning.js";
 import { generateMonster as generateMonsterFn } from "./monsters/monster-creation.js";
@@ -1479,7 +1499,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         for (let layer = 0; layer < NUMBER_TERRAIN_LAYERS; layer++) {
             const tile = tileCatalog[pmap[loc.x][loc.y].layers[layer]];
             if (tile && (tile as any).mechFlags & TerrainMechFlag.TM_PROMOTES_ON_ITEM_PICKUP) {
-                // promoteTile stub — deferred to Phase 3
+                promoteTileImpl(loc.x, loc.y, layer, false);
             }
         }
     }
@@ -1584,7 +1604,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 for (let layer = 0; layer < NUMBER_TERRAIN_LAYERS; layer++) {
                     const tile = tileCatalog[pmap[x][y].layers[layer]];
                     if (tile && (tile as any).mechFlags & TerrainMechFlag.TM_PROMOTES_WITHOUT_KEY) {
-                        // promoteTile stub — deferred to Phase 3
+                        promoteTileImpl(x, y, layer, false);
                     }
                 }
             }
@@ -1646,8 +1666,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 // GC handles cleanup in TS
             },
             monsterAtLoc: monsterAtLocFn,
-            promoteTile(_x: number, _y: number, _layer: number, _isVolatile: boolean): void {
-                // stub — deferred to Phase 3
+            promoteTile(x: number, y: number, layer: number, isVolatile: boolean): void {
+                promoteTileImpl(x, y, layer, isVolatile);
             },
             messageWithColor: msgOps.messageWithColor,
             itemMessageColor: Colors.itemMessageColor,
@@ -1853,8 +1873,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             },
 
             monsterAtLoc: monsterAtLocFn,
-            killCreature(_creature, _quiet) {
-                // Stub — full killCreature needs CombatDamageContext
+            killCreature(creature, quiet) {
+                killCreatureImpl(creature, quiet);
             },
             buildMachine(_machineType, _x, _y) {
                 // Stub — machine building during spawning (rare: captive hordes)
@@ -2173,8 +2193,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                     return spawnHordeFn(leaderID, pos, forbiddenFlags, requiredFlags, buildSpawnContext());
                 },
                 monsterAtLoc: monsterAtLocFn,
-                killCreature(_creature, _quiet) {
-                    // Stub — full killCreature needs CombatDamageContext
+                killCreature(creature, quiet) {
+                    killCreatureImpl(creature, quiet);
                 },
                 generateMonster(monsterID, _atDepth, summon) {
                     return generateMonsterFn(monsterID, true, !summon, {
@@ -2728,6 +2748,628 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         };
     }
 
+    // =========================================================================
+    // Phase 3: Monster Lifecycle — Shared helper implementations
+    // =========================================================================
+
+    /**
+     * Demote a monster from leadership, reassigning followers to a new leader.
+     * Ported from demoteMonsterFromLeadership() in Monsters.c:4094.
+     */
+    function demoteMonsterFromLeadershipImpl(monst: Creature): void {
+        monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_LEADER;
+        if (monst.mapToMe) {
+            freeGrid(monst.mapToMe);
+            monst.mapToMe = null;
+        }
+
+        let newLeader: Creature | null = null;
+        let atLeastOneNewFollower = false;
+
+        for (let level = 0; level <= gameConst.deepestLevel; level++) {
+            const list = level === 0 ? monsters : (levels[level - 1]?.monsters ?? []);
+            for (const follower of list) {
+                if (follower === monst || follower.leader !== monst) continue;
+                if (follower.bookkeepingFlags & MonsterBookkeepingFlag.MB_BOUND_TO_LEADER) {
+                    follower.leader = null;
+                    follower.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_FOLLOWER;
+                } else if (newLeader) {
+                    follower.leader = newLeader;
+                    atLeastOneNewFollower = true;
+                    follower.targetWaypointIndex = monst.targetWaypointIndex;
+                    if (follower.targetWaypointIndex >= 0) {
+                        follower.waypointAlreadyVisited[follower.targetWaypointIndex] = false;
+                    }
+                } else {
+                    newLeader = follower;
+                    follower.bookkeepingFlags |= MonsterBookkeepingFlag.MB_LEADER;
+                    follower.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_FOLLOWER;
+                    follower.leader = null;
+                }
+            }
+        }
+
+        if (newLeader && !atLeastOneNewFollower) {
+            newLeader.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_LEADER;
+        }
+
+        // Clear dormant followers
+        for (let level = 0; level <= gameConst.deepestLevel; level++) {
+            const list = level === 0 ? dormantMonsters : (levels[level - 1]?.dormantMonsters ?? []);
+            for (const follower of list) {
+                if (follower === monst || follower.leader !== monst) continue;
+                follower.leader = null;
+                follower.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_FOLLOWER;
+            }
+        }
+    }
+
+    /**
+     * Check if a monster still has followers; if not, remove MB_LEADER.
+     * Ported from checkForContinuedLeadership() in Monsters.c:4077.
+     */
+    function checkForContinuedLeadershipImpl(monst: Creature): void {
+        let maintainLeadership = false;
+        if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_LEADER) {
+            for (const follower of monsters) {
+                if (follower.leader === monst && monst !== follower) {
+                    maintainLeadership = true;
+                    break;
+                }
+            }
+        }
+        if (!maintainLeadership) {
+            monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_LEADER;
+        }
+    }
+
+    /**
+     * Fade in a monster visually. Simplified version that refreshes the cell.
+     * Full version would flash the monster with the background color.
+     * Ported from fadeInMonster() in Monsters.c:904.
+     */
+    function fadeInMonsterImpl(monst: Creature): void {
+        // Set HAS_MONSTER flag so the cell renders the monster
+        if (monst !== player && coordinatesAreInMap(monst.loc.x, monst.loc.y)) {
+            pmap[monst.loc.x][monst.loc.y].flags |= TileFlag.HAS_MONSTER;
+        }
+        const { glyph, foreColor, backColor } = getCellAppearance(monst.loc);
+        plotCharWithColor(glyph, { windowX: mapToWindowX(monst.loc.x), windowY: mapToWindowY(monst.loc.y) }, foreColor, backColor, displayBuffer);
+    }
+
+    /**
+     * Simplified runtime spawnDungeonFeature. Handles single-tile placement
+     * and gas volume. Full propagation/blocking deferred.
+     */
+    function spawnDungeonFeatureRuntime(x: number, y: number, featureIndex: number, _probability: number, _isGas: boolean): void {
+        if (featureIndex <= 0 || featureIndex >= dungeonFeatureCatalog.length) return;
+        const feat = dungeonFeatureCatalog[featureIndex];
+        if (!feat) return;
+
+        if (feat.tile) {
+            if (feat.layer === DungeonLayer.Gas) {
+                pmap[x][y].volume += feat.startProbability;
+            }
+            pmap[x][y].layers[feat.layer] = feat.tile;
+        }
+
+        // Refresh the cell
+        if (coordinatesAreInMap(x, y)) {
+            const { glyph, foreColor, backColor } = getCellAppearance({ x, y });
+            plotCharWithColor(glyph, { windowX: mapToWindowX(x), windowY: mapToWindowY(y) }, foreColor, backColor, displayBuffer);
+        }
+    }
+
+    /**
+     * Runtime spawnDungeonFeature that accepts a DungeonFeature object directly.
+     * Used by promoteTile and EnvironmentContext.
+     */
+    function spawnDungeonFeatureFromObject(x: number, y: number, feat: DungeonFeature, _isVolatile: boolean, _overrideProtection: boolean): void {
+        if (!feat) return;
+
+        if (feat.tile) {
+            if (feat.layer === DungeonLayer.Gas) {
+                pmap[x][y].volume += feat.startProbability;
+            }
+            pmap[x][y].layers[feat.layer] = feat.tile;
+        }
+
+        // Handle subsequent DFs
+        if (feat.subsequentDF && feat.subsequentDF < dungeonFeatureCatalog.length) {
+            spawnDungeonFeatureFromObject(x, y, dungeonFeatureCatalog[feat.subsequentDF], _isVolatile, _overrideProtection);
+        }
+
+        // Refresh the cell
+        if (coordinatesAreInMap(x, y)) {
+            const { glyph, foreColor, backColor } = getCellAppearance({ x, y });
+            plotCharWithColor(glyph, { windowX: mapToWindowX(x), windowY: mapToWindowY(y) }, foreColor, backColor, displayBuffer);
+        }
+    }
+
+    /**
+     * anyoneWantABite implementation — checks if any ally wants to absorb decedent.
+     */
+    function anyoneWantABiteImpl(decedent: Creature): boolean {
+        try {
+            return anyoneWantABiteFn(decedent, buildCombatHelperContext());
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Build a CombatDamageContext for killCreature and inflictDamage calls
+     * outside the attack() path.
+     */
+    function buildCombatDamageContext(): CombatDamageContext {
+        return {
+            player,
+            easyMode: rogue.mode === GameMode.Easy,
+            transference: rogue.transference,
+            playerTransferenceRatio: gameConst.playerTransferenceRatio,
+            canSeeMonster: (monst) => !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE),
+            canDirectlySeeMonster: (monst) => !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE),
+            wakeUp(monst) { alertMonster(monst, player); },
+            spawnDungeonFeature: spawnDungeonFeatureRuntime,
+            refreshSideBar() { /* stub until Phase 5 */ },
+            combatMessage: msgOps.combatMessage,
+            messageWithColor(text, color) { msgOps.messageWithColor(text, color, 0); },
+            monsterName(monst, includeArticle) {
+                if (monst === player) return "you";
+                const article = includeArticle
+                    ? (monst.creatureState === CreatureState.Ally ? "your " : "the ")
+                    : "";
+                return `${article}${monst.info.monsterName}`;
+            },
+            gameOver(message) { doGameOver(message, false); },
+            setCreaturesWillFlash() { rogue.creaturesWillFlashThisTurn = true; },
+            deleteItem(_item) { /* GC handles cleanup */ },
+            makeMonsterDropItem: makeMonsterDropItemImpl,
+            clearLastTarget(monst) {
+                if (rogue.lastTarget === monst) rogue.lastTarget = null;
+            },
+            clearYendorWarden(monst) {
+                if (rogue.yendorWarden === monst) rogue.yendorWarden = null;
+            },
+            clearCellMonsterFlag(loc, isDormant) {
+                if (!isDormant) {
+                    pmap[loc.x][loc.y].flags &= ~TileFlag.HAS_MONSTER;
+                }
+            },
+            prependCreature(monst) {
+                if (!monsters.includes(monst)) {
+                    monsters.unshift(monst);
+                }
+            },
+            applyInstantTileEffectsToCreature(monst) {
+                applyInstantTileEffectsFn(monst, buildCreatureEffectsContext());
+            },
+            fadeInMonster: fadeInMonsterImpl,
+            refreshDungeonCell(loc) {
+                const { glyph, foreColor, backColor } = getCellAppearance(loc);
+                plotCharWithColor(glyph, { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) }, foreColor, backColor, displayBuffer);
+            },
+            anyoneWantABite: anyoneWantABiteImpl,
+            demoteMonsterFromLeadership: demoteMonsterFromLeadershipImpl,
+            checkForContinuedLeadership: checkForContinuedLeadershipImpl,
+            getMonsterDFMessage(monsterID) {
+                return monsterText[monsterID]?.DFMessage ?? "";
+            },
+            resolvePronounEscapes(text, _monst) { return text; },
+            message: msgOps.message,
+            monsterCatalog,
+            updateEncumbrance() {
+                const ctx = buildFullEquipContext();
+                updateEncumbranceFn(ctx.state);
+                syncFullEquipState(ctx);
+            },
+            updateMinersLightRadius() { /* stub */ },
+            updateVision() { updateVisionFn(true); },
+            badMessageColor: Colors.badMessageColor,
+            poisonColor: Colors.poisonColor,
+        };
+    }
+
+    /**
+     * Shared killCreature implementation using real function + full CombatDamageContext.
+     */
+    function killCreatureImpl(decedent: Creature, administrativeDeath: boolean): void {
+        killCreatureFn(decedent, administrativeDeath, buildCombatDamageContext());
+    }
+
+    /**
+     * Shared inflictDamage implementation using real function + full CombatDamageContext.
+     */
+    function inflictDamageImpl(attacker: Creature | null, defender: Creature, damage: number, flashColor: Color | null, ignoresProtectionShield: boolean): boolean {
+        return inflictDamageFn(attacker, defender, damage, flashColor, ignoresProtectionShield, buildCombatDamageContext());
+    }
+
+    /**
+     * Build a CombatHelperContext for splitMonster and anyoneWantABite.
+     */
+    function buildCombatHelperContext(): CombatHelperContext {
+        return {
+            player,
+            weapon: rogue.weapon,
+            armor: rogue.armor,
+            playerStrength: rogue.strength,
+            canSeeMonster: (monst) => !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE),
+            canDirectlySeeMonster: (monst) => !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE),
+            monsterName(monst, includeArticle) {
+                if (monst === player) return "you";
+                const article = includeArticle
+                    ? (monst.creatureState === CreatureState.Ally ? "your " : "the ")
+                    : "";
+                return `${article}${monst.info.monsterName}`;
+            },
+            monstersAreTeammates: () => false,
+            monsterAvoids: () => false,
+            monsterIsInClass: (monst, mc) => monsterIsInClass(monst, mc),
+            monsterAtLoc: monsterAtLocFn,
+            cellHasMonsterOrPlayer(loc) {
+                return !!(pmap[loc.x]?.[loc.y]?.flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER));
+            },
+            isPosInMap(loc) {
+                return coordinatesAreInMap(loc.x, loc.y);
+            },
+            message: msgOps.message,
+            combatMessage: msgOps.combatMessage,
+            cloneMonster: () => null, // Full clone requires monster gen context — deferred
+            fadeInMonster: fadeInMonsterImpl,
+            refreshSideBar() { /* stub */ },
+            setCellMonsterFlag(loc, hasMonster) {
+                if (hasMonster) {
+                    pmap[loc.x][loc.y].flags |= TileFlag.HAS_MONSTER;
+                } else {
+                    pmap[loc.x][loc.y].flags &= ~TileFlag.HAS_MONSTER;
+                }
+            },
+            randRange,
+            monsterCatalog,
+            monsterClassCatalog,
+            cautiousMode: rogue.cautiousMode,
+            setCautiousMode(val) { rogue.cautiousMode = val; },
+            updateIdentifiableItems() {
+                updateIdentifiableItemsFn({
+                    packItems,
+                    floorItems,
+                    updateIdentifiableItem(theItem: Item) {
+                        // Simplified auto-identification
+                        theItem.flags |= ItemFlag.ITEM_IDENTIFIED;
+                    },
+                });
+            },
+            messageWithColor(text, color) { msgOps.messageWithColor(text, color, 0); },
+            itemName: (item: Item) => getItemName(item, false, false),
+            itemMessageColor: Colors.itemMessageColor,
+            featRecord: rogue.featRecord ?? [],
+            FEAT_PALADIN: 0, // Feat index — deferred
+            iterateAllies() {
+                return monsters.filter(m => m.creatureState === CreatureState.Ally);
+            },
+            iterateAllMonsters() {
+                return [...monsters];
+            },
+            depthLevel: rogue.depthLevel,
+            deepestLevel: gameConst.deepestLevel,
+        };
+    }
+
+    /**
+     * promoteTile implementation using the real promoteTile function.
+     * Ported from promoteTile() in Time.c:1101.
+     */
+    function promoteTileImpl(x: number, y: number, layer: number, useFireDF: boolean): void {
+        promoteTileFn(x, y, layer as DungeonLayer, useFireDF, buildEnvironmentContext());
+    }
+
+    /**
+     * Build a minimal EnvironmentContext for promoteTile and updateEnvironment.
+     */
+    function buildEnvironmentContext(): EnvironmentContext {
+        return {
+            player,
+            rogue: {
+                depthLevel: rogue.depthLevel,
+                staleLoopMap: rogue.staleLoopMap,
+                yendorWarden: rogue.yendorWarden,
+            },
+            monsters,
+            pmap,
+            levels,
+            tileCatalog,
+            dungeonFeatureCatalog,
+            DCOLS,
+            DROWS,
+            cellHasTerrainFlag: cellHasTerrainFlagAt,
+            cellHasTMFlag: cellHasTMFlagAt,
+            coordinatesAreInMap,
+            refreshDungeonCell(loc) {
+                const { glyph, foreColor, backColor } = getCellAppearance(loc);
+                plotCharWithColor(glyph, { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) }, foreColor, backColor, displayBuffer);
+            },
+            spawnDungeonFeature: spawnDungeonFeatureFromObject,
+            monstersFall() { monstersFallFn(buildCreatureEffectsContext()); },
+            updateFloorItems() { /* stub */ },
+            monstersTurn(monst) {
+                // Simplified: tick the monster forward (full AI deferred)
+                monst.ticksUntilTurn = monst.movementSpeed || 100;
+            },
+            keyOnTileAt: (loc: Pos) => itemAtLocFn(loc, floorItems),
+            removeCreature(list, monst) {
+                const idx = list.indexOf(monst);
+                if (idx >= 0) { list.splice(idx, 1); return true; }
+                return false;
+            },
+            prependCreature(list, monst) {
+                list.unshift(monst);
+            },
+            rand_range: randRange,
+            rand_percent: randPercent,
+            max: Math.max,
+            min: Math.min,
+            fillSequentialList(list, length) {
+                for (let i = 0; i < length; i++) list[i] = i;
+            },
+            shuffleList(list, _length) {
+                for (let i = list.length - 1; i > 0; i--) {
+                    const j = randRange(0, i);
+                    [list[i], list[j]] = [list[j], list[i]];
+                }
+            },
+            exposeTileToFire(_x, _y, _alwaysIgnite) { return false; },
+        };
+    }
+
+    /**
+     * Build an AllyManagementContext for freeCaptive.
+     */
+    function buildAllyManagementContext(): AllyManagementContext {
+        return {
+            player,
+            pmap,
+            demoteMonsterFromLeadership: demoteMonsterFromLeadershipImpl,
+            makeMonsterDropItem: makeMonsterDropItemImpl,
+            refreshDungeonCell(loc) {
+                const { glyph, foreColor, backColor } = getCellAppearance(loc);
+                plotCharWithColor(glyph, { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) }, foreColor, backColor, displayBuffer);
+            },
+            monsterName(monst, includeArticle) {
+                if (monst === player) return "you";
+                const article = includeArticle
+                    ? (monst.creatureState === CreatureState.Ally ? "your " : "the ")
+                    : "";
+                return `${article}${monst.info.monsterName}`;
+            },
+            message: msgOps.message,
+            monsterAtLoc: monsterAtLocFn,
+            cellHasTerrainFlag: cellHasTerrainFlagAt,
+        };
+    }
+
+    /**
+     * Build CreatureEffectsContext for applyInstantTileEffectsToCreature,
+     * monstersFall, playerFalls, decrementPlayerStatus, etc.
+     */
+    function buildCreatureEffectsContext(): CreatureEffectsContext {
+        return {
+            player,
+            rogue: {
+                weapon: rogue.weapon,
+                armor: rogue.armor,
+                disturbed: rogue.disturbed,
+                automationActive: rogue.automationActive,
+                autoPlayingLevel: rogue.autoPlayingLevel,
+                gameHasEnded: rogue.gameHasEnded,
+                depthLevel: rogue.depthLevel,
+                deepestLevel: gameConst.deepestLevel,
+                staleLoopMap: rogue.staleLoopMap,
+                inWater: rogue.inWater,
+                previousPoisonPercent: rogue.previousPoisonPercent,
+                playbackMode: rogue.playbackMode,
+                minersLight: rogue.minersLight,
+                monsterSpawnFuse: rogue.monsterSpawnFuse,
+                stealthBonus: rogue.stealthBonus,
+                awarenessBonus: rogue.awarenessBonus,
+                justRested: rogue.justRested,
+                flares: rogue.flares,
+                flareCount: rogue.flareCount,
+                xpxpThisTurn: rogue.xpxpThisTurn,
+                yendorWarden: rogue.yendorWarden,
+            },
+            monsters,
+            pmap,
+            tmap,
+            levels,
+            gameConst,
+            tileCatalog,
+            dungeonFeatureCatalog,
+            packItems,
+            floorItems,
+            DCOLS,
+            DROWS,
+            INVALID_POS,
+
+            // Map helpers
+            cellHasTerrainFlag: cellHasTerrainFlagAt,
+            cellHasTMFlag: cellHasTMFlagAt,
+            terrainFlags: terrainFlagsAt,
+            pmapAt,
+            coordinatesAreInMap,
+            playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+            playerCanSeeOrSense: (x, y) => !!(pmap[x]?.[y]?.flags & (TileFlag.VISIBLE | TileFlag.TELEPATHIC_VISIBLE | TileFlag.CLAIRVOYANT_VISIBLE)),
+
+            // Monster helpers
+            canSeeMonster: (monst) => !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE),
+            canDirectlySeeMonster: (monst) => !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE),
+            monsterName(buf, monst, includeArticle) {
+                if (monst === player) {
+                    buf[0] = "you";
+                } else {
+                    const article = includeArticle
+                        ? (monst.creatureState === CreatureState.Ally ? "your " : "the ")
+                        : "";
+                    buf[0] = `${article}${monst.info.monsterName}`;
+                }
+            },
+            monsterAtLoc: monsterAtLocFn,
+            monstersAreEnemies: (_m1, _m2) => true, // Simplified — full version checks ally state
+            monsterIsInClass: (monst, mc) => monsterIsInClass(monst, monsterClassCatalog[mc as number]),
+            removeCreature(list, monst) {
+                const idx = list.indexOf(monst);
+                if (idx >= 0) { list.splice(idx, 1); return true; }
+                return false;
+            },
+            prependCreature(list, monst) {
+                list.unshift(monst);
+            },
+            demoteMonsterFromLeadership: demoteMonsterFromLeadershipImpl,
+
+            // Item helpers
+            itemName(theItem, buf, includeDetails, includeArticle, _maxLen) {
+                buf[0] = itemNameFn(theItem, includeDetails, includeArticle, buildItemNamingContext());
+            },
+            numberOfMatchingPackItems: (category, kind, flags, _checkCarried) =>
+                numberOfMatchingPackItemsFn(packItems, category, kind, flags),
+            autoIdentify: (theItem: Item) => identify(theItem, gameConst),
+            removeItemFromChain(theItem, chain) {
+                const idx = chain.indexOf(theItem);
+                if (idx >= 0) chain.splice(idx, 1);
+            },
+            deleteItem(_theItem) { /* GC handles cleanup */ },
+            dropItem(_theItem) { return null; /* stub — full drop logic deferred */ },
+            eat(_theItem, _fromInventory) { /* stub — nutrition deferred */ },
+            makeMonsterDropItem: makeMonsterDropItemImpl,
+
+            // Combat helpers
+            inflictDamage(attacker, defender, damage, flashColor, _showDamage) {
+                return inflictDamageFn(attacker, defender, damage, flashColor, false, buildCombatDamageContext());
+            },
+            killCreature: killCreatureImpl,
+            combatMessage: msgOps.combatMessage,
+            messageColorFromVictim: () => Colors.white,
+            addPoison(_monst, _totalDamage, _concentrationIncrement) { /* stub — poison deferred */ },
+            flashMonster(_monst, _color, _strength) { /* stub — flash animation deferred */ },
+
+            // UI
+            message: msgOps.message,
+            messageWithColor: msgOps.messageWithColor,
+            flavorMessage: msgOps.flavorMessage,
+            refreshDungeonCell(loc) {
+                const { glyph, foreColor, backColor } = getCellAppearance(loc);
+                plotCharWithColor(glyph, { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) }, foreColor, backColor, displayBuffer);
+            },
+            gameOver(message, _showScore) { doGameOver(message, false); },
+            flashMessage: msgOps.flashMessage,
+            confirmMessages: msgOps.confirmMessages,
+            displayLevel() { displayLevelFn(); commitDraws(); },
+
+            // Colors
+            goodMessageColor: Colors.goodMessageColor,
+            badMessageColor: Colors.badMessageColor,
+            itemMessageColor: Colors.itemMessageColor,
+            fireForeColor: Colors.fireForeColor ?? Colors.orange,
+            torchLightColor: Colors.torchLightColor ?? Colors.orange,
+            minersLightColor: Colors.minersLightStartColor ?? Colors.white,
+            white: Colors.white,
+            brown: Colors.brown ?? Colors.orange,
+            green: Colors.green,
+            red: Colors.red,
+            orange: Colors.orange,
+            yellow: Colors.yellow,
+            pink: Colors.pink ?? Colors.red,
+            confusionGasColor: Colors.confusionGasColor ?? Colors.purple ?? Colors.yellow,
+            darkRed: Colors.darkRed,
+            darkGreen: Colors.darkGreen,
+
+            // Environment
+            updateVision(refreshDisplay) { updateVisionFn(refreshDisplay); },
+            updateMinersLightRadius() { /* stub — deferred */ },
+            spawnDungeonFeature: spawnDungeonFeatureFromObject,
+            promoteTile: promoteTileImpl,
+            exposeTileToFire(_x, _y, _alwaysIgnite) { return false; /* stub */ },
+            startLevel(_depth, _stairDirection) { /* stub — level transitions deferred */ },
+            teleport(_monst, _target, _safe) { /* stub — teleportation deferred */ },
+            createFlare(_x, _y, _flareType) { /* stub — flares deferred */ },
+            animateFlares(_flares, _count) { /* stub — flares deferred */ },
+            spawnPeriodicHorde() { /* stub — horde spawning deferred */ },
+            monstersFall() { monstersFallFn(buildCreatureEffectsContext()); },
+            updateFloorItems() { /* stub — floor item decay deferred */ },
+            synchronizePlayerTimeState() { /* stub */ },
+            recalculateEquipmentBonuses() { /* stub */ },
+            updateEncumbrance() {
+                const eqCtx = buildFullEquipContext();
+                updateEncumbranceFn(eqCtx.state);
+                syncFullEquipState(eqCtx);
+            },
+            playerInDarkness() { return false; /* stub */ },
+            playerTurnEnded() { playerTurnEndedFn(buildTurnProcessingContext()); },
+
+            // Movement/search
+            keyOnTileAt: (loc: Pos) => itemAtLocFn(loc, floorItems),
+            useKeyAt(_theItem, _x, _y) { /* stub — key usage deferred */ },
+            discover(x, y) {
+                if (coordinatesAreInMap(x, y)) {
+                    pmap[x][y].flags |= TileFlag.DISCOVERED;
+                }
+            },
+            discoverCell(x, y) {
+                if (coordinatesAreInMap(x, y)) {
+                    pmap[x][y].flags |= TileFlag.DISCOVERED;
+                }
+            },
+            search(_searchStrength) { return false; /* stub */ },
+            recordKeystroke(_key, _shift, _alt) { /* stub — recordings deferred */ },
+
+            // Map query functions
+            layerWithFlag: (x, y, flag) => layerWithFlagFn(pmap, x, y, flag),
+            highestPriorityLayer: (x, y, skipGas) => highestPriorityLayer(pmap, x, y, skipGas),
+            describeLocation(buf, x, y) {
+                const layer = highestPriorityLayer(pmap, x, y, false);
+                buf[0] = tileCatalog[pmap[x][y].layers[layer]].description;
+            },
+            tileFlavor(x, y) {
+                const layer = highestPriorityLayer(pmap, x, y, false);
+                return tileCatalog[pmap[x][y].layers[layer]].flavorText;
+            },
+
+            // Math
+            rand_range: randRange,
+            rand_percent: randPercent,
+            randClumpedRange,
+            max: Math.max,
+            min: Math.min,
+
+            // RNG control
+            assureCosmeticRNG() { /* stub */ },
+            restoreRNG() { /* stub */ },
+
+            // Misc
+            mapToWindowX,
+            mapToWindowY,
+            strLenWithoutEscapes,
+            COLS,
+            REQUIRE_ACKNOWLEDGMENT: MessageFlag.REQUIRE_ACKNOWLEDGMENT,
+            HUNGER_THRESHOLD,
+            WEAK_THRESHOLD,
+            FAINT_THRESHOLD,
+            ALL_ITEMS: 0xFFFF,
+            AMULET: ItemCategory.AMULET,
+            FOOD: ItemCategory.FOOD,
+            FRUIT: 1, // FOOD kind 1
+            ARMOR: ItemCategory.ARMOR,
+            RING: ItemCategory.RING,
+            GENERIC_FLASH_LIGHT: LightType.GENERIC_FLASH_LIGHT,
+            ANY_KIND_OF_VISIBLE,
+            DISCOVERED: TileFlag.DISCOVERED,
+            ITEM_DETECTED: TileFlag.ITEM_DETECTED,
+            HAS_ITEM: TileFlag.HAS_ITEM,
+            SEARCHED_FROM_HERE: TileFlag.SEARCHED_FROM_HERE,
+            IS_IN_SHADOW: TileFlag.IS_IN_SHADOW,
+            armorTable: armorTable as readonly { strengthRequired: number }[],
+        };
+    }
+
     /**
      * Build the AttackContext for combat resolution.
      */
@@ -2751,7 +3393,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             wakeUp(monst) {
                 alertMonster(monst, player);
             },
-            spawnDungeonFeature() { /* stub */ },
+            spawnDungeonFeature: spawnDungeonFeatureRuntime,
             refreshSideBar() { /* stub */ },
             combatMessage: msgOps.combatMessage,
             messageWithColor(text, color) { msgOps.messageWithColor(text, color, 0); },
@@ -2785,15 +3427,17 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                     monsters.unshift(monst);
                 }
             },
-            applyInstantTileEffectsToCreature() { /* stub */ },
-            fadeInMonster() { /* stub */ },
+            applyInstantTileEffectsToCreature(_monst) {
+                // Simplified: full version needs CreatureEffectsContext
+            },
+            fadeInMonster: fadeInMonsterImpl,
             refreshDungeonCell(loc) {
                 const { glyph, foreColor, backColor } = getCellAppearance(loc);
                 plotCharWithColor(glyph, { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) }, foreColor, backColor, displayBuffer);
             },
-            anyoneWantABite: () => false,
-            demoteMonsterFromLeadership() { /* stub */ },
-            checkForContinuedLeadership() { /* stub */ },
+            anyoneWantABite: anyoneWantABiteImpl,
+            demoteMonsterFromLeadership: demoteMonsterFromLeadershipImpl,
+            checkForContinuedLeadership: checkForContinuedLeadershipImpl,
             getMonsterDFMessage: () => "",
             resolvePronounEscapes(text, _monst) { return text; },
             message: msgOps.message,
@@ -2828,7 +3472,9 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             magicWeaponHit() { /* stub — runics not wired yet */ },
             applyArmorRunicEffect: () => "",
             specialHit() { /* stub */ },
-            splitMonster() { /* stub */ },
+            splitMonster(monst, attacker) {
+                splitMonsterFn(monst, attacker, buildCombatHelperContext());
+            },
             attackVerb: () => "hit",
             messageColorFromVictim: () => Colors.white,
             decrementWeaponAutoIDTimer() { /* stub */ },
@@ -2928,7 +3574,22 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             },
 
             randValidDirectionFrom: () => 0,
-            moveMonster(_monst, _dx, _dy) { /* stub */ },
+            moveMonster(monst, dx, dy) {
+                // Simplified moveMonster for ally swapping / pushing.
+                // Full version requires MoveMonsterContext with AI systems.
+                const newX = monst.loc.x + dx;
+                const newY = monst.loc.y + dy;
+                if (
+                    coordinatesAreInMap(newX, newY) &&
+                    !cellHasTerrainFlagAt({ x: newX, y: newY }, TerrainFlag.T_OBSTRUCTS_PASSABILITY) &&
+                    !(pmap[newX][newY].flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER))
+                ) {
+                    pmap[monst.loc.x][monst.loc.y].flags &= ~TileFlag.HAS_MONSTER;
+                    monst.loc.x = newX;
+                    monst.loc.y = newY;
+                    pmap[newX][newY].flags |= TileFlag.HAS_MONSTER;
+                }
+            },
             getQualifyingPathLocNear(target) { return { ...target }; },
 
             keyInPackFor(loc: Pos): Item | null {
@@ -2952,9 +3613,13 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             pickUpItemAt: pickUpItemAtImpl,
             checkForMissingKeys: checkForMissingKeysImpl,
 
-            freeCaptive() { /* stub */ },
+            freeCaptive(monst) {
+                freeCaptiveFn(monst, buildAllyManagementContext());
+            },
 
-            promoteTile() { /* stub */ },
+            promoteTile(x, y, layer, isVolatile) {
+                promoteTileImpl(x, y, layer, isVolatile);
+            },
             refreshDungeonCell(loc) {
                 const { glyph, foreColor, backColor } = getCellAppearance(loc);
                 plotCharWithColor(glyph, { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) }, foreColor, backColor, displayBuffer);
@@ -2962,7 +3627,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             discoverCell(x, y) {
                 pmap[x][y].flags |= TileFlag.DISCOVERED;
             },
-            spawnDungeonFeature() { /* stub */ },
+            spawnDungeonFeature: spawnDungeonFeatureFromObject,
             dungeonFeatureCatalog,
 
             useStairs(direction) {
@@ -3072,12 +3737,22 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             canSeeMonster: (monst) => !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE),
             monsterName: () => "monster",
             messageColorFromVictim: () => Colors.white,
-            inflictDamage() { return false; /* stub */ },
-            killCreature() { /* stub */ },
-            demoteMonsterFromLeadership() { /* stub */ },
+            inflictDamage(attacker: Creature | null, defender: Creature, damage: number, flashColor: Color | null, showDamage: boolean) {
+                return inflictDamageImpl(attacker, defender, damage, flashColor, showDamage);
+            },
+            killCreature(monst: Creature, administrativeDeath: boolean) {
+                killCreatureImpl(monst, administrativeDeath);
+            },
+            demoteMonsterFromLeadership: demoteMonsterFromLeadershipImpl,
             restoreMonster() { /* stub */ },
-            removeCreature() { /* stub */ },
-            prependCreature() { /* stub */ },
+            removeCreature(list, monst) {
+                const idx = list.indexOf(monst);
+                if (idx >= 0) { list.splice(idx, 1); return true; }
+                return false;
+            },
+            prependCreature(list, monst) {
+                list.unshift(monst);
+            },
             avoidedFlagsForMonster: () => 0,
             getQualifyingPathLocNear(loc) { return { ...loc }; },
 
@@ -3461,11 +4136,11 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 numberOfMatchingPackItemsFn(packItems, category, 0, 0),
 
             // -- Combat helpers ----------------------------------------------
-            inflictDamage(_attacker, _defender, _damage, _flashColor, _showDamage) {
-                return false; // stub — full inflictDamage needs CombatDamageContext
+            inflictDamage(attacker, defender, damage, flashColor, showDamage) {
+                return inflictDamageImpl(attacker, defender, damage, flashColor, showDamage);
             },
-            killCreature(_monst, _administrativeDeath) {
-                // stub — full killCreature needs CombatDamageContext
+            killCreature(monst, administrativeDeath) {
+                killCreatureImpl(monst, administrativeDeath);
             },
             combatMessage: msgOps.combatMessage,
             displayCombatText: msgOps.displayCombatText,
@@ -3520,7 +4195,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
 
             // -- Environment / vision ----------------------------------------
             updateEnvironment() {
-                // Stub — full updateEnvironment needs EnvironmentContext
+                updateEnvironmentFn(buildEnvironmentContext());
             },
             updateVision(refreshDisplay) {
                 updateVisionFn(refreshDisplay);
@@ -3599,34 +4274,26 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             },
 
             // -- Tile effects ------------------------------------------------
-            applyInstantTileEffectsToCreature(_monst) {
-                // Stub — needs CreatureEffectsContext
+            applyInstantTileEffectsToCreature(monst) {
+                applyInstantTileEffectsFn(monst, buildCreatureEffectsContext());
             },
-            applyGradualTileEffectsToCreature(_monst, _ticks) {
-                // Stub — needs CreatureEffectsContext
+            applyGradualTileEffectsToCreature(monst, ticks) {
+                applyGradualTileEffectsFn(monst, ticks, buildCreatureEffectsContext());
             },
-            monsterShouldFall(_monst) {
-                return false; // stub
+            monsterShouldFall(monst) {
+                return monsterShouldFallFn(monst, buildCreatureEffectsContext());
             },
             monstersFall() {
-                // Stub — needs CreatureEffectsContext
+                monstersFallFn(buildCreatureEffectsContext());
             },
             decrementPlayerStatus() {
-                // Minimal implementation: decrement all positive status counters
-                // to prevent infinite loops (e.g. paralysis in the outer do-while).
-                // Full decrementPlayerStatus needs CreatureEffectsContext for
-                // side effects like extinguishing fire, curing poison, etc.
-                for (let i = 0; i < player.status.length; i++) {
-                    if (player.status[i] > 0) {
-                        player.status[i]--;
-                    }
-                }
+                decrementPlayerStatusFn(buildCreatureEffectsContext());
             },
             playerFalls() {
-                // Stub — needs CreatureEffectsContext
+                playerFallsFn(buildCreatureEffectsContext());
             },
             handleHealthAlerts() {
-                // Stub — not yet ported
+                // Stub — handleHealthAlerts uses complex UI interactions
             },
             updateScent() {
                 // Real implementation: spread scent from player's position using FOV
@@ -3668,8 +4335,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             playerCanSee,
 
             // -- Spawn -------------------------------------------------------
-            spawnDungeonFeature(_x, _y, _feat, _isVolatile, _overrideProtection) {
-                // Stub — needs full MachineContext for spawnDungeonFeature
+            spawnDungeonFeature(x, y, feat, isVolatile, overrideProtection) {
+                spawnDungeonFeatureFromObject(x, y, feat, isVolatile, overrideProtection);
             },
 
             // -- Constants ---------------------------------------------------
