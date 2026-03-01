@@ -459,6 +459,15 @@ interface RuntimeRogueState extends MenuRogueState {
     lastItemThrown: Item | null;
     blockCombatText: boolean;
 
+    // -- Fields from TurnProcessingContext rogue state --
+    awarenessBonus: number;
+    wpCount: number;
+    wpRefreshTicker: number;
+    wpCoordinates: Pos[];
+    heardCombatThisTurn: boolean;
+    receivedLevitationWarning: boolean;
+    flareCount: number;
+
     // -- Fields from InitRecordingRogue not in above --
     playbackDelayPerTurn: number;
     playbackDelayThisTurn: number;
@@ -571,6 +580,15 @@ function createRogueState(): RuntimeRogueState {
         cursorPathIntensity: 20,
         lastItemThrown: null,
         blockCombatText: false,
+
+        // -- TurnProcessingContext rogue state --
+        awarenessBonus: 0,
+        wpCount: 0,
+        wpRefreshTicker: 0,
+        wpCoordinates: [],
+        heardCombatThisTurn: false,
+        receivedLevitationWarning: false,
+        flareCount: 0,
 
         // -- InitRecordingRogue extensions --
         playbackDelayPerTurn: 0,
@@ -2680,7 +2698,11 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
      * Shared function to call the real playerTurnEnded with the full context.
      */
     function doPlayerTurnEnded(): void {
-        playerTurnEndedFn(buildTurnProcessingContext());
+        try {
+            playerTurnEndedFn(buildTurnProcessingContext());
+        } catch (e) {
+            console.error("[BrogueCE] Error in playerTurnEnded:", e);
+        }
         // Refresh display after turn processing
         displayLevelFn();
         commitDraws();
@@ -3189,13 +3211,17 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
 
                 const event = await browserConsole.waitForEvent();
 
-                if (event.eventType === EventType.Keystroke) {
-                    executeKeystrokeFn(inputCtx, event.param1, event.controlKey, event.shiftKey);
-                } else if (
-                    event.eventType === EventType.MouseUp ||
-                    event.eventType === EventType.RightMouseUp
-                ) {
-                    executeMouseClickFn(inputCtx, event);
+                try {
+                    if (event.eventType === EventType.Keystroke) {
+                        await executeKeystrokeFn(inputCtx, event.param1, event.controlKey, event.shiftKey);
+                    } else if (
+                        event.eventType === EventType.MouseUp ||
+                        event.eventType === EventType.RightMouseUp
+                    ) {
+                        await executeMouseClickFn(inputCtx, event);
+                    }
+                } catch (e) {
+                    console.error("[BrogueCE] Error processing input event:", e);
                 }
             }
         },
