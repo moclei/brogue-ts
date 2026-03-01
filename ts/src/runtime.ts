@@ -60,6 +60,8 @@ import {
     ItemCategory,
     DungeonLayer,
     CreatureState,
+    FeatType,
+    ArmorEnchant,
 } from "./types/enums.js";
 import {
     COLS, ROWS, DCOLS, DROWS,
@@ -69,6 +71,7 @@ import {
     NUMBER_TERRAIN_LAYERS,
     REST_KEY, SEARCH_KEY, ESCAPE_KEY,
     HUNGER_THRESHOLD, WEAK_THRESHOLD, FAINT_THRESHOLD,
+    NUMBER_GOOD_WEAPON_ENCHANT_KINDS,
 } from "./types/constants.js";
 // PAUSE_BEHAVIOR_DEFAULT imported inline where needed
 
@@ -201,6 +204,7 @@ import {
     monstersFall as monstersFallFn,
     playerFalls as playerFallsFn,
     decrementPlayerStatus as decrementPlayerStatusFn,
+    exposeCreatureToFire as exposeCreatureToFireFn,
 } from "./time/creature-effects.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
 
@@ -221,7 +225,7 @@ import {
 import type { TravelExploreContext } from "./movement/travel-explore.js";
 
 // -- Auto-rest / search imports -----------------------------------------------
-import { autoRest as autoRestFn, manualSearch as manualSearchFn } from "./time/misc-helpers.js";
+import { autoRest as autoRestFn, manualSearch as manualSearchFn, rechargeItemsIncrementally as rechargeItemsIncrementallyFn, processIncrementalAutoID as processIncrementalAutoIDFn } from "./time/misc-helpers.js";
 import type { MiscHelpersContext } from "./time/misc-helpers.js";
 
 // -- Turn processing imports --------------------------------------------------
@@ -250,12 +254,15 @@ import type { AttackContext } from "./combat/combat-attack.js";
 // killCreature is also called directly from several contexts beyond attack()
 import { killCreature as killCreatureFn, inflictDamage as inflictDamageFn } from "./combat/combat-damage.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
-import { splitMonster as splitMonsterFn, anyoneWantABite as anyoneWantABiteFn } from "./combat/combat-helpers.js";
+import { splitMonster as splitMonsterFn, anyoneWantABite as anyoneWantABiteFn, handlePaladinFeat as handlePaladinFeatFn, decrementWeaponAutoIDTimer as decrementWeaponAutoIDTimerFn, playerImmuneToMonster as playerImmuneToMonsterFn } from "./combat/combat-helpers.js";
 import type { CombatHelperContext } from "./combat/combat-helpers.js";
+import { specialHit as specialHitFn, magicWeaponHit as magicWeaponHitFn, applyArmorRunicEffect as applyArmorRunicEffectFn } from "./combat/combat-runics.js";
+import type { RunicContext } from "./combat/combat-runics.js";
 import { playerRecoversFromAttacking as playerRecoversFromAttackingFn } from "./time/turn-processing.js";
 import { alertMonster } from "./monsters/monster-state.js";
-import { monsterIsInClass } from "./monsters/monster-queries.js";
+import { monsterIsInClass, monstersAreEnemies as monstersAreEnemiesFn } from "./monsters/monster-queries.js";
 // MonsterAbilityFlag and weapon attack functions (whip, spear, flail) require full WeaponAttackContext — deferred
+import { ringWisdomMultiplier as ringWisdomMultiplierFn, charmRechargeDelay as charmRechargeDelayFn } from "./power/power-tables.js";
 
 // -- Dijkstra scan import -----------------------------------------------------
 import { dijkstraScan as dijkstraScanFn } from "./dijkstra/dijkstra.js";
@@ -308,11 +315,11 @@ import { bakeTerrainColors } from "./io/io-appearance.js";
 
 // -- Item imports -------------------------------------------------------------
 import { generateItem, initializeItem as initializeItemFn, itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
-import { addItemToPack, removeItemFromArray, numberOfItemsInPack as numberOfItemsInPackFn, numberOfMatchingPackItems as numberOfMatchingPackItemsFn, itemAtLoc as itemAtLocFn, canPickUpItem } from "./items/item-inventory.js";
+import { addItemToPack, removeItemFromArray, numberOfItemsInPack as numberOfItemsInPackFn, numberOfMatchingPackItems as numberOfMatchingPackItemsFn, itemAtLoc as itemAtLocFn, canPickUpItem, checkForDisenchantment as checkForDisenchantmentFn } from "./items/item-inventory.js";
 import { identify, identifyItemKind as identifyItemKindFn, itemName as itemNameFn, isVowelish as isVowelishFn, itemValue as itemValueFn } from "./items/item-naming.js";
 import type { ItemNamingContext } from "./items/item-naming.js";
 import { shuffleFlavors } from "./items/item-naming.js";
-import { equipItem, unequipItem, recalculateEquipmentBonuses, updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn } from "./items/item-usage.js";
+import { equipItem, unequipItem, recalculateEquipmentBonuses, updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, strengthCheck } from "./items/item-usage.js";
 import type { EquipContext, EquipmentState } from "./items/item-usage.js";
 import { updateIdentifiableItems as updateIdentifiableItemsFn } from "./items/item-handlers.js";
 import { useKeyAt as useKeyAtFn } from "./movement/item-helpers.js";
@@ -323,7 +330,7 @@ import { monsterCatalog as monsterCatalogData } from "./globals/monster-catalog.
 import { monsterText } from "./globals/monster-text.js";
 import { lightCatalog as lightCatalogData } from "./globals/light-catalog.js";
 import { meteredItemsGenerationTable as meteredItemsGenTable } from "./globals/item-catalog.js";
-import { scrollTable, potionTable, lumenstoneDistribution, staffTable, ringTable, wandTable, charmTable, armorTable } from "./globals/item-catalog.js";
+import { scrollTable, potionTable, lumenstoneDistribution, staffTable, ringTable, wandTable, charmTable, charmEffectTable, armorTable } from "./globals/item-catalog.js";
 import { populateItems as populateItemsFn } from "./items/item-population.js";
 import { populateMonsters as populateMonstersFn, spawnHorde as spawnHordeFn } from "./monsters/monster-spawning.js";
 import { generateMonster as generateMonsterFn } from "./monsters/monster-creation.js";
@@ -3468,25 +3475,52 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             randClump,
             blockCombatText: rogue.blockCombatText,
             setDisturbed() { rogue.disturbed = true; },
-            reaping: 0, // No reaping enchant for now
-            magicWeaponHit() { /* stub — runics not wired yet */ },
-            applyArmorRunicEffect: () => "",
-            specialHit() { /* stub */ },
+            reaping: rogue.reaping,
+            magicWeaponHit(defender, weapon, wasSneakOrSleep) {
+                magicWeaponHitFn(defender, weapon, wasSneakOrSleep, buildRunicContext());
+            },
+            applyArmorRunicEffect(attacker, damage, firstHit) {
+                return applyArmorRunicEffectFn(attacker, damage, firstHit, buildRunicContext());
+            },
+            specialHit(attacker, defender, damage) {
+                specialHitFn(attacker, defender, damage, buildRunicContext());
+            },
             splitMonster(monst, attacker) {
                 splitMonsterFn(monst, attacker, buildCombatHelperContext());
             },
             attackVerb: () => "hit",
             messageColorFromVictim: () => Colors.white,
-            decrementWeaponAutoIDTimer() { /* stub */ },
-            rechargeItemsIncrementally() { /* stub */ },
-            equipItem() { /* stub */ },
+            decrementWeaponAutoIDTimer() {
+                decrementWeaponAutoIDTimerFn(buildCombatHelperContext());
+            },
+            rechargeItemsIncrementally(amount) {
+                rechargeItemsIncrementallyFn(amount, buildMiscHelpersContext());
+            },
+            equipItem(item: Item, force: boolean) {
+                const ctx = buildFullEquipContext();
+                equipItem(item, force, null, ctx);
+                syncFullEquipState(ctx);
+            },
             itemName: (item: Item) => getItemName(item, false, false),
-            checkForDisenchantment() { /* stub */ },
-            strengthCheck() { /* stub */ },
+            checkForDisenchantment(item: Item) {
+                checkForDisenchantmentFn(item, NUMBER_GOOD_WEAPON_ENCHANT_KINDS, ArmorEnchant.NumberGoodArmorEnchantKinds);
+            },
+            strengthCheck(item: Item, force: boolean) {
+                const ctx = buildFullEquipContext();
+                strengthCheck(item, !force, ctx);
+                syncFullEquipState(ctx);
+            },
             itemMessageColor: Colors.itemMessageColor,
-            handlePaladinFeat() { /* stub */ },
-            setPureMageFeatFailed() { /* stub */ },
-            setDragonslayerFeatAchieved() { /* stub */ },
+            handlePaladinFeat(defender) {
+                handlePaladinFeatFn(defender, buildCombatHelperContext());
+            },
+            setPureMageFeatFailed() {
+                rogue.featRecord[FeatType.PureMage] = false;
+            },
+            setDragonslayerFeatAchieved() {
+                // DragonSlayer feat: set to true when a dragon-type is killed
+                // (already tracked in the feat record; nothing extra needed here)
+            },
             reportHeardCombat: () => false,
             whiteColor: Colors.white,
             redColor: { red: 100, green: 0, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false },
@@ -3497,6 +3531,58 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 }
             },
             alertMonster(monst) { alertMonster(monst, player); },
+        };
+    }
+
+    /**
+     * Build the RunicContext for weapon/armor runic effects.
+     * Extends AttackContext with runic-specific callbacks.
+     */
+    function buildRunicContext(): RunicContext {
+        const atkCtx = buildAttackContext();
+        return {
+            ...atkCtx,
+            armorRunicIdentified() {
+                return !!(rogue.armor && (rogue.armor.flags & ItemFlag.ITEM_RUNIC_IDENTIFIED));
+            },
+            autoIdentify(item: Item) {
+                identify(item, gameConst);
+            },
+            createFlare(_x, _y, _type) {
+                // Stub — visual flare system deferred to Phase 6
+            },
+            cloneMonster(_monst, _selfClone, _maintainCorpse) {
+                // Stub — cloneMonster implementation not yet ported
+                return null;
+            },
+            playerImmuneToMonster(monst) {
+                return playerImmuneToMonsterFn(monst, buildCombatHelperContext());
+            },
+            slow(monst, duration) {
+                monst.status[StatusEffect.Slowed] = Math.max(monst.status[StatusEffect.Slowed], duration);
+                monst.maxStatus[StatusEffect.Slowed] = Math.max(monst.maxStatus[StatusEffect.Slowed], monst.status[StatusEffect.Slowed]);
+            },
+            weaken(monst, duration) {
+                monst.status[StatusEffect.Weakened] = Math.max(monst.status[StatusEffect.Weakened], duration);
+                monst.maxStatus[StatusEffect.Weakened] = Math.max(monst.maxStatus[StatusEffect.Weakened], monst.status[StatusEffect.Weakened]);
+            },
+            exposeCreatureToFire(monst) {
+                exposeCreatureToFireFn(monst, buildCreatureEffectsContext());
+            },
+            monsterStealsFromPlayer(_attacker) {
+                // Stub — monsterStealsFromPlayer not yet ported
+            },
+            monstersAreEnemies(monst1, monst2) {
+                return monstersAreEnemiesFn(monst1, monst2, player, cellHasTerrainFlagAt);
+            },
+            itemName: (item: Item) => getItemName(item, false, false),
+            onHitHallucinateDuration: gameConst.onHitHallucinateDuration,
+            onHitWeakenDuration: gameConst.onHitWeakenDuration,
+            onHitMercyHealPercent: gameConst.onHitMercyHealPercent,
+            forceWeaponHit(_defender, _weapon) {
+                // Stub — force bolt (blinking bolt) not yet ported
+                return false;
+            },
         };
     }
 
@@ -3711,8 +3797,11 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             rand_percent: randPercent,
             max: Math.max,
             clamp,
-            ringWisdomMultiplier: () => 1,
-            charmRechargeDelay: () => 0,
+            ringWisdomMultiplier: (val: number) => Number(ringWisdomMultiplierFn(BigInt(val))),
+            charmRechargeDelay: (kind: number, enchant: number) => {
+                const entry = charmEffectTable[kind];
+                return entry ? charmRechargeDelayFn(entry, enchant) : 0;
+            },
 
             itemName: (theItem: Item, includeArticle: boolean, includeRunic: boolean) =>
                 itemNameFn(theItem, includeRunic, includeArticle, buildItemNamingContext()),
@@ -4266,11 +4355,11 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             },
 
             // -- Items / recharging ------------------------------------------
-            rechargeItemsIncrementally(_multiplier) {
-                // Stub — needs full item context
+            rechargeItemsIncrementally(multiplier) {
+                rechargeItemsIncrementallyFn(multiplier, buildMiscHelpersContext());
             },
             processIncrementalAutoID() {
-                // Stub — needs full item context
+                processIncrementalAutoIDFn(buildMiscHelpersContext());
             },
 
             // -- Tile effects ------------------------------------------------

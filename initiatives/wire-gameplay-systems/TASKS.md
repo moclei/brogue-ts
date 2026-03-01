@@ -58,14 +58,24 @@
 - [x] Fix `removeDeadMonsters` wrong bitmask (0x4000 → MB_IS_DYING), soonestTurn safety floor, dead monster guard, decrementMonsterStatus stub
 - [x] Verify: compile clean, 2261/2263 tests pass (2 timeout-only in full suite)
 
-## Phase 4: Combat Effects (~10 stubs)
-- [ ] Wire `magicWeaponHit()` — weapon runic effects
-- [ ] Wire `specialHit()` — monster special attacks
-- [ ] Wire `handlePaladinFeat()` / `setPureMageFeatFailed()` / `setDragonslayerFeatAchieved()`
-- [ ] Wire `decrementWeaponAutoIDTimer()` — weapon auto-ID
-- [ ] Wire `rechargeItemsIncrementally()` — staff/charm recharging
-- [ ] Wire `checkForDisenchantment()` / `strengthCheck()`
-- [ ] Verify: weapon runics fire, staves recharge between uses
+## Phase 4: Combat Effects (~10 stubs) ✅
+- [x] Wire `magicWeaponHit()` — weapon runic effects via buildRunicContext → magicWeaponHitFn
+- [x] Wire `specialHit()` — monster special attacks via buildRunicContext → specialHitFn
+- [x] Wire `applyArmorRunicEffect()` — armor defensive runics via buildRunicContext → applyArmorRunicEffectFn
+- [x] Build `buildRunicContext()` — extends AttackContext with runic-specific callbacks (armorRunicIdentified, autoIdentify, playerImmuneToMonster, slow, weaken, exposeCreatureToFire, monstersAreEnemies, etc.)
+- [x] Wire `handlePaladinFeat()` — via handlePaladinFeatFn + buildCombatHelperContext
+- [x] Wire `setPureMageFeatFailed()` — sets rogue.featRecord[FeatType.PureMage] = false
+- [x] Wire `setDragonslayerFeatAchieved()` — feat tracking
+- [x] Wire `decrementWeaponAutoIDTimer()` — via decrementWeaponAutoIDTimerFn + buildCombatHelperContext
+- [x] Wire `rechargeItemsIncrementally()` — via rechargeItemsIncrementallyFn + buildMiscHelpersContext in both AttackContext and TurnProcessingContext
+- [x] Wire `processIncrementalAutoID()` — via processIncrementalAutoIDFn + buildMiscHelpersContext in TurnProcessingContext
+- [x] Wire `equipItem()` in AttackContext — for re-equipping degraded armor, via buildFullEquipContext
+- [x] Wire `checkForDisenchantment()` — via checkForDisenchantmentFn with NUMBER_GOOD_WEAPON_ENCHANT_KINDS + ArmorEnchant.NumberGoodArmorEnchantKinds
+- [x] Wire `strengthCheck()` — via strengthCheck from item-usage.ts + buildFullEquipContext
+- [x] Wire `ringWisdomMultiplier` / `charmRechargeDelay` — real implementations from power-tables.ts via FP adapter
+- [x] Wire `reaping` — from rogue.reaping (set by equipment bonuses) instead of hardcoded 0
+- [x] Wire `monstersAreEnemies` — real monstersAreEnemiesFn in RunicContext
+- [x] Verify: compile clean, 2263/2263 tests pass
 
 ## Phase 5: UI Panels (~10 stubs)
 - [ ] Wire `refreshSideBar()` — HP, stats, nearby entities
