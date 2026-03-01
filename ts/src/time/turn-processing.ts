@@ -594,6 +594,17 @@ export function playerTurnEnded(
             soonestTurn = ctx.min(soonestTurn, ctx.player.ticksUntilTurn);
             soonestTurn = ctx.min(soonestTurn, ctx.rogue.ticksTillUpdateEnvironment);
 
+            // Safety: prevent infinite loop if soonestTurn is somehow zero
+            // (e.g. from a monster with movementSpeed=0 or corrupt tick state).
+            if (soonestTurn <= 0) {
+                console.warn("[BrogueCE] soonestTurn was", soonestTurn,
+                    "— forcing to 1 to prevent infinite loop.",
+                    "player.ticks:", ctx.player.ticksUntilTurn,
+                    "envTicks:", ctx.rogue.ticksTillUpdateEnvironment,
+                    "monsterCount:", ctx.monsters.length);
+                soonestTurn = 1;
+            }
+
             for (const monst of ctx.monsters) {
                 monst.ticksUntilTurn -= soonestTurn;
             }
@@ -665,7 +676,7 @@ export function playerTurnEnded(
                         monst.status[StatusEffect.Entranced] ||
                         (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_CAPTIVE)
                     ) {
-                        monst.ticksUntilTurn = monst.movementSpeed;
+                        monst.ticksUntilTurn = monst.movementSpeed || 100;
                     } else {
                         ctx.monstersTurn(monst);
                     }

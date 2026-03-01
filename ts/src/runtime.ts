@@ -3331,6 +3331,16 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 //   - Hunting/tracking monsters move toward player via scent
                 //   - Wandering monsters move randomly occasionally
 
+                // Skip dead/dying monsters (mirrors C code's early return in monstersTurn)
+                if (
+                    (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DYING) ||
+                    (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_HAS_DIED) ||
+                    monst.currentHP <= 0
+                ) {
+                    monst.ticksUntilTurn = monst.movementSpeed || 100;
+                    return;
+                }
+
                 const mx = monst.loc.x;
                 const my = monst.loc.y;
                 const dist = Math.abs(player.loc.x - mx) + Math.abs(player.loc.y - my);
@@ -3341,7 +3351,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                     if (dist <= 12 && inFOV) {
                         monst.creatureState = CreatureState.TrackingScent;
                     }
-                    monst.ticksUntilTurn = monst.movementSpeed;
+                    monst.ticksUntilTurn = monst.movementSpeed || 100;
                     return;
                 }
 
@@ -3394,7 +3404,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                             monst.turnsSpentStationary = 0;
                         }
                     }
-                    monst.ticksUntilTurn = monst.movementSpeed;
+                    monst.ticksUntilTurn = monst.movementSpeed || 100;
                     return;
                 }
 
@@ -3422,10 +3432,16 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                     }
                 }
 
-                monst.ticksUntilTurn = monst.movementSpeed;
+                monst.ticksUntilTurn = monst.movementSpeed || 100;
             },
-            decrementMonsterStatus(_monst) {
-                // Stub — full decrementMonsterStatus needs MonsterStateContext
+            decrementMonsterStatus(monst) {
+                // Minimal: decrement all positive status counters to prevent stale status.
+                // Full version needs MonsterStateContext for side effects.
+                for (let i = 0; i < monst.status.length; i++) {
+                    if (monst.status[i] > 0) {
+                        monst.status[i]--;
+                    }
+                }
                 return false; // monster survived
             },
             removeCreature(list, monst) {
@@ -3522,9 +3538,18 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 // Stub — needs AnalysisContext
             },
             removeDeadMonsters() {
-                // Simple inline: remove monsters marked as dying
+                // Remove monsters marked as dying/dead and clear their map flags.
                 for (let i = monsters.length - 1; i >= 0; i--) {
-                    if (monsters[i].bookkeepingFlags & 0x4000 /* MB_IS_DYING */) {
+                    const m = monsters[i];
+                    if (
+                        (m.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DYING) ||
+                        (m.bookkeepingFlags & MonsterBookkeepingFlag.MB_HAS_DIED) ||
+                        m.currentHP <= 0
+                    ) {
+                        // Safety: ensure HAS_MONSTER is cleared on the cell
+                        if (coordinatesAreInMap(m.loc.x, m.loc.y)) {
+                            pmap[m.loc.x][m.loc.y].flags &= ~TileFlag.HAS_MONSTER;
+                        }
                         monsters.splice(i, 1);
                     }
                 }
@@ -3587,7 +3612,15 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 // Stub — needs CreatureEffectsContext
             },
             decrementPlayerStatus() {
-                // Stub — needs CreatureEffectsContext
+                // Minimal implementation: decrement all positive status counters
+                // to prevent infinite loops (e.g. paralysis in the outer do-while).
+                // Full decrementPlayerStatus needs CreatureEffectsContext for
+                // side effects like extinguishing fire, curing poison, etc.
+                for (let i = 0; i < player.status.length; i++) {
+                    if (player.status[i] > 0) {
+                        player.status[i]--;
+                    }
+                }
             },
             playerFalls() {
                 // Stub — needs CreatureEffectsContext
