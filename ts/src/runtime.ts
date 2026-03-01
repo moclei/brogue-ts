@@ -59,6 +59,7 @@ import {
     StatusEffect,
     ItemCategory,
     DungeonLayer,
+    CreatureState,
 } from "./types/enums.js";
 import {
     COLS, ROWS, DCOLS, DROWS,
@@ -189,8 +190,11 @@ import { autoRest as autoRestFn, manualSearch as manualSearchFn } from "./time/m
 import type { MiscHelpersContext } from "./time/misc-helpers.js";
 
 // -- Turn processing imports --------------------------------------------------
-import { playerTurnEnded as playerTurnEndedFn } from "./time/turn-processing.js";
+import { playerTurnEnded as playerTurnEndedFn, scentDistance } from "./time/turn-processing.js";
 import type { TurnProcessingContext } from "./time/turn-processing.js";
+
+// -- Scent system imports -----------------------------------------------------
+import { addScentToCell } from "./movement/map-queries.js";
 
 // -- Game lifecycle imports ---------------------------------------------------
 import { gameOver as gameOverFn, victory as victoryFn, enableEasyMode as enableEasyModeFn } from "./game/game-lifecycle.js";
@@ -233,7 +237,7 @@ import type { MachineContext, ItemOps } from "./architect/machines.js";
 import type { BuildBridgeContext } from "./architect/lakes.js";
 
 // -- Flag imports -------------------------------------------------------------
-import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MonsterBookkeepingFlag, ItemFlag } from "./types/flags.js";
+import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MonsterBookkeepingFlag, ItemFlag, T_OBSTRUCTS_SCENT } from "./types/flags.js";
 
 // -- State helper imports -----------------------------------------------------
 import { cellHasTerrainFlag, cellHasTMFlag, cellHasTerrainType, terrainFlags, terrainMechFlags, discoveredTerrainFlagsAtLoc, highestPriorityLayer } from "./state/helpers.js";
@@ -676,6 +680,11 @@ export interface GameRuntime {
     displayBuffer: ScreenDisplayBuffer;
     /** Flush the display buffer to the console. */
     commitDraws(): void;
+    /** Internal state access for testing. */
+    _test: {
+        readonly monsters: Creature[];
+        readonly player: Creature;
+    };
 }
 
 /**
@@ -1087,6 +1096,10 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             TerrainFlag.T_OBSTRUCTS_VISION,
             0, false,
         );
+        // getFOVMask starts scanning from column 1, so the origin cell is never
+        // included. Mark it explicitly (the player can always see their own cell).
+        grid[player.loc.x][player.loc.y] = 1;
+
         for (let i = 0; i < DCOLS; i++) {
             for (let j = 0; j < DROWS; j++) {
                 // Clear old visibility
@@ -2629,8 +2642,103 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 return "aeiouAEIOU".includes(word[0] ?? "");
             },
             monstersTurn(monst) {
-                // Stub — full monstersTurn needs MonstersTurnContext with ~30 methods
-                // For now, just tick movement speed
+                // Simplified monster AI — real monstersTurn needs MonstersTurnContext
+                // with ~30 unported methods. This provides basic visible behavior:
+                //   - Sleeping monsters wake when player is nearby & visible
+                //   - Hunting/tracking monsters move toward player via scent
+                //   - Wandering monsters move randomly occasionally
+
+                const mx = monst.loc.x;
+                const my = monst.loc.y;
+                const dist = Math.abs(player.loc.x - mx) + Math.abs(player.loc.y - my);
+                const inFOV = !!(pmap[mx]?.[my]?.flags & TileFlag.IN_FIELD_OF_VIEW);
+
+                // Sleeping: wake up if player is nearby and in FOV
+                if (monst.creatureState === CreatureState.Sleeping) {
+                    if (dist <= 12 && inFOV) {
+                        monst.creatureState = CreatureState.TrackingScent;
+                    }
+                    monst.ticksUntilTurn = monst.movementSpeed;
+                    return;
+                }
+
+                // Tracking/Hunting: follow scent toward player
+                if (monst.creatureState === CreatureState.TrackingScent) {
+                    const sm = scentMap ?? [];
+                    const myScent = sm[mx]?.[my] ?? 0;
+                    let bestDir = -1;
+                    let bestScent = 0;
+                    for (let dir = 0; dir < 8; dir++) {
+                        const nx = mx + nbDirs[dir][0];
+                        const ny = my + nbDirs[dir][1];
+                        if (!coordinatesAreInMap(nx, ny)) continue;
+                        const cellScent = sm[nx]?.[ny] ?? 0;
+                        if (
+                            cellScent > bestScent &&
+                            !(pmap[nx][ny].flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER)) &&
+                            !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY)
+                        ) {
+                            bestScent = cellScent;
+                            bestDir = dir;
+                        }
+                    }
+
+                    if (bestDir >= 0 && bestScent > myScent) {
+                        const newX = mx + nbDirs[bestDir][0];
+                        const newY = my + nbDirs[bestDir][1];
+                        pmap[mx][my].flags &= ~TileFlag.HAS_MONSTER;
+                        monst.loc.x = newX;
+                        monst.loc.y = newY;
+                        pmap[newX][newY].flags |= TileFlag.HAS_MONSTER;
+                        monst.turnsSpentStationary = 0;
+                    } else if (dist <= 1) {
+                        // Adjacent to player — just tick (combat is stubbed)
+                    } else {
+                        // No scent — fall back to direct approach
+                        const dx = Math.sign(player.loc.x - mx);
+                        const dy = Math.sign(player.loc.y - my);
+                        const nx = mx + dx;
+                        const ny = my + dy;
+                        if (
+                            coordinatesAreInMap(nx, ny) &&
+                            !(pmap[nx][ny].flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER)) &&
+                            !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY)
+                        ) {
+                            pmap[mx][my].flags &= ~TileFlag.HAS_MONSTER;
+                            monst.loc.x = nx;
+                            monst.loc.y = ny;
+                            pmap[nx][ny].flags |= TileFlag.HAS_MONSTER;
+                            monst.turnsSpentStationary = 0;
+                        }
+                    }
+                    monst.ticksUntilTurn = monst.movementSpeed;
+                    return;
+                }
+
+                // Wandering: random movement occasionally
+                if (monst.creatureState === CreatureState.Wandering) {
+                    if (randRange(0, 3) === 0) {
+                        const dir = randRange(0, 7);
+                        const nx = mx + nbDirs[dir][0];
+                        const ny = my + nbDirs[dir][1];
+                        if (
+                            coordinatesAreInMap(nx, ny) &&
+                            !(pmap[nx][ny].flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER)) &&
+                            !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY)
+                        ) {
+                            pmap[mx][my].flags &= ~TileFlag.HAS_MONSTER;
+                            monst.loc.x = nx;
+                            monst.loc.y = ny;
+                            pmap[nx][ny].flags |= TileFlag.HAS_MONSTER;
+                            monst.turnsSpentStationary = 0;
+                        }
+                    }
+                    // Check if player came into view — start tracking
+                    if (dist <= 12 && inFOV) {
+                        monst.creatureState = CreatureState.TrackingScent;
+                    }
+                }
+
                 monst.ticksUntilTurn = monst.movementSpeed;
             },
             decrementMonsterStatus(_monst) {
@@ -2814,8 +2922,32 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 // Stub — not yet ported
             },
             updateScent() {
-                // Stub — not yet ported as standalone function
+                // Real implementation: spread scent from player's position using FOV
                 rogue.scentTurnNumber++;
+                if (!scentMap) return;
+                const scentGrid = allocGrid();
+                fillGrid(scentGrid, 0);
+                getFOVMaskWrapped(
+                    scentGrid, player.loc.x, player.loc.y,
+                    BigInt(DCOLS) * FP_FACTOR,
+                    T_OBSTRUCTS_SCENT,
+                    0, false,
+                );
+                // Build a minimal MapQueryContext for addScentToCell
+                const mapQueryCtx = {
+                    cellHasTerrainFlag: cellHasTerrainFlagAt,
+                    rogue: { scentTurnNumber: rogue.scentTurnNumber },
+                    scentMap,
+                } as any;
+                for (let i = 0; i < DCOLS; i++) {
+                    for (let j = 0; j < DROWS; j++) {
+                        if (scentGrid[i][j]) {
+                            addScentToCell(i, j, scentDistance(player.loc.x, player.loc.y, i, j), mapQueryCtx);
+                        }
+                    }
+                }
+                addScentToCell(player.loc.x, player.loc.y, 0, mapQueryCtx);
+                freeGrid(scentGrid);
             },
             currentStealthRange() {
                 return 0; // simplified
@@ -3425,5 +3557,13 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         G_DOWN_ARROW: DisplayGlyph.G_DOWN_ARROW
     };
 
-    return { menuCtx, displayBuffer, commitDraws };
+    return {
+        menuCtx,
+        displayBuffer,
+        commitDraws,
+        _test: {
+            get monsters() { return monsters; },
+            get player() { return player; },
+        },
+    };
 }
