@@ -62,5 +62,6 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
   - [ ] Step 3: Runtime Wiring — fill DI stubs, connect full game loop (init → level gen → input → turns → game over)
     - [x] 3a: Menu → Game Init — expanded rogue state, shared data structures, wired initializeRogue/freeEverything/initializeGameVariant with full DI contexts
     - [x] 3b: Level Generation + Display — pmap/tmap allocation, shared helpers (FOV/Dijkstra/terrain), getCellAppearance/displayLevel, ArchitectContext, LevelContext, startLevel wiring, async mainInputLoop
+    - [x] 3c: Input → Game Actions — full InputContext (~150 deps), movement/stairs/inventory/exploration/rest-search wiring, async dispatch chain, targeting stubs
   - [ ] Step 4: Verification — seed regression tests, recording playback, manual testing
   - [ ] Step 5: Terminal Platform — Node.js ANSI renderer, CLI entry point

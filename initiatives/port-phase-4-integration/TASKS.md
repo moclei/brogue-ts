@@ -85,13 +85,21 @@
 - [ ] Wire full `updateScentMap`, `updateEnvironment` (deferred to 3d)
 - [x] Zero compilation errors, all 2232 tests pass, Vite build succeeds
 
-### 3c: Input → Game actions
-- [ ] Wire `mainInputLoop` with full `InputContext`
-- [ ] Wire movement handlers (`playerMoves`, `playerRuns`)
-- [ ] Wire stair usage (`useStairs`)
-- [ ] Wire inventory actions (equip, unequip, drop, apply, throw)
-- [ ] Wire exploration (`travel`, `travelRoute`, `exploreKey`, `autoPlayLevel`)
-- [ ] Wire rest/search (`autoRest`, `manualSearch`)
+### 3c: Input → Game actions ✅
+- [x] Build `buildInputContext()` function in `runtime.ts` wiring ~150 dependencies
+- [x] Wire `mainInputLoop` with full `InputContext` (replaced minimal q/Escape stub)
+- [x] Wire movement handlers (`playerMoves`, `playerRuns`) via `PlayerMoveContext` + `PlayerRunContext`
+- [x] Wire stair usage (`useStairs`) via `TravelExploreContext`
+- [x] Wire inventory actions (equip, unequip, drop, apply, throw, relabel, call, swap)
+- [x] Wire exploration (`travel`, `travelRoute`, `exploreKey`, `autoPlayLevel`) via `TravelExploreContext`
+- [x] Wire rest/search (`autoRest`, `manualSearch`) via `MiscHelpersContext`
+- [x] Wire targeting/cursor stubs (`moveCursor`, `nextTargetAfter`) — full implementation deferred
+- [x] Wire screen displays (`displayMessageArchive`, `printHelpScreen`, `displayFeatsScreen`, `printDiscoveriesScreen`)
+- [x] Wire visual effects (`flashTemporaryAlert`, `displayMonsterFlashes`)
+- [x] Make `executeKeystroke`, `executeMouseClick`, `executeEvent`, `confirm`, `actionMenu` async for browser compatibility
+- [x] Update `InputContext` interface: `buttonInputLoop` and `printTextBox` return `number | Promise<number>`
+- [x] Update all 11 affected tests to use async/await
+- [x] Zero compilation errors, all 2232 tests pass, Vite build succeeds
 
 ### 3d: Turn processing
 - [ ] Wire `playerTurnEnded` → full turn processing pipeline

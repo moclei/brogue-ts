@@ -591,46 +591,46 @@ describe("waitForKeystrokeOrMouseClick", () => {
 });
 
 describe("confirm", () => {
-    it("returns true during autoplay", () => {
+    it("returns true during autoplay", async () => {
         const ctx = makeCtx({ rogue: { autoPlayingLevel: true } as any });
-        expect(confirm(ctx, "Really?", false)).toBe(true);
+        expect(await confirm(ctx, "Really?", false)).toBe(true);
         expect(ctx.printTextBox).not.toHaveBeenCalled();
     });
 
-    it("returns true during playback (if not alsoDuringPlayback)", () => {
+    it("returns true during playback (if not alsoDuringPlayback)", async () => {
         const ctx = makeCtx({ rogue: { playbackMode: true } as any });
-        expect(confirm(ctx, "Really?", false)).toBe(true);
+        expect(await confirm(ctx, "Really?", false)).toBe(true);
     });
 
-    it("shows dialog during playback if alsoDuringPlayback", () => {
+    it("shows dialog during playback if alsoDuringPlayback", async () => {
         const ctx = makeCtx({ rogue: { playbackMode: true } as any });
         (ctx.printTextBox as any).mockReturnValue(0); // Yes
-        expect(confirm(ctx, "Really?", true)).toBe(true);
+        expect(await confirm(ctx, "Really?", true)).toBe(true);
         expect(ctx.printTextBox).toHaveBeenCalled();
     });
 
-    it("returns true when user chooses Yes (button 0)", () => {
+    it("returns true when user chooses Yes (button 0)", async () => {
         const ctx = makeCtx();
         (ctx.printTextBox as any).mockReturnValue(0);
-        expect(confirm(ctx, "Delete?", false)).toBe(true);
+        expect(await confirm(ctx, "Delete?", false)).toBe(true);
     });
 
-    it("returns false when user chooses No (button 1)", () => {
+    it("returns false when user chooses No (button 1)", async () => {
         const ctx = makeCtx();
         (ctx.printTextBox as any).mockReturnValue(1);
-        expect(confirm(ctx, "Delete?", false)).toBe(false);
+        expect(await confirm(ctx, "Delete?", false)).toBe(false);
     });
 
-    it("returns false when user cancels (-1)", () => {
+    it("returns false when user cancels (-1)", async () => {
         const ctx = makeCtx();
         (ctx.printTextBox as any).mockReturnValue(-1);
-        expect(confirm(ctx, "Delete?", false)).toBe(false);
+        expect(await confirm(ctx, "Delete?", false)).toBe(false);
     });
 
-    it("restores display buffer after dialog", () => {
+    it("restores display buffer after dialog", async () => {
         const ctx = makeCtx();
         (ctx.printTextBox as any).mockReturnValue(0);
-        confirm(ctx, "Test?", false);
+        await confirm(ctx, "Test?", false);
         expect(ctx.saveDisplayBuffer).toHaveBeenCalled();
         expect(ctx.restoreDisplayBuffer).toHaveBeenCalled();
     });
@@ -720,25 +720,25 @@ describe("getInputTextString", () => {
 });
 
 describe("executeMouseClick", () => {
-    it("opens inventory on right-click", () => {
+    it("opens inventory on right-click", async () => {
         const ctx = makeCtx();
-        executeMouseClick(ctx, makeEvent({ eventType: EventType.RightMouseUp, param1: 50, param2: 10 }));
+        await executeMouseClick(ctx, makeEvent({ eventType: EventType.RightMouseUp, param1: 50, param2: 10 }));
         expect(ctx.displayInventory).toHaveBeenCalled();
     });
 
-    it("shows message archive when clicking in message area", () => {
+    it("shows message archive when clicking in message area", async () => {
         const ctx = makeCtx();
         // windowToMapX returns a valid map x (0-78), but window_y is in MESSAGE_LINES (0-2)
         (ctx.windowToMapX as any).mockReturnValue(5);
         (ctx.isPosInMap as any).mockReturnValue(false); // Not in map
-        executeMouseClick(ctx, makeEvent({ eventType: EventType.MouseUp, param1: 26, param2: 1 }));
+        await executeMouseClick(ctx, makeEvent({ eventType: EventType.MouseUp, param1: 26, param2: 1 }));
         expect(ctx.displayMessageArchive).toHaveBeenCalled();
     });
 
-    it("travels with ctrl-click on map", () => {
+    it("travels with ctrl-click on map", async () => {
         const ctx = makeCtx();
         (ctx.isPosInMap as any).mockReturnValue(true);
-        executeMouseClick(ctx, makeEvent({
+        await executeMouseClick(ctx, makeEvent({
             eventType: EventType.MouseUp,
             param1: 30,
             param2: 10,
@@ -749,213 +749,213 @@ describe("executeMouseClick", () => {
 });
 
 describe("executeKeystroke — movement", () => {
-    it("moves player up with UP_KEY", () => {
+    it("moves player up with UP_KEY", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, UP_KEY, false, false);
+        await executeKeystroke(ctx, UP_KEY, false, false);
         expect(ctx.playerMoves).toHaveBeenCalledWith(Direction.Up);
     });
 
-    it("moves player down with DOWN_ARROW", () => {
+    it("moves player down with DOWN_ARROW", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, DOWN_ARROW, false, false);
+        await executeKeystroke(ctx, DOWN_ARROW, false, false);
         expect(ctx.playerMoves).toHaveBeenCalledWith(Direction.Down);
     });
 
-    it("moves diagonally with NUMPAD keys", () => {
+    it("moves diagonally with NUMPAD keys", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, NUMPAD_7, false, false);
+        await executeKeystroke(ctx, NUMPAD_7, false, false);
         expect(ctx.playerMoves).toHaveBeenCalledWith(Direction.UpLeft);
     });
 
-    it("runs when shift is held", () => {
+    it("runs when shift is held", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, UP_KEY, false, true);
+        await executeKeystroke(ctx, UP_KEY, false, true);
         expect(ctx.playerRuns).toHaveBeenCalledWith(Direction.Up);
     });
 
-    it("runs when control is held", () => {
+    it("runs when control is held", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, LEFT_KEY, true, false);
+        await executeKeystroke(ctx, LEFT_KEY, true, false);
         expect(ctx.playerRuns).toHaveBeenCalledWith(Direction.Left);
     });
 
-    it("hides cursor on movement", () => {
+    it("hides cursor on movement", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, RIGHT_KEY, false, false);
+        await executeKeystroke(ctx, RIGHT_KEY, false, false);
         expect(ctx.hideCursor).toHaveBeenCalled();
     });
 
-    it("refreshes sidebar after movement", () => {
+    it("refreshes sidebar after movement", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, DOWN_KEY, false, false);
+        await executeKeystroke(ctx, DOWN_KEY, false, false);
         expect(ctx.refreshSideBar).toHaveBeenCalledWith(-1, -1, false);
     });
 });
 
 describe("executeKeystroke — actions", () => {
-    it("rests on REST_KEY", () => {
+    it("rests on REST_KEY", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, REST_KEY, false, false);
+        await executeKeystroke(ctx, REST_KEY, false, false);
         expect(ctx.rogue.justRested).toBe(true);
         expect(ctx.recordKeystroke).toHaveBeenCalledWith(REST_KEY, false, false);
         expect(ctx.playerTurnEnded).toHaveBeenCalled();
     });
 
-    it("rests on PERIOD_KEY", () => {
+    it("rests on PERIOD_KEY", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, PERIOD_KEY, false, false);
+        await executeKeystroke(ctx, PERIOD_KEY, false, false);
         expect(ctx.playerTurnEnded).toHaveBeenCalled();
     });
 
-    it("rests on NUMPAD_5", () => {
+    it("rests on NUMPAD_5", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, NUMPAD_5, false, false);
+        await executeKeystroke(ctx, NUMPAD_5, false, false);
         expect(ctx.playerTurnEnded).toHaveBeenCalled();
     });
 
-    it("auto-rests on AUTO_REST_KEY", () => {
+    it("auto-rests on AUTO_REST_KEY", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, AUTO_REST_KEY, false, false);
+        await executeKeystroke(ctx, AUTO_REST_KEY, false, false);
         expect(ctx.autoRest).toHaveBeenCalled();
     });
 
-    it("searches on SEARCH_KEY", () => {
+    it("searches on SEARCH_KEY", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, SEARCH_KEY, false, false);
+        await executeKeystroke(ctx, SEARCH_KEY, false, false);
         expect(ctx.manualSearch).toHaveBeenCalled();
     });
 
-    it("opens inventory on INVENTORY_KEY", () => {
+    it("opens inventory on INVENTORY_KEY", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, INVENTORY_KEY, false, false);
+        await executeKeystroke(ctx, INVENTORY_KEY, false, false);
         expect(ctx.displayInventory).toHaveBeenCalled();
     });
 
-    it("equips on EQUIP_KEY", () => {
+    it("equips on EQUIP_KEY", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, EQUIP_KEY, false, false);
+        await executeKeystroke(ctx, EQUIP_KEY, false, false);
         expect(ctx.equip).toHaveBeenCalledWith(null);
     });
 
-    it("unequips on UNEQUIP_KEY", () => {
+    it("unequips on UNEQUIP_KEY", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, UNEQUIP_KEY, false, false);
+        await executeKeystroke(ctx, UNEQUIP_KEY, false, false);
         expect(ctx.unequip).toHaveBeenCalledWith(null);
     });
 
-    it("drops on DROP_KEY", () => {
+    it("drops on DROP_KEY", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, DROP_KEY, false, false);
+        await executeKeystroke(ctx, DROP_KEY, false, false);
         expect(ctx.drop).toHaveBeenCalledWith(null);
     });
 
-    it("applies on APPLY_KEY", () => {
+    it("applies on APPLY_KEY", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, APPLY_KEY, false, false);
+        await executeKeystroke(ctx, APPLY_KEY, false, false);
         expect(ctx.apply).toHaveBeenCalledWith(null);
     });
 
-    it("throws on THROW_KEY", () => {
+    it("throws on THROW_KEY", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, THROW_KEY, false, false);
+        await executeKeystroke(ctx, THROW_KEY, false, false);
         expect(ctx.throwCommand).toHaveBeenCalledWith(null, false);
     });
 
-    it("re-throws on RETHROW_KEY when item available", () => {
+    it("re-throws on RETHROW_KEY when item available", async () => {
         const item = {} as Item;
         const ctx = makeCtx({ rogue: { lastItemThrown: item } as any });
         (ctx.itemIsCarried as any).mockReturnValue(true);
-        executeKeystroke(ctx, RETHROW_KEY, false, false);
+        await executeKeystroke(ctx, RETHROW_KEY, false, false);
         expect(ctx.throwCommand).toHaveBeenCalledWith(item, true);
     });
 
-    it("skips re-throw when item not carried", () => {
+    it("skips re-throw when item not carried", async () => {
         const item = {} as Item;
         const ctx = makeCtx({ rogue: { lastItemThrown: item } as any });
         (ctx.itemIsCarried as any).mockReturnValue(false);
-        executeKeystroke(ctx, RETHROW_KEY, false, false);
+        await executeKeystroke(ctx, RETHROW_KEY, false, false);
         expect(ctx.throwCommand).not.toHaveBeenCalled();
     });
 
-    it("swaps equipment on SWAP_KEY", () => {
+    it("swaps equipment on SWAP_KEY", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, SWAP_KEY, false, false);
+        await executeKeystroke(ctx, SWAP_KEY, false, false);
         expect(ctx.swapLastEquipment).toHaveBeenCalled();
     });
 
-    it("toggles true color mode", () => {
+    it("toggles true color mode", async () => {
         const ctx = makeCtx();
         expect(ctx.rogue.trueColorMode).toBe(false);
-        executeKeystroke(ctx, TRUE_COLORS_KEY, false, false);
+        await executeKeystroke(ctx, TRUE_COLORS_KEY, false, false);
         expect(ctx.rogue.trueColorMode).toBe(true);
         expect(ctx.displayLevel).toHaveBeenCalled();
         expect(ctx.messageWithColor).toHaveBeenCalled();
     });
 
-    it("toggles stealth range display", () => {
+    it("toggles stealth range display", async () => {
         const ctx = makeCtx();
         expect(ctx.rogue.displayStealthRangeMode).toBe(false);
-        executeKeystroke(ctx, STEALTH_RANGE_KEY, false, false);
+        await executeKeystroke(ctx, STEALTH_RANGE_KEY, false, false);
         expect(ctx.rogue.displayStealthRangeMode).toBe(true);
     });
 
-    it("calls on CALL_KEY", () => {
+    it("calls on CALL_KEY", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, CALL_KEY, false, false);
+        await executeKeystroke(ctx, CALL_KEY, false, false);
         expect(ctx.call).toHaveBeenCalledWith(null);
     });
 
-    it("explores on EXPLORE_KEY", () => {
+    it("explores on EXPLORE_KEY", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, EXPLORE_KEY, false, false);
+        await executeKeystroke(ctx, EXPLORE_KEY, false, false);
         expect(ctx.exploreKey).toHaveBeenCalledWith(false);
     });
 
-    it("shows cursor on RETURN_KEY", () => {
+    it("shows cursor on RETURN_KEY", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, RETURN_KEY, false, false);
+        await executeKeystroke(ctx, RETURN_KEY, false, false);
         expect(ctx.showCursor).toHaveBeenCalled();
     });
 
-    it("displays message archive", () => {
+    it("displays message archive", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, MESSAGE_ARCHIVE_KEY, false, false);
+        await executeKeystroke(ctx, MESSAGE_ARCHIVE_KEY, false, false);
         expect(ctx.displayMessageArchive).toHaveBeenCalled();
     });
 
-    it("displays help screen", () => {
+    it("displays help screen", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, BROGUE_HELP_KEY, false, false);
+        await executeKeystroke(ctx, BROGUE_HELP_KEY, false, false);
         expect(ctx.printHelpScreen).toHaveBeenCalled();
     });
 
-    it("displays feats screen", () => {
+    it("displays feats screen", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, FEATS_KEY, false, false);
+        await executeKeystroke(ctx, FEATS_KEY, false, false);
         expect(ctx.displayFeatsScreen).toHaveBeenCalled();
     });
 
-    it("displays discoveries screen", () => {
+    it("displays discoveries screen", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, DISCOVERIES_KEY, false, false);
+        await executeKeystroke(ctx, DISCOVERIES_KEY, false, false);
         expect(ctx.printDiscoveriesScreen).toHaveBeenCalled();
     });
 
-    it("prints seed", () => {
+    it("prints seed", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, SEED_KEY, false, false);
+        await executeKeystroke(ctx, SEED_KEY, false, false);
         expect(ctx.printSeed).toHaveBeenCalled();
     });
 
-    it("enables easy mode", () => {
+    it("enables easy mode", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, EASY_MODE_KEY, false, false);
+        await executeKeystroke(ctx, EASY_MODE_KEY, false, false);
         expect(ctx.enableEasyMode).toHaveBeenCalled();
     });
 
-    it("takes screenshot", () => {
+    it("takes screenshot", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, PRINTSCREEN_KEY, false, false);
+        await executeKeystroke(ctx, PRINTSCREEN_KEY, false, false);
         expect(ctx.takeScreenshot).toHaveBeenCalled();
         expect(ctx.flashTemporaryAlert).toHaveBeenCalledWith(
             " Screenshot saved in save directory ",
@@ -963,54 +963,54 @@ describe("executeKeystroke — actions", () => {
         );
     });
 
-    it("confirms messages first", () => {
+    it("confirms messages first", async () => {
         const ctx = makeCtx();
-        executeKeystroke(ctx, INVENTORY_KEY, false, false);
+        await executeKeystroke(ctx, INVENTORY_KEY, false, false);
         expect(ctx.confirmMessages).toHaveBeenCalled();
     });
 
-    it("resets cautious mode after keystroke", () => {
+    it("resets cautious mode after keystroke", async () => {
         const ctx = makeCtx({ rogue: { cautiousMode: true } as any });
-        executeKeystroke(ctx, INVENTORY_KEY, false, false);
+        await executeKeystroke(ctx, INVENTORY_KEY, false, false);
         expect(ctx.rogue.cautiousMode).toBe(false);
     });
 });
 
 describe("executeKeystroke — save/quit", () => {
-    it("skips save during playback", () => {
+    it("skips save during playback", async () => {
         const ctx = makeCtx({ rogue: { playbackMode: true } as any });
-        executeKeystroke(ctx, SAVE_GAME_KEY, false, false);
+        await executeKeystroke(ctx, SAVE_GAME_KEY, false, false);
         expect(ctx.saveGame).not.toHaveBeenCalled();
     });
 
-    it("skips save in server mode", () => {
+    it("skips save in server mode", async () => {
         const ctx = makeCtx({ serverMode: true } as any);
-        executeKeystroke(ctx, SAVE_GAME_KEY, false, false);
+        await executeKeystroke(ctx, SAVE_GAME_KEY, false, false);
         expect(ctx.saveGame).not.toHaveBeenCalled();
     });
 
-    it("saves game on confirmation", () => {
+    it("saves game on confirmation", async () => {
         const ctx = makeCtx();
         (ctx.printTextBox as any).mockReturnValue(0); // Yes
-        executeKeystroke(ctx, SAVE_GAME_KEY, false, false);
+        await executeKeystroke(ctx, SAVE_GAME_KEY, false, false);
         expect(ctx.saveGame).toHaveBeenCalled();
     });
 
-    it("quits game on confirmation", () => {
+    it("quits game on confirmation", async () => {
         const ctx = makeCtx();
         (ctx.printTextBox as any).mockReturnValue(0); // Yes
-        executeKeystroke(ctx, QUIT_KEY, false, false);
+        await executeKeystroke(ctx, QUIT_KEY, false, false);
         expect(ctx.rogue.quit).toBe(true);
         expect(ctx.gameOver).toHaveBeenCalledWith("Quit", true);
     });
 
-    it("NEW_GAME_KEY is stripped to DOWNRIGHT movement by stripShift", () => {
+    it("NEW_GAME_KEY is stripped to DOWNRIGHT movement by stripShift", async () => {
         // In the C code, 'N' (NEW_GAME_KEY) gets converted to 'n' (DOWNRIGHT_KEY)
         // by stripShiftFromMovementKeystroke, so pressing N triggers diagonal movement.
         // The NEW_GAME_KEY case is only reachable via non-keyboard paths.
         const rogue = makeRogue({ playerTurnNumber: 10 });
         const ctx = makeCtx({ rogue });
-        executeKeystroke(ctx, NEW_GAME_KEY, false, false);
+        await executeKeystroke(ctx, NEW_GAME_KEY, false, false);
         // Should move downright instead of starting new game
         expect(ctx.playerMoves).toHaveBeenCalledWith(Direction.DownRight);
         expect(ctx.rogue.gameHasEnded).toBe(false);
@@ -1018,39 +1018,39 @@ describe("executeKeystroke — save/quit", () => {
 });
 
 describe("executeKeystroke — debug", () => {
-    it("creates items in debug mode", () => {
+    it("creates items in debug mode", async () => {
         const ctx = makeCtx({ DEBUG: true } as any);
-        executeKeystroke(ctx, CREATE_ITEM_MONSTER_KEY, false, false);
+        await executeKeystroke(ctx, CREATE_ITEM_MONSTER_KEY, false, false);
         expect(ctx.dialogCreateItemOrMonster).toHaveBeenCalled();
     });
 
-    it("does nothing for CREATE_ITEM_MONSTER_KEY in non-debug mode", () => {
+    it("does nothing for CREATE_ITEM_MONSTER_KEY in non-debug mode", async () => {
         const ctx = makeCtx({ DEBUG: false } as any);
-        executeKeystroke(ctx, CREATE_ITEM_MONSTER_KEY, false, false);
+        await executeKeystroke(ctx, CREATE_ITEM_MONSTER_KEY, false, false);
         expect(ctx.dialogCreateItemOrMonster).not.toHaveBeenCalled();
     });
 });
 
 describe("executeEvent", () => {
-    it("dispatches keystroke events", () => {
+    it("dispatches keystroke events", async () => {
         const ctx = makeCtx();
         const ev = makeEvent({ eventType: EventType.Keystroke, param1: REST_KEY });
-        executeEvent(ctx, ev);
+        await executeEvent(ctx, ev);
         expect(ctx.rogue.playbackBetweenTurns).toBe(false);
         expect(ctx.playerTurnEnded).toHaveBeenCalled();
     });
 
-    it("dispatches mouse up events", () => {
+    it("dispatches mouse up events", async () => {
         const ctx = makeCtx();
         const ev = makeEvent({ eventType: EventType.RightMouseUp, param1: 50, param2: 10 });
-        executeEvent(ctx, ev);
+        await executeEvent(ctx, ev);
         expect(ctx.displayInventory).toHaveBeenCalled();
     });
 
-    it("ignores other event types", () => {
+    it("ignores other event types", async () => {
         const ctx = makeCtx();
         const ev = makeEvent({ eventType: EventType.MouseEnteredCell });
-        executeEvent(ctx, ev);
+        await executeEvent(ctx, ev);
         // No action dispatched — nothing should have been called except confirmMessages/strip
     });
 });
@@ -1093,43 +1093,43 @@ describe("initializeMenuButtons", () => {
 });
 
 describe("actionMenu", () => {
-    it("returns -1 when cancelled", () => {
+    it("returns -1 when cancelled", async () => {
         const ctx = makeCtx();
         (ctx.buttonInputLoop as any).mockReturnValue(-1);
-        expect(actionMenu(ctx, 10, false)).toBe(-1);
+        expect(await actionMenu(ctx, 10, false)).toBe(-1);
     });
 
-    it("returns hotkey of chosen button", () => {
+    it("returns hotkey of chosen button", async () => {
         const ctx = makeCtx();
         // The first normal-mode button is "Rest until better" with AUTO_REST_KEY
         (ctx.buttonInputLoop as any).mockReturnValue(0);
-        const result = actionMenu(ctx, 10, false);
+        const result = await actionMenu(ctx, 10, false);
         expect(result).toBe(AUTO_REST_KEY);
     });
 });
 
 describe("mainInputLoop", () => {
-    it("exits when game has ended", () => {
+    it("exits when game has ended", async () => {
         const ctx = makeCtx({ rogue: { gameHasEnded: true } as any });
         // Should immediately exit the while loop
-        mainInputLoop(ctx);
+        await mainInputLoop(ctx);
         expect(ctx.allocGrid).toHaveBeenCalled();
         expect(ctx.freeGrid).toHaveBeenCalledTimes(3);
     });
 
-    it("allocates and frees pathing grids", () => {
+    it("allocates and frees pathing grids", async () => {
         const ctx = makeCtx();
         // End game after one iteration
         (ctx.moveCursor as any).mockImplementation((tc: any) => {
             ctx.rogue.gameHasEnded = true;
             return false;
         });
-        mainInputLoop(ctx);
+        await mainInputLoop(ctx);
         expect(ctx.allocGrid).toHaveBeenCalledTimes(3); // costMap, playerPathingMap, cursorSnapMap
         expect(ctx.freeGrid).toHaveBeenCalledTimes(3);
     });
 
-    it("dispatches actions menu when button 3 is chosen", () => {
+    it("dispatches actions menu when button 3 is chosen", async () => {
         const ctx = makeCtx();
         let iteration = 0;
         (ctx.moveCursor as any).mockImplementation(
@@ -1145,14 +1145,14 @@ describe("mainInputLoop", () => {
         );
         // actionMenu returns -1 (cancelled)
         (ctx.buttonInputLoop as any).mockReturnValue(-1);
-        mainInputLoop(ctx);
+        await mainInputLoop(ctx);
         // Should have called rectangularShading for the action menu overlay
         expect(ctx.rectangularShading).toHaveBeenCalled();
     });
 
-    it("refreshes sidebar on exit", () => {
+    it("refreshes sidebar on exit", async () => {
         const ctx = makeCtx({ rogue: { gameHasEnded: true } as any });
-        mainInputLoop(ctx);
+        await mainInputLoop(ctx);
         expect(ctx.refreshSideBar).toHaveBeenCalledWith(-1, -1, false);
     });
 });
