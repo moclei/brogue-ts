@@ -72,9 +72,21 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
 
 ## Wire Gameplay Systems
 - [ ] `wire-gameplay-systems` — Wire ~148 remaining runtime stubs to real implementations for full playability
-  - [ ] Phase 1: Messages — text feedback for combat, movement, items (~47 stubs)
-  - [ ] Phase 2: Item Interaction — pick up, equip, use, drop, throw (~20 stubs)
-  - [ ] Phase 3: Monster Lifecycle — death, loot drops, terrain effects (~15 stubs)
+  - [x] Phase 1: Messages — text feedback for combat, movement, items (~47 stubs) — buildMessageOps() + buildMessageContext() + buildEffectsContext(), all message stubs wired across 12+ DI contexts
+  - [x] Phase 2: Item Interaction — real itemName() across all contexts, numberOfMatchingPackItems, pickUpItemAt, useKeyAt, equip/unequip/drop with full logic, makeMonsterDropItem, updateEncumbrance, buildItemHelperContext, buildItemNamingContext
+  - [x] Phase 3: Monster Lifecycle — death, loot drops, terrain effects (~15 stubs)
+    - killCreature across all contexts (SpawnContext, MonsterOpsContext, MiscHelpersContext, TurnProcessingContext, AttackContext, CombatDamageContext)
+    - removeCreature / prependCreature — list management in MiscHelpersContext, TurnProcessingContext, EnvironmentContext, CreatureEffectsContext
+    - demoteMonsterFromLeadership / checkForContinuedLeadership in AttackContext, CombatDamageContext, MiscHelpersContext, TurnProcessingContext
+    - fadeInMonster in AttackContext, CombatDamageContext, CombatHelperContext
+    - splitMonster in AttackContext via CombatHelperContext
+    - freeCaptive in PlayerMoveContext via AllyManagementContext
+    - spawnDungeonFeature in AttackContext, CombatDamageContext, TurnProcessingContext, EnvironmentContext, CreatureEffectsContext, PlayerMoveContext
+    - promoteTile in LifecycleContext, PlayerMoveContext, TurnProcessingContext, CreatureEffectsContext, removeItemAt, checkForMissingKeys
+    - buildCreatureEffectsContext — full 200+ field context for tile effects, falling, status decrements
+    - applyInstantTileEffectsToCreature / applyGradualTileEffectsToCreature in CombatDamageContext, TurnProcessingContext
+    - monsterShouldFall / monstersFall / playerFalls in TurnProcessingContext, EnvironmentContext
+    - decrementPlayerStatus upgraded from minimal stub to real function
   - [ ] Phase 4: Combat Effects — weapon/armor runics, special hits, feats (~10 stubs)
   - [ ] Phase 5: UI Panels — sidebar, inventory screen, flavor text (~10 stubs)
   - [ ] Phase 6: Polish — save/load, search, miner's light, recordings (~15 stubs)
