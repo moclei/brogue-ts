@@ -8,6 +8,7 @@ import { EventType } from "../src/types/enums.js";
 import type { RogueEvent } from "../src/types/types.js";
 import { LEFT_ARROW, RIGHT_ARROW, UP_ARROW, DOWN_ARROW } from "../src/types/constants.js";
 import { DisplayGlyph } from "../src/types/enums.js";
+import { TileFlag, MonsterBookkeepingFlag } from "../src/types/flags.js";
 import type { ScreenDisplayBuffer } from "../src/types/types.js";
 
 function createMockBrowserConsole() {
@@ -135,6 +136,75 @@ describe("Player placement and movement", () => {
         }
 
         expect(anyMoved).toBe(true);
+    });
+});
+
+describe("Combat", () => {
+    it("should damage a monster when the player attacks by moving into it", async () => {
+        const mockConsole = createMockBrowserConsole();
+        const runtime = createRuntime(mockConsole as any);
+        const { menuCtx, _test } = runtime;
+
+        menuCtx.initializeRogue(42n);
+        menuCtx.startLevel(menuCtx.rogue.depthLevel, 1);
+
+        const playerLoc = { x: _test.player.loc.x, y: _test.player.loc.y };
+
+        // Find a monster that is within dungeon bounds
+        const DCOLS = 79;
+        const DROWS = 29;
+        const validMonster = _test.monsters.find(m => {
+            const { x, y } = m.loc;
+            return x >= 0 && x < DCOLS && y >= 0 && y < DROWS;
+        });
+        expect(validMonster).toBeDefined();
+        const targetMonster = validMonster!;
+
+        // Record initial HP
+        const initialHP = targetMonster.currentHP;
+        expect(initialHP).toBeGreaterThan(0);
+
+        // Place the monster adjacent to the player (right of player)
+        const monsterLoc = { x: playerLoc.x + 1, y: playerLoc.y };
+
+        // Clear old position if in bounds
+        const oldX = targetMonster.loc.x;
+        const oldY = targetMonster.loc.y;
+        // Monster must be within map bounds
+        if (oldX >= 0 && oldX < DCOLS && oldY >= 0 && oldY < DROWS && _test.pmap[oldX]) {
+            _test.pmap[oldX][oldY].flags &= ~TileFlag.HAS_MONSTER;
+        }
+        // Set new position
+        targetMonster.loc.x = monsterLoc.x;
+        targetMonster.loc.y = monsterLoc.y;
+        _test.pmap[monsterLoc.x][monsterLoc.y].flags |= TileFlag.HAS_MONSTER;
+        // Make it an enemy (not ally, not sleeping)
+        targetMonster.creatureState = 1; // TrackingScent
+
+        // Start the input loop and send RIGHT arrow to move into the monster
+        const loopPromise = menuCtx.mainInputLoop();
+        await new Promise(r => setTimeout(r, 50));
+
+        mockConsole.pushEvent(makeKeyEvent(RIGHT_ARROW));
+        await new Promise(r => setTimeout(r, 300));
+
+        // After attacking, the monster should have taken damage OR died
+        const afterHP = targetMonster.currentHP;
+        const monsterDied = !!(targetMonster.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DYING);
+
+        // The player should NOT have moved into the monster's cell (attack is in-place)
+        expect(
+            (_test.player.loc.x === playerLoc.x && _test.player.loc.y === playerLoc.y) ||
+            monsterDied
+        ).toBe(true);
+
+        // Monster should have taken damage or died
+        expect(afterHP < initialHP || monsterDied).toBe(true);
+
+        // Clean up
+        menuCtx.rogue.gameHasEnded = true;
+        mockConsole.pushEvent(makeKeyEvent(0x1b));
+        await loopPromise.catch(() => {});
     });
 });
 

@@ -69,3 +69,12 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
   - [ ] Step 4: Verification — seed regression tests, recording playback, manual testing
     - [x] 4a: Seed determinism — 26 tests: RNG raw output (3 seeds), cross-validation against C (5 tests, bit-identical), carveDungeon grid hashes (10 seeds), level seed regression (2 seeds x 27 depths)
   - [ ] Step 5: Terminal Platform — Node.js ANSI renderer, CLI entry point
+
+## Wire Gameplay Systems
+- [ ] `wire-gameplay-systems` — Wire ~148 remaining runtime stubs to real implementations for full playability
+  - [ ] Phase 1: Messages — text feedback for combat, movement, items (~47 stubs)
+  - [ ] Phase 2: Item Interaction — pick up, equip, use, drop, throw (~20 stubs)
+  - [ ] Phase 3: Monster Lifecycle — death, loot drops, terrain effects (~15 stubs)
+  - [ ] Phase 4: Combat Effects — weapon/armor runics, special hits, feats (~10 stubs)
+  - [ ] Phase 5: UI Panels — sidebar, inventory screen, flavor text (~10 stubs)
+  - [ ] Phase 6: Polish — save/load, search, miner's light, recordings (~15 stubs)

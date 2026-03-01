@@ -207,6 +207,16 @@ import type { LifecycleContext } from "./game/game-lifecycle.js";
 
 // -- Combat math imports ------------------------------------------------------
 import { diagonalBlocked as diagonalBlockedFn } from "./combat/combat-math.js";
+import {
+    attack as attackFn,
+    buildHitList as buildHitListFn,
+} from "./combat/combat-attack.js";
+import type { AttackContext } from "./combat/combat-attack.js";
+// inflictDamage and killCreature are called internally by attack(), not needed here directly
+import { playerRecoversFromAttacking as playerRecoversFromAttackingFn } from "./time/turn-processing.js";
+import { alertMonster } from "./monsters/monster-state.js";
+import { monsterIsInClass } from "./monsters/monster-queries.js";
+// Weapon attack functions (whip, spear, flail) require full WeaponAttackContext with bolt system — deferred
 
 // -- Dijkstra scan import -----------------------------------------------------
 import { dijkstraScan as dijkstraScanFn } from "./dijkstra/dijkstra.js";
@@ -684,6 +694,8 @@ export interface GameRuntime {
     _test: {
         readonly monsters: Creature[];
         readonly player: Creature;
+        readonly pmap: Pcell[][];
+        readonly rogue: any;
     };
 }
 
@@ -2202,6 +2214,125 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     }
 
     /**
+     * Build the AttackContext for combat resolution.
+     */
+    function buildAttackContext(): AttackContext {
+        return {
+            // ── CombatMathContext ──
+            player,
+            weapon: rogue.weapon,
+            armor: rogue.armor,
+            playerStrength: rogue.strength,
+            monsterClassCatalog,
+            randPercent,
+            getTerrainFlags: (loc: Pos) => terrainFlagsAt(loc),
+
+            // ── CombatDamageContext ──
+            easyMode: rogue.mode === GameMode.Easy,
+            transference: rogue.transference,
+            playerTransferenceRatio: gameConst.playerTransferenceRatio,
+            canSeeMonster: (monst) => !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE),
+            canDirectlySeeMonster: (monst) => !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE),
+            wakeUp(monst) {
+                alertMonster(monst, player);
+            },
+            spawnDungeonFeature() { /* stub */ },
+            refreshSideBar() { /* stub */ },
+            combatMessage(_text, _color) { /* stub — messages not wired yet */ },
+            messageWithColor(_text, _color) { /* stub */ },
+            monsterName(monst, includeArticle) {
+                if (monst === player) return "you";
+                const article = includeArticle
+                    ? (monst.creatureState === CreatureState.Ally ? "your " : "the ")
+                    : "";
+                return `${article}${monst.info.monsterName}`;
+            },
+            gameOver(message) { doGameOver(message, false); },
+            setCreaturesWillFlash() { rogue.creaturesWillFlashThisTurn = true; },
+            deleteItem() { /* stub */ },
+            makeMonsterDropItem() { /* stub */ },
+            clearLastTarget(monst) {
+                if (rogue.lastTarget === monst) rogue.lastTarget = null;
+            },
+            clearYendorWarden(monst) {
+                if (rogue.yendorWarden === monst) rogue.yendorWarden = null;
+            },
+            clearCellMonsterFlag(loc, isDormant) {
+                if (!isDormant) {
+                    pmap[loc.x][loc.y].flags &= ~TileFlag.HAS_MONSTER;
+                }
+            },
+            prependCreature(monst) {
+                if (!monsters.includes(monst)) {
+                    monsters.unshift(monst);
+                }
+            },
+            applyInstantTileEffectsToCreature() { /* stub */ },
+            fadeInMonster() { /* stub */ },
+            refreshDungeonCell(loc) {
+                const { glyph, foreColor, backColor } = getCellAppearance(loc);
+                plotCharWithColor(glyph, { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) }, foreColor, backColor, displayBuffer);
+            },
+            anyoneWantABite: () => false,
+            demoteMonsterFromLeadership() { /* stub */ },
+            checkForContinuedLeadership() { /* stub */ },
+            getMonsterDFMessage: () => "",
+            resolvePronounEscapes(text, _monst) { return text; },
+            message(_text, _flags) { /* stub */ },
+            monsterCatalog,
+            updateEncumbrance() { /* stub */ },
+            updateMinersLightRadius() { /* stub */ },
+            updateVision() { updateVisionFn(true); },
+            badMessageColor: Colors.badMessageColor,
+            poisonColor: Colors.poisonColor,
+
+            // ── AttackContext extras ──
+            cellFlags: (loc: Pos) => pmap[loc.x]?.[loc.y]?.flags ?? 0,
+            cellHasTerrainFlag: cellHasTerrainFlagAt,
+            monsterAtLoc: monsterAtLocFn,
+            setMonsterLocation(monst, loc) {
+                pmap[monst.loc.x][monst.loc.y].flags &= ~(monst === player ? TileFlag.HAS_PLAYER : TileFlag.HAS_MONSTER);
+                monst.loc.x = loc.x;
+                monst.loc.y = loc.y;
+                pmap[loc.x][loc.y].flags |= (monst === player ? TileFlag.HAS_PLAYER : TileFlag.HAS_MONSTER);
+            },
+            monsterWillAttackTarget: () => true,
+            monsterIsInClass: (monst, mc) => monsterIsInClass(monst, mc),
+            randRange,
+            randClump,
+            blockCombatText: rogue.blockCombatText,
+            setDisturbed() { rogue.disturbed = true; },
+            reaping: 0, // No reaping enchant for now
+            magicWeaponHit() { /* stub — runics not wired yet */ },
+            applyArmorRunicEffect: () => "",
+            specialHit() { /* stub */ },
+            splitMonster() { /* stub */ },
+            attackVerb: () => "hit",
+            messageColorFromVictim: () => Colors.white,
+            decrementWeaponAutoIDTimer() { /* stub */ },
+            rechargeItemsIncrementally() { /* stub */ },
+            equipItem() { /* stub */ },
+            itemName: () => "item",
+            checkForDisenchantment() { /* stub */ },
+            strengthCheck() { /* stub */ },
+            itemMessageColor: Colors.itemMessageColor,
+            handlePaladinFeat() { /* stub */ },
+            setPureMageFeatFailed() { /* stub */ },
+            setDragonslayerFeatAchieved() { /* stub */ },
+            reportHeardCombat: () => false,
+            whiteColor: Colors.white,
+            redColor: { red: 100, green: 0, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false },
+            gameOverFromMonster(mName) { doGameOver(mName, false); },
+            unAlly(monst) {
+                if (monst.creatureState === CreatureState.Ally) {
+                    monst.creatureState = CreatureState.TrackingScent;
+                }
+            },
+            alertMonster(monst) { alertMonster(monst, player); },
+        };
+    }
+
+    /**
      * Build the PlayerMoveContext for playerMoves/playerRuns.
      */
     function buildPlayerMoveContext(): PlayerMoveContext & PlayerRunContext {
@@ -2238,7 +2369,13 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             monsterRevealed: () => false,
             monstersAreEnemies: () => true,
             monsterWillAttackTarget: () => true,
-            monsterName: () => "monster",
+            monsterName(monst, includeArticle) {
+                if (monst === player) return "you";
+                const article = includeArticle
+                    ? (monst.creatureState === CreatureState.Ally ? "your " : "the ")
+                    : "";
+                return `${article}${monst.info.monsterName}`;
+            },
             monsterAvoids: () => false,
             monsterShouldFall: () => false,
             forbiddenFlagsForMonster: () => 0,
@@ -2248,13 +2385,25 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             layerWithTMFlag: (x, y, _flag) => highestPriorityLayer(pmap, x, y, false),
             layerWithFlag: (x, y, _flag) => highestPriorityLayer(pmap, x, y, false),
 
-            handleWhipAttacks: () => false,
-            handleSpearAttacks: () => false,
+            handleWhipAttacks: () => false, // Whip requires full WeaponAttackContext with bolt system — deferred
+            handleSpearAttacks: () => false, // Spear requires full WeaponAttackContext — deferred
             buildFlailHitList: () => [],
-            buildHitList(_hitList, _attacker, _defender, _allAdjacent) { /* stub */ },
-            abortAttack: () => false,
-            attack: () => false,
-            playerRecoversFromAttacking() { /* stub */ },
+            buildHitList(hitList, attacker, defender, allAdjacent) {
+                const atkCtx = buildAttackContext();
+                const result = buildHitListFn(attacker, defender, allAdjacent, atkCtx);
+                for (let i = 0; i < result.length && i < hitList.length; i++) {
+                    hitList[i] = result[i];
+                }
+            },
+            abortAttack: () => false, // Requires full WeaponAttackContext — deferred
+            attack(attacker, defender, lungeAttack) {
+                const atkCtx = buildAttackContext();
+                return attackFn(attacker, defender, lungeAttack, atkCtx);
+            },
+            playerRecoversFromAttacking(anyHit) {
+                const tpCtx = buildTurnProcessingContext();
+                playerRecoversFromAttackingFn(anyHit, tpCtx);
+            },
 
             randValidDirectionFrom: () => 0,
             moveMonster(_monst, _dx, _dy) { /* stub */ },
@@ -3564,6 +3713,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         _test: {
             get monsters() { return monsters; },
             get player() { return player; },
+            get pmap() { return pmap; },
+            get rogue() { return rogue; },
         },
     };
 }
