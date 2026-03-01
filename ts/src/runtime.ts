@@ -66,7 +66,7 @@ import {
     MESSAGE_ARCHIVE_ENTRIES,
     MONSTER_CLASS_COUNT,
     NUMBER_TERRAIN_LAYERS,
-    REST_KEY, SEARCH_KEY,
+    REST_KEY, SEARCH_KEY, ESCAPE_KEY,
 } from "./types/constants.js";
 // PAUSE_BEHAVIOR_DEFAULT imported inline where needed
 
@@ -192,6 +192,10 @@ import type { MiscHelpersContext } from "./time/misc-helpers.js";
 import { playerTurnEnded as playerTurnEndedFn } from "./time/turn-processing.js";
 import type { TurnProcessingContext } from "./time/turn-processing.js";
 
+// -- Game lifecycle imports ---------------------------------------------------
+import { gameOver as gameOverFn, victory as victoryFn, enableEasyMode as enableEasyModeFn } from "./game/game-lifecycle.js";
+import type { LifecycleContext } from "./game/game-lifecycle.js";
+
 // (Creature effects, environment, safety maps, monster AI, combat damage,
 //  search/scent, spawn, flares, cleanup imports are deferred — currently
 //  using inline stubs in buildTurnProcessingContext.  They will be wired
@@ -229,7 +233,7 @@ import type { MachineContext, ItemOps, MonsterOps } from "./architect/machines.j
 import type { BuildBridgeContext } from "./architect/lakes.js";
 
 // -- Flag imports -------------------------------------------------------------
-import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag } from "./types/flags.js";
+import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, ItemFlag } from "./types/flags.js";
 
 // -- State helper imports -----------------------------------------------------
 import { cellHasTerrainFlag, cellHasTMFlag, terrainFlags, terrainMechFlags, discoveredTerrainFlagsAtLoc, highestPriorityLayer } from "./state/helpers.js";
@@ -1957,7 +1961,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 displayLevelFn();
                 commitDraws();
             },
-            victory(_isDescending) { /* stub — Step 3e */ },
+            victory(superVictory) { doVictory(superVictory); },
 
             fpFactor: Number(FP_FACTOR),
             AMULET: ItemCategory.AMULET,
@@ -2188,6 +2192,142 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     }
 
     // =========================================================================
+    // buildLifecycleContext — Step 3e: Game lifecycle (gameOver, victory)
+    // =========================================================================
+
+    /**
+     * Build the LifecycleContext for gameOver, victory, and enableEasyMode.
+     * Provides all display, messaging, scoring, and recording hooks.
+     */
+    function buildLifecycleContext(): LifecycleContext {
+        return {
+            rogue: rogue as unknown as LifecycleContext["rogue"],
+            player,
+            gameConst,
+            serverMode: false,
+            nonInteractivePlayback: false,
+            packItems,
+            featTable: [],  // Will be populated when feat system is wired
+
+            // -- Display primitives -----------------------------------------------
+            displayBuffer,
+            clearDisplayBuffer(dbuf) { clearDisplayBuffer(dbuf); },
+            blackOutScreen(dbuf) { blackOutScreen(dbuf); },
+            displayLevel() { displayLevelFn(); commitDraws(); },
+            refreshSideBar(_x, _y, _justClearing) { /* stub — Step 3f */ },
+
+            // -- Display functions ------------------------------------------------
+            printString(str, x, y, fg, bg, dbuf) {
+                printStringFn(str, x, y, fg, bg, dbuf ?? displayBuffer);
+                if (!dbuf) commitDraws();
+            },
+            plotCharToBuffer(ch, pos, fg, bg, dbuf) {
+                plotCharToBuffer(ch, pos.windowX, pos.windowY, fg, bg, dbuf);
+            },
+            funkyFade(_dbuf, _colorStart, _startDelay, _duration, _cx, _cy, _inward) {
+                // Stub — full funkyFade needs animation pipeline (Step 3f)
+                commitDraws();
+            },
+            strLenWithoutEscapes,
+            mapToWindowX,
+            mapToWindowY,
+
+            // -- Messages & dialogs -----------------------------------------------
+            message(_msg, _flags) { /* stub */ },
+            messageWithColor(_msg, _color, _flags) { /* stub */ },
+            confirmMessages() { /* stub */ },
+            deleteMessages() { /* stub */ },
+            displayMoreSign() { /* stub — needs async waitForAcknowledgment */ },
+            displayMoreSignWithoutWaitingForAcknowledgment() { /* stub */ },
+            flashTemporaryAlert(_msg, _time) { /* stub */ },
+            confirm(_prompt, _alsoDuringPlayback) { return true; },
+
+            // -- Input ------------------------------------------------------------
+            nextBrogueEvent(_event, _textInput, _colorsDance, _realInputOnly) {
+                // Stub — set escape so loops exit immediately
+                _event.eventType = EventType.Keystroke;
+                _event.param1 = ESCAPE_KEY;
+            },
+
+            // -- Item operations --------------------------------------------------
+            identify(_item) {
+                _item.flags |= ItemFlag.ITEM_IDENTIFIED;
+            },
+            itemName(_item, _includeDetails, _includeArticle, _color) {
+                return "item"; // simplified
+            },
+            upperCase(buf) {
+                return buf.charAt(0).toUpperCase() + buf.slice(1);
+            },
+            itemValue(_item) {
+                return 0; // simplified — full itemValue from item-naming.ts
+            },
+            numberOfMatchingPackItems(category, _flags, _flags2, _useFlags) {
+                let count = 0;
+                for (const item of packItems) {
+                    if (item.category & category) count++;
+                }
+                return count;
+            },
+            isVowelish(word) {
+                return "aeiouAEIOU".includes(word[0] ?? "");
+            },
+            displayInventory(_categoryMask, _flags, _flags2, _showAll, _justCount) {
+                return 0; // stub
+            },
+
+            // -- Recording & scoring ----------------------------------------------
+            flushBufferToFile() { /* no-op — recording not fully wired */ },
+            saveHighScore(_entry) { return false; },
+            printHighScores(_highlight) { /* stub */ },
+            saveRecording(_filenameOut) { /* stub */ },
+            saveRecordingNoPrompt(_filenameOut) { /* stub */ },
+            notifyEvent(_type, _score, _data, _description, _recording) { /* no-op */ },
+            saveRunHistory(_result, _killedBy, _score, _gems) { /* no-op */ },
+            recordKeystroke(_key, _controlKey, _shiftKey) { /* stub */ },
+
+            // -- Player display ---------------------------------------------------
+            refreshDungeonCell(loc) {
+                const { glyph, foreColor, backColor } = getCellAppearance(loc);
+                plotCharWithColor(glyph, { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) }, foreColor, backColor, displayBuffer);
+            },
+            encodeMessageColor(_buf, _pos, _color) { /* stub */ },
+
+            // -- Color references -------------------------------------------------
+            black: Colors.black,
+            white: Colors.white,
+            gray: Colors.gray,
+            yellow: Colors.yellow,
+            lightBlue: Colors.lightBlue,
+            badMessageColor: Colors.badMessageColor,
+            itemMessageColor: Colors.itemMessageColor,
+            advancementMessageColor: Colors.advancementMessageColor,
+            superVictoryColor: Colors.superVictoryColor ?? Colors.white,
+
+            // -- Displayed messages (writable) ------------------------------------
+            displayedMessage: [""],
+
+            // -- Glyph references -------------------------------------------------
+            G_GOLD: DisplayGlyph.G_GOLD,
+            G_AMULET: DisplayGlyph.G_AMULET,
+        };
+    }
+
+    /**
+     * Call gameOver with the full lifecycle context.
+     */
+    function doGameOver(killedBy: string, useCustomPhrasing: boolean): void {
+        gameOverFn(buildLifecycleContext(), killedBy, useCustomPhrasing);
+    }
+
+    /**
+     * Call victory with the full lifecycle context.
+     */
+    function doVictory(superVictory: boolean): void {
+        victoryFn(buildLifecycleContext(), superVictory);
+    }
+
+    // =========================================================================
     // buildTurnProcessingContext — Step 3d: Turn processing pipeline
     // =========================================================================
 
@@ -2341,8 +2481,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             },
             displayAnnotation() { /* stub — recordings not wired */ },
             refreshSideBar(_x, _y, _forceFullUpdate) { /* stub */ },
-            gameOver(_message, _showScore) {
-                rogue.gameHasEnded = true;
+            gameOver(message, _showScore) {
+                doGameOver(message, false);
             },
             confirm(_message, _isDangerous) {
                 return true; // auto-confirm for now
@@ -2651,10 +2791,12 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             relabel(_item) { /* stub */ },
             call(_item) { /* stub */ },
             swapLastEquipment() { /* stub */ },
-            enableEasyMode() { /* stub */ },
-            saveGame() { /* stub */ },
-            gameOver(_message, _showHighScores) {
-                rogue.gameHasEnded = true;
+            enableEasyMode() {
+                enableEasyModeFn(buildLifecycleContext());
+            },
+            saveGame() { /* stub — save/load deferred */ },
+            gameOver(message, _showHighScores) {
+                doGameOver(message, false);
             },
             printSeed() {
                 // Simple seed display

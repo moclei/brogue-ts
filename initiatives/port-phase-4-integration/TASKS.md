@@ -114,11 +114,17 @@
 - [x] Fix `TurnProcessingContext.getFOVMask`/`zeroOutGrid` types: `boolean[][]` → `number[][]` to match real `fov.ts`
 - [x] Zero compilation errors, all 2232 tests pass, Vite build succeeds
 
-### 3e: Game lifecycle
-- [ ] Wire `gameOver` with score display, recording save
-- [ ] Wire `victory` with treasure tally, achievement check
-- [ ] Wire save/load game flow
+### 3e: Game lifecycle ✅
+- [x] Build `buildLifecycleContext()` function in `runtime.ts` implementing full `LifecycleContext` interface
+- [x] Wire `gameOver` → real `gameOverFn` from `game-lifecycle.ts` via `doGameOver()`
+- [x] Wire `victory` → real `victoryFn` via `doVictory()` (treasure tally, achievements, recording save)
+- [x] Wire `enableEasyMode` → real `enableEasyModeFn` with `LifecycleContext`
+- [x] Replace both `gameOver` stubs (in `buildTurnProcessingContext`, `buildInputContext`) with `doGameOver()` calls
+- [x] Wire display primitives (printString, plotCharToBuffer, clearDisplayBuffer, blackOutScreen)
+- [x] Stub message/dialog/recording functions (to be completed in 3f)
+- [x] Wire save/load game flow (stub — save/load deferred to full recording wiring)
 - [x] Wire `freeEverything` → full cleanup + return to menu (done in 3a)
+- [x] Zero compilation errors, all 2232 tests pass, Vite build succeeds
 
 ### 3f: Remaining DI stubs
 - [x] Wire variant-specific catalog switching in runtime (done in 3a — sets gameConst counts from catalog sizes)
