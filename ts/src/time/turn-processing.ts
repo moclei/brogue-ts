@@ -178,8 +178,8 @@ export interface TurnProcessingContext {
 
     // Scent/FOV
     addScentToCell(x: number, y: number, distance: number): void;
-    getFOVMask(grid: boolean[][], cx: number, cy: number, radius: Fixpt, blockFlags: number, blockTMFlags: number, ignoreWalls: boolean): void;
-    zeroOutGrid(grid: boolean[][]): void;
+    getFOVMask(grid: number[][], cx: number, cy: number, radius: Fixpt, blockFlags: number, blockTMFlags: number, ignoreWalls: boolean): void;
+    zeroOutGrid(grid: number[][]): void;
     discoverCell(x: number, y: number): void;
     discover(x: number, y: number): void;
     storeMemories(x: number, y: number): void;

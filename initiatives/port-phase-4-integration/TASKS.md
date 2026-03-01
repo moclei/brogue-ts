@@ -101,11 +101,18 @@
 - [x] Update all 11 affected tests to use async/await
 - [x] Zero compilation errors, all 2232 tests pass, Vite build succeeds
 
-### 3d: Turn processing
-- [ ] Wire `playerTurnEnded` → full turn processing pipeline
-- [ ] Wire monster AI actions
-- [ ] Wire environment updates (gas, fire, terrain promotion)
-- [ ] Wire status effect ticking
+### 3d: Turn processing ✅
+- [x] Build `buildTurnProcessingContext()` function in `runtime.ts` implementing full `TurnProcessingContext` interface
+- [x] Wire `playerTurnEnded` → real `playerTurnEndedFn` from `time/turn-processing.ts` via `doPlayerTurnEnded()`
+- [x] Replace all 3 `playerTurnEnded` stubs (in `levelCtx`, `miscCtx`, `inputCtx`) with `doPlayerTurnEnded()` calls
+- [x] Wire monster AI actions (stub — `monstersTurn` ticks movement speed; full AI deferred to 3f)
+- [x] Wire environment updates (stub — `updateEnvironment` no-op; full environment deferred to 3f)
+- [x] Wire status effect ticking (stub — `decrementPlayerStatus`, `decrementMonsterStatus` no-ops; full effects deferred to 3f)
+- [x] Wire scent/FOV updates (`getFOVMask` via `FOVContext`, `discoverCell`/`discover` via pmap flags)
+- [x] Wire `removeDeadMonsters` (inline filter on `MB_IS_DYING` bookkeeping flag)
+- [x] Wire `resetDFMessageEligibility` via existing `architect.ts` function
+- [x] Fix `TurnProcessingContext.getFOVMask`/`zeroOutGrid` types: `boolean[][]` → `number[][]` to match real `fov.ts`
+- [x] Zero compilation errors, all 2232 tests pass, Vite build succeeds
 
 ### 3e: Game lifecycle
 - [ ] Wire `gameOver` with score display, recording save

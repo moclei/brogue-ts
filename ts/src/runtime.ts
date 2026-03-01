@@ -25,6 +25,7 @@ import type {
     Color,
     Creature,
     CreatureType,
+    DungeonFeature,
     Fixpt,
     GameConstants,
     Item,
@@ -186,6 +187,15 @@ import type { TravelExploreContext } from "./movement/travel-explore.js";
 // -- Auto-rest / search imports -----------------------------------------------
 import { autoRest as autoRestFn, manualSearch as manualSearchFn } from "./time/misc-helpers.js";
 import type { MiscHelpersContext } from "./time/misc-helpers.js";
+
+// -- Turn processing imports --------------------------------------------------
+import { playerTurnEnded as playerTurnEndedFn } from "./time/turn-processing.js";
+import type { TurnProcessingContext } from "./time/turn-processing.js";
+
+// (Creature effects, environment, safety maps, monster AI, combat damage,
+//  search/scent, spawn, flares, cleanup imports are deferred — currently
+//  using inline stubs in buildTurnProcessingContext.  They will be wired
+//  to real implementations incrementally in Steps 3d-3f.)
 
 // -- Combat math imports ------------------------------------------------------
 import { diagonalBlocked as diagonalBlockedFn } from "./combat/combat-math.js";
@@ -2042,13 +2052,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             },
 
             playerTurnEnded() {
-                // Simplified: just mark the turn as ended.
-                // Full turn processing pipeline is Step 3d.
-                rogue.playerTurnNumber++;
-                rogue.absoluteTurnNumber++;
-                updateVisionFn(true);
-                displayLevelFn();
-                commitDraws();
+                doPlayerTurnEnded();
             },
             recordKeystroke() { /* stub — recordings not wired */ },
             cancelKeystroke() { /* stub */ },
@@ -2166,11 +2170,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
 
             recordKeystroke() { /* stub */ },
             playerTurnEnded() {
-                rogue.playerTurnNumber++;
-                rogue.absoluteTurnNumber++;
-                updateVisionFn(true);
-                displayLevelFn();
-                commitDraws();
+                doPlayerTurnEnded();
             },
             pauseAnimation(_frames, _behavior) {
                 return browserConsole.pauseForMilliseconds(0, { interruptForMouseMove: false });
@@ -2185,6 +2185,319 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             SEARCH_KEY: String.fromCharCode(SEARCH_KEY),
             PAUSE_BEHAVIOR_DEFAULT: 0,
         } satisfies MiscHelpersContext;
+    }
+
+    // =========================================================================
+    // buildTurnProcessingContext — Step 3d: Turn processing pipeline
+    // =========================================================================
+
+    /**
+     * Build the TurnProcessingContext for playerTurnEnded.
+     * This is the central turn-processing pipeline that handles:
+     * - Monster AI turns
+     * - Environment updates (gas, fire, terrain promotion)
+     * - Status effect ticking
+     * - Item recharging
+     * - Scent/FOV updates
+     */
+    function buildTurnProcessingContext(): TurnProcessingContext {
+        function pmapAt(loc: Pos): Pcell {
+            return pmap[loc.x][loc.y];
+        }
+
+        function playerCanSee(x: number, y: number): boolean {
+            return !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE);
+        }
+
+        function playerCanDirectlySee(x: number, y: number): boolean {
+            return !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE);
+        }
+
+        function monsterAtLoc(loc: Pos): Creature | null {
+            if (loc.x === player.loc.x && loc.y === player.loc.y) return player;
+            for (const m of monsters) {
+                if (m.loc.x === loc.x && m.loc.y === loc.y) return m;
+            }
+            return null;
+        }
+
+        return {
+            player,
+            rogue: rogue as unknown as TurnProcessingContext["rogue"],
+            monsters,
+            dormantMonsters,
+            pmap,
+            levels,
+            gameConst,
+            scentMap: scentMap ?? allocGrid(),
+            safetyMap: safetyMap ?? allocGrid(),
+            allySafetyMap: allySafetyMap ?? allocGrid(),
+            packItems,
+            floorItems,
+            tileCatalog,
+            dungeonFeatureCatalog: dungeonFeatureCatalog as unknown as TurnProcessingContext["dungeonFeatureCatalog"],
+
+            DCOLS, DROWS, FP_FACTOR,
+
+            // -- Map helpers -------------------------------------------------
+            cellHasTerrainFlag: cellHasTerrainFlagAt,
+            cellHasTMFlag: (pos, flags) => cellHasTMFlag(pmap, pos, flags),
+            terrainFlags: (pos) => terrainFlags(pmap, pos),
+            discoveredTerrainFlagsAtLoc: discoveredTerrainFlagsAtLocFn,
+            coordinatesAreInMap,
+            pmapAt,
+
+            // -- Monster helpers ---------------------------------------------
+            canSeeMonster(monst) {
+                return !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE) ||
+                    !!(monst.bookkeepingFlags & 0 /* MB_TELEPATHICALLY_REVEALED — simplified */);
+            },
+            canDirectlySeeMonster(monst) {
+                return !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE);
+            },
+            monsterRevealed(monst) {
+                return !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE);
+            },
+            monsterName(buf, _monst, _includeArticle) {
+                buf[0] = "monster"; // simplified — full monsterName needs item-naming context
+            },
+            monsterAtLoc,
+            monstersAreEnemies(_monst1, _monst2) {
+                return true; // simplified
+            },
+            monsterAvoids(_monst, _p) {
+                return false; // simplified
+            },
+            monsterIsInClass(_monst, _monsterClass) {
+                return false; // simplified
+            },
+            isVowelish(word) {
+                return "aeiouAEIOU".includes(word[0] ?? "");
+            },
+            monstersTurn(monst) {
+                // Stub — full monstersTurn needs MonstersTurnContext with ~30 methods
+                // For now, just tick movement speed
+                monst.ticksUntilTurn = monst.movementSpeed;
+            },
+            decrementMonsterStatus(_monst) {
+                // Stub — full decrementMonsterStatus needs MonsterStateContext
+                return false; // monster survived
+            },
+            removeCreature(list, monst) {
+                const idx = list.indexOf(monst);
+                if (idx >= 0) { list.splice(idx, 1); return true; }
+                return false;
+            },
+            prependCreature(list, monst) {
+                list.unshift(monst);
+            },
+
+            // -- Item helpers ------------------------------------------------
+            itemName(_theItem, buf, _includeDetails, _includeArticle, _maxLen) {
+                buf[0] = "item"; // simplified
+            },
+            numberOfMatchingPackItems(category, _kind, _flags, _checkCarried) {
+                let count = 0;
+                for (const item of packItems) {
+                    if (item.category & category) count++;
+                }
+                return count;
+            },
+
+            // -- Combat helpers ----------------------------------------------
+            inflictDamage(_attacker, _defender, _damage, _flashColor, _showDamage) {
+                return false; // stub — full inflictDamage needs CombatDamageContext
+            },
+            killCreature(_monst, _administrativeDeath) {
+                // stub — full killCreature needs CombatDamageContext
+            },
+            combatMessage(_msg, _color) {
+                // stub
+            },
+            displayCombatText() {
+                // stub
+            },
+            messageColorFromVictim(_monst) {
+                return Colors.white;
+            },
+            addPoison(_monst, _totalDamage, _concentrationIncrement) {
+                // stub
+            },
+            flashMonster(_monst, _color, _strength) {
+                // stub
+            },
+
+            // -- UI ----------------------------------------------------------
+            message(_msg, _flags) { /* stub */ },
+            messageWithColor(_msg, _color, _flags) { /* stub */ },
+            flavorMessage(_msg) { /* stub */ },
+            refreshDungeonCell(loc) {
+                const { glyph, foreColor, backColor } = getCellAppearance(loc);
+                plotCharWithColor(glyph, { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) }, foreColor, backColor, displayBuffer);
+            },
+            displayLevel() {
+                displayLevelFn();
+                commitDraws();
+            },
+            displayAnnotation() { /* stub — recordings not wired */ },
+            refreshSideBar(_x, _y, _forceFullUpdate) { /* stub */ },
+            gameOver(_message, _showScore) {
+                rogue.gameHasEnded = true;
+            },
+            confirm(_message, _isDangerous) {
+                return true; // auto-confirm for now
+            },
+            flashMessage(_msg, _x, _y, _duration, _foreColor, _backColor) { /* stub */ },
+            recordKeystroke(_key, _shift, _alt) { /* stub */ },
+            confirmMessages() { /* stub */ },
+            pauseAnimation(_duration, _behavior) {
+                return false; // not interrupted
+            },
+
+            // -- Colors ------------------------------------------------------
+            goodMessageColor: Colors.goodMessageColor,
+            badMessageColor: Colors.badMessageColor,
+            advancementMessageColor: Colors.advancementMessageColor,
+            itemMessageColor: Colors.itemMessageColor,
+            orange: Colors.orange,
+            green: Colors.green,
+            red: Colors.red,
+            yellow: Colors.yellow,
+            darkRed: Colors.darkRed,
+            darkGreen: Colors.darkGreen,
+
+            // -- Environment / vision ----------------------------------------
+            updateEnvironment() {
+                // Stub — full updateEnvironment needs EnvironmentContext
+            },
+            updateVision(refreshDisplay) {
+                updateVisionFn(refreshDisplay);
+            },
+            updateMapToShore() {
+                // Stub — uses Dijkstra, complex context
+            },
+            updateSafetyMap() {
+                // Stub — needs SafetyMapsContext
+            },
+            refreshWaypoint(_index) {
+                // Stub — needs ArchitectContext
+            },
+            analyzeMap(_updateChokemap) {
+                // Stub — needs AnalysisContext
+            },
+            removeDeadMonsters() {
+                // Simple inline: remove monsters marked as dying
+                for (let i = monsters.length - 1; i >= 0; i--) {
+                    if (monsters[i].bookkeepingFlags & 0x4000 /* MB_IS_DYING */) {
+                        monsters.splice(i, 1);
+                    }
+                }
+            },
+            shuffleTerrainColors(_duration, _b) {
+                // Stub — already available but context-heavy
+            },
+            resetDFMessageEligibility() {
+                resetDFMessageEligibility(dungeonFeatureCatalog as unknown as DungeonFeature[]);
+            },
+            RNGCheck() { /* stub — recordings */ },
+            animateFlares(_flares, _count) { /* stub */ },
+
+            // -- Scent / FOV -------------------------------------------------
+            addScentToCell(_x, _y, _distance) {
+                // Stub — needs scent map logic
+            },
+            getFOVMask(grid, cx, cy, radius, blockFlags, blockTMFlags, ignoreWalls) {
+                const fovCtx: FOVContext = {
+                    cellHasTerrainFlag: cellHasTerrainFlagAt,
+                    getCellFlags: (x, y) => pmap[x]?.[y]?.flags ?? 0,
+                };
+                getFOVMaskFn(grid, cx, cy, radius, blockFlags, blockTMFlags, ignoreWalls, fovCtx);
+            },
+            zeroOutGrid,
+            discoverCell(_x, _y) {
+                // Stub — marks cell as discovered
+                if (coordinatesAreInMap(_x, _y)) {
+                    pmap[_x][_y].flags |= TileFlag.DISCOVERED;
+                }
+            },
+            discover(_x, _y) {
+                if (coordinatesAreInMap(_x, _y)) {
+                    pmap[_x][_y].flags |= TileFlag.DISCOVERED;
+                }
+            },
+            storeMemories(_x, _y) {
+                // Stub — stores terrain memory for visited cells
+            },
+
+            // -- Items / recharging ------------------------------------------
+            rechargeItemsIncrementally(_multiplier) {
+                // Stub — needs full item context
+            },
+            processIncrementalAutoID() {
+                // Stub — needs full item context
+            },
+
+            // -- Tile effects ------------------------------------------------
+            applyInstantTileEffectsToCreature(_monst) {
+                // Stub — needs CreatureEffectsContext
+            },
+            applyGradualTileEffectsToCreature(_monst, _ticks) {
+                // Stub — needs CreatureEffectsContext
+            },
+            monsterShouldFall(_monst) {
+                return false; // stub
+            },
+            monstersFall() {
+                // Stub — needs CreatureEffectsContext
+            },
+            decrementPlayerStatus() {
+                // Stub — needs CreatureEffectsContext
+            },
+            playerFalls() {
+                // Stub — needs CreatureEffectsContext
+            },
+            handleHealthAlerts() {
+                // Stub — not yet ported
+            },
+            updateScent() {
+                // Stub — not yet ported as standalone function
+                rogue.scentTurnNumber++;
+            },
+            currentStealthRange() {
+                return 0; // simplified
+            },
+
+            // -- Movement / search -------------------------------------------
+            search(_searchStrength) {
+                return false; // stub
+            },
+            playerCanDirectlySee,
+            playerCanSee,
+
+            // -- Spawn -------------------------------------------------------
+            spawnDungeonFeature(_x, _y, _feat, _isVolatile, _overrideProtection) {
+                // Stub — needs full MachineContext for spawnDungeonFeature
+            },
+
+            // -- Constants ---------------------------------------------------
+            nbDirs,
+
+            // -- Math --------------------------------------------------------
+            rand_range: randRange,
+            rand_percent: randPercent,
+            max: Math.max,
+            min: Math.min,
+        };
+    }
+
+    /**
+     * Shared function to call the real playerTurnEnded with the full context.
+     */
+    function doPlayerTurnEnded(): void {
+        playerTurnEndedFn(buildTurnProcessingContext());
+        // Refresh display after turn processing
+        displayLevelFn();
+        commitDraws();
     }
 
     /**
@@ -2305,12 +2618,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 rogue.disturbed = runCtx.rogue.disturbed;
             },
             playerTurnEnded() {
-                // Simplified turn processing — Step 3d will wire the full pipeline
-                rogue.playerTurnNumber++;
-                rogue.absoluteTurnNumber++;
-                updateVisionFn(true);
-                displayLevelFn();
-                commitDraws();
+                doPlayerTurnEnded();
             },
             autoRest() {
                 const miscCtx = buildMiscHelpersContext();
