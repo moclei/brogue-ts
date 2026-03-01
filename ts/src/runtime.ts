@@ -288,18 +288,22 @@ import type { LevelContext } from "./game/game-level.js";
 import { bakeTerrainColors } from "./io/io-appearance.js";
 
 // -- Item imports -------------------------------------------------------------
-import { generateItem } from "./items/item-generation.js";
-import { addItemToPack } from "./items/item-inventory.js";
-import { identify } from "./items/item-naming.js";
+import { generateItem, initializeItem as initializeItemFn, itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
+import { addItemToPack, removeItemFromArray, numberOfItemsInPack as numberOfItemsInPackFn, numberOfMatchingPackItems as numberOfMatchingPackItemsFn, itemAtLoc as itemAtLocFn, canPickUpItem } from "./items/item-inventory.js";
+import { identify, identifyItemKind as identifyItemKindFn, itemName as itemNameFn, isVowelish as isVowelishFn, itemValue as itemValueFn } from "./items/item-naming.js";
+import type { ItemNamingContext } from "./items/item-naming.js";
 import { shuffleFlavors } from "./items/item-naming.js";
-import { equipItem, recalculateEquipmentBonuses } from "./items/item-usage.js";
+import { equipItem, unequipItem, recalculateEquipmentBonuses, updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn } from "./items/item-usage.js";
 import type { EquipContext, EquipmentState } from "./items/item-usage.js";
+import { updateIdentifiableItems as updateIdentifiableItemsFn } from "./items/item-handlers.js";
+import { useKeyAt as useKeyAtFn } from "./movement/item-helpers.js";
+import type { ItemHelperContext } from "./movement/item-helpers.js";
 
 // -- Catalog imports ----------------------------------------------------------
 import { monsterCatalog as monsterCatalogData } from "./globals/monster-catalog.js";
 import { lightCatalog as lightCatalogData } from "./globals/light-catalog.js";
 import { meteredItemsGenerationTable as meteredItemsGenTable } from "./globals/item-catalog.js";
-import { scrollTable, potionTable, lumenstoneDistribution } from "./globals/item-catalog.js";
+import { scrollTable, potionTable, lumenstoneDistribution, staffTable, ringTable, wandTable, charmTable } from "./globals/item-catalog.js";
 import { populateItems as populateItemsFn } from "./items/item-population.js";
 import { populateMonsters as populateMonstersFn, spawnHorde as spawnHordeFn } from "./monsters/monster-spawning.js";
 import { generateMonster as generateMonsterFn } from "./monsters/monster-creation.js";
@@ -974,8 +978,10 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             monsterAtLoc: monsterAtLocFn,
             playerCanSee: (_x, _y) => !!(pmap[_x]?.[_y]?.flags & TileFlag.VISIBLE),
             playerCanSeeOrSense: (_x, _y) => !!(pmap[_x]?.[_y]?.flags & TileFlag.VISIBLE),
-            itemAtLoc: () => null,
-            itemName: () => {},
+            itemAtLoc: (loc: Pos) => itemAtLocFn(loc, floorItems),
+            itemName(theItem: Item, buf: string[], includeDetails: boolean, includeArticle: boolean, _maxLen: number | null): void {
+                buf[0] = itemNameFn(theItem, includeDetails, includeArticle, buildItemNamingContext());
+            },
             messageWithColor: msgOps.messageWithColor,
             refreshDungeonCell: () => {},
             discoverCell: () => {},
@@ -1371,6 +1377,293 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     // Cache a single instance of message ops to spread into DI contexts
     const msgOps = buildMessageOps();
 
+    // =========================================================================
+    // Item naming & query helpers — Phase 2: Item Interaction
+    // =========================================================================
+
+    /**
+     * Build a shared ItemNamingContext for itemName() calls.
+     * Always returns a fresh snapshot of current game state (depthLevel may change).
+     */
+    function buildItemNamingContext(): ItemNamingContext {
+        return {
+            gameConstants: gameConst,
+            depthLevel: rogue.depthLevel,
+            potionTable: potionTable as unknown as ItemTable[],
+            scrollTable: scrollTable as unknown as ItemTable[],
+            wandTable: wandTable as unknown as ItemTable[],
+            staffTable: staffTable as unknown as ItemTable[],
+            ringTable: ringTable as unknown as ItemTable[],
+            charmTable: charmTable as unknown as ItemTable[],
+            playbackOmniscience: rogue.playbackOmniscience,
+            monsterClassName(classId: number): string {
+                return monsterClassCatalog[classId]?.name ?? "unknown";
+            },
+        };
+    }
+
+    /**
+     * Convenience: get item name as a string (wraps the ported itemNameFn).
+     */
+    function getItemName(theItem: Item, includeDetails: boolean, includeArticle: boolean): string {
+        return itemNameFn(theItem, includeDetails, includeArticle, buildItemNamingContext());
+    }
+
+    /**
+     * Build the shared item operations helper (like buildMessageOps for messages).
+     * Every DI context that needs item queries can use these.
+     */
+    // Item ops helpers (getItemName, itemAtLocFn, etc.) are used directly in context builders.
+
+    /**
+     * Build a full EquipContext from current rogue state.
+     * Used for equip/unequip operations during gameplay (not just init).
+     */
+    function buildFullEquipContext(): EquipContext {
+        const equipState: EquipmentState = {
+            player,
+            weapon: rogue.weapon,
+            armor: rogue.armor,
+            ringLeft: rogue.ringLeft,
+            ringRight: rogue.ringRight,
+            strength: rogue.strength,
+            clairvoyance: rogue.clairvoyance,
+            stealthBonus: rogue.stealthBonus,
+            regenerationBonus: rogue.regenerationBonus,
+            lightMultiplier: rogue.lightMultiplier,
+            awarenessBonus: 0,
+            transference: rogue.transference,
+            wisdomBonus: rogue.wisdomBonus,
+            reaping: rogue.reaping,
+        };
+        return {
+            state: equipState,
+            message: (text, _requireAck) => msgOps.message(text, 0),
+            updateRingBonuses: () => updateRingBonusesFn(equipState),
+            updateEncumbrance: () => updateEncumbranceFn(equipState),
+            itemName: getItemName,
+            identifyItemKind: (theItem) => identifyItemKindFn(theItem, gameConst),
+            displayLevel: () => { displayLevelFn(); commitDraws(); },
+            updateClairvoyance: () => { /* stub — deferred */ },
+            updateFieldOfViewDisplay: () => { updateVisionFn(true); },
+            updateMinersLightRadius: () => { /* stub — deferred */ },
+            updatePlayerRegenerationDelay: () => { /* stub — deferred */ },
+        };
+    }
+
+    /**
+     * Sync equipment state from a full EquipContext back to rogue state.
+     */
+    function syncFullEquipState(equipCtx: EquipContext): void {
+        rogue.weapon = equipCtx.state.weapon;
+        rogue.armor = equipCtx.state.armor;
+        rogue.ringLeft = equipCtx.state.ringLeft;
+        rogue.ringRight = equipCtx.state.ringRight;
+        rogue.strength = equipCtx.state.strength;
+        rogue.clairvoyance = equipCtx.state.clairvoyance;
+        rogue.stealthBonus = equipCtx.state.stealthBonus;
+        rogue.regenerationBonus = equipCtx.state.regenerationBonus;
+        rogue.lightMultiplier = equipCtx.state.lightMultiplier;
+        rogue.transference = equipCtx.state.transference;
+        rogue.wisdomBonus = equipCtx.state.wisdomBonus;
+        rogue.reaping = equipCtx.state.reaping;
+    }
+
+    /**
+     * Remove a floor item at a given location and clear the HAS_ITEM flag.
+     * Also promotes terrain with T_PROMOTES_ON_ITEM_PICKUP if applicable.
+     */
+    function removeItemAt(loc: Pos): void {
+        pmap[loc.x][loc.y].flags &= ~TileFlag.HAS_ITEM;
+        // Check for terrain promotion on item pickup
+        for (let layer = 0; layer < NUMBER_TERRAIN_LAYERS; layer++) {
+            const tile = tileCatalog[pmap[loc.x][loc.y].layers[layer]];
+            if (tile && (tile as any).mechFlags & TerrainMechFlag.TM_PROMOTES_ON_ITEM_PICKUP) {
+                // promoteTile stub — deferred to Phase 3
+            }
+        }
+    }
+
+    /**
+     * Pick up item at a given location and add to pack.
+     * Ported from C: pickUpItemAt() in Items.c:836
+     */
+    function pickUpItemAtImpl(loc: Pos): void {
+        rogue.disturbed = true;
+
+        const theItem = itemAtLocFn(loc, floorItems);
+        if (!theItem) {
+            msgOps.message("Error: Expected item; item not found.", 0);
+            return;
+        }
+
+        // Auto-ID items with ITEM_KIND_AUTO_ID flag
+        if (theItem.flags & ItemFlag.ITEM_KIND_AUTO_ID) {
+            identifyItemKindFn(theItem, gameConst);
+        }
+
+        // Wand identification if table is identified and bounds match
+        if ((theItem.category & ItemCategory.WAND)
+            && (wandTable as unknown as ItemTable[])[theItem.kind]?.identified) {
+            const table = (wandTable as unknown as ItemTable[])[theItem.kind];
+            if (table.range.lowerBound === table.range.upperBound) {
+                theItem.flags |= ItemFlag.ITEM_IDENTIFIED;
+            }
+        }
+
+        if (canPickUpItem(theItem, packItems)) {
+            // Remove from floor
+            pmap[loc.x][loc.y].flags &= ~TileFlag.ITEM_DETECTED;
+
+            removeItemFromArray(theItem, floorItems);
+
+            if (theItem.category & ItemCategory.GOLD) {
+                rogue.gold += theItem.quantity;
+                msgOps.messageWithColor(
+                    `you found ${theItem.quantity} pieces of gold.`,
+                    Colors.itemMessageColor,
+                    0,
+                );
+                removeItemAt(loc);
+                return;
+            }
+
+            if ((theItem.category & ItemCategory.AMULET)
+                && numberOfMatchingPackItemsFn(packItems, ItemCategory.AMULET, 0, 0) > 0) {
+                msgOps.message("you already have the Amulet of Yendor.", 0);
+                return;
+            }
+
+            const addedItem = addItemToPack(theItem, packItems);
+
+            const name = getItemName(addedItem, true, true);
+            msgOps.messageWithColor(
+                `you now have ${name} (${addedItem.inventoryLetter}).`,
+                Colors.itemMessageColor,
+                0,
+            );
+
+            removeItemAt(loc);
+
+            // Amulet guardian logic
+            if (addedItem.category & ItemCategory.AMULET) {
+                if (!rogue.yendorWarden) {
+                    for (const monst of monsters) {
+                        if (monst.info.monsterID === MonsterType.MK_WARDEN_OF_YENDOR) {
+                            rogue.yendorWarden = monst;
+                            break;
+                        }
+                    }
+                }
+            }
+        } else {
+            const name = getItemName(theItem, true, true);
+            msgOps.messageWithColor(
+                `your pack is too full to pick up ${name}.`,
+                Colors.badMessageColor,
+                0,
+            );
+        }
+    }
+
+    /**
+     * Check if a tile should promote because its key was removed.
+     * Ported from C: checkForMissingKeys() in Items.c:4310
+     */
+    function checkForMissingKeysImpl(x: number, y: number): void {
+        if (cellHasTMFlagAt({ x, y }, TerrainMechFlag.TM_PROMOTES_WITHOUT_KEY)) {
+            // Check if there's a key at this location (on floor or carried by monster)
+            let keyFound = false;
+            for (const item of floorItems) {
+                if (item.loc.x === x && item.loc.y === y && (item.category & ItemCategory.KEY)) {
+                    keyFound = true;
+                    break;
+                }
+            }
+            if (!keyFound) {
+                for (let layer = 0; layer < NUMBER_TERRAIN_LAYERS; layer++) {
+                    const tile = tileCatalog[pmap[x][y].layers[layer]];
+                    if (tile && (tile as any).mechFlags & TerrainMechFlag.TM_PROMOTES_WITHOUT_KEY) {
+                        // promoteTile stub — deferred to Phase 3
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Make a monster drop its carried item on the ground.
+     * Ported from C: makeMonsterDropItem() in Monsters.c:4065
+     */
+    function makeMonsterDropItemImpl(monst: Creature): void {
+        if (!monst.carriedItem) return;
+
+        const dropLoc = { ...monst.loc }; // simplified: drop at monster's location
+        const item = monst.carriedItem;
+        monst.carriedItem = null;
+
+        item.loc = { ...dropLoc };
+
+        // Try to find a free adjacent cell if the current one has an item
+        if (pmap[dropLoc.x][dropLoc.y].flags & TileFlag.HAS_ITEM) {
+            for (let i = 0; i < 8; i++) {
+                const nx = dropLoc.x + nbDirs[i][0];
+                const ny = dropLoc.y + nbDirs[i][1];
+                if (coordinatesAreInMap(nx, ny)
+                    && !(pmap[nx][ny].flags & (TileFlag.HAS_ITEM | TileFlag.HAS_PLAYER | TileFlag.HAS_STAIRS))
+                    && !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_ITEMS)) {
+                    item.loc = { x: nx, y: ny };
+                    break;
+                }
+            }
+        }
+
+        floorItems.push(item);
+        pmap[item.loc.x][item.loc.y].flags |= TileFlag.HAS_ITEM;
+
+        const { glyph, foreColor, backColor } = getCellAppearance(item.loc);
+        plotCharWithColor(glyph, { windowX: mapToWindowX(item.loc.x), windowY: mapToWindowY(item.loc.y) }, foreColor, backColor, displayBuffer);
+    }
+
+    /**
+     * Build an ItemHelperContext for useKeyAt() and related helpers.
+     */
+    function buildItemHelperContext(): ItemHelperContext {
+        return {
+            pmap,
+            player,
+            rogue: { playbackOmniscience: rogue.playbackOmniscience },
+            tileCatalog: tileCatalog as any,
+            initializeItem: initializeItemFn,
+            itemName(theItem: Item, buf: string[], includeDetails: boolean, includeArticle: boolean, _maxLen: number | null): void {
+                buf[0] = itemNameFn(theItem, includeDetails, includeArticle, buildItemNamingContext());
+            },
+            describeHallucinatedItem(buf: string[]): void {
+                buf[0] = "a strange item";
+            },
+            removeItemFromChain: removeItemFromArray,
+            deleteItem(_theItem: Item): void {
+                // GC handles cleanup in TS
+            },
+            monsterAtLoc: monsterAtLocFn,
+            promoteTile(_x: number, _y: number, _layer: number, _isVolatile: boolean): void {
+                // stub — deferred to Phase 3
+            },
+            messageWithColor: msgOps.messageWithColor,
+            itemMessageColor: Colors.itemMessageColor,
+            packItems,
+            floorItems,
+            cellHasTerrainFlag: cellHasTerrainFlagAt,
+            cellHasTMFlag: cellHasTMFlagAt,
+            coordinatesAreInMap,
+            playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+            distanceBetween,
+            discover: (_x: number, _y: number) => { /* stub */ },
+            randPercent,
+            posEq: (a: Pos, b: Pos) => a.x === b.x && a.y === b.y,
+        };
+    }
+
     // -- ButtonContext (needed by several menu functions) ----------------------
     const buttonCtx: ButtonContext = {
         rogue,
@@ -1458,11 +1751,11 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         ) {
             return buttonInputLoopFn(buttons, count, winX, winY, winWidth, winHeight, buttonCtx);
         },
-        printCarriedItemDetails: () => 0,       // stub
-        itemName: () => "item",                  // stub
+        printCarriedItemDetails: () => 0,       // stub — needs SidebarContext (Phase 5)
+        itemName: getItemName,
         upperCase: (s: string) => s.toUpperCase(),
-        itemMagicPolarity: () => 0,              // stub
-        numberOfItemsInPack: () => 0,            // stub
+        itemMagicPolarity: itemMagicPolarityFn,
+        numberOfItemsInPack: () => numberOfItemsInPackFn(packItems),
         clearCursorPath: () => {},               // stub
         confirmMessages: msgOps.confirmMessages,
         message: msgOps.message,
@@ -1504,7 +1797,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             updateEncumbrance: () => {
                 recalculateEquipmentBonuses(equipState);
             },
-            itemName: () => "item",
+            itemName: getItemName,
         };
     }
 
@@ -2091,22 +2384,11 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             },
             shuffleTerrainColors: shuffleTerrainColorsFn,
 
-            numberOfMatchingPackItems(_category, _flags, _flags2, _useFlags) {
-                // Simplified: count items in pack matching category
-                let count = 0;
-                for (const item of packItems) {
-                    if (item.category & _category) count++;
-                }
-                return count;
-            },
-            itemAtLoc(loc: Pos) {
-                for (const item of floorItems) {
-                    if (item.loc.x === loc.x && item.loc.y === loc.y) return item;
-                }
-                return null;
-            },
-            describedItemName(_item: Item) {
-                return "an item"; // Simplified
+            numberOfMatchingPackItems: (_category: number, _flags: number, _flags2: number, _useFlags: boolean) =>
+                numberOfMatchingPackItemsFn(packItems, _category, _flags, _flags2),
+            itemAtLoc: (loc: Pos) => itemAtLocFn(loc, floorItems),
+            describedItemName(theItem: Item) {
+                return getItemName(theItem, true, true);
             },
             generateItem(category: number, kind: number): Item {
                 return generateItem(category, kind, {
@@ -2282,8 +2564,10 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             monsterAtLoc: monsterAtLocFn,
             playerCanSee: (_x, _y) => !!(pmap[_x]?.[_y]?.flags & TileFlag.VISIBLE),
             playerCanSeeOrSense: (_x, _y) => !!(pmap[_x]?.[_y]?.flags & TileFlag.VISIBLE),
-            itemAtLoc: () => null,
-            itemName: () => {},
+            itemAtLoc: (loc: Pos) => itemAtLocFn(loc, floorItems),
+            itemName(theItem: Item, buf: string[], includeDetails: boolean, includeArticle: boolean, _maxLen: number | null): void {
+                buf[0] = itemNameFn(theItem, includeDetails, includeArticle, buildItemNamingContext());
+            },
             messageWithColor: msgOps.messageWithColor,
             refreshDungeonCell: () => {},
             discoverCell: () => {},
@@ -2374,12 +2658,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 }
                 return null;
             },
-            numberOfMatchingPackItems(category, _requiredFlags, _forbiddenFlags, _isBlessed) {
-                let count = 0;
-                for (const item of packItems) {
-                    if (item.category & category) count++;
-                }
-                return count;
+            numberOfMatchingPackItems(category: number, _requiredFlags: number, _forbiddenFlags: number, _isBlessed: boolean) {
+                return numberOfMatchingPackItemsFn(packItems, category, _requiredFlags, _forbiddenFlags);
             },
 
             message: msgOps.message,
@@ -2484,8 +2764,11 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             },
             gameOver(message) { doGameOver(message, false); },
             setCreaturesWillFlash() { rogue.creaturesWillFlashThisTurn = true; },
-            deleteItem() { /* stub */ },
-            makeMonsterDropItem() { /* stub */ },
+            deleteItem(_item: Item): void {
+                // In TS with arrays, items are GC'd after removal from chains.
+                // The caller (killCreature) already handles removeItemFromChain.
+            },
+            makeMonsterDropItem: makeMonsterDropItemImpl,
             clearLastTarget(monst) {
                 if (rogue.lastTarget === monst) rogue.lastTarget = null;
             },
@@ -2515,7 +2798,11 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             resolvePronounEscapes(text, _monst) { return text; },
             message: msgOps.message,
             monsterCatalog,
-            updateEncumbrance() { /* stub */ },
+            updateEncumbrance() {
+                const ctx = buildFullEquipContext();
+                updateEncumbranceFn(ctx.state);
+                syncFullEquipState(ctx);
+            },
             updateMinersLightRadius() { /* stub */ },
             updateVision() { updateVisionFn(true); },
             badMessageColor: Colors.badMessageColor,
@@ -2547,7 +2834,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             decrementWeaponAutoIDTimer() { /* stub */ },
             rechargeItemsIncrementally() { /* stub */ },
             equipItem() { /* stub */ },
-            itemName: () => "item",
+            itemName: (item: Item) => getItemName(item, false, false),
             checkForDisenchantment() { /* stub */ },
             strengthCheck() { /* stub */ },
             itemMessageColor: Colors.itemMessageColor,
@@ -2644,10 +2931,26 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             moveMonster(_monst, _dx, _dy) { /* stub */ },
             getQualifyingPathLocNear(target) { return { ...target }; },
 
-            keyInPackFor: () => null,
-            useKeyAt() { /* stub */ },
-            pickUpItemAt(_loc) { /* stub */ },
-            checkForMissingKeys() { /* stub */ },
+            keyInPackFor(loc: Pos): Item | null {
+                for (const item of packItems) {
+                    if (item.category & ItemCategory.KEY) {
+                        for (let i = 0; i < item.keyLoc.length; i++) {
+                            const kl = item.keyLoc[i];
+                            if (!kl || (!kl.loc.x && !kl.machine)) break;
+                            if ((kl.loc.x === loc.x && kl.loc.y === loc.y)
+                                || kl.machine === pmap[loc.x][loc.y].machineNumber) {
+                                return item;
+                            }
+                        }
+                    }
+                }
+                return null;
+            },
+            useKeyAt(item: Item, x: number, y: number): void {
+                useKeyAtFn(item, x, y, buildItemHelperContext());
+            },
+            pickUpItemAt: pickUpItemAtImpl,
+            checkForMissingKeys: checkForMissingKeysImpl,
 
             freeCaptive() { /* stub */ },
 
@@ -2746,16 +3049,21 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             ringWisdomMultiplier: () => 1,
             charmRechargeDelay: () => 0,
 
-            itemName: () => "item",
+            itemName: (theItem: Item, includeArticle: boolean, includeRunic: boolean) =>
+                itemNameFn(theItem, includeRunic, includeArticle, buildItemNamingContext()),
             identify(item) { identify(item, gameConst); },
-            updateIdentifiableItems() { /* stub */ },
-            numberOfMatchingPackItems(category) {
-                let count = 0;
-                for (const item of packItems) {
-                    if (item.category & category) count++;
-                }
-                return count;
+            updateIdentifiableItems() {
+                updateIdentifiableItemsFn({
+                    packItems,
+                    floorItems,
+                    updateIdentifiableItem(_theItem: Item) {
+                        // Simplified: mark items as identifiable based on usage count
+                        // Full implementation needs autoIdentify logic — deferred
+                    },
+                });
             },
+            numberOfMatchingPackItems: (category: number, requiredFlags?: number, forbiddenFlags?: number, _displayErrors?: boolean) =>
+                numberOfMatchingPackItemsFn(packItems, category, requiredFlags ?? 0, forbiddenFlags ?? 0),
 
             message: msgOps.message,
             messageWithColor: msgOps.messageWithColor,
@@ -2864,25 +3172,16 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             identify(_item) {
                 _item.flags |= ItemFlag.ITEM_IDENTIFIED;
             },
-            itemName(_item, _includeDetails, _includeArticle, _color) {
-                return "item"; // simplified
+            itemName(item: Item, includeDetails: boolean, includeArticle: boolean, _color: Readonly<Color>) {
+                return itemNameFn(item, includeDetails, includeArticle, buildItemNamingContext());
             },
             upperCase(buf) {
                 return buf.charAt(0).toUpperCase() + buf.slice(1);
             },
-            itemValue(_item) {
-                return 0; // simplified — full itemValue from item-naming.ts
-            },
-            numberOfMatchingPackItems(category, _flags, _flags2, _useFlags) {
-                let count = 0;
-                for (const item of packItems) {
-                    if (item.category & category) count++;
-                }
-                return count;
-            },
-            isVowelish(word) {
-                return "aeiouAEIOU".includes(word[0] ?? "");
-            },
+            itemValue: itemValueFn,
+            numberOfMatchingPackItems: (category: number, _flags: number, _flags2: number, _useFlags: boolean) =>
+                numberOfMatchingPackItemsFn(packItems, category, _flags, _flags2),
+            isVowelish: isVowelishFn,
             displayInventory(_categoryMask, _flags, _flags2, _showAll, _justCount) {
                 return 0; // stub
             },
@@ -3139,16 +3438,11 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             },
 
             // -- Item helpers ------------------------------------------------
-            itemName(_theItem, buf, _includeDetails, _includeArticle, _maxLen) {
-                buf[0] = "item"; // simplified
+            itemName(theItem: Item, buf: string[], includeDetails: boolean, includeArticle: boolean, _maxLen: number | null): void {
+                buf[0] = itemNameFn(theItem, includeDetails, includeArticle, buildItemNamingContext());
             },
-            numberOfMatchingPackItems(category, _kind, _flags, _checkCarried) {
-                let count = 0;
-                for (const item of packItems) {
-                    if (item.category & category) count++;
-                }
-                return count;
-            },
+            numberOfMatchingPackItems: (category: number, _kind: number, _flags: number, _checkCarried: boolean) =>
+                numberOfMatchingPackItemsFn(packItems, category, 0, 0),
 
             // -- Combat helpers ----------------------------------------------
             inflictDamage(_attacker, _defender, _damage, _flashColor, _showDamage) {
@@ -3513,14 +3807,70 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 travelRouteFn(path, steps, travelCtx);
                 rogue.disturbed = travelCtx.rogue.disturbed;
             },
-            equip(_item) { /* stub — inventory UI not yet wired */ },
-            unequip(_item) { /* stub */ },
-            drop(_item) { /* stub */ },
-            apply(_item) { /* stub */ },
-            throwCommand(_item, _confirmed) { /* stub */ },
-            relabel(_item) { /* stub */ },
-            call(_item) { /* stub */ },
-            swapLastEquipment() { /* stub */ },
+            equip(theItem: Item | null) {
+                if (!theItem) {
+                    // Needs displayInventory (Phase 5) to prompt for item
+                    msgOps.message("Inventory display not yet available.", 0);
+                    return;
+                }
+                const ctx = buildFullEquipContext();
+                equipItem(theItem, false, null, ctx);
+                syncFullEquipState(ctx);
+            },
+            unequip(theItem: Item | null) {
+                if (!theItem) {
+                    msgOps.message("Inventory display not yet available.", 0);
+                    return;
+                }
+                const ctx = buildFullEquipContext();
+                unequipItem(theItem, false, ctx);
+                syncFullEquipState(ctx);
+            },
+            drop(theItem: Item | null) {
+                if (!theItem) {
+                    msgOps.message("Inventory display not yet available.", 0);
+                    return;
+                }
+                // Remove from pack and place on floor
+                if (theItem.flags & ItemFlag.ITEM_CURSED) {
+                    const name = getItemName(theItem, false, false);
+                    msgOps.message(`you can't; your ${name} appears to be cursed.`, 0);
+                    return;
+                }
+                removeItemFromArray(theItem, packItems);
+                if (theItem.flags & ItemFlag.ITEM_EQUIPPED) {
+                    const ctx = buildFullEquipContext();
+                    unequipItem(theItem, true, ctx);
+                    syncFullEquipState(ctx);
+                }
+                theItem.loc = { ...player.loc };
+                floorItems.push(theItem);
+                pmap[player.loc.x][player.loc.y].flags |= TileFlag.HAS_ITEM;
+                const name = getItemName(theItem, true, true);
+                msgOps.messageWithColor(`you dropped ${name}.`, Colors.itemMessageColor, 0);
+            },
+            apply(_item: Item | null) {
+                // apply() needs the full ItemHandlerContext with promptForItemOfType,
+                // targeting, creature helpers, etc. — deferred to Phase 5
+                msgOps.message("Item usage not yet available.", 0);
+            },
+            throwCommand(_item: Item | null, _confirmed: boolean) {
+                // throwCommand needs targeting system — deferred
+                msgOps.message("Throwing not yet available.", 0);
+            },
+            relabel(_item: Item | null) {
+                // relabel needs inventory prompt — deferred
+                msgOps.message("Relabeling not yet available.", 0);
+            },
+            call(_item: Item | null) {
+                // call needs inventory prompt — deferred
+                msgOps.message("Calling not yet available.", 0);
+            },
+            swapLastEquipment() {
+                // Requires lastEquippedWeapon/lastEquippedArmor tracking on rogue state
+                // Deferred until Phase 5 when inventory UI is fully wired
+                msgOps.message("Equipment swapping not yet available.", 0);
+            },
             enableEasyMode() {
                 enableEasyModeFn(buildLifecycleContext());
             },
