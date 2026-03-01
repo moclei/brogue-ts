@@ -72,7 +72,7 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
 
 ## Wire Gameplay Systems
 - [ ] `wire-gameplay-systems` — Wire ~148 remaining runtime stubs to real implementations for full playability
-  - [ ] Phase 1: Messages — text feedback for combat, movement, items (~47 stubs)
+  - [x] Phase 1: Messages — text feedback for combat, movement, items (~47 stubs) — buildMessageOps() + buildMessageContext() + buildEffectsContext(), all message stubs wired across 12+ DI contexts
   - [ ] Phase 2: Item Interaction — pick up, equip, use, drop, throw (~20 stubs)
   - [ ] Phase 3: Monster Lifecycle — death, loot drops, terrain effects (~15 stubs)
   - [ ] Phase 4: Combat Effects — weapon/armor runics, special hits, feats (~10 stubs)

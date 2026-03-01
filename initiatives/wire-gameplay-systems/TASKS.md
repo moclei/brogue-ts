@@ -1,17 +1,21 @@
 # Wire Gameplay Systems — Tasks
 
-## Phase 1: Messages (~47 stubs)
-- [ ] Build shared `buildMessageOps()` helper in `runtime.ts` (wraps `messageFn`, `messageWithColorFn`, `confirmMessagesFn`, `deleteMessagesFn`, `updateMessageDisplayFn`, `displayMoreSignFn`)
-- [ ] Add message state to `RuntimeRogueState` (`messageArchive`, `messageConfirmed`, `messageCount`, `messageBuffer`)
-- [ ] Wire `message()` across all 12+ contexts
-- [ ] Wire `messageWithColor()` across all 8+ contexts
-- [ ] Wire `combatMessage()` across all 3 contexts
-- [ ] Wire `confirmMessages()` across all 6 contexts
-- [ ] Wire `temporaryMessage()`, `flavorMessage()`
-- [ ] Wire `displayMoreSign()` / `displayMoreSignWithoutWaitingForAcknowledgment()`
-- [ ] Wire `flashTemporaryAlert()`, `flashMessage()`
-- [ ] Wire `encodeMessageColor()`
-- [ ] Verify: combat produces visible text, movement messages appear
+## Phase 1: Messages (~47 stubs) ✅
+- [x] Build shared `buildMessageOps()` helper in `runtime.ts` (wraps `messageFn`, `messageWithColorFn`, `confirmMessagesFn`, `deleteMessagesFn`, `updateMessageDisplayFn`, `displayMoreSignFn`, `displayCombatTextFn`, `temporaryMessageFn`, `flavorMessageFn`, `flashTemporaryAlertFn`, `flashMessageFn`, `displayMessageArchiveFn`, `encodeMessageColor`)
+- [x] Build `buildMessageContext()` — full MessageContext from shared runtime state (reactive getters for rogue fields, display buffer, waitForAcknowledgment commit-draws fallback)
+- [x] Build `buildEffectsContext()` — EffectsContext for flash functions used by message system
+- [x] Wire `message()` across all 12 contexts (InventoryCtx, GameInitCtx, InputCtx, AttackCtx, PlayerMoveCtx, MiscHelpersCtx, LifecycleCtx, TurnProcessingCtx, MenuCtx, 2× CostMapFovCtx)
+- [x] Wire `messageWithColor()` across all 10 contexts (same set + LevelCtx, CombatDamageCtx with 2-arg adapter)
+- [x] Wire `combatMessage()` across 4 contexts (CombatDamageCtx, PlayerMoveCtx, TurnProcessingCtx)
+- [x] Wire `confirmMessages()` across 5 contexts
+- [x] Wire `temporaryMessage()`, `flavorMessage()` (InputCtx, TurnProcessingCtx, GameInitCtx)
+- [x] Wire `displayMoreSign()` / `displayMoreSignWithoutWaitingForAcknowledgment()` (LifecycleCtx)
+- [x] Wire `flashTemporaryAlert()`, `flashMessage()` (LifecycleCtx, InputCtx, TurnProcessingCtx)
+- [x] Wire `encodeMessageColor()` (LifecycleCtx, GameInitCtx)
+- [x] Wire `deleteMessages()`, `updateMessageDisplay()`, `displayMessageArchive()`, `displayCombatText()` (InputCtx, LifecycleCtx, TurnProcessingCtx)
+- [x] Wire `displayedMessage` to real `messageState.displayedMessage` in LifecycleCtx
+- [x] Verify: 0 compilation errors, 2263/2263 tests passing
+- [ ] Manual verify: combat produces visible text, movement messages appear
 
 ## Phase 2: Item Interaction (~20 stubs)
 - [ ] Wire `itemName()` — replace "item" stub with real `itemNameFn`

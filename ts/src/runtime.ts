@@ -64,7 +64,7 @@ import {
 import {
     COLS, ROWS, DCOLS, DROWS,
     KEYBOARD_LABELS,
-    MESSAGE_ARCHIVE_ENTRIES,
+    MESSAGE_ARCHIVE_ENTRIES, MESSAGE_LINES,
     MONSTER_CLASS_COUNT,
     NUMBER_TERRAIN_LAYERS,
     REST_KEY, SEARCH_KEY, ESCAPE_KEY,
@@ -76,6 +76,7 @@ import type { InputContext, InputRogueState } from "./io/io-input.js";
 import {
     executeKeystroke as executeKeystrokeFn,
     executeMouseClick as executeMouseClickFn,
+    stripShiftFromMovementKeystroke as stripShiftFromMovementKeystrokeFn,
 } from "./io/io-input.js";
 
 // -- Targeting imports --------------------------------------------------------
@@ -147,10 +148,29 @@ import {
 import type { InventoryContext } from "./io/io-inventory.js";
 
 // -- Message imports ----------------------------------------------------------
-import type { MessageState } from "./io/io-messages.js";
+import type { MessageState, MessageContext } from "./io/io-messages.js";
 import {
     clearMessageArchive as clearMessageArchiveFn,
+    message as messageFn,
+    messageWithColor as messageWithColorFn,
+    combatMessage as combatMessageFn,
+    displayCombatText as displayCombatTextFn,
+    confirmMessages as confirmMessagesFn,
+    deleteMessages as deleteMessagesFn,
+    updateMessageDisplay as updateMessageDisplayFn,
+    displayMoreSign as displayMoreSignFn,
+    displayMoreSignWithoutWaitingForAcknowledgment as displayMoreSignNoWaitFn,
+    temporaryMessage as temporaryMessageFn,
+    flavorMessage as flavorMessageFn,
+    displayMessageArchive as displayMessageArchiveFn,
 } from "./io/io-messages.js";
+
+// -- Visual effects imports ---------------------------------------------------
+import type { EffectsContext } from "./io/io-effects.js";
+import {
+    flashTemporaryAlert as flashTemporaryAlertFn,
+    flashMessage as flashMessageFn,
+} from "./io/io-effects.js";
 
 // -- Async helpers for browser ------------------------------------------------
 import { asyncPause } from "./platform/browser-renderer.js";
@@ -956,7 +976,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             playerCanSeeOrSense: (_x, _y) => !!(pmap[_x]?.[_y]?.flags & TileFlag.VISIBLE),
             itemAtLoc: () => null,
             itemName: () => {},
-            messageWithColor: () => {},
+            messageWithColor: msgOps.messageWithColor,
             refreshDungeonCell: () => {},
             discoverCell: () => {},
             storeMemories: () => {},
@@ -1126,6 +1146,231 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         freeGrid(grid);
     }
 
+    // =========================================================================
+    // Shared message helpers — Phase 1 of Wire Gameplay Systems
+    // =========================================================================
+
+    /**
+     * Build the MessageContext DI object from shared runtime state.
+     * This is the single source of truth for wiring the message system.
+     */
+    function buildMessageContext(): MessageContext {
+        return {
+            rogue: {
+                get playerTurnNumber() { return rogue.playerTurnNumber; },
+                get cautiousMode() { return rogue.cautiousMode; },
+                set cautiousMode(v: boolean) { rogue.cautiousMode = v; },
+                get disturbed() { return rogue.disturbed; },
+                set disturbed(v: boolean) { rogue.disturbed = v; },
+                get autoPlayingLevel() { return rogue.autoPlayingLevel; },
+                get playbackMode() { return rogue.playbackMode; },
+                get playbackOOS() { return rogue.playbackOOS; },
+                get playbackDelayThisTurn() { return rogue.playbackDelayThisTurn; },
+                set playbackDelayThisTurn(v: number) { rogue.playbackDelayThisTurn = v; },
+                get playbackDelayPerTurn() { return rogue.playbackDelayPerTurn; },
+                get playbackFastForward() { return rogue.playbackFastForward; },
+            },
+            messageState,
+            displayBuffer,
+
+            plotCharWithColor(ch, pos, fg, bg) {
+                plotCharWithColor(ch, pos, fg, bg, displayBuffer);
+            },
+            overlayDisplayBuffer(dbuf) { applyOverlay(dbuf); },
+            saveDisplayBuffer() { return saveDisplayBufferFn(displayBuffer); },
+            restoreDisplayBuffer(saved) {
+                restoreDisplayBufferFn(displayBuffer, saved);
+                commitDraws();
+            },
+
+            refreshSideBar(_x, _y, _forceFullUpdate) {
+                // Stub — sidebar wiring is Phase 5
+            },
+            refreshDungeonCell(loc) {
+                const { glyph, foreColor, backColor } = getCellAppearance(loc);
+                plotCharWithColor(glyph, { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) }, foreColor, backColor, displayBuffer);
+            },
+            waitForAcknowledgment() {
+                // In the browser async model, blocking acknowledgment is not possible
+                // from synchronous game code. Commit draws so the player sees the
+                // message; acknowledgment-gated pauses will be upgraded to async in
+                // a later phase when the input loop supports it.
+                commitDraws();
+            },
+            pauseBrogue(_ms, _behavior) {
+                // Synchronous pause not possible in browser — commit draws and return
+                // "not interrupted". Real async pause is handled at the input-loop level.
+                commitDraws();
+                return false;
+            },
+            nextBrogueEvent(_textInput, _colorsDance, _realInput) {
+                // Synchronous event poll — return a no-op event. The async input loop
+                // handles real event delivery.
+                return { eventType: 0, param1: 0, param2: 0, controlKey: false, shiftKey: false } as RogueEvent;
+            },
+            flashTemporaryAlert(msg, ms) {
+                // Forward to the effects implementation via a minimal EffectsContext
+                flashTemporaryAlertFn(msg, ms, buildEffectsContext());
+            },
+            updateFlavorText() {
+                // Stub — flavor text wiring is Phase 5
+            },
+            stripShiftFromMovementKeystroke(keystroke) {
+                return stripShiftFromMovementKeystrokeFn(keystroke);
+            },
+        };
+    }
+
+    /**
+     * Build a minimal EffectsContext for flash functions used by the message system.
+     */
+    function buildEffectsContext(): EffectsContext {
+        return {
+            rogue: {
+                get playbackMode() { return rogue.playbackMode; },
+                get playbackFastForward() { return rogue.playbackFastForward; },
+                get playbackPaused() { return rogue.playbackPaused; },
+                get playbackDelayPerTurn() { return rogue.playbackDelayPerTurn; },
+                get autoPlayingLevel() { return rogue.autoPlayingLevel; },
+                get blockCombatText() { return rogue.blockCombatText; },
+                get creaturesWillFlashThisTurn() { return rogue.creaturesWillFlashThisTurn; },
+                set creaturesWillFlashThisTurn(v: boolean) { rogue.creaturesWillFlashThisTurn = v; },
+            },
+            player,
+            displayBuffer,
+            applyColorAverage,
+            applyColorAugment,
+            bakeColor,
+            separateColors,
+            colorFromComponents(components: readonly number[]) {
+                return { red: components[0] ?? 0, green: components[1] ?? 0, blue: components[2] ?? 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false };
+            },
+            getCellAppearance,
+            plotCharWithColor(glyph, windowPos, fg, bg) {
+                plotCharWithColor(glyph, windowPos, fg, bg, displayBuffer);
+            },
+            refreshDungeonCell(loc) {
+                const { glyph, foreColor, backColor } = getCellAppearance(loc);
+                plotCharWithColor(glyph, { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) }, foreColor, backColor, displayBuffer);
+            },
+            hiliteCell(x, y, color, strength, distinctColors) {
+                const tCtx = buildTargetingContext();
+                hiliteCellFn(x, y, color, strength, distinctColors, tCtx);
+            },
+            overlayDisplayBuffer(dbuf) { applyOverlay(dbuf); },
+            mapToWindow(loc) {
+                return { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) };
+            },
+            windowToMapX: windowToMapXFromDisplay,
+            windowToMapY(windowY) { return windowY - MESSAGE_LINES; },
+            mapToWindowX,
+            strLenWithoutEscapes,
+            printString(text, x, y, fg, bg, dbuf) {
+                printStringFn(text, x, y, fg, bg, dbuf ?? displayBuffer);
+                return strLenWithoutEscapes(text);
+            },
+            pauseBrogue(_ms) {
+                commitDraws();
+                return false;
+            },
+            pauseAnimation(_ms) {
+                commitDraws();
+                return false;
+            },
+            commitDraws,
+            allocGrid,
+            fillGrid,
+            calculateDistances(distanceMap, x, y, blockingFlags, _blockingCellFlags, eightWay, _respectTravel) {
+                calculateDistancesWrapped(distanceMap, x, y, blockingFlags, null, false, eightWay);
+            },
+            iterateCreatures() { return monsters; },
+            canSeeMonster(monst) {
+                return !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE);
+            },
+            displayedMessage: messageState.displayedMessage,
+        };
+    }
+
+    /**
+     * Build a spreadable bag of message operations for use in any DI context.
+     *
+     * Usage:
+     *   const msgOps = buildMessageOps();
+     *   return { ...msgOps, ...otherContextFields };
+     *
+     * Returned methods have the same signatures as the stubs they replace:
+     *   message, messageWithColor, combatMessage, confirmMessages,
+     *   deleteMessages, updateMessageDisplay, displayMoreSign,
+     *   displayMoreSignWithoutWaitingForAcknowledgment, temporaryMessage,
+     *   flavorMessage, flashTemporaryAlert, flashMessage,
+     *   encodeMessageColor, displayMessageArchive, displayCombatText
+     */
+    function buildMessageOps() {
+        return {
+            message(msg: string, flags: number): void {
+                messageFn(buildMessageContext(), msg, flags);
+                commitDraws();
+            },
+            messageWithColor(msg: string, color: Readonly<Color>, flags: number): void {
+                messageWithColorFn(buildMessageContext(), msg, color, flags);
+                commitDraws();
+            },
+            combatMessage(msg: string, color: Readonly<Color> | null): void {
+                combatMessageFn(buildMessageContext(), msg, color);
+            },
+            displayCombatText(): void {
+                displayCombatTextFn(buildMessageContext());
+                commitDraws();
+            },
+            confirmMessages(): void {
+                confirmMessagesFn(buildMessageContext());
+                commitDraws();
+            },
+            deleteMessages(): void {
+                deleteMessagesFn(buildMessageContext());
+                commitDraws();
+            },
+            updateMessageDisplay(): void {
+                updateMessageDisplayFn(buildMessageContext());
+                commitDraws();
+            },
+            displayMoreSign(): void {
+                displayMoreSignFn(buildMessageContext());
+                commitDraws();
+            },
+            displayMoreSignWithoutWaitingForAcknowledgment(): void {
+                displayMoreSignNoWaitFn(buildMessageContext());
+                commitDraws();
+            },
+            temporaryMessage(msg: string, flags: number): void {
+                temporaryMessageFn(buildMessageContext(), msg, flags);
+                commitDraws();
+            },
+            flavorMessage(msg: string): void {
+                flavorMessageFn(buildMessageContext(), msg);
+                commitDraws();
+            },
+            flashTemporaryAlert(msg: string, time: number): void {
+                flashTemporaryAlertFn(msg, time, buildEffectsContext());
+                commitDraws();
+            },
+            flashMessage(msg: string, x: number, y: number, duration: number, foreColor: Readonly<Color>, backColor: Readonly<Color>): void {
+                flashMessageFn(msg, x, y, duration, foreColor, backColor, buildEffectsContext());
+                commitDraws();
+            },
+            encodeMessageColor(buf: string[], pos: number, color: Readonly<Color>): void {
+                buf[pos] = encodeMessageColor(color);
+            },
+            displayMessageArchive(): void {
+                displayMessageArchiveFn(buildMessageContext());
+                commitDraws();
+            },
+        };
+    }
+
+    // Cache a single instance of message ops to spread into DI contexts
+    const msgOps = buildMessageOps();
+
     // -- ButtonContext (needed by several menu functions) ----------------------
     const buttonCtx: ButtonContext = {
         rogue,
@@ -1219,8 +1464,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         itemMagicPolarity: () => 0,              // stub
         numberOfItemsInPack: () => 0,            // stub
         clearCursorPath: () => {},               // stub
-        confirmMessages: () => {},               // stub
-        message: (_msg: string, _flags: number) => {},  // stub
+        confirmMessages: msgOps.confirmMessages,
+        message: msgOps.message,
         mapToWindowX,
         mapToWindowY,
         white: Colors.white,
@@ -1521,20 +1766,12 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             displayBuffer,
 
             // Messages
-            message(_msg: string, _flags: number): void {
-                // TODO: Wire to full message system in Step 3c
-            },
-            messageWithColor(_msg: string, _color: Readonly<Color>, _flags: number): void {
-                // TODO: Wire to full message system in Step 3c
-            },
-            flavorMessage(_msg: string): void {
-                // TODO: Wire to full message system in Step 3c
-            },
+            message: msgOps.message,
+            messageWithColor: msgOps.messageWithColor,
+            flavorMessage: msgOps.flavorMessage,
 
             // Color encoding - adapts the (color) => string API to the (buf, pos, color) => void API
-            encodeMessageColor(buf: string[], pos: number, color: Readonly<Color>): void {
-                buf[pos] = encodeMessageColor(color);
-            },
+            encodeMessageColor: msgOps.encodeMessageColor,
 
             // Colors
             itemMessageColor: Colors.itemMessageColor,
@@ -1952,9 +2189,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             refreshSideBar(_x, _y, _justClearing) {
                 // Stub — sidebar not yet wired
             },
-            messageWithColor(_msg, _color, _flags) {
-                // TODO: Wire to full message system
-            },
+            messageWithColor: msgOps.messageWithColor,
             RNGCheck() {
                 // No-op for now — recording validation
             },
@@ -2049,7 +2284,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             playerCanSeeOrSense: (_x, _y) => !!(pmap[_x]?.[_y]?.flags & TileFlag.VISIBLE),
             itemAtLoc: () => null,
             itemName: () => {},
-            messageWithColor: () => {},
+            messageWithColor: msgOps.messageWithColor,
             refreshDungeonCell: () => {},
             discoverCell: () => {},
             storeMemories: () => {},
@@ -2147,9 +2382,9 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 return count;
             },
 
-            message(_msg, _flags) { /* stub */ },
-            messageWithColor(_msg, _color, _flags) { /* stub */ },
-            confirmMessages() { /* stub */ },
+            message: msgOps.message,
+            messageWithColor: msgOps.messageWithColor,
+            confirmMessages: msgOps.confirmMessages,
             hiliteCell(x, y, color, strength, saveBuf) {
                 const tCtx = buildTargetingContext();
                 hiliteCellFn(x, y, color, strength, saveBuf, tCtx);
@@ -2238,8 +2473,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             },
             spawnDungeonFeature() { /* stub */ },
             refreshSideBar() { /* stub */ },
-            combatMessage(_text, _color) { /* stub — messages not wired yet */ },
-            messageWithColor(_text, _color) { /* stub */ },
+            combatMessage: msgOps.combatMessage,
+            messageWithColor(text, color) { msgOps.messageWithColor(text, color, 0); },
             monsterName(monst, includeArticle) {
                 if (monst === player) return "you";
                 const article = includeArticle
@@ -2278,7 +2513,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             checkForContinuedLeadership() { /* stub */ },
             getMonsterDFMessage: () => "",
             resolvePronounEscapes(text, _monst) { return text; },
-            message(_text, _flags) { /* stub */ },
+            message: msgOps.message,
             monsterCatalog,
             updateEncumbrance() { /* stub */ },
             updateMinersLightRadius() { /* stub */ },
@@ -2438,9 +2673,9 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             cancelKeystroke() { /* stub */ },
             confirm: () => true,
 
-            message(_msg, _flags) { /* stub */ },
-            messageWithColor(_msg, _color, _flags) { /* stub */ },
-            combatMessage(_msg, _color) { /* stub */ },
+            message: msgOps.message,
+            messageWithColor: msgOps.messageWithColor,
+            combatMessage: msgOps.combatMessage,
             backgroundMessageColor: Colors.backgroundMessageColor,
 
             randPercent: randPercent,
@@ -2522,8 +2757,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 return count;
             },
 
-            message(_msg, _flags) { /* stub */ },
-            messageWithColor(_msg, _color, _flags) { /* stub */ },
+            message: msgOps.message,
+            messageWithColor: msgOps.messageWithColor,
 
             monsterAvoids: () => false,
             canSeeMonster: (monst) => !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE),
@@ -2609,13 +2844,13 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             mapToWindowY,
 
             // -- Messages & dialogs -----------------------------------------------
-            message(_msg, _flags) { /* stub */ },
-            messageWithColor(_msg, _color, _flags) { /* stub */ },
-            confirmMessages() { /* stub */ },
-            deleteMessages() { /* stub */ },
-            displayMoreSign() { /* stub — needs async waitForAcknowledgment */ },
-            displayMoreSignWithoutWaitingForAcknowledgment() { /* stub */ },
-            flashTemporaryAlert(_msg, _time) { /* stub */ },
+            message: msgOps.message,
+            messageWithColor: msgOps.messageWithColor,
+            confirmMessages: msgOps.confirmMessages,
+            deleteMessages: msgOps.deleteMessages,
+            displayMoreSign: msgOps.displayMoreSign,
+            displayMoreSignWithoutWaitingForAcknowledgment: msgOps.displayMoreSignWithoutWaitingForAcknowledgment,
+            flashTemporaryAlert: msgOps.flashTemporaryAlert,
             confirm(_prompt, _alsoDuringPlayback) { return true; },
 
             // -- Input ------------------------------------------------------------
@@ -2667,7 +2902,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 const { glyph, foreColor, backColor } = getCellAppearance(loc);
                 plotCharWithColor(glyph, { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) }, foreColor, backColor, displayBuffer);
             },
-            encodeMessageColor(_buf, _pos, _color) { /* stub */ },
+            encodeMessageColor: msgOps.encodeMessageColor,
 
             // -- Color references -------------------------------------------------
             black: Colors.black,
@@ -2681,7 +2916,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             superVictoryColor: Colors.superVictoryColor ?? Colors.white,
 
             // -- Displayed messages (writable) ------------------------------------
-            displayedMessage: [""],
+            displayedMessage: messageState.displayedMessage,
 
             // -- Glyph references -------------------------------------------------
             G_GOLD: DisplayGlyph.G_GOLD,
@@ -2922,12 +3157,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             killCreature(_monst, _administrativeDeath) {
                 // stub — full killCreature needs CombatDamageContext
             },
-            combatMessage(_msg, _color) {
-                // stub
-            },
-            displayCombatText() {
-                // stub
-            },
+            combatMessage: msgOps.combatMessage,
+            displayCombatText: msgOps.displayCombatText,
             messageColorFromVictim(_monst) {
                 return Colors.white;
             },
@@ -2939,9 +3170,9 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             },
 
             // -- UI ----------------------------------------------------------
-            message(_msg, _flags) { /* stub */ },
-            messageWithColor(_msg, _color, _flags) { /* stub */ },
-            flavorMessage(_msg) { /* stub */ },
+            message: msgOps.message,
+            messageWithColor: msgOps.messageWithColor,
+            flavorMessage: msgOps.flavorMessage,
             refreshDungeonCell(loc) {
                 const { glyph, foreColor, backColor } = getCellAppearance(loc);
                 plotCharWithColor(glyph, { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) }, foreColor, backColor, displayBuffer);
@@ -2958,9 +3189,9 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             confirm(_message, _isDangerous) {
                 return true; // auto-confirm for now
             },
-            flashMessage(_msg, _x, _y, _duration, _foreColor, _backColor) { /* stub */ },
+            flashMessage: msgOps.flashMessage,
             recordKeystroke(_key, _shift, _alt) { /* stub */ },
-            confirmMessages() { /* stub */ },
+            confirmMessages: msgOps.confirmMessages,
             pauseAnimation(_duration, _behavior) {
                 return false; // not interrupted
             },
@@ -3185,11 +3416,11 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             },
 
             // -- Messages ---------------------------------------------------------
-            message(_msg, _flags) { /* stub — full message system is Step 3f */ },
-            messageWithColor(_msg, _color, _flags) { /* stub */ },
-            temporaryMessage(_msg, _flags) { /* stub */ },
-            confirmMessages() { /* stub */ },
-            updateMessageDisplay() { /* stub */ },
+            message: msgOps.message,
+            messageWithColor: msgOps.messageWithColor,
+            temporaryMessage: msgOps.temporaryMessage,
+            confirmMessages: msgOps.confirmMessages,
+            updateMessageDisplay: msgOps.updateMessageDisplay,
 
             // -- Display buffers --------------------------------------------------
             commitDraws,
@@ -3234,11 +3465,11 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             displayLevel: displayLevelFn,
             refreshSideBar(_x, _y, _justClearing) { /* stub — Step 3f */ },
             displayInventory(_categoryMask, _titleFlags, _focusFlags, _includeDetails, _includeButtons) { /* stub */ },
-            displayMessageArchive() { /* stub */ },
+            displayMessageArchive: msgOps.displayMessageArchive,
             printHelpScreen() { /* stub */ },
             displayFeatsScreen() { /* stub */ },
             printDiscoveriesScreen() { /* stub */ },
-            flashTemporaryAlert(_msg, _time) { /* stub */ },
+            flashTemporaryAlert: msgOps.flashTemporaryAlert,
             displayMonsterFlashes(_flashAll) {
                 rogue.creaturesWillFlashThisTurn = false;
             },
@@ -3607,9 +3838,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             commitDraws();
             await browserConsole.waitForEvent();
         },
-        message(_msg: string, _flags: number): void {
-            // TODO: Wire to io-messages message with full MessageContext
-        },
+        message: msgOps.message,
 
         // -- Sidebar helper ---------------------------------------------------
         smoothHiliteGradient,
