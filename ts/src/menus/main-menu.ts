@@ -306,7 +306,7 @@ export interface MenuContext {
 
     initializeRogue(seed: bigint): void;
     startLevel(depth: number, stairDirection: number): void;
-    mainInputLoop(): void;
+    mainInputLoop(): Promise<void>;
     freeEverything(): void;
     initializeGameVariant(): void;
     initializeLaunchArguments(): void;
@@ -1590,7 +1590,7 @@ export async function mainBrogueJunction(ctx: MenuContext, displayBuffer: Screen
                 ctx.rogue.nextGame = NGCommand.Nothing;
                 ctx.initializeRogue(ctx.rogue.nextGameSeed);
                 ctx.startLevel(ctx.rogue.depthLevel, 1);
-                ctx.mainInputLoop();
+                await ctx.mainInputLoop();
 
                 if (ctx.serverMode) {
                     ctx.rogue.nextGame = NGCommand.Quit;
@@ -1614,7 +1614,7 @@ export async function mainBrogueJunction(ctx: MenuContext, displayBuffer: Screen
                 if (gamePath && ctx.openFile(gamePath)) {
                     // loadSavedGame -> mainInputLoop is Step 4/6
                     // Stub: the actual implementation will call loadSavedGame()
-                    ctx.mainInputLoop();
+                    await ctx.mainInputLoop();
                     ctx.freeEverything();
                 }
                 ctx.rogue.playbackMode = false;

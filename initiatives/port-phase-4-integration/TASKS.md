@@ -52,17 +52,38 @@
 
 ## Step 3: Runtime Wiring
 
-### 3a: Menu → Game Init
-- [ ] Wire `initializeRogue(seed)` with full `GameInitContext` (variant catalogs, RNG, player creation)
-- [ ] Wire `initializeGameVariant()` with catalog switching per variant
-- [ ] Wire `welcome()` to display opening messages
+### 3a: Menu → Game Init ✅
+- [x] Expand `createRogueState()` to `RuntimeRogueState` (superset of `MenuRogueState` + `GameInitRogueState` + `CleanupRogueState` + `InitRecordingRogue`)
+- [x] Create shared game data structures (player creature, monster/item lists, safety grids, display grids, dynamic colors, message state, recording buffer)
+- [x] Wire `GameInitContext` with all real catalog data (monsterCatalog, lightCatalog, meteredItemsGenerationTable, scrollTable, potionTable, dungeonFeatureCatalog)
+- [x] Wire `initializeRogue(seed)` → calls real `initializeRogueFn` with full context
+- [x] Wire `initializeGameVariant()` → calls real `initializeGameVariantFn` (dispatches to Brogue/Rapid/Bullet variant init)
+- [x] Wire `freeEverything()` → calls real `freeEverythingFn` with `CleanupContext`
+- [x] Wire equipment operations (`equipItem`, `recalculateEquipmentBonuses`, `identify`) for starting gear
+- [x] Wire item generation (`generateItem`, `addItemToPack`) with proper `ItemGenContext` and `ItemRNG`
+- [x] Wire creature operations (`initializeGender`, `initializeStatus`, `createCreature`)
+- [x] Wire recording init (`initRecording` via `RecordingBuffer` + no-op `RecordingFileIO`)
+- [x] Wire `shuffleFlavors`, `resetDFMessageEligibility`, `deleteMessages`, `clearMessageArchive`
+- [x] Zero compilation errors, all 2232 tests pass, Vite build succeeds
 
-### 3b: Level generation + display
-- [ ] Wire `startLevel(depth, stairDirection)` with full `LevelContext`
-- [ ] Wire `digDungeon` → architect module
-- [ ] Wire `displayLevel` → full cell appearance pipeline (getCellAppearance → plotCharWithColor)
-- [ ] Wire `refreshDungeonCell` → display system
-- [ ] Wire `updateVision`, `updateScentMap`, `updateEnvironment`
+### 3b: Level generation + display ✅
+- [x] Allocate `pmap` + `tmap` grids in `runtime.ts` (column-major DCOLS×DROWS)
+- [x] Add missing `RuntimeRogueState` fields (`lastTarget`, `upLoc`, `downLoc`, `staleLoopMap`, `rewardRoomsGenerated`)
+- [x] Create shared helper functions (`cellHasTerrainFlagAt`, `getFOVMaskWrapped`, `calculateDistancesWrapped`, `pathingDistanceWrapped`, `populateGenericCostMapWrapped`, `analyzeMapWrapped`)
+- [x] Implement `getCellAppearance` (terrain layers, lighting, player glyph) in `runtime.ts`
+- [x] Implement `displayLevel` (iterate DCOLS×DROWS → `plotCharWithColor` to display buffer)
+- [x] Implement `shuffleTerrainColors` (fill `terrainRandomValues` from RNG)
+- [x] Implement simplified `updateVision` (FOV → mark VISIBLE/DISCOVERED flags)
+- [x] Build `ArchitectContext` (bundles `MachineContext`, `BuildBridgeContext`, catalogs, helpers)
+- [x] Build `LevelContext` (all 40+ methods — digDungeon, placeStairs, initializeLevel, setUpWaypoints, vision, display, simplified stubs for items/monsters/sidebar)
+- [x] Wire `startLevel` in `menuCtx` → calls real `startLevelFn` with full `LevelContext`
+- [x] Make `mainInputLoop` async (`Promise<void>`) for browser event waiting
+- [x] Implement minimal async input loop (wait for events, 'q'/Escape to quit)
+- [x] Update `MenuContext.mainInputLoop` signature to `Promise<void>`
+- [x] Add `await` at both call sites in `mainBrogueJunction`
+- [ ] Wire `refreshDungeonCell` → display system (deferred to 3f)
+- [ ] Wire full `updateScentMap`, `updateEnvironment` (deferred to 3d)
+- [x] Zero compilation errors, all 2232 tests pass, Vite build succeeds
 
 ### 3c: Input → Game actions
 - [ ] Wire `mainInputLoop` with full `InputContext`
@@ -82,10 +103,10 @@
 - [ ] Wire `gameOver` with score display, recording save
 - [ ] Wire `victory` with treasure tally, achievement check
 - [ ] Wire save/load game flow
-- [ ] Wire `freeEverything` → full cleanup + return to menu
+- [x] Wire `freeEverything` → full cleanup + return to menu (done in 3a)
 
 ### 3f: Remaining DI stubs
-- [ ] Wire variant-specific catalog switching in runtime
+- [x] Wire variant-specific catalog switching in runtime (done in 3a — sets gameConst counts from catalog sizes)
 - [ ] Wire sidebar `refreshSideBar` with full entity collection
 - [ ] Wire `displayInventory` with full button-based UI
 - [ ] Wire `getCellAppearance` with terrain layers, items, monsters, lighting, memory

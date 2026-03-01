@@ -23,24 +23,46 @@
 import type { BrogueConsole } from "./types/platform.js";
 import type {
     Color,
+    Creature,
+    CreatureType,
+    Fixpt,
     GameConstants,
+    Item,
+    ItemTable,
+    LevelData,
+    LightSource,
+    MeteredItem,
+    Pcell,
+    Pos,
     ScreenDisplayBuffer,
     SavedDisplayBuffer,
+    Tcell,
     BrogueButton,
     ButtonState,
     RogueEvent,
     WindowPos,
     PauseBehavior,
 } from "./types/types.js";
+import { INVALID_POS } from "./types/types.js";
 import {
     NGCommand,
     GameMode,
     GameVariant,
     ButtonDrawState,
+    DungeonLayer,
     TextEntryType,
     DisplayGlyph,
+    LightType,
+    MonsterType,
+    TileType,
 } from "./types/enums.js";
-import { COLS, ROWS } from "./types/constants.js";
+import {
+    COLS, ROWS, DCOLS, DROWS,
+    KEYBOARD_LABELS,
+    MESSAGE_ARCHIVE_ENTRIES,
+    MONSTER_CLASS_COUNT,
+    NUMBER_TERRAIN_LAYERS,
+} from "./types/constants.js";
 
 // -- IO module imports --------------------------------------------------------
 import {
@@ -91,6 +113,12 @@ import {
 } from "./io/io-inventory.js";
 import type { InventoryContext } from "./io/io-inventory.js";
 
+// -- Message imports ----------------------------------------------------------
+import type { MessageState } from "./io/io-messages.js";
+import {
+    clearMessageArchive as clearMessageArchiveFn,
+} from "./io/io-messages.js";
+
 // -- Async helpers for browser ------------------------------------------------
 import { asyncPause } from "./platform/browser-renderer.js";
 
@@ -98,7 +126,90 @@ import { asyncPause } from "./platform/browser-renderer.js";
 import * as Colors from "./globals/colors.js";
 
 // -- RNG imports --------------------------------------------------------------
-import { seedRandomGenerator, randRange, clamp } from "./math/rng.js";
+import { seedRandomGenerator, randRange, rand64bits, randPercent, randClump, clamp } from "./math/rng.js";
+
+// -- Grid imports -------------------------------------------------------------
+import { allocGrid, freeGrid, fillGrid } from "./grid/grid.js";
+import { zeroOutGrid } from "./architect/helpers.js";
+
+// -- Creature imports ---------------------------------------------------------
+import { createCreature, initializeGender, initializeStatus } from "./monsters/monster-creation.js";
+import { distanceBetween } from "./monsters/monster-state.js";
+
+// -- FOV & pathfinding imports ------------------------------------------------
+import { getFOVMask as getFOVMaskFn } from "./light/fov.js";
+import type { FOVContext } from "./light/fov.js";
+import { calculateDistances as calculateDistancesFn, pathingDistance as pathingDistanceFn } from "./dijkstra/dijkstra.js";
+import type { CalculateDistancesContext } from "./dijkstra/dijkstra.js";
+import { populateGenericCostMap as populateGenericCostMapFn } from "./movement/cost-maps-fov.js";
+
+// -- Architect imports --------------------------------------------------------
+import {
+    digDungeon as digDungeonFn,
+    placeStairs as placeStairsFn,
+    initializeLevel as initializeLevelFn,
+    setUpWaypoints as setUpWaypointsFn,
+    updateMapToShore as updateMapToShoreFn,
+    restoreMonster as restoreMonsterFn,
+    restoreItems as restoreItemsFn,
+} from "./architect/architect.js";
+import type { ArchitectContext } from "./architect/architect.js";
+import { analyzeMap as analyzeMapFn } from "./architect/analysis.js";
+import type { MachineContext, ItemOps, MonsterOps } from "./architect/machines.js";
+import type { BuildBridgeContext } from "./architect/lakes.js";
+
+// -- Flag imports -------------------------------------------------------------
+import { TileFlag, TerrainFlag } from "./types/flags.js";
+
+// -- State helper imports -----------------------------------------------------
+import { cellHasTerrainFlag, cellHasTMFlag, terrainFlags, terrainMechFlags, discoveredTerrainFlagsAtLoc, highestPriorityLayer } from "./state/helpers.js";
+import { coordinatesAreInMap, nbDirs } from "./globals/tables.js";
+import { FP_FACTOR } from "./math/fixpt.js";
+
+// -- Catalog imports (more) ---------------------------------------------------
+import { tileCatalog } from "./globals/tile-catalog.js";
+import { dungeonProfileCatalog } from "./globals/dungeon-profile-catalog.js";
+import { blueprintCatalog } from "./globals/blueprint-catalog.js";
+import { autoGeneratorCatalog } from "./globals/autogenerator-catalog.js";
+
+// -- Game-level import --------------------------------------------------------
+import { startLevel as startLevelFn } from "./game/game-level.js";
+import type { LevelContext } from "./game/game-level.js";
+
+// -- Appearance imports -------------------------------------------------------
+import { bakeTerrainColors } from "./io/io-appearance.js";
+
+// -- Item imports -------------------------------------------------------------
+import { generateItem } from "./items/item-generation.js";
+import { addItemToPack } from "./items/item-inventory.js";
+import { identify } from "./items/item-naming.js";
+import { shuffleFlavors } from "./items/item-naming.js";
+import { equipItem, recalculateEquipmentBonuses } from "./items/item-usage.js";
+import type { EquipContext, EquipmentState } from "./items/item-usage.js";
+
+// -- Catalog imports ----------------------------------------------------------
+import { monsterCatalog as monsterCatalogData } from "./globals/monster-catalog.js";
+import { lightCatalog as lightCatalogData } from "./globals/light-catalog.js";
+import { meteredItemsGenerationTable as meteredItemsGenTable } from "./globals/item-catalog.js";
+import { scrollTable, potionTable } from "./globals/item-catalog.js";
+import { dynamicColorsBounds } from "./globals/tables.js";
+import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
+import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
+
+// -- Game lifecycle imports ---------------------------------------------------
+import type { GameInitContext } from "./game/game-init.js";
+import { initializeRogue as initializeRogueFn, initializeGameVariant as initializeGameVariantFn } from "./game/game-init.js";
+import type { CleanupContext } from "./game/game-cleanup.js";
+import { freeEverything as freeEverythingFn } from "./game/game-cleanup.js";
+import { resetDFMessageEligibility } from "./architect/architect.js";
+
+// -- Recording imports --------------------------------------------------------
+import { createRecordingBuffer } from "./recordings/recording-state.js";
+import type { RecordingBuffer, RecordingFileIO } from "./recordings/recording-state.js";
+import { initRecording as initRecordingFn } from "./recordings/recording-init.js";
+
+// -- Flare imports ------------------------------------------------------------
+import { deleteAllFlares } from "./light/flares.js";
 
 // -- Menu imports (for type reference) ----------------------------------------
 import type { MenuContext, MenuRogueState, FileEntry, RogueRun } from "./menus/main-menu.js";
@@ -196,15 +307,103 @@ const BROGUE_TITLE_ART =
     "                         ####                                       ";
 
 // =============================================================================
-// Runtime state
+// Runtime state — unified rogue state
 // =============================================================================
 
 /**
- * Shared rogue state — superset of all module rogue state interfaces.
- * This single object is shared by every DI context.
+ * Unified rogue state that satisfies MenuRogueState, GameInitRogueState,
+ * CleanupRogueState, and InitRecordingRogue. This single object is the
+ * superset shared by every DI context.
  */
-function createRogueState(): MenuRogueState {
+interface RuntimeRogueState extends MenuRogueState {
+    // -- Fields from GameInitRogueState not in MenuRogueState --
+    playbackOmniscience: boolean;
+    hideSeed: boolean;
+    displayStealthRangeMode: boolean;
+    trueColorMode: boolean;
+    highScoreSaved: boolean;
+    cautiousMode: boolean;
+    milliseconds: number;
+    RNG: number;
+    gold: number;
+    goldGenerated: number;
+    strength: number;
+    weapon: Item | null;
+    armor: Item | null;
+    ringLeft: Item | null;
+    ringRight: Item | null;
+    swappedIn: Item | null;
+    swappedOut: Item | null;
+    flares: unknown[];
+    yendorWarden: Creature | null;
+    minersLight: LightSource;
+    minersLightRadius: Fixpt;
+    ticksTillUpdateEnvironment: number;
+    scentTurnNumber: number;
+    playerTurnNumber: number;
+    absoluteTurnNumber: number;
+    xpxpThisTurn: number;
+    stealthRange: number;
+    previousPoisonPercent: number;
+    deepestLevel: number;
+    monsterSpawnFuse: number;
+    mapToShore: number[][] | null;
+    mapToSafeTerrain: number[][] | null;
+    cursorLoc: Pos;
+    rewardRoomsGenerated: number;
+    clairvoyance: number;
+    stealthBonus: number;
+    regenerationBonus: number;
+    lightMultiplier: number;
+    wisdomBonus: number;
+    transference: number;
+    reaping: number;
+    wpDistance: (number[][] | null)[];
+    meteredItems: MeteredItem[];
+    featRecord: boolean[];
+    disturbed: boolean;
+    autoPlayingLevel: boolean;
+    automationActive: boolean;
+    justRested: boolean;
+    justSearched: boolean;
+    inWater: boolean;
+    updatedSafetyMapThisTurn: boolean;
+    updatedAllySafetyMapThisTurn: boolean;
+    updatedMapToSafeTerrainThisTurn: boolean;
+    updatedMapToShoreThisTurn: boolean;
+    foodSpawned: bigint;
+    gameExitStatusCode: number;
+
+    // -- Fields from LevelRogueState not in above --
+    lastTarget: Creature | null;
+    upLoc: Pos;
+    downLoc: Pos;
+    staleLoopMap: boolean;
+
+    // -- Fields from InitRecordingRogue not in above --
+    playbackDelayPerTurn: number;
+    playbackDelayThisTurn: number;
+    howManyTurns: number;
+    currentTurnNumber: number;
+    nextAnnotationTurn: number;
+    nextAnnotation: string;
+    locationInAnnotationFile: number;
+    versionString: string;
+}
+
+/**
+ * Create the unified rogue state with all fields initialized to defaults.
+ */
+function createRogueState(): RuntimeRogueState {
+    const defaultLight: LightSource = {
+        lightColor: { red: 0, green: 0, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false },
+        lightRadius: { lowerBound: 0, upperBound: 0, clumpFactor: 0 },
+        radialFadeToPercent: 0,
+        passThroughCreatures: false,
+    };
+
     return {
+        // -- MenuRogueState fields --
         mode: GameMode.Normal,
         nextGame: NGCommand.Nothing,
         nextGamePath: "",
@@ -223,6 +422,80 @@ function createRogueState(): MenuRogueState {
         creaturesWillFlashThisTurn: false,
         seed: 0n,
         patchVersion: 1,
+
+        // -- GameInitRogueState extensions --
+        playbackOmniscience: false,
+        hideSeed: false,
+        displayStealthRangeMode: false,
+        trueColorMode: false,
+        highScoreSaved: false,
+        cautiousMode: false,
+        milliseconds: 0,
+        RNG: 0,
+        gold: 0,
+        goldGenerated: 0,
+        strength: 12,
+        weapon: null,
+        armor: null,
+        ringLeft: null,
+        ringRight: null,
+        swappedIn: null,
+        swappedOut: null,
+        flares: [],
+        yendorWarden: null,
+        minersLight: { ...defaultLight },
+        minersLightRadius: 0n,
+        ticksTillUpdateEnvironment: 100,
+        scentTurnNumber: 1000,
+        playerTurnNumber: 0,
+        absoluteTurnNumber: 0,
+        xpxpThisTurn: 0,
+        stealthRange: 0,
+        previousPoisonPercent: 0,
+        deepestLevel: 1,
+        monsterSpawnFuse: 0,
+        mapToShore: null,
+        mapToSafeTerrain: null,
+        cursorLoc: { ...INVALID_POS },
+        rewardRoomsGenerated: 0,
+        clairvoyance: 0,
+        stealthBonus: 0,
+        regenerationBonus: 0,
+        lightMultiplier: 1,
+        wisdomBonus: 0,
+        transference: 0,
+        reaping: 0,
+        wpDistance: [],
+        meteredItems: [],
+        featRecord: [],
+        disturbed: false,
+        autoPlayingLevel: false,
+        automationActive: false,
+        justRested: false,
+        justSearched: false,
+        inWater: false,
+        updatedSafetyMapThisTurn: false,
+        updatedAllySafetyMapThisTurn: false,
+        updatedMapToSafeTerrainThisTurn: false,
+        updatedMapToShoreThisTurn: false,
+        foodSpawned: 0n,
+        gameExitStatusCode: 0,
+
+        // -- LevelRogueState extensions --
+        lastTarget: null,
+        upLoc: { x: 0, y: 0 },
+        downLoc: { x: 0, y: 0 },
+        staleLoopMap: false,
+
+        // -- InitRecordingRogue extensions --
+        playbackDelayPerTurn: 0,
+        playbackDelayThisTurn: 0,
+        howManyTurns: 0,
+        currentTurnNumber: 0,
+        nextAnnotationTurn: 0,
+        nextAnnotation: "",
+        locationInAnnotationFile: 0,
+        versionString: "",
     };
 }
 
@@ -322,6 +595,115 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     let gameVariant = GameVariant.Brogue;
     let gameConst: GameConstants = { ...BROGUE_GAME_CONSTANTS };
 
+    // -- Player creature (persistent across game sessions) --------------------
+    const player: Creature = createCreature();
+
+    // -- Mutable catalogs (deep-copied so initializeRogue can mutate them) ----
+    const monsterCatalog: CreatureType[] = monsterCatalogData.map(m => ({ ...m }));
+
+    // -- Mutable scroll/potion tables for item generation ---------------------
+    const mutableScrollTable: ItemTable[] = scrollTable.map(t => ({ ...t }));
+    const mutablePotionTable: ItemTable[] = potionTable.map(t => ({ ...t }));
+
+    // -- Level data -----------------------------------------------------------
+    let levels: LevelData[] = [];
+
+    // -- Monster / item lists (shared references, swapped per-level) ----------
+    let monsters: Creature[] = [];
+    let dormantMonsters: Creature[] = [];
+    const floorItems: Item[] = [];
+    const packItems: Item[] = [];
+    const monsterItemsHopper: Item[] = [];
+    const purgatory: Creature[] = [];
+
+    // -- Dungeon map grids (column-major DCOLS×DROWS) --------------------------
+    const pmap: Pcell[][] = [];
+    for (let i = 0; i < DCOLS; i++) {
+        pmap[i] = [];
+        for (let j = 0; j < DROWS; j++) {
+            pmap[i][j] = {
+                layers: new Array(NUMBER_TERRAIN_LAYERS).fill(TileType.GRANITE),
+                flags: 0,
+                volume: 0,
+                machineNumber: 0,
+                rememberedAppearance: {
+                    character: 0 as DisplayGlyph,
+                    foreColorComponents: [0, 0, 0] as [number, number, number],
+                    backColorComponents: [0, 0, 0] as [number, number, number],
+                    opacity: 0,
+                },
+                rememberedItemCategory: 0,
+                rememberedItemKind: 0,
+                rememberedItemQuantity: 0,
+                rememberedItemOriginDepth: 0,
+                rememberedTerrain: TileType.NOTHING,
+                rememberedCellFlags: 0,
+                rememberedTerrainFlags: 0,
+                rememberedTMFlags: 0,
+                exposedToFire: 0,
+            };
+        }
+    }
+
+    const tmap: Tcell[][] = [];
+    for (let i = 0; i < DCOLS; i++) {
+        tmap[i] = [];
+        for (let j = 0; j < DROWS; j++) {
+            tmap[i][j] = {
+                light: [0, 0, 0],
+                oldLight: [0, 0, 0],
+            };
+        }
+    }
+
+    // -- Safety / routing grids -----------------------------------------------
+    let safetyMap: number[][] | null = allocGrid();
+    let allySafetyMap: number[][] | null = allocGrid();
+    let chokeMap: number[][] | null = allocGrid();
+    let scentMap: number[][] | null = null;
+
+    // -- Display detail & terrain random values (DCOLS×DROWS) -----------------
+    const displayDetail: number[][] = allocGrid();
+    const terrainRandomValues: number[][][] = [];
+    for (let i = 0; i < DCOLS; i++) {
+        terrainRandomValues[i] = [];
+        for (let j = 0; j < DROWS; j++) {
+            terrainRandomValues[i][j] = new Array(8).fill(0);
+        }
+    }
+
+    // -- Dynamic colors (mutable copies for depth interpolation) --------------
+    const dynamicColors: Color[] = dynamicColorsBounds.map(([start]) => ({ ...start }));
+
+    // -- Message state --------------------------------------------------------
+    const messageArchive: { message: string }[] = [];
+    for (let i = 0; i < MESSAGE_ARCHIVE_ENTRIES; i++) {
+        messageArchive.push({ message: "" });
+    }
+    let messageArchivePosition = 0;
+
+    const messageState: MessageState = {
+        archive: messageArchive.map(m => ({ message: m.message, count: 0, turn: 0, flags: 0 })),
+        archivePosition: 0,
+        displayedMessage: ["", "", "", ""],
+        messagesUnconfirmed: 0,
+        combatText: "",
+    };
+
+    // -- Recording buffer -----------------------------------------------------
+    const recordingBuffer: RecordingBuffer = createRecordingBuffer();
+
+    // -- No-op file IO for browser (recordings not yet supported) -------------
+    const noopFileIO: RecordingFileIO = {
+        fileExists: () => false,
+        appendBytes: () => {},
+        readBytes: () => ({ bytes: new Uint8Array(0), newOffset: 0 }),
+        writeHeader: () => {},
+        removeFile: () => {},
+        renameFile: () => {},
+        copyFile: () => {},
+    };
+
     const commitDraws = makeCommitDraws(displayBuffer, prevBuffer, browserConsole);
 
     /** Apply overlay results back to the main display buffer, then render. */
@@ -338,6 +720,228 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             cell.backColorComponents[2] = clamp(r.backColor.blue, 0, 100);
         }
         commitDraws();
+    }
+
+    // =========================================================================
+    // Shared helper functions — used by multiple DI contexts
+    // =========================================================================
+
+    // -- Terrain queries (wrap pmap) ------------------------------------------
+    function cellHasTerrainFlagAt(pos: Pos, flagMask: number): boolean {
+        return cellHasTerrainFlag(pmap, pos, flagMask);
+    }
+    function cellHasTMFlagAt(pos: Pos, flagMask: number): boolean {
+        return cellHasTMFlag(pmap, pos, flagMask);
+    }
+    function terrainFlagsAt(pos: Pos): number {
+        return terrainFlags(pmap, pos);
+    }
+    function terrainMechFlagsAt(pos: Pos): number {
+        return terrainMechFlags(pmap, pos);
+    }
+    function discoveredTerrainFlagsAtLocFn(pos: Pos): number {
+        return discoveredTerrainFlagsAtLoc(pmap, pos, tileCatalog, (tileType: number) => {
+            // successorTerrainFlags: returns the flags of the tile that would replace
+            // this secret tile when discovered (its discoverType)
+            const discoverType = tileCatalog[tileType].discoverType;
+            return discoverType ? tileCatalog[discoverType].flags : 0;
+        });
+    }
+    function pmapAt(pos: Pos): Pcell {
+        return pmap[pos.x][pos.y];
+    }
+    function posNeighborInDirection(pos: Pos, dir: number): Pos {
+        return { x: pos.x + nbDirs[dir][0], y: pos.y + nbDirs[dir][1] };
+    }
+    function monsterAtLocFn(_pos: Pos): Creature | null {
+        // For now, search the monsters list by location
+        for (const m of monsters) {
+            if (m.loc.x === _pos.x && m.loc.y === _pos.y) return m;
+        }
+        return null;
+    }
+
+    // -- FOV wrapper ----------------------------------------------------------
+    const fovCtx: FOVContext = {
+        cellHasTerrainFlag: cellHasTerrainFlagAt,
+        getCellFlags: (x: number, y: number) => pmap[x][y].flags,
+    };
+    function getFOVMaskWrapped(
+        grid: number[][], x: number, y: number, maxRadius: bigint,
+        forbiddenTerrain: number, forbiddenFlags: number, cautiousOnWalls: boolean,
+    ): void {
+        getFOVMaskFn(grid, x, y, maxRadius, forbiddenTerrain, forbiddenFlags, cautiousOnWalls, fovCtx);
+    }
+
+    // -- Dijkstra / calculateDistances wrapper --------------------------------
+    function buildCalcDistCtx(): CalculateDistancesContext {
+        return {
+            cellHasTerrainFlag: cellHasTerrainFlagAt,
+            cellHasTMFlag: cellHasTMFlagAt,
+            monsterAtLoc: monsterAtLocFn,
+            monsterAvoids: () => false, // stub for now
+            discoveredTerrainFlagsAtLoc: discoveredTerrainFlagsAtLocFn,
+            isPlayer: (creature: Creature) => creature === player,
+            getCellFlags: (x: number, y: number) => pmap[x][y].flags,
+        };
+    }
+    function calculateDistancesWrapped(
+        distanceMap: number[][], destX: number, destY: number,
+        blockingFlags: number, traveler: Creature | null,
+        canUseSecretDoors: boolean, eightWays: boolean,
+    ): void {
+        calculateDistancesFn(distanceMap, destX, destY, blockingFlags, traveler, canUseSecretDoors, eightWays, buildCalcDistCtx());
+    }
+    function pathingDistanceWrapped(
+        x1: number, y1: number, x2: number, y2: number, blockingFlags: number,
+    ): number {
+        return pathingDistanceFn(x1, y1, x2, y2, blockingFlags, buildCalcDistCtx());
+    }
+
+    // -- populateGenericCostMap wrapper ----------------------------------------
+    function populateGenericCostMapWrapped(costMap: number[][]): void {
+        populateGenericCostMapFn(costMap, {
+            pmap,
+            tmap,
+            player,
+            rogue: {
+                depthLevel: rogue.depthLevel,
+                automationActive: rogue.automationActive,
+                playerTurnNumber: rogue.playerTurnNumber,
+                xpxpThisTurn: rogue.xpxpThisTurn,
+                mapToShore: rogue.mapToShore ?? allocGrid(),
+            },
+            tileCatalog: tileCatalog as any, // FloorTileType uses optional foreColor/backColor
+            cellHasTerrainFlag: cellHasTerrainFlagAt,
+            cellHasTMFlag: cellHasTMFlagAt,
+            terrainFlags: terrainFlagsAt,
+            terrainMechFlags: terrainMechFlagsAt,
+            discoveredTerrainFlagsAtLoc: discoveredTerrainFlagsAtLocFn,
+            monsterAvoids: () => false,
+            canPass: () => false,
+            distanceBetween,
+            monsterAtLoc: monsterAtLocFn,
+            playerCanSee: (_x, _y) => !!(pmap[_x]?.[_y]?.flags & TileFlag.VISIBLE),
+            playerCanSeeOrSense: (_x, _y) => !!(pmap[_x]?.[_y]?.flags & TileFlag.VISIBLE),
+            itemAtLoc: () => null,
+            itemName: () => {},
+            messageWithColor: () => {},
+            refreshDungeonCell: () => {},
+            discoverCell: () => {},
+            storeMemories: () => {},
+            layerWithTMFlag: (x, y, _flag) => highestPriorityLayer(pmap, x, y, false),
+            itemMessageColor: Colors.itemMessageColor,
+            backgroundMessageColor: Colors.backgroundMessageColor,
+            KEY: 0x2000, // ItemCategory.KEY
+            assureCosmeticRNG: () => {},
+            restoreRNG: () => {},
+            getLocationFlags: (x, y, _limitToPlayerKnowledge) => ({
+                tFlags: terrainFlags(pmap, { x, y }),
+                tmFlags: terrainMechFlags(pmap, { x, y }),
+                cellFlags: pmap[x][y].flags,
+            }),
+        });
+    }
+
+    // -- analyzeMap wrapper ----------------------------------------------------
+    function analyzeMapWrapped(calculateChokeMap: boolean): void {
+        analyzeMapFn(pmap, chokeMap, calculateChokeMap);
+    }
+
+    // -- getCellAppearance (minimal) -------------------------------------------
+    function getCellAppearance(pos: Pos): { glyph: DisplayGlyph; foreColor: Color; backColor: Color } {
+        const cell = pmap[pos.x][pos.y];
+
+        // Check if the player is at this cell
+        if (pos.x === player.loc.x && pos.y === player.loc.y) {
+            return {
+                glyph: player.info.displayChar,
+                foreColor: { ...Colors.white },
+                backColor: { ...tileCatalog[cell.layers[DungeonLayer.Dungeon]].backColor! },
+            };
+        }
+
+        // Get the highest priority terrain layer
+        const layer = highestPriorityLayer(pmap, pos.x, pos.y, false);
+        const tile = tileCatalog[cell.layers[layer]];
+
+        const foreColor: Color = tile.foreColor
+            ? { ...tile.foreColor }
+            : { red: 0, green: 0, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false };
+        const backColor: Color = tile.backColor
+            ? { ...tile.backColor }
+            : { red: 0, green: 0, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false };
+
+        // Bake terrain random values into colors
+        bakeTerrainColors(foreColor, backColor, terrainRandomValues[pos.x][pos.y], rogue.trueColorMode);
+
+        // Apply tmap lighting
+        const lightR = tmap[pos.x][pos.y].light[0];
+        const lightG = tmap[pos.x][pos.y].light[1];
+        const lightB = tmap[pos.x][pos.y].light[2];
+        foreColor.red = clamp(Math.floor(foreColor.red * (100 + lightR) / 100), 0, 100);
+        foreColor.green = clamp(Math.floor(foreColor.green * (100 + lightG) / 100), 0, 100);
+        foreColor.blue = clamp(Math.floor(foreColor.blue * (100 + lightB) / 100), 0, 100);
+        backColor.red = clamp(Math.floor(backColor.red * (100 + lightR) / 100), 0, 100);
+        backColor.green = clamp(Math.floor(backColor.green * (100 + lightG) / 100), 0, 100);
+        backColor.blue = clamp(Math.floor(backColor.blue * (100 + lightB) / 100), 0, 100);
+
+        return { glyph: tile.displayChar as DisplayGlyph, foreColor, backColor };
+    }
+
+    // -- displayLevel (minimal) ------------------------------------------------
+    function displayLevelFn(): void {
+        for (let i = 0; i < DCOLS; i++) {
+            for (let j = 0; j < DROWS; j++) {
+                const { glyph, foreColor, backColor } = getCellAppearance({ x: i, y: j });
+                plotCharWithColor(
+                    glyph,
+                    { windowX: mapToWindowX(i), windowY: mapToWindowY(j) },
+                    foreColor,
+                    backColor,
+                    displayBuffer,
+                );
+            }
+        }
+    }
+
+    // -- shuffleTerrainColors -------------------------------------------------
+    function shuffleTerrainColorsFn(percentOfCells: number, resetAll: boolean): void {
+        for (let i = 0; i < DCOLS; i++) {
+            for (let j = 0; j < DROWS; j++) {
+                if (resetAll || randPercent(percentOfCells)) {
+                    for (let k = 0; k < 8; k++) {
+                        terrainRandomValues[i][j][k] = randRange(0, 1000);
+                    }
+                    // Mark terrain colors as dirty (would set TERRAIN_COLORS_DIRTY flag)
+                }
+            }
+        }
+    }
+
+    // -- updateVision (simplified) ---------------------------------------------
+    function updateVisionFn(_refreshDisplay: boolean): void {
+        // Simplified vision: mark all cells in player's FOV as visible
+        const grid = allocGrid();
+        fillGrid(grid, 0);
+        getFOVMaskWrapped(
+            grid, player.loc.x, player.loc.y,
+            BigInt(DCOLS + DROWS) * FP_FACTOR,
+            TerrainFlag.T_OBSTRUCTS_VISION,
+            0, false,
+        );
+        for (let i = 0; i < DCOLS; i++) {
+            for (let j = 0; j < DROWS; j++) {
+                // Clear old visibility
+                pmap[i][j].flags &= ~(TileFlag.VISIBLE | TileFlag.IN_FIELD_OF_VIEW | TileFlag.WAS_VISIBLE);
+                if (grid[i][j]) {
+                    pmap[i][j].flags |= TileFlag.IN_FIELD_OF_VIEW;
+                    pmap[i][j].flags |= TileFlag.VISIBLE;
+                    pmap[i][j].flags |= TileFlag.DISCOVERED;
+                }
+            }
+        }
+        freeGrid(grid);
     }
 
     // -- ButtonContext (needed by several menu functions) ----------------------
@@ -393,8 +997,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     // subset — the runtime only calls printTextBox from the menu, so we only
     // need the methods it actually uses.
     const inventoryCtxForTextBox = {
-        rogue: { weapon: null, armor: null, ringLeft: null, ringRight: null },
-        packItems: [],
+        rogue,
+        packItems,
         applyColorAverage,
         encodeMessageColor,
         storeColorComponents,
@@ -447,6 +1051,603 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         G_GOOD_MAGIC: DisplayGlyph.G_GOOD_MAGIC,
         G_BAD_MAGIC: DisplayGlyph.G_BAD_MAGIC
     } satisfies InventoryContext;
+
+    // -- EquipContext for initializeRogue starting equipment -------------------
+    function buildEquipContext(): EquipContext {
+        const equipState: EquipmentState = {
+            player,
+            weapon: rogue.weapon,
+            armor: rogue.armor,
+            ringLeft: rogue.ringLeft,
+            ringRight: rogue.ringRight,
+            strength: rogue.strength,
+            clairvoyance: rogue.clairvoyance,
+            stealthBonus: rogue.stealthBonus,
+            regenerationBonus: rogue.regenerationBonus,
+            lightMultiplier: rogue.lightMultiplier,
+            awarenessBonus: 0,
+            transference: rogue.transference,
+            wisdomBonus: rogue.wisdomBonus,
+            reaping: rogue.reaping,
+        };
+        return {
+            state: equipState,
+            message: () => {},  // silent during init
+            updateRingBonuses: () => {},
+            updateEncumbrance: () => {
+                recalculateEquipmentBonuses(equipState);
+            },
+            itemName: () => "item",
+        };
+    }
+
+    /**
+     * Sync equipment state from EquipContext back to rogue state after equip.
+     */
+    function syncEquipState(equipCtx: EquipContext): void {
+        rogue.weapon = equipCtx.state.weapon;
+        rogue.armor = equipCtx.state.armor;
+        rogue.ringLeft = equipCtx.state.ringLeft;
+        rogue.ringRight = equipCtx.state.ringRight;
+    }
+
+    // -- chooseVorpalEnemy: picks a random monster class -----------------------
+    function chooseVorpalEnemy(): MonsterType {
+        // In the C code this picks a random monster from a random class.
+        // We pick a random monster class, then a random monster from it.
+        const classIdx = randRange(0, MONSTER_CLASS_COUNT - 1);
+        const cls = monsterClassCatalog[classIdx];
+        if (cls.memberList.length === 0) return MonsterType.MK_RAT;
+        return cls.memberList[randRange(0, cls.memberList.length - 1)];
+    }
+
+    // -- Build GameInitContext ------------------------------------------------
+    function buildGameInitContext(): GameInitContext {
+        return {
+            rogue,
+            player,
+            gameConst,
+            gameVariant,
+
+            // Catalogs
+            monsterCatalog,
+            meteredItemsGenerationTable: meteredItemsGenTable,
+            featTable: [],  // No feats in base Brogue CE (numberFeats=0)
+            lightCatalog: lightCatalogData,
+            MINERS_LIGHT: LightType.MINERS_LIGHT,
+
+            // Dynamic colors
+            dynamicColorsBounds,
+            dynamicColors,
+
+            // Grids
+            displayDetail,
+            terrainRandomValues,
+
+            // Message archive
+            messageArchive,
+            messageArchivePosition,
+            setMessageArchivePosition(n: number) { messageArchivePosition = n; },
+
+            // Previous game seed
+            previousGameSeed,
+            setPreviousGameSeed(seed: bigint) { previousGameSeed = seed; menuCtx.previousGameSeed = seed; },
+
+            // Levels
+            levels,
+            setLevels(l: LevelData[]) { levels = l; },
+
+            // Monster / item lists
+            monsters,
+            dormantMonsters,
+            setMonsters(m: Creature[]) { monsters = m; },
+            setDormantMonsters(m: Creature[]) { dormantMonsters = m; },
+            floorItems,
+            packItems,
+            monsterItemsHopper,
+            purgatory,
+
+            // Safety grids
+            safetyMap: safetyMap!,
+            allySafetyMap: allySafetyMap!,
+            chokeMap: chokeMap!,
+            scentMap,
+            setScentMap(map: number[][] | null) { scentMap = map; },
+
+            // RNG
+            seedRandomGenerator,
+            rand_range: randRange,
+            rand_64bits: rand64bits,
+
+            // Grid operations
+            allocGrid,
+            fillGrid,
+            zeroOutGrid,
+            freeGrid,
+            distanceBetween,
+
+            // Item operations
+            generateItem(category: number, kind: number): Item {
+                return generateItem(category, kind, {
+                    rng: { randRange, randPercent, randClump },
+                    gameConstants: gameConst,
+                    depthLevel: rogue.depthLevel,
+                    scrollTable: mutableScrollTable,
+                    potionTable: mutablePotionTable,
+                    depthAccelerator: gameConst.depthAccelerator,
+                    chooseVorpalEnemy,
+                });
+            },
+            addItemToPack(item: Item): Item {
+                return addItemToPack(item, packItems);
+            },
+            identify(item: Item): void {
+                identify(item, gameConst);
+            },
+            equipItem(item: Item, force: boolean, swapItem: Item | null): void {
+                const equipCtx = buildEquipContext();
+                equipItem(item, force, swapItem, equipCtx);
+                syncEquipState(equipCtx);
+            },
+            recalculateEquipmentBonuses(): void {
+                const equipState: EquipmentState = {
+                    player,
+                    weapon: rogue.weapon,
+                    armor: rogue.armor,
+                    ringLeft: rogue.ringLeft,
+                    ringRight: rogue.ringRight,
+                    strength: rogue.strength,
+                    clairvoyance: rogue.clairvoyance,
+                    stealthBonus: rogue.stealthBonus,
+                    regenerationBonus: rogue.regenerationBonus,
+                    lightMultiplier: rogue.lightMultiplier,
+                    awarenessBonus: 0,
+                    transference: rogue.transference,
+                    wisdomBonus: rogue.wisdomBonus,
+                    reaping: rogue.reaping,
+                };
+                recalculateEquipmentBonuses(equipState);
+                // Sync back
+                rogue.clairvoyance = equipState.clairvoyance;
+                rogue.stealthBonus = equipState.stealthBonus;
+                rogue.regenerationBonus = equipState.regenerationBonus;
+                rogue.lightMultiplier = equipState.lightMultiplier;
+                rogue.transference = equipState.transference;
+                rogue.wisdomBonus = equipState.wisdomBonus;
+                rogue.reaping = equipState.reaping;
+            },
+
+            // Creature operations
+            initializeGender(monst: Creature): void {
+                initializeGender(monst, { randRange, randPercent });
+            },
+            initializeStatus(monst: Creature): void {
+                initializeStatus(monst, monst === player);
+            },
+
+            // Recording & display
+            initRecording(): void {
+                initRecordingFn({
+                    buffer: recordingBuffer,
+                    rogue: rogue as any, // RuntimeRogueState satisfies InitRecordingRogue
+                    currentFilePath,
+                    fileIO: noopFileIO,
+                    gameConst,
+                    seedRandomGenerator,
+                    previousGameSeed,
+                    nonInteractivePlayback: false,
+                    dialogAlert: () => {},
+                    annotationPathname: "",
+                });
+            },
+            shuffleFlavors(): void {
+                shuffleFlavors(gameConst, randRange, randPercent);
+            },
+            resetDFMessageEligibility(): void {
+                resetDFMessageEligibility(dungeonFeatureCatalog);
+            },
+            deleteMessages(): void {
+                // During initialization, we just clear the displayed messages
+                // rather than wiring the full MessageContext (which needs sidebar etc.)
+                for (let i = 0; i < messageState.displayedMessage.length; i++) {
+                    messageState.displayedMessage[i] = "";
+                }
+                messageState.messagesUnconfirmed = 0;
+            },
+            clearMessageArchive(): void {
+                clearMessageArchiveFn(messageState);
+            },
+            blackOutScreen(dbuf: ScreenDisplayBuffer): void {
+                blackOutScreen(dbuf);
+            },
+
+            // Display buffer
+            displayBuffer,
+
+            // Messages
+            message(_msg: string, _flags: number): void {
+                // TODO: Wire to full message system in Step 3c
+            },
+            messageWithColor(_msg: string, _color: Readonly<Color>, _flags: number): void {
+                // TODO: Wire to full message system in Step 3c
+            },
+            flavorMessage(_msg: string): void {
+                // TODO: Wire to full message system in Step 3c
+            },
+
+            // Color encoding - adapts the (color) => string API to the (buf, pos, color) => void API
+            encodeMessageColor(buf: string[], pos: number, color: Readonly<Color>): void {
+                buf[pos] = encodeMessageColor(color);
+            },
+
+            // Colors
+            itemMessageColor: Colors.itemMessageColor,
+            white: Colors.white,
+            backgroundMessageColor: Colors.backgroundMessageColor,
+
+            // Variant initialization (these set gameConst counts from catalog sizes)
+            initializeGameVariantBrogue(): void {
+                // Set counts from actual catalog lengths
+                gameConst.numberScrollKinds = mutableScrollTable.length;
+                gameConst.numberPotionKinds = mutablePotionTable.length;
+                gameConst.numberMeteredItems = meteredItemsGenTable.length;
+                // Other counts remain at their defaults or 0 until those catalogs are wired
+            },
+            initializeGameVariantRapidBrogue(): void {
+                // Rapid Brogue uses the same catalogs but different constants
+                gameConst.deepestLevel = 10;
+                gameConst.amuletLevel = 7;
+                gameConst.depthAccelerator = 4;
+                gameConst.numberScrollKinds = mutableScrollTable.length;
+                gameConst.numberPotionKinds = mutablePotionTable.length;
+                gameConst.numberMeteredItems = meteredItemsGenTable.length;
+            },
+            initializeGameVariantBulletBrogue(): void {
+                // Bullet Brogue: very short
+                gameConst.deepestLevel = 5;
+                gameConst.amuletLevel = 4;
+                gameConst.depthAccelerator = 8;
+                gameConst.numberScrollKinds = mutableScrollTable.length;
+                gameConst.numberPotionKinds = mutablePotionTable.length;
+                gameConst.numberMeteredItems = meteredItemsGenTable.length;
+            },
+
+            // Misc
+            KEYBOARD_LABELS,
+        };
+    }
+
+    // -- Build CleanupContext --------------------------------------------------
+    function buildCleanupContext(): CleanupContext {
+        return {
+            rogue,
+            player,
+            gameConst,
+            levels,
+            setLevels(l: LevelData[]) { levels = l; },
+            monsters,
+            dormantMonsters,
+            floorItems,
+            packItems,
+            monsterItemsHopper,
+            purgatory,
+            safetyMap,
+            allySafetyMap,
+            chokeMap,
+            scentMap,
+            setSafetyMap(map: number[][] | null) { safetyMap = map; },
+            setAllySafetyMap(map: number[][] | null) { allySafetyMap = map; },
+            setChokeMap(map: number[][] | null) { chokeMap = map; },
+            setScentMap(map: number[][] | null) { scentMap = map; },
+            freeGrid,
+            deleteItem(_item: Item): void {
+                // In TS, items are GC'd; this is a no-op
+            },
+            deleteAllFlares(): void {
+                deleteAllFlares(rogue as any);
+            },
+        };
+    }
+
+    // -- Build ArchitectContext ------------------------------------------------
+    function buildArchitectContext(): ArchitectContext {
+        const machineCtx: MachineContext = {
+            pmap,
+            chokeMap: chokeMap!,
+            tileCatalog: tileCatalog as any,
+            blueprintCatalog,
+            dungeonFeatureCatalog,
+            dungeonProfileCatalog,
+            autoGeneratorCatalog,
+            depthLevel: rogue.depthLevel,
+            machineNumber: rogue.rewardRoomsGenerated,
+            rewardRoomsGenerated: rogue.rewardRoomsGenerated,
+            staleLoopMap: rogue.staleLoopMap,
+            gameConstants: {
+                numberBlueprints: gameConst.numberBlueprints,
+                numberAutogenerators: gameConst.numberAutogenerators,
+                amuletLevel: gameConst.amuletLevel,
+                deepestLevelForMachines: gameConst.deepestLevelForMachines,
+                machinesPerLevelSuppressionMultiplier: gameConst.machinesPerLevelSuppressionMultiplier,
+                machinesPerLevelSuppressionOffset: gameConst.machinesPerLevelSuppressionOffset,
+                machinesPerLevelIncreaseFactor: gameConst.machinesPerLevelIncreaseFactor,
+                maxLevelForBonusMachines: gameConst.maxLevelForBonusMachines,
+            },
+            itemOps: {
+                generateItem(_cat, _kind) { return { category: 0, kind: 0, quantity: 1, flags: 0, keyLoc: [], originDepth: 0 }; },
+                deleteItem() {},
+                placeItemAt() {},
+                removeItemFromArray() {},
+                itemIsHeavyWeapon() { return false; },
+                itemIsPositivelyEnchanted() { return false; },
+            } satisfies ItemOps,
+            monsterOps: {
+                spawnHorde() { return null; },
+                monsterAtLoc: monsterAtLocFn as any,
+                killCreature() {},
+                generateMonster() { return null; },
+                toggleMonsterDormancy() {},
+                iterateMachineMonsters() { return []; },
+            } satisfies MonsterOps,
+            analyzeMap: analyzeMapWrapped,
+            calculateDistances: calculateDistancesWrapped,
+            getFOVMask: getFOVMaskWrapped,
+            populateGenericCostMap: populateGenericCostMapWrapped,
+            pathingDistance: (x1: number, y1: number, x2: number, y2: number) =>
+                pathingDistanceWrapped(x1, y1, x2, y2, 0),
+            floorItems: floorItems as any,
+            packItems: packItems as any,
+        };
+
+        const bridgeCtx: BuildBridgeContext = {
+            depthLevel: rogue.depthLevel,
+            depthAccelerator: gameConst.depthAccelerator,
+            pathingDistance: (x1, y1, x2, y2, blockFlags) =>
+                pathingDistanceWrapped(x1, y1, x2, y2, blockFlags),
+        };
+
+        return {
+            pmap,
+            depthLevel: rogue.depthLevel,
+            gameConstants: gameConst,
+            dungeonProfileCatalog,
+            dungeonFeatureCatalog,
+            blueprintCatalog,
+            autoGeneratorCatalog,
+            tileCatalog: tileCatalog as any,
+            machineNumber: rogue.rewardRoomsGenerated,
+            rewardRoomsGenerated: rogue.rewardRoomsGenerated,
+            staleLoopMap: rogue.staleLoopMap,
+            machineContext: machineCtx,
+            bridgeContext: bridgeCtx,
+            analyzeMap: analyzeMapWrapped,
+            getFOVMask: getFOVMaskWrapped,
+            populateGenericCostMap: populateGenericCostMapWrapped,
+            calculateDistances: calculateDistancesWrapped,
+        };
+    }
+
+    // -- Build LevelContext ----------------------------------------------------
+    function buildLevelContext(): LevelContext {
+        return {
+            rogue,
+            player,
+            gameConst,
+            FP_FACTOR,
+
+            levels,
+            pmap,
+
+            monsters,
+            dormantMonsters,
+            floorItems,
+            setMonsters(m: Creature[]) { monsters = m; },
+            setDormantMonsters(m: Creature[]) { dormantMonsters = m; },
+
+            scentMap,
+            setScentMap(map: number[][] | null) { scentMap = map; },
+
+            dynamicColors,
+            dynamicColorsBounds,
+
+            levelFeelings: [
+                { message: "You sense a very powerful presence on this level.", color: Colors.goodMessageColor },
+                { message: "You sense an ancient and very powerful magic here.", color: Colors.goodMessageColor },
+            ],
+
+            allocGrid,
+            fillGrid,
+            freeGrid,
+
+            applyColorAverage,
+
+            seedRandomGenerator,
+            rand_64bits: rand64bits,
+
+            synchronizePlayerTimeState() {
+                // Sync player's time-related state (simplified)
+            },
+
+            cellHasTerrainFlag: cellHasTerrainFlagAt,
+            coordinatesAreInMap,
+            pmapAt,
+            posNeighborInDirection,
+
+            calculateDistances: calculateDistancesWrapped,
+            pathingDistance: pathingDistanceWrapped,
+            currentStealthRange() {
+                // Simplified stealth range calculation
+                return 14 + rogue.stealthBonus;
+            },
+
+            getQualifyingLocNear(target, _hallwaysAllowed, _forbidCellFlags, forbidTerrainFlags, forbidMapFlags, _deterministic, _allowFlood) {
+                // Simplified: search outward from target for a valid cell
+                for (let r = 0; r < Math.max(DCOLS, DROWS); r++) {
+                    for (let dx = -r; dx <= r; dx++) {
+                        for (let dy = -r; dy <= r; dy++) {
+                            if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+                            const x = target.x + dx;
+                            const y = target.y + dy;
+                            if (!coordinatesAreInMap(x, y)) continue;
+                            if (terrainFlagsAt({ x, y }) & forbidTerrainFlags) continue;
+                            if (pmap[x][y].flags & forbidMapFlags) continue;
+                            return { x, y };
+                        }
+                    }
+                }
+                return { ...target };
+            },
+            getQualifyingPathLocNear(target, _hallwaysAllowed, _terrainMustBe, _terrainMustNotBe, _pathingBlockers, _cellMustNotBe, _deterministic) {
+                // Simplified: just return the target
+                return { ...target };
+            },
+
+            digDungeon() {
+                const archCtx = buildArchitectContext();
+                digDungeonFn(archCtx);
+                // Sync machineNumber back
+                rogue.rewardRoomsGenerated = archCtx.rewardRoomsGenerated;
+                rogue.staleLoopMap = archCtx.staleLoopMap;
+            },
+            placeStairs() {
+                const result = placeStairsFn(pmap, levels, rogue.depthLevel, gameConst.deepestLevel);
+                if (result) {
+                    rogue.upLoc = { ...result.upStairsLoc };
+                    rogue.downLoc = { ...result.downStairsLoc };
+                    levels[rogue.depthLevel - 1].upStairsLoc = { ...result.upStairsLoc };
+                    levels[rogue.depthLevel - 1].downStairsLoc = { ...result.downStairsLoc };
+                    return { success: true, upStairsLoc: result.upStairsLoc };
+                }
+                return { success: false, upStairsLoc: { x: 0, y: 0 } };
+            },
+            initializeLevel(upStairsLoc: Pos) {
+                initializeLevelFn(pmap, upStairsLoc, rogue.depthLevel, levels, getFOVMaskWrapped);
+            },
+            setUpWaypoints() {
+                const result = setUpWaypointsFn(pmap, populateGenericCostMapWrapped, getFOVMaskWrapped);
+                rogue.wpDistance = result.wpDistance;
+            },
+            shuffleTerrainColors: shuffleTerrainColorsFn,
+
+            numberOfMatchingPackItems(_category, _flags, _flags2, _useFlags) {
+                // Simplified: count items in pack matching category
+                let count = 0;
+                for (const item of packItems) {
+                    if (item.category & _category) count++;
+                }
+                return count;
+            },
+            itemAtLoc(loc: Pos) {
+                for (const item of floorItems) {
+                    if (item.loc.x === loc.x && item.loc.y === loc.y) return item;
+                }
+                return null;
+            },
+            describedItemName(_item: Item) {
+                return "an item"; // Simplified
+            },
+            generateItem(category: number, kind: number): Item {
+                return generateItem(category, kind, {
+                    rng: { randRange, randPercent, randClump },
+                    gameConstants: gameConst,
+                    depthLevel: rogue.depthLevel,
+                    scrollTable: mutableScrollTable,
+                    potionTable: mutablePotionTable,
+                    depthAccelerator: gameConst.depthAccelerator,
+                    chooseVorpalEnemy,
+                });
+            },
+            placeItemAt(item: Item, loc: Pos) {
+                item.loc = { ...loc };
+                floorItems.push(item);
+            },
+
+            restoreMonster(_monst, _mapToStairs, _mapToPit) {
+                restoreMonsterFn(); // stub
+            },
+            restoreItems() {
+                restoreItemsFn(); // stub
+            },
+            updateMonsterState(_monst) {
+                // Stub — monster AI not yet wired
+            },
+
+            storeMemories(x, y) {
+                // Simplified: save remembered appearance
+                const cell = pmap[x][y];
+                cell.rememberedTerrain = cell.layers[highestPriorityLayer(pmap, x, y, false)];
+                cell.rememberedCellFlags = cell.flags;
+                cell.rememberedTerrainFlags = terrainFlagsAt({ x, y });
+                cell.rememberedTMFlags = terrainMechFlagsAt({ x, y });
+                const appearance = getCellAppearance({ x, y });
+                cell.rememberedAppearance = {
+                    character: appearance.glyph,
+                    foreColorComponents: [appearance.foreColor.red, appearance.foreColor.green, appearance.foreColor.blue],
+                    backColorComponents: [appearance.backColor.red, appearance.backColor.green, appearance.backColor.blue],
+                    opacity: 100,
+                };
+            },
+            updateVision: updateVisionFn,
+            discoverCell(x, y) {
+                pmap[x][y].flags |= TileFlag.DISCOVERED;
+            },
+            updateMapToShore() {
+                const shore = updateMapToShoreFn(pmap);
+                rogue.mapToShore = shore;
+            },
+            updateRingBonuses() {
+                // Simplified — ring bonuses recalculated via equipment system
+                const equipState: EquipmentState = {
+                    player,
+                    weapon: rogue.weapon,
+                    armor: rogue.armor,
+                    ringLeft: rogue.ringLeft,
+                    ringRight: rogue.ringRight,
+                    strength: rogue.strength,
+                    clairvoyance: rogue.clairvoyance,
+                    stealthBonus: rogue.stealthBonus,
+                    regenerationBonus: rogue.regenerationBonus,
+                    lightMultiplier: rogue.lightMultiplier,
+                    awarenessBonus: 0,
+                    transference: rogue.transference,
+                    wisdomBonus: rogue.wisdomBonus,
+                    reaping: rogue.reaping,
+                };
+                recalculateEquipmentBonuses(equipState);
+                rogue.clairvoyance = equipState.clairvoyance;
+                rogue.stealthBonus = equipState.stealthBonus;
+                rogue.regenerationBonus = equipState.regenerationBonus;
+                rogue.lightMultiplier = equipState.lightMultiplier;
+                rogue.transference = equipState.transference;
+                rogue.wisdomBonus = equipState.wisdomBonus;
+                rogue.reaping = equipState.reaping;
+            },
+
+            displayLevel: displayLevelFn,
+            refreshSideBar(_x, _y, _justClearing) {
+                // Stub — sidebar not yet wired
+            },
+            messageWithColor(_msg, _color, _flags) {
+                // TODO: Wire to full message system
+            },
+            RNGCheck() {
+                // No-op for now — recording validation
+            },
+            flushBufferToFile() {
+                // No-op — recording not yet supported
+            },
+            deleteAllFlares() {
+                deleteAllFlares(rogue as any);
+            },
+            hideCursor() {
+                // No-op for browser
+            },
+
+            itemMessageColor: Colors.itemMessageColor,
+            nbDirs,
+            clamp,
+        };
+    }
 
     // -- MenuContext -----------------------------------------------------------
     const menuCtx: MenuContext = {
@@ -620,27 +1821,40 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         smoothHiliteGradient,
 
         // -- Game lifecycle ---------------------------------------------------
-        initializeRogue(_seed: bigint): void {
-            // TODO: Wire to game/game-init.initializeRogue with full GameInitContext
-            // eslint-disable-next-line no-console
-            console.log("[runtime] initializeRogue called — stub");
+        initializeRogue(seed: bigint): void {
+            const gameInitCtx = buildGameInitContext();
+            initializeRogueFn(gameInitCtx, seed);
         },
-        startLevel(_depth: number, _stairDirection: number): void {
-            // TODO: Wire to game/game-level.startLevel with full LevelContext
-            // eslint-disable-next-line no-console
-            console.log("[runtime] startLevel called — stub");
+        startLevel(depth: number, stairDirection: number): void {
+            const levelCtx = buildLevelContext();
+            startLevelFn(levelCtx, depth, stairDirection);
+            // Render the newly generated level
+            displayLevelFn();
+            commitDraws();
         },
-        mainInputLoop(): void {
-            // TODO: Wire to io/io-input.mainInputLoop with full InputContext
-            // eslint-disable-next-line no-console
-            console.log("[runtime] mainInputLoop called — stub");
-            rogue.gameHasEnded = true;
+        async mainInputLoop(): Promise<void> {
+            // Minimal input loop: wait for events, 'q'/Escape to quit.
+            // Full wiring to io-input.mainInputLoop with InputContext is Step 3c.
+            while (!rogue.gameHasEnded) {
+                commitDraws();
+                const event = await browserConsole.waitForEvent();
+
+                if (event.eventType === 1) { // Keystroke
+                    const key = event.param1;
+                    // 'q' or 'Q' or Escape (27) → end game
+                    if (key === 113 || key === 81 || key === 27) {
+                        rogue.gameHasEnded = true;
+                    }
+                }
+            }
         },
         freeEverything(): void {
-            // TODO: Wire to game/game-cleanup.freeEverything with full CleanupContext
+            const cleanupCtx = buildCleanupContext();
+            freeEverythingFn(cleanupCtx);
         },
         initializeGameVariant(): void {
-            // TODO: Switch catalogs per variant
+            const gameInitCtx = buildGameInitContext();
+            initializeGameVariantFn(gameInitCtx);
         },
         initializeLaunchArguments(): void {
             // No-op for browser
