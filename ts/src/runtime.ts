@@ -50,7 +50,6 @@ import {
     GameMode,
     GameVariant,
     ButtonDrawState,
-    DungeonLayer,
     TextEntryType,
     DisplayGlyph,
     LightType,
@@ -233,7 +232,7 @@ import type { MachineContext, ItemOps, MonsterOps } from "./architect/machines.j
 import type { BuildBridgeContext } from "./architect/lakes.js";
 
 // -- Flag imports -------------------------------------------------------------
-import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, ItemFlag } from "./types/flags.js";
+import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MonsterBookkeepingFlag, ItemFlag } from "./types/flags.js";
 
 // -- State helper imports -----------------------------------------------------
 import { cellHasTerrainFlag, cellHasTMFlag, terrainFlags, terrainMechFlags, discoveredTerrainFlagsAtLoc, highestPriorityLayer } from "./state/helpers.js";
@@ -937,17 +936,18 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     // -- getCellAppearance (minimal) -------------------------------------------
     function getCellAppearance(pos: Pos): { glyph: DisplayGlyph; foreColor: Color; backColor: Color } {
         const cell = pmap[pos.x][pos.y];
-
-        // Check if the player is at this cell
-        if (pos.x === player.loc.x && pos.y === player.loc.y) {
+        const isVisible = !!(cell.flags & TileFlag.VISIBLE);
+        const isDiscovered = !!(cell.flags & TileFlag.DISCOVERED);
+        // If cell is neither visible nor discovered, render as unexplored
+        if (!isVisible && !isDiscovered) {
             return {
-                glyph: player.info.displayChar,
-                foreColor: { ...Colors.white },
-                backColor: { ...tileCatalog[cell.layers[DungeonLayer.Dungeon]].backColor! },
+                glyph: 0x20 as DisplayGlyph, // space
+                foreColor: { ...Colors.black },
+                backColor: { ...Colors.black },
             };
         }
 
-        // Get the highest priority terrain layer
+        // --- Get terrain base appearance ---
         const layer = highestPriorityLayer(pmap, pos.x, pos.y, false);
         const tile = tileCatalog[cell.layers[layer]];
 
@@ -972,7 +972,53 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         backColor.green = clamp(Math.floor(backColor.green * (100 + lightG) / 100), 0, 100);
         backColor.blue = clamp(Math.floor(backColor.blue * (100 + lightB) / 100), 0, 100);
 
-        return { glyph: tile.displayChar as DisplayGlyph, foreColor, backColor };
+        let glyph: DisplayGlyph = tile.displayChar as DisplayGlyph;
+
+        if (isVisible) {
+            // --- Check for player at this cell ---
+            if (pos.x === player.loc.x && pos.y === player.loc.y) {
+                return {
+                    glyph: player.info.displayChar,
+                    foreColor: { ...Colors.white },
+                    backColor,
+                };
+            }
+
+            // --- Check for visible monsters ---
+            for (const m of monsters) {
+                if (m.loc.x === pos.x && m.loc.y === pos.y) {
+                    // Show the monster if it's visible (simplified — full version checks invisibility, etc.)
+                    if (!(m.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DYING)) {
+                        return {
+                            glyph: m.info.displayChar,
+                            foreColor: m.info.foreColor ? { ...m.info.foreColor } : { ...Colors.white },
+                            backColor,
+                        };
+                    }
+                }
+            }
+
+            // --- Check for items on the floor ---
+            for (const item of floorItems) {
+                if (item.loc.x === pos.x && item.loc.y === pos.y) {
+                    return {
+                        glyph: item.displayChar,
+                        foreColor: item.foreColor ? { ...item.foreColor } : { ...Colors.itemMessageColor },
+                        backColor,
+                    };
+                }
+            }
+        } else if (isDiscovered) {
+            // Remembered cells: dim the colors for "fog of war" effect
+            foreColor.red = Math.floor(foreColor.red * 40 / 100);
+            foreColor.green = Math.floor(foreColor.green * 40 / 100);
+            foreColor.blue = Math.floor(foreColor.blue * 40 / 100);
+            backColor.red = Math.floor(backColor.red * 40 / 100);
+            backColor.green = Math.floor(backColor.green * 40 / 100);
+            backColor.blue = Math.floor(backColor.blue * 40 / 100);
+        }
+
+        return { glyph, foreColor, backColor };
     }
 
     // -- displayLevel (minimal) ------------------------------------------------

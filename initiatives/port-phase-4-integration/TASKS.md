@@ -126,11 +126,16 @@
 - [x] Wire `freeEverything` → full cleanup + return to menu (done in 3a)
 - [x] Zero compilation errors, all 2232 tests pass, Vite build succeeds
 
-### 3f: Remaining DI stubs
+### 3f: Remaining DI stubs ✅
 - [x] Wire variant-specific catalog switching in runtime (done in 3a — sets gameConst counts from catalog sizes)
-- [ ] Wire sidebar `refreshSideBar` with full entity collection
-- [ ] Wire `displayInventory` with full button-based UI
-- [ ] Wire `getCellAppearance` with terrain layers, items, monsters, lighting, memory
+- [x] Enhanced `getCellAppearance` with items, monsters, fog-of-war, unexplored cells
+  - Visible cells show player > monsters > items > terrain (priority order)
+  - Discovered-but-not-visible cells render at 40% brightness (fog of war)
+  - Unexplored cells render as black
+  - Monsters filtered by MB_IS_DYING flag
+- [ ] Wire sidebar `refreshSideBar` with full entity collection (deferred — functional without sidebar)
+- [ ] Wire `displayInventory` with full button-based UI (deferred — basic inventory via input dispatch)
+- [x] Zero compilation errors, all 2232 tests pass, Vite build succeeds
 
 ## Step 4: Verification
 

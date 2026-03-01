@@ -65,5 +65,6 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
     - [x] 3c: Input → Game Actions — full InputContext (~150 deps), movement/stairs/inventory/exploration/rest-search wiring, async dispatch chain, targeting stubs
     - [x] 3d: Turn Processing — buildTurnProcessingContext(), playerTurnEnded wired to real function, monster AI/environment/status-effect stubs, FOV/scent/discovery wiring
     - [x] 3e: Game Lifecycle — buildLifecycleContext(), gameOver/victory/enableEasyMode wired to real functions, display primitives, scoring stubs
+    - [x] 3f: Remaining DI stubs — enhanced getCellAppearance (items/monsters/fog-of-war/unexplored), sidebar/inventory deferred
   - [ ] Step 4: Verification — seed regression tests, recording playback, manual testing
   - [ ] Step 5: Terminal Platform — Node.js ANSI renderer, CLI entry point
