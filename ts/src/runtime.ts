@@ -275,6 +275,7 @@ import { diagonalBlocked as diagonalBlockedFn } from "./combat/combat-math.js";
 import {
     attack as attackFn,
     buildHitList as buildHitListFn,
+    moralAttack as moralAttackFn,
 } from "./combat/combat-attack.js";
 import type { AttackContext } from "./combat/combat-attack.js";
 // killCreature is also called directly from several contexts beyond attack()
@@ -296,7 +297,7 @@ import {
 } from "./movement/weapon-attacks.js";
 import type { WeaponAttackContext, BoltInfo } from "./movement/weapon-attacks.js";
 import { getImpactLoc as getImpactLocFn } from "./items/bolt-geometry.js";
-import { ringWisdomMultiplier as ringWisdomMultiplierFn, charmRechargeDelay as charmRechargeDelayFn, turnsForFullRegenInThousandths } from "./power/power-tables.js";
+import { ringWisdomMultiplier as ringWisdomMultiplierFn, charmRechargeDelay as charmRechargeDelayFn, turnsForFullRegenInThousandths, weaponForceDistance as weaponForceDistanceFn } from "./power/power-tables.js";
 
 // -- Dijkstra scan import -----------------------------------------------------
 import { dijkstraScan as dijkstraScanFn } from "./dijkstra/dijkstra.js";
@@ -353,7 +354,7 @@ import { addItemToPack, removeItemFromArray, numberOfItemsInPack as numberOfItem
 import { identify, identifyItemKind as identifyItemKindFn, itemName as itemNameFn, isVowelish as isVowelishFn, itemValue as itemValueFn } from "./items/item-naming.js";
 import type { ItemNamingContext } from "./items/item-naming.js";
 import { shuffleFlavors } from "./items/item-naming.js";
-import { equipItem, unequipItem, recalculateEquipmentBonuses, updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, strengthCheck, displayedArmorValue as displayedArmorValueFn } from "./items/item-usage.js";
+import { equipItem, unequipItem, recalculateEquipmentBonuses, updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, strengthCheck, displayedArmorValue as displayedArmorValueFn, netEnchant as netEnchantFn } from "./items/item-usage.js";
 import type { EquipContext, EquipmentState } from "./items/item-usage.js";
 import { updateIdentifiableItems as updateIdentifiableItemsFn, magicCharDiscoverySuffix as magicCharDiscoverySuffixFn, eat as eatFn } from "./items/item-handlers.js";
 import type { ItemHandlerContext } from "./items/item-handlers.js";
@@ -3522,6 +3523,178 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     }
 
     /**
+     * Helper: returns the appropriate message color based on the victim's
+     * relationship to the player.
+     * C: messageColorFromVictim (IO.c:3598)
+     */
+    function messageColorFromVictimImpl(monst: Creature): Readonly<Color> {
+        if (monst === player) {
+            return Colors.badMessageColor;
+        } else if (player.status[StatusEffect.Hallucinating] && !rogue.playbackOmniscience) {
+            return Colors.white;
+        } else if (monst.creatureState === CreatureState.Ally) {
+            return Colors.badMessageColor;
+        } else if (monstersAreEnemiesFn(player, monst, player, cellHasTerrainFlagAt)) {
+            return Colors.goodMessageColor;
+        } else {
+            return Colors.white;
+        }
+    }
+
+    /**
+     * Port of C forceWeaponHit (Combat.c:498).
+     * Pushes the defender away from the player using a simulated blinking bolt,
+     * then applies force damage on impact with terrain or another creature.
+     */
+    function forceWeaponHitImpl(defender: Creature, theItem: Item): boolean {
+        let autoID = false;
+        let knowFirstMonsterDied = false;
+
+        // Get monster name
+        const monstName = (defender === player)
+            ? "you"
+            : `the ${defender.info.monsterName}`;
+
+        const oldLoc = { ...defender.loc };
+
+        // Push direction: from player through defender (clamped to unit step)
+        const dx = clamp(defender.loc.x - player.loc.x, -1, 1);
+        const dy = clamp(defender.loc.y - player.loc.y, -1, 1);
+        const newLoc = { x: defender.loc.x + dx, y: defender.loc.y + dy };
+
+        // Announce the launch if visible and the path is clear
+        const canSeeDef = !!(pmap[defender.loc.x]?.[defender.loc.y]?.flags & TileFlag.VISIBLE);
+        if (canSeeDef
+            && coordinatesAreInMap(newLoc.x, newLoc.y)
+            && !cellHasTerrainFlagAt(newLoc, TerrainFlag.T_OBSTRUCTS_PASSABILITY | TerrainFlag.T_OBSTRUCTS_VISION)
+            && !(pmap[newLoc.x]?.[newLoc.y]?.flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER))) {
+            msgOps.combatMessage(
+                `you launch ${monstName} backward with the force of your blow`,
+                messageColorFromVictimImpl(defender),
+            );
+            autoID = true;
+        }
+
+        // Simulate blinking bolt push.
+        // In C: theBolt.magnitude = max(1, netEnchant(theItem) / FP_FACTOR)
+        //        blinkDistance = magnitude * 2 + 1
+        const enchant = netEnchantFn(theItem, rogue.strength, player.status[StatusEffect.Weakened]);
+        const magnitude = Math.max(1, Number(enchant / FP_FACTOR));
+        const blinkDistance = magnitude * 2 + 1;
+
+        // Walk the defender along the push direction
+        let pushLoc = { ...defender.loc };
+        for (let i = 0; i < blinkDistance; i++) {
+            const testX = pushLoc.x + dx;
+            const testY = pushLoc.y + dy;
+            if (!coordinatesAreInMap(testX, testY)) break;
+            if (cellHasTerrainFlagAt({ x: testX, y: testY }, TerrainFlag.T_OBSTRUCTS_PASSABILITY)) break;
+            if (pmap[testX][testY].flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER)) break;
+            pushLoc = { x: testX, y: testY };
+        }
+
+        // Move the defender to the farthest open cell
+        if (pushLoc.x !== defender.loc.x || pushLoc.y !== defender.loc.y) {
+            pmap[defender.loc.x][defender.loc.y].flags &= ~TileFlag.HAS_MONSTER;
+            {
+                const { glyph, foreColor, backColor } = getCellAppearance(defender.loc);
+                plotCharWithColor(glyph, { windowX: mapToWindowX(defender.loc.x), windowY: mapToWindowY(defender.loc.y) }, foreColor, backColor, displayBuffer);
+            }
+            defender.loc = pushLoc;
+            pmap[defender.loc.x][defender.loc.y].flags |= TileFlag.HAS_MONSTER;
+            {
+                const { glyph, foreColor, backColor } = getCellAppearance(defender.loc);
+                plotCharWithColor(glyph, { windowX: mapToWindowX(defender.loc.x), windowY: mapToWindowY(defender.loc.y) }, foreColor, backColor, displayBuffer);
+            }
+        }
+
+        // Impact check — defender was stopped short of full distance
+        if (!(defender.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DYING)
+            && distanceBetween(oldLoc, defender.loc) > 0
+            && distanceBetween(oldLoc, defender.loc) < weaponForceDistanceFn(enchant)) {
+
+            const impactLoc = { x: defender.loc.x + dx, y: defender.loc.y + dy };
+
+            let otherMonster: Creature | null = null;
+            let impactDesc: string;
+
+            if (coordinatesAreInMap(impactLoc.x, impactLoc.y)
+                && (pmap[impactLoc.x][impactLoc.y].flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER))) {
+                otherMonster = monsterAtLocFn(impactLoc);
+                if (otherMonster) {
+                    impactDesc = (otherMonster === player)
+                        ? "you"
+                        : `the ${otherMonster.info.monsterName}`;
+                } else {
+                    impactDesc = "something";
+                }
+            } else {
+                otherMonster = null;
+                if (coordinatesAreInMap(impactLoc.x, impactLoc.y)) {
+                    const layer = highestPriorityLayer(pmap, impactLoc.x, impactLoc.y, true);
+                    const tileType = pmap[impactLoc.x][impactLoc.y].layers[layer];
+                    impactDesc = tileCatalog[tileType]?.description ?? "a wall";
+                } else {
+                    impactDesc = "a wall";
+                }
+            }
+
+            const forceDamage = distanceBetween(oldLoc, defender.loc);
+
+            // Apply impact damage to defender
+            if (!(defender.info.flags & (MonsterBehaviorFlag.MONST_IMMUNE_TO_WEAPONS | MonsterBehaviorFlag.MONST_INVULNERABLE))
+                && inflictDamageFn(null, defender, forceDamage, Colors.white, false, buildCombatDamageContext())) {
+
+                if (!!(pmap[defender.loc.x]?.[defender.loc.y]?.flags & TileFlag.VISIBLE)) {
+                    knowFirstMonsterDied = true;
+                    const deathVerb = (defender.info.flags & MonsterBehaviorFlag.MONST_INANIMATE) ? "is destroyed" : "dies";
+                    msgOps.combatMessage(
+                        `${monstName} ${deathVerb} on impact with ${impactDesc}`,
+                        messageColorFromVictimImpl(defender),
+                    );
+                    autoID = true;
+                }
+                killCreatureFn(defender, false, buildCombatDamageContext());
+            } else {
+                if (!!(pmap[defender.loc.x]?.[defender.loc.y]?.flags & TileFlag.VISIBLE)) {
+                    msgOps.combatMessage(
+                        `${monstName} slams against ${impactDesc}`,
+                        messageColorFromVictimImpl(defender),
+                    );
+                    autoID = true;
+                }
+            }
+
+            moralAttackFn(player, defender, buildAttackContext());
+            splitMonsterFn(defender, player, buildCombatHelperContext());
+
+            // Collateral damage to the creature at impact location
+            if (otherMonster
+                && !(otherMonster.info.flags & (MonsterBehaviorFlag.MONST_IMMUNE_TO_WEAPONS | MonsterBehaviorFlag.MONST_INVULNERABLE))) {
+
+                if (inflictDamageFn(null, otherMonster, forceDamage, Colors.white, false, buildCombatDamageContext())) {
+                    if (!!(pmap[otherMonster.loc.x]?.[otherMonster.loc.y]?.flags & TileFlag.VISIBLE)) {
+                        const otherDeathVerb = (otherMonster.info.flags & MonsterBehaviorFlag.MONST_INANIMATE) ? "is destroyed" : "dies";
+                        const alsoStr = knowFirstMonsterDied ? "also " : "";
+                        msgOps.combatMessage(
+                            `${impactDesc} ${alsoStr}${otherDeathVerb} when ${monstName} slams into them`,
+                            messageColorFromVictimImpl(otherMonster),
+                        );
+                        autoID = true;
+                    }
+                    killCreatureFn(otherMonster, false, buildCombatDamageContext());
+                }
+                if (otherMonster.creatureState !== CreatureState.Ally) {
+                    // Allies won't defect if you throw another monster at them
+                    moralAttackFn(player, otherMonster, buildAttackContext());
+                    splitMonsterFn(otherMonster, player, buildCombatHelperContext());
+                }
+            }
+        }
+        return autoID;
+    }
+
+    /**
      * Simplified runtime spawnDungeonFeature. Handles single-tile placement
      * and gas volume. Full propagation/blocking deferred.
      */
@@ -4382,9 +4555,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             onHitHallucinateDuration: gameConst.onHitHallucinateDuration,
             onHitWeakenDuration: gameConst.onHitWeakenDuration,
             onHitMercyHealPercent: gameConst.onHitMercyHealPercent,
-            forceWeaponHit(_defender, _weapon) {
-                // Stub — force bolt (blinking bolt) not yet ported
-                return false;
+            forceWeaponHit(defender, weapon) {
+                return forceWeaponHitImpl(defender, weapon);
             },
         };
     }
