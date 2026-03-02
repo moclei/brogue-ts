@@ -47,8 +47,8 @@
 - [x] Menu buttons render and are visible
 - [x] Title ASCII art renders fully ("BROGUE")
 - [x] Version string visible
-- [ ] Keyboard navigation works (up/down arrows, enter) — deferred to Step 3
-- [ ] "New Game" button triggers game initialization flow — deferred to Step 3
+- [x] Keyboard navigation works (up/down arrows, enter) — wired in Step 3c
+- [x] "New Game" button triggers game initialization flow — wired in Step 3a
 
 ## Step 3: Runtime Wiring
 
@@ -81,8 +81,9 @@
 - [x] Implement minimal async input loop (wait for events, 'q'/Escape to quit)
 - [x] Update `MenuContext.mainInputLoop` signature to `Promise<void>`
 - [x] Add `await` at both call sites in `mainBrogueJunction`
-- [ ] Wire `refreshDungeonCell` → display system (deferred to 3f)
-- [ ] Wire full `updateScentMap`, `updateEnvironment` (deferred to 3d)
+- [ ] Wire `refreshDungeonCell` → display system — deferred to `wire-gameplay-systems`
+- [x] Wire `updateScentMap` — real implementation wired (FOV + addScentToCell + scentDistance)
+- [ ] Wire full `updateEnvironment` — deferred to `wire-gameplay-systems`
 - [x] Zero compilation errors, all 2232 tests pass, Vite build succeeds
 
 ### 3c: Input → Game actions ✅
@@ -133,8 +134,8 @@
   - Discovered-but-not-visible cells render at 40% brightness (fog of war)
   - Unexplored cells render as black
   - Monsters filtered by MB_IS_DYING flag
-- [ ] Wire sidebar `refreshSideBar` with full entity collection (deferred — functional without sidebar)
-- [ ] Wire `displayInventory` with full button-based UI (deferred — basic inventory via input dispatch)
+- [ ] Wire sidebar `refreshSideBar` with full entity collection — deferred to `wire-gameplay-systems` Phase 5
+- [ ] Wire `displayInventory` with full button-based UI — deferred to `wire-gameplay-systems` Phase 5
 - [x] Zero compilation errors, all 2232 tests pass, Vite build succeeds
 
 ## Step 4: Verification
@@ -163,13 +164,13 @@
 - [ ] Test at least 3 recordings of varying length
 
 ### 4c: Manual testing
-- [ ] Title screen renders correctly
-- [ ] New game starts, dungeon visible
-- [ ] Player movement works
-- [ ] Combat works
-- [ ] Items work (pick up, use, equip)
+- [x] Title screen renders correctly
+- [x] New game starts, dungeon visible
+- [x] Player movement works
+- [x] Combat works (attack wired, damage dealt)
+- [ ] Items work (pick up, use, equip) — blocked on `wire-gameplay-systems` Phase 2
 - [ ] Level transitions work
-- [ ] Save/load works
+- [ ] Save/load works — blocked on `wire-gameplay-systems` Phase 6
 - [ ] Game over → high scores → back to menu
 
 ## Step 5: Terminal Platform

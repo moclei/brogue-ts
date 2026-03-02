@@ -19,7 +19,7 @@
 - [x] Port struct interfaces — `CreatureType`, `MonsterWords`, `Mutation`, `HordeType`, `MonsterClass`, `Creature`, `CreatureList`
 - [x] Port struct interfaces — `GameConstants`, `PlayerCharacter`, `LevelData`, `MachineFeature`, `Blueprint`, `AutoGenerator`, `Feat`
 - [x] Port struct interfaces — `BrogueButton`, `ButtonState`, `ArchivedMessage`
-- [ ] Port inline utility functions — `signum`, `clamp`, `min`, `max`, `posEq`, `coordinatesAreInMap`, `isPosInMap`, `mapToWindow`, `windowToMap`
+- [x] Port inline utility functions — `signum`, `clamp`, `min`, `max`, `posEq`, `coordinatesAreInMap`, `isPosInMap`, `mapToWindow`, `windowToMap` — implemented in `globals/tables.ts` and `io/io-display.ts`
 - [x] Create barrel export `index.ts`
 - [x] Port `BrogueConsole` platform interface
 

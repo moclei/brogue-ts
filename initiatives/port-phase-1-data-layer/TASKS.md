@@ -24,7 +24,7 @@
 ## Step 4: Grid Operations
 - [x] Port pure grid operations (allocGrid, freeGrid, copyGrid, fillGrid, findReplaceGrid, floodFillGrid, drawRectangleOnGrid, drawCircleOnGrid, validLocationCount, randomLocationInGrid, randomLeastPositiveLocationInGrid, cellularAutomataRound, fillContiguousRegion, createBlobOnGrid)
 - [x] Create barrel export → `grid/index.ts`
-- [ ] Deferred to Phase 2/3: hiliteGrid, getTerrainGrid, getTMGrid, getPassableArcGrid, getQualifyingPathLocNear (depend on game state)
+- [x] Deferred grid functions (`hiliteGrid`, `getTerrainGrid`, `getTMGrid`, `getPassableArcGrid`, `getQualifyingPathLocNear`) — absorbed into Phase 2/3 DI contexts
 
 ## Step 5: Tests
 - [x] Tests for grid operations (16 tests)

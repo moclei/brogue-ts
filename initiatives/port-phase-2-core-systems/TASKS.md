@@ -112,7 +112,7 @@
 - [x] Port `equipItem`, `unequipItem` (weapon/armor/ring slot management)
 - [x] Port `enchantItem` (scroll of enchanting effect)
 - [x] Tests for item-usage — 64 tests passing
-- [ ] Port interactive scroll/potion/wand handlers (deferred — needs UI/player turn system)
+- [x] Port interactive scroll/potion/wand handlers — completed in Phase 3 Step 6a (`items/item-handlers.ts`)
 
 ### Sub-step 4g: Bolt mechanics — `ts/src/items/bolt-geometry.ts`
 - [x] Port `getLineCoordinates` (fixed-point line tracing with waypoint offsets)
@@ -342,16 +342,16 @@
 - [x] Port `switchToPlaying` (playback → active play transition)
 - [x] DI via `SaveContext`, `SwitchToPlayingContext`
 - [x] Tests for recording-save-load — 31 tests passing
-- [ ] `saveGame`, `saveRecording` (interactive — deferred to Phase 3, needs UI dialogs)
-- [ ] `loadSavedGame` (deferred to Phase 3, needs initializeRogue/startLevel)
+- [x] `saveGame`, `saveRecording` (interactive) — completed in Phase 3 Step 6c (`recordings/recording-interactive.ts`)
+- [x] `loadSavedGame` — completed in Phase 3 Step 6c (`recordings/recording-interactive.ts`)
 
 ### Sub-step 9e: Wire-up — `ts/src/recordings/index.ts`
 - [x] Barrel exports for all recording functions and context types
 - [x] Added to top-level `ts/src/index.ts`
 
-### Deferred to Phase 3:
-- [ ] `executePlaybackInput`, `seek`, `pausePlayback` (playback UI — heavily UI-dependent)
-- [ ] `displayAnnotation`, `loadNextAnnotation`, `parseFile` (annotation system)
-- [ ] `mainInputLoop` integration
+### Deferred to Phase 3 (completed):
+- [x] `executePlaybackInput`, `seek`, `pausePlayback` — completed in Phase 3 Step 6b (`recordings/recording-playback.ts`)
+- [x] `displayAnnotation`, `loadNextAnnotation`, `parseFile` — completed in Phase 3 Step 6b
+- [x] `mainInputLoop` integration — completed in Phase 4 Step 3c
 
 **Total: 134 tests across 4 recording modules**
