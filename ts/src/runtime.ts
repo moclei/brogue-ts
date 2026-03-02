@@ -330,7 +330,7 @@ import type { MachineContext, ItemOps } from "./architect/machines.js";
 import type { BuildBridgeContext } from "./architect/lakes.js";
 
 // -- Flag imports -------------------------------------------------------------
-import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MonsterBookkeepingFlag, MonsterAbilityFlag, ItemFlag, MessageFlag, T_OBSTRUCTS_SCENT, ANY_KIND_OF_VISIBLE, IS_IN_MACHINE } from "./types/flags.js";
+import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MonsterBookkeepingFlag, MonsterAbilityFlag, ItemFlag, MessageFlag, T_OBSTRUCTS_SCENT, T_DIVIDES_LEVEL, T_PATHING_BLOCKER, T_HARMFUL_TERRAIN, T_MOVES_ITEMS, ANY_KIND_OF_VISIBLE, IS_IN_MACHINE } from "./types/flags.js";
 
 // -- State helper imports -----------------------------------------------------
 import { cellHasTerrainFlag, cellHasTMFlag, cellHasTerrainType, terrainFlags, terrainMechFlags, discoveredTerrainFlagsAtLoc, highestPriorityLayer } from "./state/helpers.js";
@@ -346,6 +346,14 @@ import { autoGeneratorCatalog } from "./globals/autogenerator-catalog.js";
 // -- Game-level import --------------------------------------------------------
 import { startLevel as startLevelFn } from "./game/game-level.js";
 import type { LevelContext } from "./game/game-level.js";
+import { RNG_COSMETIC } from "./game/game-init.js";
+
+// -- Safety maps import -------------------------------------------------------
+import { updateSafetyMap as updateSafetyMapFn, updateClairvoyance as updateClairvoyanceFn } from "./time/safety-maps.js";
+import type { SafetyMapsContext } from "./time/safety-maps.js";
+
+// -- Creature effects import (burnItem) ---------------------------------------
+import { burnItem as burnItemFn } from "./time/creature-effects.js";
 
 // -- Appearance imports -------------------------------------------------------
 import { bakeTerrainColors } from "./io/io-appearance.js";
@@ -370,7 +378,7 @@ import { lightCatalog as lightCatalogData } from "./globals/light-catalog.js";
 import { meteredItemsGenerationTable as meteredItemsGenTable } from "./globals/item-catalog.js";
 import { scrollTable, potionTable, lumenstoneDistribution, staffTable, ringTable, wandTable, charmTable, charmEffectTable, armorTable, foodTable } from "./globals/item-catalog.js";
 import { populateItems as populateItemsFn } from "./items/item-population.js";
-import { populateMonsters as populateMonstersFn, spawnHorde as spawnHordeFn, monsterCanSubmergeNow as monsterCanSubmergeNowFn, forbiddenFlagsForMonster as forbiddenFlagsForMonsterFn, avoidedFlagsForMonster as avoidedFlagsForMonsterFn } from "./monsters/monster-spawning.js";
+import { populateMonsters as populateMonstersFn, spawnHorde as spawnHordeFn, spawnPeriodicHorde as spawnPeriodicHordeFn, monsterCanSubmergeNow as monsterCanSubmergeNowFn, forbiddenFlagsForMonster as forbiddenFlagsForMonsterFn, avoidedFlagsForMonster as avoidedFlagsForMonsterFn } from "./monsters/monster-spawning.js";
 import { generateMonster as generateMonsterFn } from "./monsters/monster-creation.js";
 import { createMonsterOps, toggleMonsterDormancy as toggleMonsterDormancyFn } from "./monsters/monster-ops.js";
 import { hordeCatalog } from "./globals/horde-catalog.js";
@@ -1133,8 +1141,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             itemMessageColor: Colors.itemMessageColor,
             backgroundMessageColor: Colors.backgroundMessageColor,
             KEY: 0x2000, // ItemCategory.KEY
-            assureCosmeticRNG: () => {},
-            restoreRNG: () => {},
+            assureCosmeticRNG: assureCosmeticRNGImpl,
+            restoreRNG: restoreRNGImpl,
             getLocationFlags: (x, y, _limitToPlayerKnowledge) => ({
                 tFlags: terrainFlags(pmap, { x, y }),
                 tmFlags: terrainMechFlags(pmap, { x, y }),
@@ -1869,7 +1877,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
 
             // Safety map
             safetyMap,
-            updateSafetyMap() { /* stub — needs SafetyMapsContext */ },
+            updateSafetyMap() { updateSafetyMapFn(buildSafetyMapsContext()); },
 
             // Table helpers
             tableForItemCategory(category: number) {
@@ -2006,7 +2014,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             itemName: getItemName,
             identifyItemKind: (theItem) => identifyItemKindFn(theItem, gameConst),
             displayLevel: () => { displayLevelFn(); commitDraws(); },
-            updateClairvoyance: () => { /* stub — deferred */ },
+            updateClairvoyance: () => { updateClairvoyanceFn(buildSafetyMapsContext()); },
             updateFieldOfViewDisplay: () => { updateVisionFn(true); },
             updateMinersLightRadius: () => { /* stub — deferred */ },
             updatePlayerRegenerationDelay() {
@@ -3152,8 +3160,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             itemMessageColor: Colors.itemMessageColor,
             backgroundMessageColor: Colors.backgroundMessageColor,
             KEY: ItemCategory.KEY,
-            assureCosmeticRNG: () => {},
-            restoreRNG: () => {},
+            assureCosmeticRNG: assureCosmeticRNGImpl,
+            restoreRNG: restoreRNGImpl,
             getLocationFlags: (x, y, _limitToPlayerKnowledge) => ({
                 tFlags: terrainFlags(pmap, { x, y }),
                 tmFlags: terrainMechFlags(pmap, { x, y }),
@@ -3913,6 +3921,270 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         }
     }
 
+    // =========================================================================
+    // Shared cell refresh helper
+    // =========================================================================
+
+    /** Refresh a single dungeon cell on screen (appearance → plot). */
+    function refreshDungeonCellRuntime(loc: Pos): void {
+        const { glyph, foreColor, backColor } = getCellAppearance(loc);
+        plotCharWithColor(glyph, { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) }, foreColor, backColor, displayBuffer);
+    }
+
+    /** Check whether the player can see or sense a cell. */
+    function playerCanSeeOrSenseRuntime(x: number, y: number): boolean {
+        return !!(pmap[x]?.[y]?.flags & (TileFlag.VISIBLE | TileFlag.TELEPATHIC_VISIBLE | TileFlag.CLAIRVOYANT_VISIBLE));
+    }
+
+    // =========================================================================
+    // Phase 3 helpers: getTerrainGrid, getRandomMonsterSpawnLocation,
+    //                  buildSafetyMapsContext, updateFloorItemsImpl,
+    //                  assureCosmeticRNG / restoreRNG
+    // =========================================================================
+
+    /**
+     * getTerrainGrid — fills grid locations with `value` if they match terrain or map flags.
+     * Ported from Grid.c:161.
+     */
+    function getTerrainGrid(grid: number[][], value: number, tFlags: number, mapFlags: number): void {
+        for (let i = 0; i < DCOLS; i++) {
+            for (let j = 0; j < DROWS; j++) {
+                if (grid[i][j] !== value && (cellHasTerrainFlag(pmap, { x: i, y: j }, tFlags) || (pmap[i][j].flags & mapFlags))) {
+                    grid[i][j] = value;
+                }
+            }
+        }
+    }
+
+    /**
+     * getRandomMonsterSpawnLocation — finds a random location far from the player.
+     * Ported from Monsters.c:1086.
+     */
+    function getRandomMonsterSpawnLocationImpl(): Pos | null {
+        const grid = allocGrid();
+        fillGrid(grid, 0);
+        calculateDistancesFn(grid, player.loc.x, player.loc.y, T_DIVIDES_LEVEL, null, true, true, buildCalcDistCtx());
+        getTerrainGrid(grid, 0, T_PATHING_BLOCKER | T_HARMFUL_TERRAIN, TileFlag.HAS_PLAYER | TileFlag.HAS_MONSTER | TileFlag.HAS_STAIRS | TileFlag.IN_FIELD_OF_VIEW);
+        findReplaceGrid(grid, -30000, Math.floor(DCOLS / 2) - 1, 0);
+        findReplaceGrid(grid, 30000, 30000, 0);
+        findReplaceGrid(grid, Math.floor(DCOLS / 2), 30000 - 1, 1);
+        let loc = randomLocationInGrid(grid, 1);
+        if (loc.x < 0 || loc.y < 0) {
+            fillGrid(grid, 1);
+            getTerrainGrid(grid, 0, T_PATHING_BLOCKER | T_HARMFUL_TERRAIN, TileFlag.HAS_PLAYER | TileFlag.HAS_MONSTER | TileFlag.HAS_STAIRS | TileFlag.IN_FIELD_OF_VIEW | IS_IN_MACHINE);
+            loc = randomLocationInGrid(grid, 1);
+        }
+        freeGrid(grid);
+        if (loc.x < 0 || loc.y < 0) {
+            return null;
+        }
+        return loc;
+    }
+
+    /**
+     * Build a SafetyMapsContext for updateSafetyMap / updateClairvoyance / updateVision.
+     */
+    function buildSafetyMapsContext(): SafetyMapsContext {
+        return {
+            player,
+            rogue: {
+                get clairvoyance() { return rogue.clairvoyance; },
+                get depthLevel() { return rogue.depthLevel; },
+                get updatedSafetyMapThisTurn() { return rogue.updatedSafetyMapThisTurn; },
+                set updatedSafetyMapThisTurn(v) { rogue.updatedSafetyMapThisTurn = v; },
+                get updatedAllySafetyMapThisTurn() { return rogue.updatedAllySafetyMapThisTurn; },
+                set updatedAllySafetyMapThisTurn(v) { rogue.updatedAllySafetyMapThisTurn = v; },
+                get updatedMapToSafeTerrainThisTurn() { return rogue.updatedMapToSafeTerrainThisTurn; },
+                set updatedMapToSafeTerrainThisTurn(v) { rogue.updatedMapToSafeTerrainThisTurn = v; },
+                get mapToSafeTerrain() { return rogue.mapToSafeTerrain; },
+                get upLoc() { return rogue.upLoc; },
+                get downLoc() { return rogue.downLoc; },
+            },
+            monsters,
+            dormantMonsters,
+            pmap,
+            tileCatalog,
+            safetyMap: safetyMap ?? allocGrid(),
+            allySafetyMap: allySafetyMap ?? allocGrid(),
+            DCOLS,
+            DROWS,
+            FP_FACTOR: Number(FP_FACTOR),
+            cellHasTerrainFlag: cellHasTerrainFlagAt,
+            cellHasTMFlag: cellHasTMFlagAt,
+            coordinatesAreInMap,
+            pmapAt: (loc: Pos) => pmap[loc.x][loc.y],
+            discoveredTerrainFlagsAtLoc: discoveredTerrainFlagsAtLocFn,
+            monsterAtLoc: monsterAtLocFn,
+            monstersAreEnemies: (m1, m2) => monstersAreEnemiesFn(m1, m2, player, cellHasTerrainFlagAt),
+            monsterRevealed(monst) {
+                return !!(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_TELEPATHICALLY_REVEALED);
+            },
+            zeroOutGrid(grid: number[][]) {
+                // Ensure grid has proper dimensions, then zero it out
+                if (grid.length === 0) {
+                    for (let i = 0; i < DCOLS; i++) {
+                        grid[i] = new Array(DROWS).fill(0);
+                    }
+                } else {
+                    fillGrid(grid, 0);
+                }
+            },
+            getFOVMask(grid, x, y, radius, obstructionFlags, extraFlags, omniscient) {
+                getFOVMaskWrapped(grid, x, y, BigInt(radius), obstructionFlags, extraFlags, omniscient);
+            },
+            updateLighting() {
+                // Simplified — full lighting update deferred
+            },
+            updateFieldOfViewDisplay(_newlyVisible, _refreshDisplay) {
+                displayLevelFn();
+                commitDraws();
+            },
+            discoverCell(x, y) {
+                if (coordinatesAreInMap(x, y)) {
+                    pmap[x][y].flags |= TileFlag.DISCOVERED;
+                }
+            },
+            refreshDungeonCell(loc) {
+                refreshDungeonCellRuntime(loc);
+            },
+            allocGrid,
+            freeGrid,
+            dijkstraScan: dijkstraScanFn,
+            max: Math.max,
+            min: Math.min,
+            floorItems,
+        };
+    }
+
+    /**
+     * assureCosmeticRNG / restoreRNG — RNG stream switching.
+     * Saves the current RNG mode and switches to cosmetic RNG.
+     */
+    let _savedRNG = 0;
+    function assureCosmeticRNGImpl(): void {
+        _savedRNG = rogue.RNG;
+        rogue.RNG = RNG_COSMETIC;
+    }
+    function restoreRNGImpl(): void {
+        rogue.RNG = _savedRNG;
+    }
+
+    /**
+     * updateFloorItemsImpl — handles floor item decay, fire damage, drift, and
+     * tile promotion on item presence.
+     * Ported from Items.c:1192.
+     */
+    function updateFloorItemsImpl(): void {
+        for (let idx = floorItems.length - 1; idx >= 0; idx--) {
+            const theItem = floorItems[idx];
+            const x = theItem.loc.x;
+            const y = theItem.loc.y;
+
+            if (rogue.absoluteTurnNumber < theItem.spawnTurnNumber) {
+                // Item fell from a higher level — don't touch it yet
+                continue;
+            }
+
+            // Auto-descent (chasms, pits)
+            if (cellHasTerrainFlagAt({ x, y }, TerrainFlag.T_AUTO_DESCENT)) {
+                if (playerCanSeeOrSenseRuntime(x, y)) {
+                    const buf = getItemName(theItem, false, false);
+                    msgOps.messageWithColor(
+                        `the ${buf} plunge${theItem.quantity > 1 ? "" : "s"} out of sight!`,
+                        Colors.itemMessageColor, 0,
+                    );
+                }
+                if (pmap[x]?.[y]?.flags & TileFlag.VISIBLE) {
+                    if (coordinatesAreInMap(x, y)) {
+                        pmap[x][y].flags |= TileFlag.DISCOVERED;
+                    }
+                }
+                theItem.flags |= ItemFlag.ITEM_PREPLACED;
+
+                // Remove from floor items
+                removeItemFromArray(theItem, floorItems);
+                pmap[x][y].flags &= ~(TileFlag.HAS_ITEM | TileFlag.ITEM_DETECTED);
+
+                if ((theItem.category & ItemCategory.POTION) || rogue.depthLevel === gameConst.deepestLevel) {
+                    // Potions don't survive the fall; at deepest level, items are lost
+                    // (deleteItem is a no-op in our system — just removing from array is enough)
+                } else {
+                    // Add to next level's item chain
+                    theItem.spawnTurnNumber = rogue.absoluteTurnNumber;
+                    if (levels[rogue.depthLevel - 1 + 1]) {
+                        if (!levels[rogue.depthLevel - 1 + 1].items) {
+                            levels[rogue.depthLevel - 1 + 1].items = [];
+                        }
+                        (levels[rogue.depthLevel - 1 + 1].items as Item[]).push(theItem);
+                    }
+                }
+                refreshDungeonCellRuntime({ x, y });
+                continue;
+            }
+
+            // Fire / lava destroying flammable items
+            if ((cellHasTerrainFlagAt({ x, y }, TerrainFlag.T_IS_FIRE) && (theItem.flags & ItemFlag.ITEM_FLAMMABLE))
+                || (cellHasTerrainFlagAt({ x, y }, TerrainFlag.T_LAVA_INSTA_DEATH) && !(theItem.category & ItemCategory.AMULET))) {
+                burnItemImpl(theItem);
+                continue;
+            }
+
+            // Items drifting in water/wind (T_MOVES_ITEMS)
+            if (cellHasTerrainFlagAt({ x, y }, T_MOVES_ITEMS)) {
+                // Simplified drift: find adjacent cell without item/obstruction
+                let driftLoc: Pos | null = null;
+                for (const [dx, dy] of nbDirs) {
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    if (coordinatesAreInMap(nx, ny)
+                        && !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_ITEMS | TerrainFlag.T_OBSTRUCTS_PASSABILITY)
+                        && !(pmap[nx][ny].flags & TileFlag.HAS_ITEM)) {
+                        driftLoc = { x: nx, y: ny };
+                        break;
+                    }
+                }
+                if (driftLoc && distanceBetween({ x, y }, driftLoc) === 1) {
+                    // Move item
+                    pmap[x][y].flags &= ~TileFlag.HAS_ITEM;
+                    pmap[driftLoc.x][driftLoc.y].flags |= TileFlag.HAS_ITEM;
+                    if (pmap[x][y].flags & TileFlag.ITEM_DETECTED) {
+                        pmap[x][y].flags &= ~TileFlag.ITEM_DETECTED;
+                        pmap[driftLoc.x][driftLoc.y].flags |= TileFlag.ITEM_DETECTED;
+                    }
+                    theItem.loc = driftLoc;
+                    refreshDungeonCellRuntime({ x, y });
+                    refreshDungeonCellRuntime(driftLoc);
+                    continue;
+                }
+            }
+
+            // Tile promotion on item presence
+            if (cellHasTMFlagAt({ x, y }, TerrainMechFlag.TM_PROMOTES_ON_ITEM)) {
+                for (let layer = 0; layer < 3 /* NUMBER_TERRAIN_LAYERS */; layer++) {
+                    if (tileCatalog[pmap[x][y].layers[layer]]?.mechFlags & TerrainMechFlag.TM_PROMOTES_ON_ITEM) {
+                        promoteTileImpl(x, y, layer, false);
+                    }
+                }
+                continue;
+            }
+
+            // Auto-identify items in player's machine
+            if (pmap[x][y].machineNumber
+                && pmap[x][y].machineNumber === pmap[player.loc.x]?.[player.loc.y]?.machineNumber
+                && (theItem.flags & ItemFlag.ITEM_KIND_AUTO_ID)) {
+                identifyItemKindFn(theItem, gameConst);
+            }
+        }
+    }
+
+    /**
+     * burnItem helper — burns an item using the real burnItem function
+     * with a minimal CreatureEffectsContext.
+     */
+    function burnItemImpl(theItem: Item): void {
+        burnItemFn(theItem, buildCreatureEffectsContext() as any);
+    }
+
     /**
      * anyoneWantABite implementation — checks if any ally wants to absorb decedent.
      */
@@ -4185,7 +4457,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             },
             spawnDungeonFeature: spawnDungeonFeatureFromObject,
             monstersFall() { monstersFallFn(buildCreatureEffectsContext()); },
-            updateFloorItems() { /* stub */ },
+            updateFloorItems() { updateFloorItemsImpl(); },
             monstersTurn(monst) {
                 // Simplified: tick the monster forward (full AI deferred)
                 monst.ticksUntilTurn = monst.movementSpeed || 100;
@@ -4419,9 +4691,9 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                     pauseAnimation: (ms) => browserConsole.pauseForMilliseconds(ms, { interruptForMouseMove: false }),
                 });
             },
-            spawnPeriodicHorde() { /* stub — horde spawning deferred */ },
+            spawnPeriodicHorde() { spawnPeriodicHordeFn(buildSpawnContext(), getRandomMonsterSpawnLocationImpl); },
             monstersFall() { monstersFallFn(buildCreatureEffectsContext()); },
-            updateFloorItems() { /* stub — floor item decay deferred */ },
+            updateFloorItems() { updateFloorItemsImpl(); },
             synchronizePlayerTimeState() { synchronizePlayerTimeStateFn(buildCreatureEffectsContext() as any); },
             recalculateEquipmentBonuses() {
                 const equipState: EquipmentState = {
@@ -4495,8 +4767,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             min: Math.min,
 
             // RNG control
-            assureCosmeticRNG() { /* stub */ },
-            restoreRNG() { /* stub */ },
+            assureCosmeticRNG: assureCosmeticRNGImpl,
+            restoreRNG: restoreRNGImpl,
 
             // Misc
             mapToWindowX,
@@ -5611,7 +5883,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 // Stub — uses Dijkstra, complex context
             },
             updateSafetyMap() {
-                // Stub — needs SafetyMapsContext
+                updateSafetyMapFn(buildSafetyMapsContext());
             },
             refreshWaypoint(_index) {
                 // Stub — needs ArchitectContext

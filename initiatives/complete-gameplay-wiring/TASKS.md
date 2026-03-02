@@ -11,15 +11,15 @@
 - [x] **1f: moveCursor** — ported ~150 lines from Items.c:5372, full cursor movement, mouse/keyboard handling, sidebar highlight, coordinate clamping; button overlay deferred
 - [x] Verify: compile clean (0 errors), 2263/2263 tests passing
 
-## Phase 2: Combat & Monster Completeness ⬜
+## Phase 2: Combat & Monster Completeness ✅
 > *After this phase: weapon types are distinct, monsters clone/steal/teleport properly*
 
-- [ ] **2a: handleWhipAttacks / handleSpearAttacks / abortAttack** — wire from `weapon-attacks.ts` in PlayerMoveContext via `buildWeaponAttackContext()`
-- [ ] **2b: cloneMonster** — port ~60 lines from Monsters.c:559 + wire in RunicContext and CombatHelperContext (jelly splits, plenty runic, multiplicity armor)
-- [ ] **2c: forceWeaponHit** — port ~30 lines from Combat.c:498 + wire in RunicContext (force weapon blink effect)
-- [ ] **2d: monsterStealsFromPlayer** — port ~50 lines from Monsters.c + wire in RunicContext (monkey/thief behavior)
-- [ ] **2e: teleport** — port ~80 lines from Monsters.c:1146 + wire in CreatureEffectsContext (pixies, teleport scrolls, bolts)
-- [ ] Verify: compile clean, tests passing, manual test: whip/spear attacks, jelly splitting
+- [x] **2a: handleWhipAttacks / handleSpearAttacks / abortAttack** — wired from `weapon-attacks.ts` in PlayerMoveContext via `buildWeaponAttackContext()` + `buildFlailHitList`
+- [x] **2b: cloneMonster** — ported ~120 lines from Monsters.c:559 as `cloneMonsterImpl`: deep copy, bookkeeping flags, leadership chain, placement, jellymancer feat; wired in RunicContext + CombatHelperContext
+- [x] **2c: forceWeaponHit** — ported ~90 lines from Combat.c:498 as `forceWeaponHitImpl`: simulated blinking bolt push, impact damage, collateral damage, moralAttack + splitMonster; wired in RunicContext. Also added `messageColorFromVictimImpl` helper.
+- [x] **2d: monsterStealsFromPlayer** — ported ~60 lines from Combat.c:426 as `monsterStealsFromPlayerImpl`: random non-equipped item selection, partial stack splitting, flee behavior; wired in RunicContext
+- [x] **2e: teleport** — ported ~80 lines from Monsters.c:1146 as `teleportImpl`: FOV-masked grid search, distance filtering, terrain avoidance, disentangle; wired in CreatureEffectsContext
+- [x] Verify: compile clean (0 errors), 2263/2263 tests passing
 
 ## Phase 3: World Simulation ⬜
 > *After this phase: reinforcement spawning, AI retreat, clairvoyance, floor item decay all work*
