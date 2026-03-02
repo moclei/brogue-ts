@@ -71,7 +71,7 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
   - [ ] Step 5: Terminal Platform — Node.js ANSI renderer, CLI entry point
 
 ## Wire Gameplay Systems
-- [ ] `wire-gameplay-systems` — Wire ~148 remaining runtime stubs to real implementations for full playability
+- [x] `wire-gameplay-systems` — Wire ~148 remaining runtime stubs to real implementations for full playability
   - [x] Phase 1: Messages — text feedback for combat, movement, items (~47 stubs) — buildMessageOps() + buildMessageContext() + buildEffectsContext(), all message stubs wired across 12+ DI contexts
   - [x] Phase 2: Item Interaction — real itemName() across all contexts, numberOfMatchingPackItems, pickUpItemAt, useKeyAt, equip/unequip/drop with full logic, makeMonsterDropItem, updateEncumbrance, buildItemHelperContext, buildItemNamingContext
   - [x] Phase 3: Monster Lifecycle — death, loot drops, terrain effects (~15 stubs)
@@ -88,5 +88,9 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
     - monsterShouldFall / monstersFall / playerFalls in TurnProcessingContext, EnvironmentContext
     - decrementPlayerStatus upgraded from minimal stub to real function
   - [x] Phase 4: Combat Effects — weapon/armor runics (magicWeaponHit, specialHit, applyArmorRunicEffect via buildRunicContext), feats (paladin, dragonslayer, pureMage), decrementWeaponAutoIDTimer, rechargeItemsIncrementally, processIncrementalAutoID, checkForDisenchantment, strengthCheck, equipItem in AttackContext
-  - [ ] Phase 5: UI Panels — sidebar, inventory screen, flavor text (~10 stubs)
-  - [ ] Phase 6: Polish — save/load, search, miner's light, recordings (~15 stubs)
+  - [x] Phase 5: UI Panels — refreshSideBar (all 8 DI contexts with 3-arg and 0-arg variants), updateFlavorText, displayInventory (async), printHelpScreen/displayFeatsScreen/printDiscoveriesScreen via buildScreenContext, printMonsterDetails/printFloorItemDetails via buildSidebarContext, printLocationDescription via buildDescribeLocationContext, displayMessageArchive (verified already wired), plus context builder type fixes and test update
+  - [x] Phase 6: Polish — search (3 contexts + ItemHelperContext builder), updateMinersLightRadius (4 contexts), updatePlayerUnderwaterness, vomit + addPoison + flashMonster, exposeTileToFire, createFlare/animateFlares + buildLightingContext, recordKeystroke/cancelKeystroke/recordMouseClick (6+ contexts), printHighScores, playerInDarkness, synchronizePlayerTimeState; save/load/recording-save kept as stubs (need file I/O backend)
+  - **~39 stubs remain** — see wire-gameplay-systems/TASKS.md for full categorized list:
+    - 9 ported-but-not-wired (monsterAvoids ×8, whip/spear/abort attacks, updateSafetyMap, updateClairvoyance, recalculateEquipmentBonuses, eat, startLevel, spawnPeriodicHorde, restoreMonster)
+    - 7 not-yet-ported (cloneMonster, monsterStealsFromPlayer, forceWeaponHit, teleport, updateFloorItems, cosmeticRNG, regenDelay)
+    - ~23 intentionally deferred (save/load, debug displays, recording playback)
