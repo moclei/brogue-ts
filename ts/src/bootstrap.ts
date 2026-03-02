@@ -35,39 +35,59 @@ import { COLS, ROWS } from "./types/constants.js";
  * the viewport while maintaining the COLS×ROWS grid aspect ratio.
  */
 function initBrowserConsole(): ReturnType<typeof createBrowserConsole> {
-    const canvas = document.getElementById("brogue-canvas") as HTMLCanvasElement | null;
-    if (!canvas) {
+    const canvasEl = document.getElementById("brogue-canvas");
+    if (!canvasEl) {
         throw new Error("Could not find #brogue-canvas element");
     }
+    const canvas = canvasEl as HTMLCanvasElement;
 
-    // Size the canvas to fill the viewport
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
+    /**
+     * Size the canvas for HiDPI displays.
+     *
+     * The canvas backing store (canvas.width/height) is set to native device
+     * pixels so text renders crisply at any zoom level. The CSS dimensions
+     * (canvas.style.width/height) keep the element at the logical viewport
+     * size. The 2D context is scaled by DPR in browser-renderer.ts.
+     */
+    function sizeCanvas(): { cellSize: number; dpr: number } {
+        const dpr = window.devicePixelRatio || 1;
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
 
-    // Calculate cell size to fit the grid in the viewport
-    const cellWidth = Math.floor(viewportWidth / COLS);
-    const cellHeight = Math.floor(viewportHeight / ROWS);
-    const cellSize = Math.min(cellWidth, cellHeight);
+        // Logical cell size (CSS pixels)
+        const cellWidth = Math.floor(viewportWidth / COLS);
+        const cellHeight = Math.floor(viewportHeight / ROWS);
+        const cellSize = Math.min(cellWidth, cellHeight);
 
-    canvas.width = cellSize * COLS;
-    canvas.height = cellSize * ROWS;
+        // CSS display size
+        const cssWidth = cellSize * COLS;
+        const cssHeight = cellSize * ROWS;
+        canvas.style.width = `${cssWidth}px`;
+        canvas.style.height = `${cssHeight}px`;
+
+        // Backing store at native resolution
+        canvas.width = Math.round(cssWidth * dpr);
+        canvas.height = Math.round(cssHeight * dpr);
+
+        return { cellSize, dpr };
+    }
+
+    const { cellSize, dpr } = sizeCanvas();
 
     const options: BrowserRendererOptions = {
         canvas,
         fontSize: Math.max(8, cellSize - 2),
+        devicePixelRatio: dpr,
     };
 
     const browserConsole = createBrowserConsole(options);
 
     // Handle window resize
     window.addEventListener("resize", () => {
-        const w = window.innerWidth;
-        const h = window.innerHeight;
-        const cw = Math.floor(w / COLS);
-        const ch = Math.floor(h / ROWS);
-        const cs = Math.min(cw, ch);
-        canvas.width = cs * COLS;
-        canvas.height = cs * ROWS;
+        const { cellSize: cs, dpr: newDpr } = sizeCanvas();
+        // Update the font size and DPR for the renderer
+        options.fontSize = Math.max(8, cs - 2);
+        options.devicePixelRatio = newDpr;
         browserConsole.handleResize();
     });
 
