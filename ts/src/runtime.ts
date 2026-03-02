@@ -60,9 +60,11 @@ import {
     ItemCategory,
     DungeonLayer,
     CreatureState,
+    CreatureMode,
     FeatType,
     ArmorEnchant,
     BoltType,
+    ALL_ITEMS,
 } from "./types/enums.js";
 import {
     COLS, ROWS, DCOLS, DROWS,
@@ -3695,6 +3697,74 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     }
 
     /**
+     * Port of the stealing logic from C specialHit (Combat.c:426-479).
+     * Called when a monster with MA_HIT_STEAL_FLEE successfully hits the player.
+     * Picks a random non-equipped pack item, takes it, and flees.
+     */
+    function monsterStealsFromPlayerImpl(attacker: Creature): void {
+        // Count non-equipped items in the player's pack
+        const itemCandidates = numberOfMatchingPackItemsFn(
+            packItems, ALL_ITEMS, 0, ItemFlag.ITEM_EQUIPPED,
+        );
+        if (!itemCandidates) return;
+
+        // Pick a random non-equipped item
+        let randItemIndex = randRange(1, itemCandidates);
+        let theItem: Item | null = null;
+        for (const item of packItems) {
+            if (!(item.flags & ItemFlag.ITEM_EQUIPPED)) {
+                if (randItemIndex === 1) {
+                    theItem = item;
+                    break;
+                }
+                randItemIndex--;
+            }
+        }
+        if (!theItem) return;
+
+        // Calculate stolen quantity: weapons steal half a stack, others steal 1
+        let stolenQuantity: number;
+        if (theItem.category & ItemCategory.WEAPON) {
+            stolenQuantity = theItem.quantity > 3
+                ? Math.floor((theItem.quantity + 1) / 2)
+                : theItem.quantity;
+        } else {
+            stolenQuantity = 1;
+        }
+
+        if (stolenQuantity < theItem.quantity) {
+            // Peel off stolen items from the stack (create a clone)
+            const stolen: Item = { ...theItem };
+            theItem.quantity -= stolenQuantity;
+            stolen.quantity = stolenQuantity;
+            theItem = stolen;
+        } else {
+            // Remove the whole item from pack
+            if (rogue.swappedIn === theItem || rogue.swappedOut === theItem) {
+                rogue.swappedIn = null;
+                rogue.swappedOut = null;
+            }
+            removeItemFromArray(theItem, packItems);
+        }
+
+        // Give item to attacker and set it to flee
+        theItem.flags &= ~ItemFlag.ITEM_PLAYER_AVOIDS;
+        attacker.carriedItem = theItem;
+        attacker.creatureMode = CreatureMode.PermFleeing;
+        attacker.creatureState = CreatureState.Fleeing;
+
+        // Display theft message
+        const monstName = `the ${attacker.info.monsterName}`;
+        const itemDisplayName = getItemName(theItem, false, true);
+        msgOps.messageWithColor(
+            `${monstName} stole ${itemDisplayName}!`,
+            Colors.badMessageColor,
+            0,
+        );
+        rogue.autoPlayingLevel = false;
+    }
+
+    /**
      * Simplified runtime spawnDungeonFeature. Handles single-tile placement
      * and gas volume. Full propagation/blocking deferred.
      */
@@ -4545,8 +4615,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             exposeCreatureToFire(monst) {
                 exposeCreatureToFireFn(monst, buildCreatureEffectsContext());
             },
-            monsterStealsFromPlayer(_attacker) {
-                // Stub — monsterStealsFromPlayer not yet ported
+            monsterStealsFromPlayer(attacker) {
+                monsterStealsFromPlayerImpl(attacker);
             },
             monstersAreEnemies(monst1, monst2) {
                 return monstersAreEnemiesFn(monst1, monst2, player, cellHasTerrainFlagAt);
