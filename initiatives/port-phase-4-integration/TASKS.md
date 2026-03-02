@@ -134,9 +134,47 @@
   - Discovered-but-not-visible cells render at 40% brightness (fog of war)
   - Unexplored cells render as black
   - Monsters filtered by MB_IS_DYING flag
-- [ ] Wire sidebar `refreshSideBar` with full entity collection — deferred to `wire-gameplay-systems` Phase 5
-- [ ] Wire `displayInventory` with full button-based UI — deferred to `wire-gameplay-systems` Phase 5
+- [x] Wire sidebar `refreshSideBar` with full entity collection — done in `wire-gameplay-systems` Phase 5
+- [x] Wire `displayInventory` with full button-based UI — done in `wire-gameplay-systems` Phase 5
 - [x] Zero compilation errors, all 2232 tests pass, Vite build succeeds
+
+### 3g: Playtest-driven fixes
+> Bugs found during manual playtesting that reveal integration issues in the
+> existing wiring. Root causes are primarily: (1) DI contexts that value-copy
+> primitive `rogue` state instead of sharing the real object, so mutations are
+> lost; (2) simplified stand-in implementations that omit critical behavior
+> paths; (3) missing `promptForItemOfType` flow preventing item action commands.
+
+#### Bug 1 — Stairs broken (player teleports to start of same level + overspawning)
+- [ ] **Root cause:** `buildTravelExploreContext()` copies `rogue.depthLevel` by value (line ~3191). When `useStairs()` increments `ctx.rogue.depthLevel`, the real `rogue.depthLevel` is unchanged. `startLevel()` then reads the stale real value and regenerates the current level instead of generating the next one.
+- [ ] **Fix:** Either pass real `rogue` object by reference in TravelExploreContext, or sync `depthLevel`/`deepestLevel` back after `useStairsFn()` calls.
+- [ ] **Audit:** Systematically find every `buildXContext()` that value-copies primitive rogue fields and verify mutations propagate correctly. This is a systemic pattern.
+
+#### Bug 2 — Monsters walk on water / no terrain avoidance
+- [ ] **Root cause:** Simplified `monstersTurn` (line ~5720) only checks `T_OBSTRUCTS_PASSABILITY` for movement, but water is passable — the real AI calls `monsterAvoids()` which checks water/lava/trap flags.
+- [ ] **Fix:** Add `monsterAvoidsWrapped(monst, {x: nx, y: ny})` check to the movement logic in simplified `monstersTurn`.
+
+#### Bug 3 — Player doesn't take damage from monster attacks
+- [ ] **Root cause:** Simplified `monstersTurn` (line ~5737) has an empty branch `else if (dist <= 1) { // Adjacent to player — just tick (combat is stubbed) }`. Monsters walk up to the player but never call `attack()`.
+- [ ] **Fix:** When adjacent and tracking/hunting, call `attackFn(monst, player, false, buildAttackContext())`.
+
+#### Bug 4 — Item actions show "Inventory display not yet available"
+- [ ] **Root cause:** `equip(null)`, `unequip(null)`, `drop(null)` (lines ~6199-6221) short-circuit because `promptForItemOfType()` is not wired. The keyboard handlers call these with `null` (meaning "prompt the user to pick an item"), but without the prompt they can't proceed.
+- [ ] **Fix:** Implement `promptForItemOfType()` — calls `displayInventory()` with the appropriate category filter and returns the selected item. Then update `equip`/`unequip`/`drop`/`apply`/`throw`/`relabel`/`call` to use it.
+
+#### Bug 5 — Mouse hover doesn't show path or inspect terrain/monsters
+- [ ] **Root cause:** `mainInputLoop` (line ~6781) only handles `Keystroke` and `MouseUp`/`RightMouseUp` events. It doesn't track `MouseEnteredCell` for hover-based sidebar updates or path preview. In the original C game, `moveCursor` is called continuously during the main loop to process mouse movement.
+- [ ] **Fix:** Handle `MouseEnteredCell` events in the main input loop to update sidebar, flavor text, and cursor path highlighting.
+
+#### Bug 6 — Blood doesn't appear when monsters die (cell goes dark instead of red)
+- [ ] **Root cause:** Blood probability calculation in `combat-damage.ts` (line ~244) divides by 100 inside `Math.floor()`, making `startProb` always 0 for typical damage values. The C code passes the raw percentage and `spawnDungeonFeature` handles the scaling internally.
+- [ ] **Fix:** Remove the `/100` from the probability calculation so blood spawns at the correct rate.
+
+#### Bug 7 — Water effects missing for player (items don't float away, no visual change)
+- [ ] **Root cause:** `applyGradualTileEffectsToCreature` (line ~1195 in creature-effects.ts) has an empty code block where the "pick random non-equipped item and drop it in water" logic should be.
+- [ ] **Fix:** Implement the item-loss-in-water logic: select a random non-equipped pack item, split from stack if needed, place on the floor tile, message the player.
+
+- [ ] Verify: compile clean (0 errors), all tests passing
 
 ## Step 4: Verification
 
@@ -167,10 +205,13 @@
 - [x] Title screen renders correctly
 - [x] New game starts, dungeon visible
 - [x] Player movement works
-- [x] Combat works (attack wired, damage dealt)
-- [ ] Items work (pick up, use, equip) — blocked on `wire-gameplay-systems` Phase 2
-- [ ] Level transitions work
-- [ ] Save/load works — blocked on `wire-gameplay-systems` Phase 6
+- [ ] ~~Combat works (attack wired, damage dealt)~~ — player attacks work, but monsters don't attack player (Bug 3)
+- [ ] Items work (pick up, use, equip) — pick up works; equip/apply/drop blocked on `promptForItemOfType` (Bug 4)
+- [ ] Level transitions work — blocked on rogue state propagation bug (Bug 1)
+- [ ] Monsters respect terrain — blocked on simplified AI missing `monsterAvoids` (Bug 2)
+- [ ] Blood/death effects render correctly — blocked on probability bug (Bug 6)
+- [ ] Mouse hover shows path preview and entity info — blocked on missing hover event handling (Bug 5)
+- [ ] Save/load works — deferred (needs IndexedDB backend)
 - [ ] Game over → high scores → back to menu
 
 ## Step 5: Terminal Platform
