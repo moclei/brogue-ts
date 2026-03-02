@@ -145,10 +145,16 @@
 > lost; (2) simplified stand-in implementations that omit critical behavior
 > paths; (3) missing `promptForItemOfType` flow preventing item action commands.
 
-#### Bug 1 — Stairs broken (player teleports to start of same level + overspawning)
-- [ ] **Root cause:** `buildTravelExploreContext()` copies `rogue.depthLevel` by value (line ~3191). When `useStairs()` increments `ctx.rogue.depthLevel`, the real `rogue.depthLevel` is unchanged. `startLevel()` then reads the stale real value and regenerates the current level instead of generating the next one.
-- [ ] **Fix:** Either pass real `rogue` object by reference in TravelExploreContext, or sync `depthLevel`/`deepestLevel` back after `useStairsFn()` calls.
-- [ ] **Audit:** Systematically find every `buildXContext()` that value-copies primitive rogue fields and verify mutations propagate correctly. This is a systemic pattern.
+#### Bug 1 — Stairs broken (player teleports to start of same level + overspawning) ✅
+- [x] **Root cause:** `buildTravelExploreContext()` copies `rogue.depthLevel` by value (line ~3191). When `useStairs()` increments `ctx.rogue.depthLevel`, the real `rogue.depthLevel` is unchanged. `startLevel()` then reads the stale real value and regenerates the current level instead of generating the next one.
+- [x] **Fix:** Pass real `rogue` object by reference in `buildTravelExploreContext()` instead of spreading primitive fields into a new object. TypeScript structural typing accepts the wider `RuntimeRogueState` for the narrower context interface.
+- [x] **Audit:** Systematically audited all 18 `rogue: {` constructions across 34 `buildXContext()` functions. Found and fixed 4 additional contexts with the same value-copy-on-mutation-path pattern:
+  - `buildPlayerMoveContext()` — `playerMoves()` mutates `rogue.disturbed` in 10+ places
+  - `buildMiscHelpersContext()` — `autoRest()`/`manualSearch()` mutate `disturbed`, `automationActive`, `justRested`, `justSearched`
+  - `buildCreatureEffectsContext()` — `creature-effects.ts` mutates `inWater`, `monsterSpawnFuse`, `disturbed`, `deepestLevel`, `flareCount` (also fixed incorrect `deepestLevel: gameConst.deepestLevel` → now uses real `rogue.deepestLevel`)
+  - `buildEnvironmentContext()` — `updateEnvironment()` mutates `staleLoopMap`
+  - Remaining value-copy contexts (cost maps, describe location, item helpers, search, scent) are read-only for rogue fields — safe as-is.
+- [x] Verified: compile clean (0 errors), all 2263 tests passing
 
 #### Bug 2 — Monsters walk on water / no terrain avoidance
 - [ ] **Root cause:** Simplified `monstersTurn` (line ~5720) only checks `T_OBSTRUCTS_PASSABILITY` for movement, but water is passable — the real AI calls `monsterAvoids()` which checks water/lava/trap flags.
@@ -207,7 +213,7 @@
 - [x] Player movement works
 - [ ] ~~Combat works (attack wired, damage dealt)~~ — player attacks work, but monsters don't attack player (Bug 3)
 - [ ] Items work (pick up, use, equip) — pick up works; equip/apply/drop blocked on `promptForItemOfType` (Bug 4)
-- [ ] Level transitions work — blocked on rogue state propagation bug (Bug 1)
+- [ ] Level transitions work — Bug 1 fixed; needs retest
 - [ ] Monsters respect terrain — blocked on simplified AI missing `monsterAvoids` (Bug 2)
 - [ ] Blood/death effects render correctly — blocked on probability bug (Bug 6)
 - [ ] Mouse hover shows path preview and entity info — blocked on missing hover event handling (Bug 5)
