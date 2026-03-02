@@ -221,6 +221,7 @@ import {
     decrementPlayerStatus as decrementPlayerStatusFn,
     exposeCreatureToFire as exposeCreatureToFireFn,
     updateFlavorText as updateFlavorTextFn,
+    updatePlayerUnderwaterness as updatePlayerUnderwaternessFn,
 } from "./time/creature-effects.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
 
@@ -245,7 +246,7 @@ import { autoRest as autoRestFn, manualSearch as manualSearchFn, rechargeItemsIn
 import type { MiscHelpersContext } from "./time/misc-helpers.js";
 
 // -- Turn processing imports --------------------------------------------------
-import { playerTurnEnded as playerTurnEndedFn, scentDistance } from "./time/turn-processing.js";
+import { playerTurnEnded as playerTurnEndedFn, scentDistance, synchronizePlayerTimeState as synchronizePlayerTimeStateFn } from "./time/turn-processing.js";
 import type { TurnProcessingContext } from "./time/turn-processing.js";
 
 // -- Scent system imports -----------------------------------------------------
@@ -373,8 +374,18 @@ import type { RecordingBuffer, RecordingFileIO } from "./recordings/recording-st
 import { initRecording as initRecordingFn } from "./recordings/recording-init.js";
 
 // -- Flare imports ------------------------------------------------------------
-import { deleteAllFlares } from "./light/flares.js";
-import { playerInDarkness as playerInDarknessFn } from "./light/light.js";
+import { createFlare as createFlareFn, animateFlares as animateFlaresFn, deleteAllFlares } from "./light/flares.js";
+import { playerInDarkness as playerInDarknessFn, updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
+import type { LightingContext } from "./light/light.js";
+
+// -- Additional creature/combat imports for Phase 6 --------------------------
+import { vomit as vomitFn } from "./movement/player-movement.js";
+import { search as searchFn } from "./movement/item-helpers.js";
+import { flashMonster as flashMonsterFn, addPoison as addPoisonFn } from "./combat/combat-damage.js";
+import { exposeTileToFire as exposeTileToFireFn } from "./time/environment.js";
+// monsterAvoids / MonsterStateContext — removed (not yet used in Phase 6)
+import { recordKeystroke as recordKeystrokeFn, cancelKeystroke as cancelKeystrokeFn, recordMouseClick as recordMouseClickFn } from "./recordings/recording-events.js";
+import { printHighScores as printHighScoresFn } from "./io/io-screens.js";
 
 // -- Menu imports (for type reference) ----------------------------------------
 import type { MenuContext, MenuRogueState, FileEntry, RogueRun } from "./menus/main-menu.js";
@@ -2738,7 +2749,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             rand_64bits: rand64bits,
 
             synchronizePlayerTimeState() {
-                // Sync player's time-related state (simplified)
+                synchronizePlayerTimeStateFn(buildTurnProcessingContext());
             },
 
             cellHasTerrainFlag: cellHasTerrainFlagAt,
@@ -3160,12 +3171,14 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 // Synchronous: check for interrupt via queue
                 return browserConsole.pauseForMilliseconds(0, { interruptForMouseMove: false });
             },
-            recordMouseClick() { /* stub — recordings not wired */ },
+            recordMouseClick(x, y, controlKey, shiftKey) {
+                recordMouseClickFn(x, y, controlKey, shiftKey, recordingBuffer, rogue.playbackMode);
+            },
             mapToWindowX,
             mapToWindowY,
             windowToMapX: windowToMapXFromDisplay,
             windowToMapY: windowToMapYFromDisplay,
-            updatePlayerUnderwaterness() { /* stub */ },
+            updatePlayerUnderwaterness() { updatePlayerUnderwaternessFn(buildCreatureEffectsContext()); },
             updateVision: updateVisionFn,
             nextBrogueEvent(_event, _textInput, _colorsDance, _realInputOnly) {
                 /* stub — synchronous API returns queue peek */
@@ -3414,7 +3427,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 updateEncumbranceFn(ctx.state);
                 syncFullEquipState(ctx);
             },
-            updateMinersLightRadius() { /* stub */ },
+            updateMinersLightRadius() { updateMinersLightRadiusFn(rogue as any, player); },
             updateVision() { updateVisionFn(true); },
             badMessageColor: Colors.badMessageColor,
             poisonColor: Colors.poisonColor,
@@ -3515,6 +3528,72 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     }
 
     /**
+     * Shared search helper — delegates to the real search function.
+     */
+    function searchRuntime(searchStrength: number): boolean {
+        return searchFn(searchStrength, {
+            pmap,
+            player,
+            rogue: { playbackOmniscience: rogue.playbackOmniscience ?? false },
+            tileCatalog: tileCatalog as any,
+            initializeItem: () => initializeItemFn(),
+            itemName: (theItem, buf, includeDetails, includeArticle, _maxLen) => {
+                buf[0] = itemNameFn(theItem, includeDetails, includeArticle, buildItemNamingContext());
+            },
+            describeHallucinatedItem: (buf) => { buf[0] = "something strange"; },
+            removeItemFromChain: (theItem, chain) => {
+                const idx = chain.indexOf(theItem);
+                if (idx >= 0) { chain.splice(idx, 1); return true; }
+                return false;
+            },
+            deleteItem: (_theItem) => { /* GC handles */ },
+            monsterAtLoc: monsterAtLocFn,
+            promoteTile: promoteTileImpl,
+            messageWithColor: msgOps.messageWithColor,
+            itemMessageColor: Colors.itemMessageColor,
+            packItems,
+            floorItems,
+            cellHasTerrainFlag: cellHasTerrainFlagAt,
+            cellHasTMFlag: cellHasTMFlagAt,
+            coordinatesAreInMap,
+            playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+            distanceBetween,
+            discover(x, y) {
+                if (coordinatesAreInMap(x, y)) {
+                    pmap[x][y].flags |= TileFlag.DISCOVERED;
+                }
+            },
+            randPercent,
+            posEq: (a, b) => a.x === b.x && a.y === b.y,
+        });
+    }
+
+    /**
+     * Build a LightingContext for flare animation and light painting.
+     */
+    function buildLightingContext(): LightingContext {
+        return {
+            tmap,
+            pmap,
+            displayDetail,
+            player,
+            rogue: rogue as any,
+            monsters,
+            dormantMonsters,
+            lightCatalog: lightCatalogData,
+            tileCatalog: tileCatalog as any,
+            mutationCatalog,
+            monsterRevealed: (monst) => {
+                if (monst.status[StatusEffect.Telepathic]) return true;
+                if (monst.status[StatusEffect.Entranced]) return true;
+                return false;
+            },
+            cellHasTerrainFlag: cellHasTerrainFlagAt,
+            getCellFlags: (x, y) => pmap[x]?.[y]?.flags ?? 0,
+        };
+    }
+
+    /**
      * Build a minimal EnvironmentContext for promoteTile and updateEnvironment.
      */
     function buildEnvironmentContext(): EnvironmentContext {
@@ -3568,7 +3647,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                     [list[i], list[j]] = [list[j], list[i]];
                 }
             },
-            exposeTileToFire(_x, _y, _alwaysIgnite) { return false; },
+            exposeTileToFire(x, y, alwaysIgnite) { return exposeTileToFireFn(x, y, alwaysIgnite, buildEnvironmentContext()); },
         };
     }
 
@@ -3699,8 +3778,12 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             killCreature: killCreatureImpl,
             combatMessage: msgOps.combatMessage,
             messageColorFromVictim: () => Colors.white,
-            addPoison(_monst, _totalDamage, _concentrationIncrement) { /* stub — poison deferred */ },
-            flashMonster(_monst, _color, _strength) { /* stub — flash animation deferred */ },
+            addPoison(monst, totalDamage, concentrationIncrement) {
+                addPoisonFn(monst, totalDamage, concentrationIncrement, buildCombatDamageContext());
+            },
+            flashMonster(monst, color, strength) {
+                flashMonsterFn(monst, color, strength, buildCombatDamageContext());
+            },
 
             // UI
             message: msgOps.message,
@@ -3735,25 +3818,31 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
 
             // Environment
             updateVision(refreshDisplay) { updateVisionFn(refreshDisplay); },
-            updateMinersLightRadius() { /* stub — deferred */ },
+            updateMinersLightRadius() { updateMinersLightRadiusFn(rogue as any, player); },
             spawnDungeonFeature: spawnDungeonFeatureFromObject,
             promoteTile: promoteTileImpl,
-            exposeTileToFire(_x, _y, _alwaysIgnite) { return false; /* stub */ },
+            exposeTileToFire(x, y, alwaysIgnite) { return exposeTileToFireFn(x, y, alwaysIgnite, buildEnvironmentContext()); },
             startLevel(_depth, _stairDirection) { /* stub — level transitions deferred */ },
             teleport(_monst, _target, _safe) { /* stub — teleportation deferred */ },
-            createFlare(_x, _y, _flareType) { /* stub — flares deferred */ },
-            animateFlares(_flares, _count) { /* stub — flares deferred */ },
+            createFlare(x, y, flareType) { createFlareFn(x, y, flareType, rogue as any, lightCatalogData); },
+            animateFlares(flares, _count) {
+                animateFlaresFn(flares, buildLightingContext(), {
+                    demoteVisibility: () => { /* simplified — full demoteVisibility needs FOV system */ },
+                    updateFieldOfViewDisplay: (_updateDancing, _refreshDisplay) => { displayLevelFn(); commitDraws(); },
+                    pauseAnimation: (ms) => browserConsole.pauseForMilliseconds(ms, { interruptForMouseMove: false }),
+                });
+            },
             spawnPeriodicHorde() { /* stub — horde spawning deferred */ },
             monstersFall() { monstersFallFn(buildCreatureEffectsContext()); },
             updateFloorItems() { /* stub — floor item decay deferred */ },
-            synchronizePlayerTimeState() { /* stub */ },
+            synchronizePlayerTimeState() { synchronizePlayerTimeStateFn(buildCreatureEffectsContext() as any); },
             recalculateEquipmentBonuses() { /* stub */ },
             updateEncumbrance() {
                 const eqCtx = buildFullEquipContext();
                 updateEncumbranceFn(eqCtx.state);
                 syncFullEquipState(eqCtx);
             },
-            playerInDarkness() { return false; /* stub */ },
+            playerInDarkness() { return playerInDarknessFn(tmap, player.loc); },
             playerTurnEnded() { playerTurnEndedFn(buildTurnProcessingContext()); },
 
             // Movement/search
@@ -3769,8 +3858,10 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                     pmap[x][y].flags |= TileFlag.DISCOVERED;
                 }
             },
-            search(_searchStrength) { return false; /* stub */ },
-            recordKeystroke(_key, _shift, _alt) { /* stub — recordings deferred */ },
+            search(searchStrength) { return searchRuntime(searchStrength); },
+            recordKeystroke(key, shift, alt) {
+                recordKeystrokeFn(key, shift, alt, recordingBuffer, rogue.playbackMode);
+            },
 
             // Map query functions
             layerWithFlag: (x, y, flag) => layerWithFlagFn(pmap, x, y, flag),
@@ -3898,7 +3989,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 updateEncumbranceFn(ctx.state);
                 syncFullEquipState(ctx);
             },
-            updateMinersLightRadius() { /* stub */ },
+            updateMinersLightRadius() { updateMinersLightRadiusFn(rogue as any, player); },
             updateVision() { updateVisionFn(true); },
             badMessageColor: Colors.badMessageColor,
             poisonColor: Colors.poisonColor,
@@ -3992,8 +4083,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             autoIdentify(item: Item) {
                 identify(item, gameConst);
             },
-            createFlare(_x, _y, _type) {
-                // Stub — visual flare system deferred to Phase 6
+            createFlare(x, y, type) {
+                createFlareFn(x, y, type, rogue as any, lightCatalogData);
             },
             cloneMonster(_monst, _selfClone, _maintainCorpse) {
                 // Stub — cloneMonster implementation not yet ported
@@ -4167,8 +4258,10 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             playerTurnEnded() {
                 doPlayerTurnEnded();
             },
-            recordKeystroke() { /* stub — recordings not wired */ },
-            cancelKeystroke() { /* stub */ },
+            recordKeystroke(key, shift, ctrl) {
+                recordKeystrokeFn(key, ctrl, shift, recordingBuffer, rogue.playbackMode);
+            },
+            cancelKeystroke() { cancelKeystrokeFn(recordingBuffer); },
             confirm: () => true,
 
             message: msgOps.message,
@@ -4179,7 +4272,23 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             randPercent: randPercent,
             randRange,
 
-            vomit() { /* stub */ },
+            vomit(monst) {
+                vomitFn(monst, {
+                    player,
+                    dungeonFeatureCatalog,
+                    spawnDungeonFeature: spawnDungeonFeatureFromObject,
+                    canDirectlySeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+                    monsterName(m, includeArticle) {
+                        if (m === player) return "you";
+                        const article = includeArticle
+                            ? (m.creatureState === CreatureState.Ally ? "your " : "the ")
+                            : "";
+                        return `${article}${m.info.monsterName}`;
+                    },
+                    combatMessage: msgOps.combatMessage,
+                    automationActive: rogue.automationActive,
+                });
+            },
 
             // -- PlayerRunContext extensions --
             isPosInMap,
@@ -4297,9 +4406,12 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 const { glyph, foreColor, backColor } = getCellAppearance(loc);
                 plotCharWithColor(glyph, { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) }, foreColor, backColor, displayBuffer);
             },
-            search(_strength) { /* stub — search not yet fully wired */ },
+            search(strength) { searchRuntime(strength); },
 
-            recordKeystroke() { /* stub */ },
+            recordKeystroke(key, shifted, ctrled) {
+                const keyCode = typeof key === "string" ? key.charCodeAt(0) : key;
+                recordKeystrokeFn(keyCode, ctrled, shifted, recordingBuffer, rogue.playbackMode);
+            },
             playerTurnEnded() {
                 doPlayerTurnEnded();
             },
@@ -4309,7 +4421,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
 
             ringTable: [],
             displayLevel: displayLevelFn,
-            updateMinersLightRadius() { /* stub */ },
+            updateMinersLightRadius() { updateMinersLightRadiusFn(rogue as any, player); },
             itemMessageColor: Colors.itemMessageColor,
             red: Colors.red,
             REST_KEY: String.fromCharCode(REST_KEY),
@@ -4399,12 +4511,14 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             // -- Recording & scoring ----------------------------------------------
             flushBufferToFile() { /* no-op — recording not fully wired */ },
             saveHighScore(_entry) { return false; },
-            printHighScores(_highlight) { /* stub */ },
+            printHighScores(highlight) { printHighScoresFn(buildScreenContext(), highlight); },
             saveRecording(_filenameOut) { /* stub */ },
             saveRecordingNoPrompt(_filenameOut) { /* stub */ },
             notifyEvent(_type, _score, _data, _description, _recording) { /* no-op */ },
             saveRunHistory(_result, _killedBy, _score, _gems) { /* no-op */ },
-            recordKeystroke(_key, _controlKey, _shiftKey) { /* stub */ },
+            recordKeystroke(key, controlKey, shiftKey) {
+                recordKeystrokeFn(key, controlKey, shiftKey, recordingBuffer, rogue.playbackMode);
+            },
 
             // -- Player display ---------------------------------------------------
             refreshDungeonCell(loc) {
@@ -4682,11 +4796,11 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             messageColorFromVictim(_monst) {
                 return Colors.white;
             },
-            addPoison(_monst, _totalDamage, _concentrationIncrement) {
-                // stub
+            addPoison(monst, totalDamage, concentrationIncrement) {
+                addPoisonFn(monst, totalDamage, concentrationIncrement, buildCombatDamageContext());
             },
-            flashMonster(_monst, _color, _strength) {
-                // stub
+            flashMonster(monst, color, strength) {
+                flashMonsterFn(monst, color, strength, buildCombatDamageContext());
             },
 
             // -- UI ----------------------------------------------------------
@@ -4712,7 +4826,9 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 return true; // auto-confirm for now
             },
             flashMessage: msgOps.flashMessage,
-            recordKeystroke(_key, _shift, _alt) { /* stub */ },
+            recordKeystroke(key, shift, alt) {
+                recordKeystrokeFn(key, shift, alt, recordingBuffer, rogue.playbackMode);
+            },
             confirmMessages: msgOps.confirmMessages,
             pauseAnimation(_duration, _behavior) {
                 return false; // not interrupted
@@ -4773,7 +4889,13 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 resetDFMessageEligibility(dungeonFeatureCatalog as unknown as DungeonFeature[]);
             },
             RNGCheck() { /* stub — recordings */ },
-            animateFlares(_flares, _count) { /* stub */ },
+            animateFlares(flares, _count) {
+                animateFlaresFn(flares, buildLightingContext(), {
+                    demoteVisibility: () => { /* simplified */ },
+                    updateFieldOfViewDisplay: (_updateDancing, _refreshDisplay) => { displayLevelFn(); commitDraws(); },
+                    pauseAnimation: (ms) => browserConsole.pauseForMilliseconds(ms, { interruptForMouseMove: false }),
+                });
+            },
 
             // -- Scent / FOV -------------------------------------------------
             addScentToCell(_x, _y, _distance) {
@@ -4865,8 +4987,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             },
 
             // -- Movement / search -------------------------------------------
-            search(_searchStrength) {
-                return false; // stub
+            search(searchStrength) {
+                return searchRuntime(searchStrength);
             },
             playerCanDirectlySee,
             playerCanSee,
@@ -5232,7 +5354,9 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             terrainMechFlags: terrainMechFlagsAt,
 
             // -- Recordings -------------------------------------------------------
-            recordKeystroke() { /* stub */ },
+            recordKeystroke(keystroke, controlKey, shiftKey) {
+                recordKeystrokeFn(keystroke, controlKey, shiftKey, recordingBuffer, rogue.playbackMode);
+            },
             recallEvent() {
                 return { eventType: EventType.EventError, param1: 0, param2: 0, controlKey: false, shiftKey: false };
             },
@@ -5424,8 +5548,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             // TODO: Wire to io-input getInputTextString with full InputContext
             return null;
         },
-        async printHighScores(_hiliteMostRecent: boolean) {
-            // TODO: Wire to io-screens printHighScores
+        async printHighScores(hiliteMostRecent: boolean) {
+            printHighScoresFn(buildScreenContext(), hiliteMostRecent);
         },
         async confirm(_prompt: string, _alsoDuringPlayback: boolean) {
             // TODO: Wire to io-input confirm

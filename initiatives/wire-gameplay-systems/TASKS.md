@@ -89,17 +89,54 @@
 - [x] Fix test: `findPlayerInBuffer` skips sidebar columns to avoid false positive from sidebar `@` glyph
 - [x] Verify: compile clean, 2263/2263 tests pass
 
-## Phase 6: Polish (~15 stubs)
-- [ ] Wire `saveGame()` / `loadSavedGame()` with IndexedDB or localStorage backend
-- [ ] Wire `search()` — manual search for secrets
-- [ ] Wire `updateMinersLightRadius()` — dynamic light radius
-- [ ] Wire `updatePlayerUnderwaterness()` — water visual effects
-- [ ] Wire `recordKeystroke()` / `cancelKeystroke()` — recording system
-- [ ] Wire `saveRecording()` / `saveRecordingNoPrompt()`
-- [ ] Wire `printHighScores()` — high score display
-- [ ] Wire `createFlare()` / `animateFlares()` — visual flare effects
-- [ ] Wire `cloneMonster()` — monster duplication (plenty runic, armor multiplicity, jelly splitting)
-- [ ] Wire `forceWeaponHit()` — force weapon blinking bolt effect
-- [ ] Wire `monsterStealsFromPlayer()` — thief monster item-stealing AI
-- [ ] Wire `vomit()`, `alertMonster()`, `monsterAvoids()` — miscellaneous creature functions
-- [ ] Verify: save/load works, search reveals secrets, all visual effects functional
+## Phase 6: Polish (~15 stubs) ✅
+- [x] Wire `search()` — manual search via `searchRuntime()` helper in CreatureEffectsContext, MiscHelpersContext, TurnProcessingContext + full ItemHelperContext builder
+- [x] Wire `updateMinersLightRadius()` — dynamic light radius via `updateMinersLightRadiusFn` in 4 contexts (CombatDamageContext, CreatureEffectsContext, AttackContext, MiscHelpersContext)
+- [x] Wire `updatePlayerUnderwaterness()` — water effects via `updatePlayerUnderwaternessFn` in TravelExploreContext
+- [x] Wire `vomit()` — nausea effect with full VomitContext (dungeonFeatures, monster naming, combatMessage) in PlayerMoveContext
+- [x] Wire `addPoison()`, `flashMonster()` — via `addPoisonFn`/`flashMonsterFn` + `buildCombatDamageContext()` in CombatDamageContext and TurnProcessingContext
+- [x] Wire `exposeTileToFire()` — via `exposeTileToFireFn` + `buildEnvironmentContext()` in EnvironmentContext
+- [x] Wire `createFlare()` / `animateFlares()` — via `createFlareFn`/`animateFlaresFn` + `buildLightingContext()` in CreatureEffectsContext, RunicContext, TurnProcessingContext
+- [x] Wire `recordKeystroke()` / `cancelKeystroke()` / `recordMouseClick()` — via recording-events functions in 6+ contexts (CreatureEffectsContext, PlayerMoveContext, MiscHelpersContext, LifecycleContext, TurnProcessingContext, InputContext)
+- [x] Wire `printHighScores()` — via `printHighScoresFn` + `buildScreenContext()` in LifecycleContext and top-level runtime
+- [x] Wire `playerInDarkness()` — via `playerInDarknessFn` in CreatureEffectsContext
+- [x] Wire `synchronizePlayerTimeState()` — via `synchronizePlayerTimeStateFn` in LevelContext and CreatureEffectsContext
+- [x] Keep `saveGame` / `loadSavedGame` / `saveRecording` / `saveRecordingNoPrompt` as stubs (need file I/O backend — IndexedDB or localStorage)
+- [x] Fix compilation errors: unused imports (`monsterAvoidsFn`, `MonsterStateContext`), `lightCatalog` → `lightCatalogData` (3 locations), `charCodeAt` on `never` type
+- [x] Verify: compile clean (0 errors), 2263/2263 tests passing
+
+## Remaining Stubs — Ported but Not Wired
+
+Functions where the real TS implementation exists but runtime.ts still uses a stub. These are candidates for immediate wiring work.
+
+- [ ] `monsterAvoids()` — 8 contexts (`() => false`). Real: `monster-state.ts`. Needs `MonsterStateContext`. **High impact**: monsters currently ignore lava, chasms, dangerous terrain.
+- [ ] `handleWhipAttacks()` / `handleSpearAttacks()` / `abortAttack()` — PlayerMoveContext. Real: `weapon-attacks.ts`. Need `WeaponAttackContext` with bolt system. **Medium**: whip/spear range attacks non-functional.
+- [ ] `updateSafetyMap()` — 1 context. Real: `safety-maps.ts`. Needs `SafetyMapsContext`. **Medium**: monsters don't plan safe retreat paths.
+- [ ] `updateClairvoyance()` — 1 context. Real: `safety-maps.ts`. **Medium**: clairvoyance ring has no effect.
+- [ ] `recalculateEquipmentBonuses()` — 2 contexts. Real: `item-usage.ts`. Needs `EquipmentState`. **Medium**: equipment bonuses may not refresh properly.
+- [ ] `eat()` — 1 context (CreatureEffectsContext). Real: `item-handlers.ts`. Needs `ItemHandlerContext`. **Medium**: food items do nothing.
+- [ ] `startLevel()` — 1 context (CreatureEffectsContext). Real: `game-level.ts`. Needs `LevelContext`. **High impact**: cannot descend/ascend via stairs.
+- [ ] `spawnPeriodicHorde()` — 1 context (CreatureEffectsContext). Real: `monster-spawning.ts`. Needs `SpawnContext`. **Medium**: no new monsters spawn over time.
+- [ ] `restoreMonster()` — 1 context (MiscHelpersContext). Real: `architect.ts`. **Low**: only needed for save/load.
+
+## Remaining Stubs — Not Yet Ported
+
+Functions where no TS implementation exists yet. These require new porting work before wiring.
+
+- [ ] `cloneMonster()` — monster duplication (plenty runic, armor multiplicity, jelly splitting). Source: Monsters.c
+- [ ] `monsterStealsFromPlayer()` — thief monster item-stealing AI. Source: Monsters.c
+- [ ] `forceWeaponHit()` — force weapon blinking bolt effect. Source: Combat.c
+- [ ] `teleport()` — creature teleportation. Source: Monsters.c / Movement.c
+- [ ] `updateFloorItems()` — floor item decay over time. Source: Time.c
+- [ ] `assureCosmeticRNG()` / `restoreRNG()` — cosmetic RNG isolation. Source: Rogue.h / platform
+- [ ] `updatePlayerRegenerationDelay()` — regeneration bonus effect. Source: Time.c
+
+## Remaining Stubs — Intentionally Deferred
+
+Low-priority or infrastructure-dependent stubs that don't affect core gameplay.
+
+- [ ] `saveGame()` / `loadSavedGame()` / `saveRecording()` / `saveRecordingNoPrompt()` — need file I/O backend (IndexedDB or localStorage)
+- [ ] `displayGrid()` / `displayLoops()` / `displayChokeMap()` / `displayMachines()` / `displayWaypoints()` — debug/wizard display (cosmetic)
+- [ ] `dialogCreateItemOrMonster()` — wizard mode item/monster creation
+- [ ] `RNGCheck()` / `displayAnnotation()` / `executeEvent()` / `pausePlayback()` — recording playback system
+- [ ] `notifyEvent()` / `saveRunHistory()` / `saveResetRun()` — event notification / run history
