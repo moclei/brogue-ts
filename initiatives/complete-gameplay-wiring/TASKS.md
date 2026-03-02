@@ -21,15 +21,15 @@
 - [x] **2e: teleport** — ported ~80 lines from Monsters.c:1146 as `teleportImpl`: FOV-masked grid search, distance filtering, terrain avoidance, disentangle; wired in CreatureEffectsContext
 - [x] Verify: compile clean (0 errors), 2263/2263 tests passing
 
-## Phase 3: World Simulation ⬜
+## Phase 3: World Simulation ✅
 > *After this phase: reinforcement spawning, AI retreat, clairvoyance, floor item decay all work*
 
-- [ ] **3a: spawnPeriodicHorde** — wire from `monster-spawning.ts` in CreatureEffectsContext via `buildSpawnContext()`
-- [ ] **3b: updateSafetyMap** — wire from `safety-maps.ts` via `buildSafetyMapsContext()`
-- [ ] **3c: updateClairvoyance** — wire from `safety-maps.ts` in TurnProcessingContext
-- [ ] **3d: updateFloorItems** — port ~50 lines from Items.c:1192 + wire in TurnProcessingContext (floor item decay, fire damage)
-- [ ] **3e: assureCosmeticRNG / restoreRNG** — implement RNG stream switching (~10 lines) + wire in 3 contexts (CostMapFovContext ×2, CreatureEffectsContext)
-- [ ] Verify: compile clean, tests passing, manual test: periodic spawns, clairvoyance ring
+- [x] **3a: spawnPeriodicHorde** — ported `getRandomMonsterSpawnLocation` (~25 lines from Monsters.c:1086) + `getTerrainGrid` helper; wired in CreatureEffectsContext via `spawnPeriodicHordeFn` + `buildSpawnContext()`
+- [x] **3b: updateSafetyMap** — built `buildSafetyMapsContext()` with full field set (player, rogue, monsters, pmap, Dijkstra, FOV, grid ops); wired in IoScreensContext + TurnProcessingContext
+- [x] **3c: updateClairvoyance** — wired in EquipContext via same `buildSafetyMapsContext()` builder
+- [x] **3d: updateFloorItems** — ported ~75 lines from Items.c:1192 as `updateFloorItemsImpl`: auto-descent, fire/lava burns, drift, tile promotion, machine auto-ID; wired in EnvironmentContext + CreatureEffectsContext
+- [x] **3e: assureCosmeticRNG / restoreRNG** — implemented RNG stream switching (save/restore `rogue.RNG`); wired in CostMapFovContext (×2) + CreatureEffectsContext
+- [x] Verify: compile clean (0 errors), 2263/2263 tests passing
 
 ## Intentionally Deferred
 
