@@ -327,7 +327,7 @@ import type { MachineContext, ItemOps } from "./architect/machines.js";
 import type { BuildBridgeContext } from "./architect/lakes.js";
 
 // -- Flag imports -------------------------------------------------------------
-import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MonsterBookkeepingFlag, ItemFlag, MessageFlag, T_OBSTRUCTS_SCENT, ANY_KIND_OF_VISIBLE } from "./types/flags.js";
+import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MonsterBookkeepingFlag, MonsterAbilityFlag, ItemFlag, MessageFlag, T_OBSTRUCTS_SCENT, ANY_KIND_OF_VISIBLE } from "./types/flags.js";
 
 // -- State helper imports -----------------------------------------------------
 import { cellHasTerrainFlag, cellHasTMFlag, cellHasTerrainType, terrainFlags, terrainMechFlags, discoveredTerrainFlagsAtLoc, highestPriorityLayer } from "./state/helpers.js";
@@ -3393,6 +3393,135 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     }
 
     /**
+     * Runtime-level cloneMonster — port of Monsters.c:559.
+     * Clones a monster, optionally placing it near the original.
+     *
+     * @param monst The monster to clone.
+     * @param announce Whether to announce the clone's appearance.
+     * @param placeClone Whether to place the clone on the map.
+     */
+    function cloneMonsterImpl(monst: Creature, announce: boolean, placeClone: boolean): Creature | null {
+        // Generate a fresh creature of the same type
+        const newMonst = generateMonsterFn(monst.info.monsterID, false, false, {
+            rng: { randRange, randPercent },
+            gameConstants: gameConst,
+            depthLevel: rogue.depthLevel,
+            monsterCatalog,
+            mutationCatalog,
+            monsterItemsHopper,
+            itemsEnabled: true,
+        });
+
+        // Copy all properties from original (deep copy key arrays)
+        const savedInfo = { ...monst.info };
+        Object.assign(newMonst, monst);
+        newMonst.info = { ...savedInfo };
+        newMonst.status = [...monst.status];
+        newMonst.maxStatus = [...monst.maxStatus];
+
+        // Reset clone-specific fields
+        newMonst.carriedMonster = null;
+        initializeGender(newMonst, { randRange, randPercent });
+        newMonst.bookkeepingFlags &= ~(MonsterBookkeepingFlag.MB_LEADER | MonsterBookkeepingFlag.MB_CAPTIVE | MonsterBookkeepingFlag.MB_WEAPON_AUTO_ID);
+        newMonst.bookkeepingFlags |= MonsterBookkeepingFlag.MB_FOLLOWER;
+        newMonst.mapToMe = null;
+        newMonst.safetyMap = null;
+        newMonst.carriedItem = null;
+
+        // Clone carried monster recursively (rare case)
+        if (monst.carriedMonster) {
+            const parentClone = cloneMonsterImpl(monst.carriedMonster, false, false);
+            if (parentClone) {
+                // Remove from world lists since cloneMonster auto-adds
+                const mi = monsters.indexOf(parentClone);
+                if (mi >= 0) monsters.splice(mi, 1);
+                const di = dormantMonsters.indexOf(parentClone);
+                if (di >= 0) dormantMonsters.splice(di, 1);
+            }
+        }
+
+        newMonst.ticksUntilTurn = 101;
+        if (monst.creatureState !== CreatureState.Ally) {
+            newMonst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_TELEPATHICALLY_REVEALED;
+        }
+
+        // Set up leadership
+        if (monst.leader) {
+            newMonst.leader = monst.leader;
+        } else {
+            newMonst.leader = monst;
+            monst.bookkeepingFlags |= MonsterBookkeepingFlag.MB_LEADER;
+        }
+
+        // Captive clones become allies
+        if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_CAPTIVE) {
+            newMonst.creatureState = CreatureState.Ally;
+        }
+
+        // Add to monster list
+        monsters.push(newMonst);
+
+        if (placeClone) {
+            // Find an adjacent empty cell for the clone
+            let placed = false;
+            for (let dx = -1; dx <= 1 && !placed; dx++) {
+                for (let dy = -1; dy <= 1 && !placed; dy++) {
+                    if (dx === 0 && dy === 0) continue;
+                    const nx = monst.loc.x + dx;
+                    const ny = monst.loc.y + dy;
+                    if (coordinatesAreInMap(nx, ny)
+                        && !(pmap[nx][ny].flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER | TileFlag.HAS_STAIRS))
+                        && !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY)) {
+                        newMonst.loc = { x: nx, y: ny };
+                        placed = true;
+                    }
+                }
+            }
+            if (!placed) {
+                // If no adjacent cell, place at same location (will overlap briefly)
+                newMonst.loc = { ...monst.loc };
+            }
+
+            pmap[newMonst.loc.x][newMonst.loc.y].flags |= TileFlag.HAS_MONSTER;
+            // Refresh the cell
+            const { glyph, foreColor, backColor } = getCellAppearance(newMonst.loc);
+            plotCharWithColor(glyph, { windowX: mapToWindowX(newMonst.loc.x), windowY: mapToWindowY(newMonst.loc.y) }, foreColor, backColor, displayBuffer);
+
+            if (announce && !!(pmap[newMonst.loc.x]?.[newMonst.loc.y]?.flags & TileFlag.VISIBLE)) {
+                const monstName = newMonst.info.monsterName;
+                msgOps.message(`another ${monstName} appears!`, 0);
+            }
+        }
+
+        // Player clone special case
+        if (monst === player) {
+            newMonst.info.foreColor = Colors.gray;
+            newMonst.info.damage = { lowerBound: 1, upperBound: 2, clumpFactor: 1 };
+            newMonst.info.defense = 0;
+            newMonst.info.monsterName = "clone";
+            newMonst.creatureState = CreatureState.Ally;
+        }
+
+        // Jellymancer feat tracking
+        if (monst.creatureState === CreatureState.Ally
+            && (monst.info.abilityFlags & MonsterAbilityFlag.MA_CLONE_SELF_ON_DEFEND)
+            && !rogue.featRecord[FeatType.Jellymancer]) {
+            let jellyCount = 0;
+            for (const m of monsters) {
+                if (m.creatureState === CreatureState.Ally
+                    && (m.info.abilityFlags & MonsterAbilityFlag.MA_CLONE_SELF_ON_DEFEND)) {
+                    jellyCount++;
+                }
+            }
+            if (jellyCount >= 90) {
+                rogue.featRecord[FeatType.Jellymancer] = true;
+            }
+        }
+
+        return newMonst;
+    }
+
+    /**
      * Simplified runtime spawnDungeonFeature. Handles single-tile placement
      * and gas volume. Full propagation/blocking deferred.
      */
@@ -3569,7 +3698,9 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             },
             message: msgOps.message,
             combatMessage: msgOps.combatMessage,
-            cloneMonster: () => null, // Full clone requires monster gen context — deferred
+            cloneMonster(monst, announce, placeClone) {
+                return cloneMonsterImpl(monst, announce, placeClone);
+            },
             fadeInMonster: fadeInMonsterImpl,
             refreshSideBar() { refreshSideBarRuntime(-1, -1, false); },
             setCellMonsterFlag(loc, hasMonster) {
@@ -4224,9 +4355,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             createFlare(x, y, type) {
                 createFlareFn(x, y, type, rogue as any, lightCatalogData);
             },
-            cloneMonster(_monst, _selfClone, _maintainCorpse) {
-                // Stub — cloneMonster implementation not yet ported
-                return null;
+            cloneMonster(monst, announce, placeClone) {
+                return cloneMonsterImpl(monst, announce, placeClone);
             },
             playerImmuneToMonster(monst) {
                 return playerImmuneToMonsterFn(monst, buildCombatHelperContext());
