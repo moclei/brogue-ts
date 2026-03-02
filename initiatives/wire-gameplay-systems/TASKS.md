@@ -77,14 +77,17 @@
 - [x] Wire `monstersAreEnemies` — real monstersAreEnemiesFn in RunicContext
 - [x] Verify: compile clean, 2263/2263 tests pass
 
-## Phase 5: UI Panels (~10 stubs)
-- [ ] Wire `refreshSideBar()` — HP, stats, nearby entities
-- [ ] Wire `updateFlavorText()` — cell description under cursor
-- [ ] Wire `displayInventory()` — full button-based inventory screen
-- [ ] Wire `displayMessageArchive()` — scrollable message history
-- [ ] Wire `printHelpScreen()`, `displayFeatsScreen()`, `printDiscoveriesScreen()`
-- [ ] Wire `printMonsterDetails()` / `printFloorItemDetails()` / `printLocationDescription()`
-- [ ] Verify: sidebar updates, inventory screen opens, help screen displays
+## Phase 5: UI Panels (~10 stubs) ✅
+- [x] Wire `refreshSideBar()` — HP, stats, nearby entities via `refreshSideBarRuntime` wrapper → `refreshSideBarFn` + `buildSidebarContext()` across MessageContext, LevelContext, TravelExploreContext, CombatDamageContext, CombatHelperContext, AttackContext, TurnProcessingContext, InputContext (3-arg variant with focusX/focusY/forceFullUpdate, and 0-arg wrapper passing -1,-1,false for combat contexts)
+- [x] Wire `updateFlavorText()` — cell description under cursor via `updateFlavorTextFn` + `buildCreatureEffectsContext()` in PlayerMoveContext (PlayerRunContext) and TravelExploreContext
+- [x] Wire `displayInventory()` — full button-based inventory screen via `displayInventoryFn` + `buildInventoryContext()` in InputContext (async wrapper)
+- [x] Wire `displayMessageArchive()` — already wired in Phase 1 (verified: no remaining stubs)
+- [x] Wire `printHelpScreen()`, `displayFeatsScreen()`, `printDiscoveriesScreen()` — via ported functions + `buildScreenContext()` in InputContext
+- [x] Wire `printMonsterDetails()` / `printFloorItemDetails()` / `printLocationDescription()` — via `printMonsterDetailsFn` + `buildSidebarContext()`, `printFloorItemDetailsFn` + `buildSidebarContext()`, `printLocationDescriptionFn` + `buildDescribeLocationContext()` in InputContext
+- [x] Fix `sidebarLocationList` initialization on RuntimeRogueState interface and `createRogueState()`
+- [x] Fix pre-existing context builder type errors: `randClump` wrapper, `EquipmentState` completeness, `rectangularShadingFn` ctx arg, `spawnDungeonFeature` object variant, `buttonInputLoop` signature
+- [x] Fix test: `findPlayerInBuffer` skips sidebar columns to avoid false positive from sidebar `@` glyph
+- [x] Verify: compile clean, 2263/2263 tests pass
 
 ## Phase 6: Polish (~15 stubs)
 - [ ] Wire `saveGame()` / `loadSavedGame()` with IndexedDB or localStorage backend

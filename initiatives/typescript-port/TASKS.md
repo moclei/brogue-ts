@@ -88,5 +88,5 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
     - monsterShouldFall / monstersFall / playerFalls in TurnProcessingContext, EnvironmentContext
     - decrementPlayerStatus upgraded from minimal stub to real function
   - [x] Phase 4: Combat Effects — weapon/armor runics (magicWeaponHit, specialHit, applyArmorRunicEffect via buildRunicContext), feats (paladin, dragonslayer, pureMage), decrementWeaponAutoIDTimer, rechargeItemsIncrementally, processIncrementalAutoID, checkForDisenchantment, strengthCheck, equipItem in AttackContext
-  - [ ] Phase 5: UI Panels — sidebar, inventory screen, flavor text (~10 stubs)
+  - [x] Phase 5: UI Panels — refreshSideBar (all 8 DI contexts with 3-arg and 0-arg variants), updateFlavorText, displayInventory (async), printHelpScreen/displayFeatsScreen/printDiscoveriesScreen via buildScreenContext, printMonsterDetails/printFloorItemDetails via buildSidebarContext, printLocationDescription via buildDescribeLocationContext, displayMessageArchive (verified already wired), plus context builder type fixes and test update
   - [ ] Phase 6: Polish — save/load, search, miner's light, recordings (~15 stubs)

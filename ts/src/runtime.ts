@@ -134,7 +134,13 @@ import {
 } from "./io/io-text.js";
 import {
     smoothHiliteGradient,
+    refreshSideBar as refreshSideBarFn,
+    printMonsterDetails as printMonsterDetailsFn,
+    printFloorItemDetails as printFloorItemDetailsFn,
+    printCarriedItemDetails as printCarriedItemDetailsFn,
+    printProgressBar as printProgressBarFn,
 } from "./io/io-sidebar.js";
+import type { SidebarContext } from "./io/io-sidebar.js";
 import type { ButtonContext } from "./io/io-buttons.js";
 import {
     initializeButton,
@@ -148,6 +154,7 @@ import {
 import {
     rectangularShading as rectangularShadingFn,
     printTextBox as printTextBoxFn,
+    displayInventory as displayInventoryFn,
 } from "./io/io-inventory.js";
 import type { InventoryContext } from "./io/io-inventory.js";
 
@@ -168,6 +175,14 @@ import {
     flavorMessage as flavorMessageFn,
     displayMessageArchive as displayMessageArchiveFn,
 } from "./io/io-messages.js";
+
+// -- Info screen imports ------------------------------------------------------
+import {
+    printHelpScreen as printHelpScreenFn,
+    displayFeatsScreen as displayFeatsScreenFn,
+    printDiscoveriesScreen as printDiscoveriesScreenFn,
+} from "./io/io-screens.js";
+import type { ScreenContext } from "./io/io-screens.js";
 
 // -- Visual effects imports ---------------------------------------------------
 import type { EffectsContext } from "./io/io-effects.js";
@@ -205,6 +220,7 @@ import {
     playerFalls as playerFallsFn,
     decrementPlayerStatus as decrementPlayerStatusFn,
     exposeCreatureToFire as exposeCreatureToFireFn,
+    updateFlavorText as updateFlavorTextFn,
 } from "./time/creature-effects.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
 
@@ -233,7 +249,9 @@ import { playerTurnEnded as playerTurnEndedFn, scentDistance } from "./time/turn
 import type { TurnProcessingContext } from "./time/turn-processing.js";
 
 // -- Scent system imports -----------------------------------------------------
-import { addScentToCell, layerWithFlag as layerWithFlagFn } from "./movement/map-queries.js";
+import { addScentToCell, layerWithFlag as layerWithFlagFn, layerWithTMFlag as layerWithTMFlagFn, printLocationDescription as printLocationDescriptionFn } from "./movement/map-queries.js";
+import type { DescribeLocationContext } from "./movement/map-queries.js";
+// item-helpers inline implementations are defined within buildDescribeLocationContext
 
 // -- Game lifecycle imports ---------------------------------------------------
 import { gameOver as gameOverFn, victory as victoryFn, enableEasyMode as enableEasyModeFn } from "./game/game-lifecycle.js";
@@ -314,14 +332,14 @@ import type { LevelContext } from "./game/game-level.js";
 import { bakeTerrainColors } from "./io/io-appearance.js";
 
 // -- Item imports -------------------------------------------------------------
-import { generateItem, initializeItem as initializeItemFn, itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
+import { generateItem, initializeItem as initializeItemFn, itemMagicPolarity as itemMagicPolarityFn, getItemCategoryGlyph as getItemCategoryGlyphFn, getHallucinatedItemCategory as getHallucinatedItemCategoryFn } from "./items/item-generation.js";
 import { addItemToPack, removeItemFromArray, numberOfItemsInPack as numberOfItemsInPackFn, numberOfMatchingPackItems as numberOfMatchingPackItemsFn, itemAtLoc as itemAtLocFn, canPickUpItem, checkForDisenchantment as checkForDisenchantmentFn } from "./items/item-inventory.js";
 import { identify, identifyItemKind as identifyItemKindFn, itemName as itemNameFn, isVowelish as isVowelishFn, itemValue as itemValueFn } from "./items/item-naming.js";
 import type { ItemNamingContext } from "./items/item-naming.js";
 import { shuffleFlavors } from "./items/item-naming.js";
-import { equipItem, unequipItem, recalculateEquipmentBonuses, updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, strengthCheck } from "./items/item-usage.js";
+import { equipItem, unequipItem, recalculateEquipmentBonuses, updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, strengthCheck, displayedArmorValue as displayedArmorValueFn } from "./items/item-usage.js";
 import type { EquipContext, EquipmentState } from "./items/item-usage.js";
-import { updateIdentifiableItems as updateIdentifiableItemsFn } from "./items/item-handlers.js";
+import { updateIdentifiableItems as updateIdentifiableItemsFn, magicCharDiscoverySuffix as magicCharDiscoverySuffixFn } from "./items/item-handlers.js";
 import { useKeyAt as useKeyAtFn } from "./movement/item-helpers.js";
 import type { ItemHelperContext } from "./movement/item-helpers.js";
 
@@ -332,11 +350,12 @@ import { lightCatalog as lightCatalogData } from "./globals/light-catalog.js";
 import { meteredItemsGenerationTable as meteredItemsGenTable } from "./globals/item-catalog.js";
 import { scrollTable, potionTable, lumenstoneDistribution, staffTable, ringTable, wandTable, charmTable, charmEffectTable, armorTable } from "./globals/item-catalog.js";
 import { populateItems as populateItemsFn } from "./items/item-population.js";
-import { populateMonsters as populateMonstersFn, spawnHorde as spawnHordeFn } from "./monsters/monster-spawning.js";
+import { populateMonsters as populateMonstersFn, spawnHorde as spawnHordeFn, monsterCanSubmergeNow as monsterCanSubmergeNowFn } from "./monsters/monster-spawning.js";
 import { generateMonster as generateMonsterFn } from "./monsters/monster-creation.js";
 import { createMonsterOps, toggleMonsterDormancy as toggleMonsterDormancyFn } from "./monsters/monster-ops.js";
 import { hordeCatalog } from "./globals/horde-catalog.js";
 import { mutationCatalog } from "./globals/mutation-catalog.js";
+import { statusEffectCatalog } from "./globals/status-effects.js";
 import { dynamicColorsBounds } from "./globals/tables.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
 import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
@@ -355,6 +374,7 @@ import { initRecording as initRecordingFn } from "./recordings/recording-init.js
 
 // -- Flare imports ------------------------------------------------------------
 import { deleteAllFlares } from "./light/flares.js";
+import { playerInDarkness as playerInDarknessFn } from "./light/light.js";
 
 // -- Menu imports (for type reference) ----------------------------------------
 import type { MenuContext, MenuRogueState, FileEntry, RogueRun } from "./menus/main-menu.js";
@@ -540,6 +560,9 @@ interface RuntimeRogueState extends MenuRogueState {
     receivedLevitationWarning: boolean;
     flareCount: number;
 
+    // -- Fields from SidebarContext rogue state --
+    sidebarLocationList: Pos[];
+
     // -- Fields from InitRecordingRogue not in above --
     playbackDelayPerTurn: number;
     playbackDelayThisTurn: number;
@@ -661,6 +684,9 @@ function createRogueState(): RuntimeRogueState {
         heardCombatThisTurn: false,
         receivedLevitationWarning: false,
         flareCount: 0,
+
+        // -- Sidebar state --
+        sidebarLocationList: Array.from({ length: ROWS * 2 }, () => ({ x: -1, y: -1 })),
 
         // -- InitRecordingRogue extensions --
         playbackDelayPerTurn: 0,
@@ -1216,9 +1242,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 commitDraws();
             },
 
-            refreshSideBar(_x, _y, _forceFullUpdate) {
-                // Stub — sidebar wiring is Phase 5
-            },
+            refreshSideBar: refreshSideBarRuntime,
             refreshDungeonCell(loc) {
                 const { glyph, foreColor, backColor } = getCellAppearance(loc);
                 plotCharWithColor(glyph, { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) }, foreColor, backColor, displayBuffer);
@@ -1245,9 +1269,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 // Forward to the effects implementation via a minimal EffectsContext
                 flashTemporaryAlertFn(msg, ms, buildEffectsContext());
             },
-            updateFlavorText() {
-                // Stub — flavor text wiring is Phase 5
-            },
+            updateFlavorText: updateFlavorTextRuntime,
             stripShiftFromMovementKeystroke(keystroke) {
                 return stripShiftFromMovementKeystrokeFn(keystroke);
             },
@@ -1441,6 +1463,429 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
      * Every DI context that needs item queries can use these.
      */
     // Item ops helpers (getItemName, itemAtLocFn, etc.) are used directly in context builders.
+
+    // =========================================================================
+    // Phase 5: Sidebar, Inventory, Screens — shared context builders
+    // =========================================================================
+
+    /**
+     * Build a SidebarContext for refreshSideBar and detail panel functions.
+     */
+    function buildSidebarContext(): SidebarContext {
+        return {
+            rogue: {
+                get gameHasEnded() { return rogue.gameHasEnded; },
+                get playbackFastForward() { return rogue.playbackFastForward; },
+                get playbackMode() { return rogue.playbackMode; },
+                get playbackOmniscience() { return rogue.playbackOmniscience; },
+                get playbackOOS() { return rogue.playbackOOS; },
+                get playbackPaused() { return rogue.playbackPaused; },
+                get playerTurnNumber() { return rogue.playerTurnNumber; },
+                get howManyTurns() { return rogue.howManyTurns; },
+                get depthLevel() { return rogue.depthLevel; },
+                get strength() { return rogue.strength; },
+                get gold() { return rogue.gold; },
+                get stealthRange() { return rogue.stealthRange; },
+                get sidebarLocationList() { return rogue.sidebarLocationList; },
+                get armor() { return rogue.armor; },
+                get trueColorMode() { return rogue.trueColorMode; },
+            },
+            player,
+            pmap,
+            tileCatalog,
+            displayBuffer,
+
+            statusEffectCatalog,
+            mutationCatalog,
+            monsterText,
+
+            // Entity lookup
+            monsterAtLoc: monsterAtLocFn,
+            itemAtLoc: (loc) => itemAtLocFn(loc, floorItems),
+            canSeeMonster: (monst) => !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE),
+            canDirectlySeeMonster: (monst) => !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE),
+            playerCanSeeOrSense: (x, y) => !!(pmap[x]?.[y]?.flags & (TileFlag.VISIBLE | TileFlag.TELEPATHIC_VISIBLE | TileFlag.CLAIRVOYANT_VISIBLE)),
+            playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+            playerInDarkness: () => playerInDarknessFn(tmap, player.loc),
+
+            // Monster iteration
+            iterateMonsters: () => [...monsters],
+
+            // Floor items
+            floorItems: () => [...floorItems],
+
+            // Naming
+            monsterName(monst, includeArticle) {
+                if (monst === player) return "you";
+                const article = includeArticle
+                    ? (monst.creatureState === CreatureState.Ally ? "your " : "the ")
+                    : "";
+                return `${article}${monst.info.monsterName}`;
+            },
+            itemName(theItem, includeDetails, includeArticle, _titleColor?) {
+                return itemNameFn(theItem, includeDetails, includeArticle, buildItemNamingContext());
+            },
+
+            // Item helpers
+            getHallucinatedItemCategory: () => getHallucinatedItemCategoryFn({
+                randRange,
+                randPercent,
+                randClump: (range) => randClumpedRange(range.lowerBound, range.upperBound, range.clumpFactor),
+            }),
+            getItemCategoryGlyph: getItemCategoryGlyphFn,
+            describeHallucinatedItem() {
+                // Simplified hallucinated item description
+                return "a strange shimmering item";
+            },
+
+            // Cell appearance
+            getCellAppearance,
+
+            // Armor
+            displayedArmorValue: () => displayedArmorValueFn({
+                player,
+                armor: rogue.armor,
+                weapon: rogue.weapon,
+                ringLeft: rogue.ringLeft,
+                ringRight: rogue.ringRight,
+                strength: rogue.strength,
+                clairvoyance: rogue.clairvoyance,
+                stealthBonus: rogue.stealthBonus,
+                regenerationBonus: rogue.regenerationBonus,
+                lightMultiplier: rogue.lightMultiplier,
+                awarenessBonus: rogue.awarenessBonus,
+                transference: rogue.transference,
+                wisdomBonus: rogue.wisdomBonus,
+                reaping: rogue.reaping,
+            }),
+            estimatedArmorValue: () => displayedArmorValueFn({
+                player,
+                armor: rogue.armor,
+                weapon: rogue.weapon,
+                ringLeft: rogue.ringLeft,
+                ringRight: rogue.ringRight,
+                strength: rogue.strength,
+                clairvoyance: rogue.clairvoyance,
+                stealthBonus: rogue.stealthBonus,
+                regenerationBonus: rogue.regenerationBonus,
+                lightMultiplier: rogue.lightMultiplier,
+                awarenessBonus: rogue.awarenessBonus,
+                transference: rogue.transference,
+                wisdomBonus: rogue.wisdomBonus,
+                reaping: rogue.reaping,
+            }),
+
+            // Layer queries
+            cellHasTMFlag: cellHasTMFlagAt,
+            layerWithTMFlag: (x, y, flag) => layerWithTMFlagFn(pmap, x, y, flag),
+
+            // Text detail functions
+            monsterDetails(_monst) {
+                // TODO: full monster description text — stub for now
+                return `${_monst.info.monsterName} (HP: ${_monst.currentHP}/${_monst.info.maxHP})`;
+            },
+            itemDetails(theItem) {
+                // TODO: full item description text — stub for now
+                return getItemName(theItem, true, true);
+            },
+
+            // Rendering helpers
+            printTextBox(text, x, y, width, foreColor, backColor) {
+                // Synchronous text box rendering: wrap text and render to display buffer
+                const { text: wrapped, lineCount } = wrapText(text, width || 40);
+                const renderWidth = width || 40;
+                const renderX = Math.max(0, Math.min(x, COLS - renderWidth));
+                const renderY = Math.max(0, Math.min(y, ROWS - lineCount));
+                rectangularShadingFn(renderX, renderY, renderWidth, lineCount + 2, backColor, 100, displayBuffer, {
+                    storeColorComponents,
+                });
+                printStringWithWrapping(wrapped, renderX + 1, renderY + 1, renderWidth - 2, foreColor, backColor, displayBuffer);
+                commitDraws();
+                return lineCount;
+            },
+            printProgressBar(x, y, label, amtFilled, amtMax, fillColor, dim) {
+                printProgressBarFn(x, y, label, amtFilled, amtMax, fillColor, dim, displayBuffer);
+            },
+        };
+    }
+
+    /**
+     * Runtime-level refreshSideBar — calls the real function with a fresh SidebarContext.
+     */
+    function refreshSideBarRuntime(focusX: number, focusY: number, forceFullUpdate: boolean): void {
+        refreshSideBarFn(focusX, focusY, forceFullUpdate, buildSidebarContext());
+        commitDraws();
+    }
+
+    /**
+     * Runtime-level updateFlavorText — calls the real function with a CreatureEffectsContext.
+     */
+    function updateFlavorTextRuntime(): void {
+        updateFlavorTextFn(buildCreatureEffectsContext());
+    }
+
+    /**
+     * Build a DescribeLocationContext for printLocationDescription and describeLocation.
+     */
+    function buildDescribeLocationContext(): DescribeLocationContext {
+        return {
+            pmap,
+            player,
+            rogue: {
+                scentTurnNumber: rogue.scentTurnNumber,
+                disturbed: rogue.disturbed,
+                automationActive: rogue.automationActive,
+            },
+            scentMap: scentMap ?? allocGrid(),
+            terrainFlags: terrainFlagsAt,
+            terrainMechFlags: terrainMechFlagsAt,
+            cellHasTerrainFlag: cellHasTerrainFlagAt,
+            cellHasTMFlag: cellHasTMFlagAt,
+            coordinatesAreInMap,
+            playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+            monsterAtLoc: monsterAtLocFn,
+            dormantMonsterAtLoc(loc) {
+                for (const m of dormantMonsters) {
+                    if (m.loc.x === loc.x && m.loc.y === loc.y) return m;
+                }
+                return null;
+            },
+            canSeeMonster: (monst) => !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE),
+            monsterRevealed(monst) {
+                const flags = pmap[monst.loc.x]?.[monst.loc.y]?.flags ?? 0;
+                return !!(flags & (TileFlag.TELEPATHIC_VISIBLE | TileFlag.CLAIRVOYANT_VISIBLE));
+            },
+            spawnDungeonFeature: spawnDungeonFeatureFromObject,
+            refreshDungeonCell(loc) {
+                const { glyph, foreColor, backColor } = getCellAppearance(loc);
+                plotCharWithColor(glyph, { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) }, foreColor, backColor, displayBuffer);
+            },
+            dungeonFeatureCatalog,
+            itemAtLoc: (loc) => itemAtLocFn(loc, floorItems),
+            nbDirs,
+            // DescribeLocationContext extensions
+            playerCanSeeOrSense: (x, y) => !!(pmap[x]?.[y]?.flags & (TileFlag.VISIBLE | TileFlag.TELEPATHIC_VISIBLE | TileFlag.CLAIRVOYANT_VISIBLE)),
+            playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+            itemMagicPolarity: itemMagicPolarityFn,
+            monsterName(monst, includeArticle) {
+                if (monst === player) return "you";
+                const article = includeArticle
+                    ? (monst.creatureState === CreatureState.Ally ? "your " : "the ")
+                    : "";
+                return `${article}${monst.info.monsterName}`;
+            },
+            monsterCanSubmergeNow: (monst) => monsterCanSubmergeNowFn(monst, cellHasTMFlagAt, cellHasTerrainFlagAt),
+            describedItemName(item, maxLength) {
+                const buf = [getItemName(item, true, true)];
+                if (buf[0].length > maxLength) {
+                    buf[0] = getItemName(item, false, true);
+                }
+                return buf[0];
+            },
+            describedItemBasedOnParameters(category, kind, quantity, originDepth) {
+                const tempItem = initializeItemFn();
+                tempItem.category = category;
+                tempItem.kind = kind;
+                tempItem.quantity = quantity;
+                tempItem.originDepth = originDepth;
+                return itemNameFn(tempItem, false, true, buildItemNamingContext());
+            },
+            describeHallucinatedItem() {
+                return "a strange shimmering item";
+            },
+            cosmeticRandRange: randRange,
+            playbackOmniscience: rogue.playbackOmniscience,
+            flavorMessage: msgOps.flavorMessage,
+        };
+    }
+
+    /**
+     * Build a ScreenContext for info screen functions (help, feats, discoveries).
+     */
+    function buildScreenContext(): ScreenContext {
+        return {
+            rogue: {
+                get seed() { return rogue.seed; },
+                get playerTurnNumber() { return rogue.playerTurnNumber; },
+                get hideSeed() { return false; },
+                get mode() { return rogue.mode; },
+                get featRecord() { return rogue.featRecord; },
+                get updatedSafetyMapThisTurn() { return rogue.updatedSafetyMapThisTurn; },
+            },
+            player: { loc: player.loc },
+            gameConst: {
+                numberFeats: gameConst.numberFeats,
+                numberScrollKinds: gameConst.numberScrollKinds,
+                numberPotionKinds: gameConst.numberPotionKinds,
+                numberWandKinds: gameConst.numberWandKinds,
+                versionString: gameConst.versionString,
+            },
+            featTable: [],
+            boltCatalog: [],
+            scrollTable: scrollTable as unknown as ItemTable[],
+            potionTable: potionTable as unknown as ItemTable[],
+            ringTable: ringTable as unknown as ItemTable[],
+            staffTable: staffTable as unknown as ItemTable[],
+            wandTable: wandTable as unknown as ItemTable[],
+
+            // Display helpers
+            printString(str, x, y, fg, bg, dbuf) {
+                printStringFn(str, x, y, fg, bg, dbuf ?? displayBuffer);
+            },
+            plotCharToBuffer(glyph, loc, fg, bg, dbuf) {
+                plotCharToBuffer(glyph, loc.windowX, loc.windowY, fg, bg, dbuf);
+            },
+            plotCharWithColor(glyph, loc, fg, bg, _dbuf) {
+                plotCharWithColor(glyph, loc, fg, bg, displayBuffer);
+            },
+            strLenWithoutEscapes,
+            encodeMessageColor,
+
+            // Color manipulation
+            applyColorAverage,
+
+            // Display buffer management
+            createScreenDisplayBuffer: () => createScreenDisplayBuffer(),
+            clearDisplayBuffer: (dbuf) => clearDisplayBuffer(dbuf),
+            saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
+            restoreDisplayBuffer(saved) {
+                restoreDisplayBufferFn(displayBuffer, saved);
+                commitDraws();
+            },
+            overlayDisplayBuffer(dbuf) { applyOverlay(dbuf); },
+            blackOutScreen(dbuf) { blackOutScreen(dbuf); },
+            commitDraws,
+
+            // Coordinate mapping
+            mapToWindowX,
+            mapToWindowY,
+            mapToWindow(p) { return { windowX: mapToWindowX(p.x), windowY: mapToWindowY(p.y) }; },
+
+            // Waiting
+            waitForAcknowledgment() { commitDraws(); },
+            waitForKeystrokeOrMouseClick() { commitDraws(); },
+
+            // Message system
+            message: msgOps.message,
+            updateFlavorText: updateFlavorTextRuntime,
+            updateMessageDisplay: msgOps.updateMessageDisplay,
+
+            // High scores
+            getHighScoresList() { return { list: [], mostRecentLine: -1 }; },
+
+            // Map / terrain helpers
+            cellHasTerrainFlag: cellHasTerrainFlagAt,
+            getCellAppearance,
+
+            // Safety map
+            safetyMap,
+            updateSafetyMap() { /* stub — needs SafetyMapsContext */ },
+
+            // Table helpers
+            tableForItemCategory(category: number) {
+                switch (category) {
+                    case ItemCategory.SCROLL: return scrollTable as unknown as ItemTable[];
+                    case ItemCategory.POTION: return potionTable as unknown as ItemTable[];
+                    case ItemCategory.RING: return ringTable as unknown as ItemTable[];
+                    case ItemCategory.STAFF: return staffTable as unknown as ItemTable[];
+                    case ItemCategory.WAND: return wandTable as unknown as ItemTable[];
+                    default: return null;
+                }
+            },
+            magicCharDiscoverySuffix(category, kind) {
+                return magicCharDiscoverySuffixFn(category, kind, { boltCatalog: [] as any });
+            },
+            upperCase(str) { return str.charAt(0).toUpperCase() + str.slice(1); },
+
+            wizardMode: false,
+        };
+    }
+
+    /**
+     * Build an InventoryContext for displayInventory.
+     */
+    function buildInventoryContext(): InventoryContext {
+        return {
+            rogue: {
+                get weapon() { return rogue.weapon; },
+                get armor() { return rogue.armor; },
+                get ringLeft() { return rogue.ringLeft; },
+                get ringRight() { return rogue.ringRight; },
+            },
+            packItems,
+
+            // Color
+            applyColorAverage,
+            encodeMessageColor,
+            storeColorComponents,
+
+            // Rendering
+            createScreenDisplayBuffer: () => createScreenDisplayBuffer(),
+            clearDisplayBuffer: (dbuf) => clearDisplayBuffer(dbuf),
+            overlayDisplayBuffer(dbuf) { applyOverlay(dbuf); },
+            saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
+            restoreDisplayBuffer(saved) {
+                restoreDisplayBufferFn(displayBuffer, saved);
+                commitDraws();
+            },
+
+            drawButton(button, highlight, dbuf) {
+                drawButtonFn(button, highlight, dbuf, buildButtonContext());
+            },
+
+            plotCharToBuffer(ch, x, y, fg, bg, dbuf) {
+                plotCharToBuffer(ch, x, y, fg, bg, dbuf);
+            },
+
+            printStringWithWrapping(str, x, y, width, fg, bg, dbuf) {
+                return printStringWithWrapping(str, x, y, width, fg, bg, dbuf);
+            },
+
+            strLenWithoutEscapes,
+            wrapText,
+
+            // Button loop
+            async buttonInputLoop(buttons, buttonCount, winX, winY, winWidth, winHeight) {
+                const result = await buttonInputLoopFn(buttons, buttonCount, winX, winY, winWidth, winHeight, buildButtonContext());
+                return { chosenButton: result.chosenButton, event: result.event };
+            },
+
+            // Sidebar detail panels
+            printCarriedItemDetails(theItem, x, y, width, includeButtons) {
+                return printCarriedItemDetailsFn(theItem, x, y, width, includeButtons, buildSidebarContext());
+            },
+
+            // Text & item naming
+            itemName(theItem, includeDetails, includeArticle) {
+                return getItemName(theItem, includeDetails, includeArticle);
+            },
+            upperCase(s) { return s.charAt(0).toUpperCase() + s.slice(1); },
+            itemMagicPolarity: itemMagicPolarityFn,
+            numberOfItemsInPack: () => numberOfItemsInPackFn(packItems),
+            clearCursorPath() { clearCursorPathFn(buildTargetingContext()); },
+
+            // Messages
+            confirmMessages: msgOps.confirmMessages,
+            message: msgOps.message,
+
+            // Coordinate mapping
+            mapToWindowX,
+            mapToWindowY,
+
+            // Colors
+            white: Colors.white,
+            gray: Colors.gray,
+            black: Colors.black,
+            itemColor: Colors.itemColor,
+            goodMessageColor: Colors.goodMessageColor,
+            badMessageColor: Colors.badMessageColor,
+            interfaceBoxColor: Colors.interfaceBoxColor ?? { red: 40, green: 40, blue: 40, rand: 0, colorDances: false },
+
+            // Glyphs
+            G_GOOD_MAGIC: DisplayGlyph.G_GOOD_MAGIC,
+            G_BAD_MAGIC: DisplayGlyph.G_BAD_MAGIC,
+        };
+    }
 
     /**
      * Build a full EquipContext from current rogue state.
@@ -1692,6 +2137,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     }
 
     // -- ButtonContext (needed by several menu functions) ----------------------
+    function buildButtonContext(): ButtonContext { return buttonCtx; }
     const buttonCtx: ButtonContext = {
         rogue,
         applyColorAverage,
@@ -2495,9 +2941,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             },
 
             displayLevel: displayLevelFn,
-            refreshSideBar(_x, _y, _justClearing) {
-                // Stub — sidebar not yet wired
-            },
+            refreshSideBar: refreshSideBarRuntime,
             messageWithColor: msgOps.messageWithColor,
             RNGCheck() {
                 // No-op for now — recording validation
@@ -2700,8 +3144,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 const { glyph, foreColor, backColor } = getCellAppearance(loc);
                 plotCharWithColor(glyph, { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) }, foreColor, backColor, displayBuffer);
             },
-            refreshSideBar(_x, _y, _focus) { /* stub */ },
-            updateFlavorText() { /* stub */ },
+            refreshSideBar: refreshSideBarRuntime,
+            updateFlavorText: updateFlavorTextRuntime,
             clearCursorPath() {
                 clearCursorPathFn(buildTargetingContext());
             },
@@ -2918,7 +3362,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             canDirectlySeeMonster: (monst) => !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE),
             wakeUp(monst) { alertMonster(monst, player); },
             spawnDungeonFeature: spawnDungeonFeatureRuntime,
-            refreshSideBar() { /* stub until Phase 5 */ },
+            refreshSideBar() { refreshSideBarRuntime(-1, -1, false); },
             combatMessage: msgOps.combatMessage,
             messageWithColor(text, color) { msgOps.messageWithColor(text, color, 0); },
             monsterName(monst, includeArticle) {
@@ -3023,7 +3467,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             combatMessage: msgOps.combatMessage,
             cloneMonster: () => null, // Full clone requires monster gen context — deferred
             fadeInMonster: fadeInMonsterImpl,
-            refreshSideBar() { /* stub */ },
+            refreshSideBar() { refreshSideBarRuntime(-1, -1, false); },
             setCellMonsterFlag(loc, hasMonster) {
                 if (hasMonster) {
                     pmap[loc.x][loc.y].flags |= TileFlag.HAS_MONSTER;
@@ -3401,7 +3845,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 alertMonster(monst, player);
             },
             spawnDungeonFeature: spawnDungeonFeatureRuntime,
-            refreshSideBar() { /* stub */ },
+            refreshSideBar() { refreshSideBarRuntime(-1, -1, false); },
             combatMessage: msgOps.combatMessage,
             messageWithColor(text, color) { msgOps.messageWithColor(text, color, 0); },
             monsterName(monst, includeArticle) {
@@ -3740,7 +4184,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             // -- PlayerRunContext extensions --
             isPosInMap,
             posEq(a: Pos, b: Pos) { return a.x === b.x && a.y === b.y; },
-            updateFlavorText() { /* stub */ },
+            updateFlavorText() { updateFlavorTextFn(buildCreatureEffectsContext()); },
 
             // -- isDisturbed --
             isDisturbed(x: number, y: number) {
@@ -3897,7 +4341,9 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             clearDisplayBuffer(dbuf) { clearDisplayBuffer(dbuf); },
             blackOutScreen(dbuf) { blackOutScreen(dbuf); },
             displayLevel() { displayLevelFn(); commitDraws(); },
-            refreshSideBar(_x, _y, _justClearing) { /* stub — Step 3f */ },
+            refreshSideBar(x, y, justClearing) {
+                refreshSideBarFn(x, y, justClearing, buildSidebarContext());
+            },
 
             // -- Display functions ------------------------------------------------
             printString(str, x, y, fg, bg, dbuf) {
@@ -4256,7 +4702,9 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 commitDraws();
             },
             displayAnnotation() { /* stub — recordings not wired */ },
-            refreshSideBar(_x, _y, _forceFullUpdate) { /* stub */ },
+            refreshSideBar(x, y, forceFullUpdate) {
+                refreshSideBarFn(x, y, forceFullUpdate, buildSidebarContext());
+            },
             gameOver(message, _showScore) {
                 doGameOver(message, false);
             },
@@ -4546,12 +4994,16 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
 
             // -- Display ----------------------------------------------------------
             displayLevel: displayLevelFn,
-            refreshSideBar(_x, _y, _justClearing) { /* stub — Step 3f */ },
-            displayInventory(_categoryMask, _titleFlags, _focusFlags, _includeDetails, _includeButtons) { /* stub */ },
+            refreshSideBar(x, y, justClearing) {
+                refreshSideBarFn(x, y, justClearing, buildSidebarContext());
+            },
+            async displayInventory(categoryMask, titleFlags, focusFlags, includeDetails, includeButtons) {
+                await displayInventoryFn(categoryMask, titleFlags, focusFlags, includeDetails, includeButtons, buildInventoryContext());
+            },
             displayMessageArchive: msgOps.displayMessageArchive,
-            printHelpScreen() { /* stub */ },
-            displayFeatsScreen() { /* stub */ },
-            printDiscoveriesScreen() { /* stub */ },
+            printHelpScreen() { printHelpScreenFn(buildScreenContext()); },
+            displayFeatsScreen() { displayFeatsScreenFn(buildScreenContext()); },
+            printDiscoveriesScreen() { printDiscoveriesScreenFn(buildScreenContext()); },
             flashTemporaryAlert: msgOps.flashTemporaryAlert,
             displayMonsterFlashes(_flashAll) {
                 rogue.creaturesWillFlashThisTurn = false;
@@ -4708,9 +5160,15 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             canSeeMonster: (monst) => !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE),
             playerCanSeeOrSense: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
             cellHasTMFlag: cellHasTMFlagAt,
-            printMonsterDetails() { /* stub */ },
-            printFloorItemDetails() { /* stub */ },
-            printLocationDescription() { /* stub */ },
+            printMonsterDetails(monst) {
+                printMonsterDetailsFn(monst, buildSidebarContext());
+            },
+            printFloorItemDetails(item) {
+                printFloorItemDetailsFn(item, buildSidebarContext());
+            },
+            printLocationDescription(x, y) {
+                printLocationDescriptionFn(x, y, buildDescribeLocationContext());
+            },
 
             // -- Targeting / cursor -----------------------------------------------
             moveCursor(

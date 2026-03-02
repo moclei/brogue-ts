@@ -40,7 +40,9 @@ function createMockBrowserConsole() {
 }
 
 function findPlayerInBuffer(displayBuffer: ScreenDisplayBuffer): { x: number; y: number } | null {
-    for (let x = 0; x < 100; x++) {
+    // Start at column 20 to skip the sidebar area where refreshSideBar
+    // also renders the player glyph as part of the entity list.
+    for (let x = 20; x < 100; x++) {
         for (let y = 0; y < 34; y++) {
             if (displayBuffer.cells[x][y].character === DisplayGlyph.G_PLAYER) {
                 return { x, y };
