@@ -15,8 +15,9 @@
             overflow: hidden;
         }
         #brogue-canvas {
-            image-rendering: pixelated;
-            image-rendering: crisp-edges;
+            /* Let the browser use default (smooth) scaling so HiDPI text
+               stays crisp. The canvas backing store is sized to native
+               resolution via devicePixelRatio in bootstrap.ts. */
         }
     </style>
 </head>

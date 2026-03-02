@@ -54,8 +54,16 @@ export interface BrowserRendererOptions {
     /** Font family to use (default: "monospace"). */
     fontFamily?: string;
 
-    /** Font size in pixels (auto-calculated from canvas size if omitted). */
+    /** Font size in CSS pixels (auto-calculated from canvas size if omitted). */
     fontSize?: number;
+
+    /**
+     * Device pixel ratio for HiDPI rendering. When set, the 2D context is
+     * scaled so that all drawing operations use CSS-pixel coordinates while
+     * the backing store renders at native resolution for crisp text.
+     * Defaults to 1 (no scaling).
+     */
+    devicePixelRatio?: number;
 
     /**
      * Callback invoked from `gameLoop` to start the actual game.
@@ -94,23 +102,30 @@ export function createBrowserConsole(options: BrowserRendererOptions): BrogueCon
     const { canvas, fontFamily = DEFAULT_FONT, onGameLoop } = options;
     const ctx2d = canvas.getContext("2d")!;
 
-    // ---- Cell sizing ----
+    // ---- Cell sizing (in CSS pixels — DPR scaling applied to the context) ----
     let cellWidth = 0;
     let cellHeight = 0;
     let fontSize = options.fontSize ?? 0;
+    let dpr = options.devicePixelRatio ?? 1;
 
     function recalcCellSize(): void {
+        dpr = options.devicePixelRatio ?? 1;
+
+        // Cell dimensions in CSS pixels (the coordinate space we draw in).
+        // The canvas backing store is dpr × larger, so we divide it out.
+        cellWidth = canvas.width / (COLS * dpr);
+        cellHeight = canvas.height / (ROWS * dpr);
+
         if (options.fontSize) {
             fontSize = options.fontSize;
         } else {
-            // Auto-size: pick the largest integer font size that fits
-            fontSize = Math.max(1, Math.floor(Math.min(
-                canvas.width / COLS,
-                canvas.height / ROWS,
-            )));
+            // Auto-size: largest integer font that fits one cell
+            fontSize = Math.max(1, Math.floor(Math.min(cellWidth, cellHeight)));
         }
-        cellWidth = canvas.width / COLS;
-        cellHeight = canvas.height / ROWS;
+
+        // Reset and apply DPR scaling to the 2D context so all subsequent
+        // drawing operations use CSS-pixel coordinates.
+        ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
 
     recalcCellSize();

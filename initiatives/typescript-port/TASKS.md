@@ -90,7 +90,15 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
   - [x] Phase 4: Combat Effects — weapon/armor runics (magicWeaponHit, specialHit, applyArmorRunicEffect via buildRunicContext), feats (paladin, dragonslayer, pureMage), decrementWeaponAutoIDTimer, rechargeItemsIncrementally, processIncrementalAutoID, checkForDisenchantment, strengthCheck, equipItem in AttackContext
   - [x] Phase 5: UI Panels — refreshSideBar (all 8 DI contexts with 3-arg and 0-arg variants), updateFlavorText, displayInventory (async), printHelpScreen/displayFeatsScreen/printDiscoveriesScreen via buildScreenContext, printMonsterDetails/printFloorItemDetails via buildSidebarContext, printLocationDescription via buildDescribeLocationContext, displayMessageArchive (verified already wired), plus context builder type fixes and test update
   - [x] Phase 6: Polish — search (3 contexts + ItemHelperContext builder), updateMinersLightRadius (4 contexts), updatePlayerUnderwaterness, vomit + addPoison + flashMonster, exposeTileToFire, createFlare/animateFlares + buildLightingContext, recordKeystroke/cancelKeystroke/recordMouseClick (6+ contexts), printHighScores, playerInDarkness, synchronizePlayerTimeState; save/load/recording-save kept as stubs (need file I/O backend)
-  - **~39 stubs remain** — see wire-gameplay-systems/TASKS.md for full categorized list:
-    - 9 ported-but-not-wired (monsterAvoids ×8, whip/spear/abort attacks, updateSafetyMap, updateClairvoyance, recalculateEquipmentBonuses, eat, startLevel, spawnPeriodicHorde, restoreMonster)
-    - 7 not-yet-ported (cloneMonster, monsterStealsFromPlayer, forceWeaponHit, teleport, updateFloorItems, cosmeticRNG, regenDelay)
-    - ~23 intentionally deferred (save/load, debug displays, recording playback)
+  - **~39 stubs remain** — 16 actionable stubs carried forward to `complete-gameplay-wiring`, ~23 intentionally deferred (save/load, debug displays, recording playback)
+
+## Complete Gameplay Wiring
+- [ ] `complete-gameplay-wiring` — Wire the final ~16 actionable runtime stubs + port ~7 missing functions for full playability
+  - [ ] Phase 1: Core Playability — monsterAvoids (×8 contexts), startLevel, eat, recalculateEquipmentBonuses, updatePlayerRegenerationDelay (port), moveCursor (port)
+  - [ ] Phase 2: Combat & Monster Completeness — whip/spear/abort attacks, cloneMonster (port), forceWeaponHit (port), monsterStealsFromPlayer (port), teleport (port)
+  - [ ] Phase 3: World Simulation — spawnPeriodicHorde, updateSafetyMap, updateClairvoyance, updateFloorItems (port), cosmeticRNG
+
+## Platform Polish (future)
+- [ ] Main menu flame animation performance optimization
+- [ ] Save/load via IndexedDB or localStorage backend
+- [ ] Node.js terminal platform (Phase 4 Step 5)
