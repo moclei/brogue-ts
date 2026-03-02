@@ -210,7 +210,7 @@ import * as Colors from "./globals/colors.js";
 import { seedRandomGenerator, randRange, rand64bits, randPercent, randClump, randClumpedRange, clamp } from "./math/rng.js";
 
 // -- Grid imports -------------------------------------------------------------
-import { allocGrid, freeGrid, fillGrid } from "./grid/grid.js";
+import { allocGrid, freeGrid, fillGrid, findReplaceGrid, validLocationCount, randomLocationInGrid } from "./grid/grid.js";
 import { zeroOutGrid, cellIsPassableOrDoor, passableArcCount, randomMatchingLocation } from "./architect/helpers.js";
 
 // -- Creature imports ---------------------------------------------------------
@@ -330,7 +330,7 @@ import type { MachineContext, ItemOps } from "./architect/machines.js";
 import type { BuildBridgeContext } from "./architect/lakes.js";
 
 // -- Flag imports -------------------------------------------------------------
-import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MonsterBookkeepingFlag, MonsterAbilityFlag, ItemFlag, MessageFlag, T_OBSTRUCTS_SCENT, ANY_KIND_OF_VISIBLE } from "./types/flags.js";
+import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MonsterBookkeepingFlag, MonsterAbilityFlag, ItemFlag, MessageFlag, T_OBSTRUCTS_SCENT, ANY_KIND_OF_VISIBLE, IS_IN_MACHINE } from "./types/flags.js";
 
 // -- State helper imports -----------------------------------------------------
 import { cellHasTerrainFlag, cellHasTMFlag, cellHasTerrainType, terrainFlags, terrainMechFlags, discoveredTerrainFlagsAtLoc, highestPriorityLayer } from "./state/helpers.js";
@@ -370,7 +370,7 @@ import { lightCatalog as lightCatalogData } from "./globals/light-catalog.js";
 import { meteredItemsGenerationTable as meteredItemsGenTable } from "./globals/item-catalog.js";
 import { scrollTable, potionTable, lumenstoneDistribution, staffTable, ringTable, wandTable, charmTable, charmEffectTable, armorTable, foodTable } from "./globals/item-catalog.js";
 import { populateItems as populateItemsFn } from "./items/item-population.js";
-import { populateMonsters as populateMonstersFn, spawnHorde as spawnHordeFn, monsterCanSubmergeNow as monsterCanSubmergeNowFn } from "./monsters/monster-spawning.js";
+import { populateMonsters as populateMonstersFn, spawnHorde as spawnHordeFn, monsterCanSubmergeNow as monsterCanSubmergeNowFn, forbiddenFlagsForMonster as forbiddenFlagsForMonsterFn, avoidedFlagsForMonster as avoidedFlagsForMonsterFn } from "./monsters/monster-spawning.js";
 import { generateMonster as generateMonsterFn } from "./monsters/monster-creation.js";
 import { createMonsterOps, toggleMonsterDormancy as toggleMonsterDormancyFn } from "./monsters/monster-ops.js";
 import { hordeCatalog } from "./globals/horde-catalog.js";
@@ -3765,6 +3765,106 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     }
 
     /**
+     * Port of C teleport (Monsters.c:1146).
+     * Teleports a creature to a destination, or to a random location if no
+     * valid destination is provided.
+     */
+    function teleportImpl(monst: Creature, destination: Pos, respectTerrainAvoidancePreferences: boolean): void {
+        let dest = { ...destination };
+
+        if (!isPosInMap(dest)) {
+            // Build FOV mask from monster's current position
+            const monstFOV = allocGrid();
+            fillGrid(monstFOV, 0);
+            const fovCtx = {
+                cellHasTerrainFlag: cellHasTerrainFlagAt,
+                getCellFlags: (x: number, y: number) => pmap[x]?.[y]?.flags ?? 0,
+            };
+            getFOVMaskFn(
+                monstFOV, monst.loc.x, monst.loc.y,
+                BigInt(DCOLS) * FP_FACTOR,
+                TerrainFlag.T_OBSTRUCTS_VISION, 0, false, fovCtx,
+            );
+
+            // Calculate distances from monster's location
+            const grid = allocGrid();
+            fillGrid(grid, 0);
+            const forbiddenFlags = forbiddenFlagsForMonsterFn(monst.info);
+            calculateDistancesWrapped(
+                grid, monst.loc.x, monst.loc.y,
+                forbiddenFlags & TerrainFlag.T_OBSTRUCTS_PASSABILITY,
+                null, false, true,
+            );
+
+            // Keep cells at moderate distance (>= DCOLS/2), set others to 0
+            findReplaceGrid(grid, -30000, Math.floor(DCOLS / 2), 0);
+            findReplaceGrid(grid, 2, 30000, 1);
+
+            if (validLocationCount(grid, 1) < 1) {
+                fillGrid(grid, 1);
+            }
+
+            // Apply terrain preferences
+            const avoidedFlags = respectTerrainAvoidancePreferences
+                ? avoidedFlagsForMonsterFn(monst.info)
+                : forbiddenFlags;
+
+            // Zero out cells with forbidden/avoided terrain or special flags
+            for (let i = 0; i < DCOLS; i++) {
+                for (let j = 0; j < DROWS; j++) {
+                    const tFlags = terrainFlagsAt({ x: i, y: j });
+                    const cFlags = pmap[i]?.[j]?.flags ?? 0;
+                    if ((tFlags & avoidedFlags)
+                        || (cFlags & (IS_IN_MACHINE | TileFlag.HAS_PLAYER | TileFlag.HAS_MONSTER | TileFlag.HAS_STAIRS))) {
+                        grid[i][j] = 0;
+                    }
+                }
+            }
+
+            // Exclude cells visible from monster's current location
+            for (let i = 0; i < DCOLS; i++) {
+                for (let j = 0; j < DROWS; j++) {
+                    if (monstFOV[i][j]) {
+                        grid[i][j] = 0;
+                    }
+                }
+            }
+
+            dest = randomLocationInGrid(grid, 1);
+            freeGrid(grid);
+            freeGrid(monstFOV);
+
+            if (!isPosInMap(dest)) {
+                return; // No valid location found
+            }
+        }
+
+        // Disentangle (C: disentangle, Monsters.c:1138)
+        if (monst === player && monst.status[StatusEffect.Stuck]) {
+            msgOps.message("you break free!", 0);
+        }
+        monst.status[StatusEffect.Stuck] = 0;
+
+        // Move creature
+        pmap[monst.loc.x][monst.loc.y].flags &= ~(monst === player ? TileFlag.HAS_PLAYER : TileFlag.HAS_MONSTER);
+        {
+            const { glyph, foreColor, backColor } = getCellAppearance(monst.loc);
+            plotCharWithColor(glyph, { windowX: mapToWindowX(monst.loc.x), windowY: mapToWindowY(monst.loc.y) }, foreColor, backColor, displayBuffer);
+        }
+        monst.loc = dest;
+        pmap[monst.loc.x][monst.loc.y].flags |= (monst === player ? TileFlag.HAS_PLAYER : TileFlag.HAS_MONSTER);
+        {
+            const { glyph, foreColor, backColor } = getCellAppearance(monst.loc);
+            plotCharWithColor(glyph, { windowX: mapToWindowX(monst.loc.x), windowY: mapToWindowY(monst.loc.y) }, foreColor, backColor, displayBuffer);
+        }
+
+        // Non-player: reset to wandering
+        if (monst !== player) {
+            monst.creatureState = CreatureState.Wandering;
+        }
+    }
+
+    /**
      * Simplified runtime spawnDungeonFeature. Handles single-tile placement
      * and gas volume. Full propagation/blocking deferred.
      */
@@ -4310,7 +4410,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 displayLevelFn();
                 commitDraws();
             },
-            teleport(_monst, _target, _safe) { /* stub — teleportation deferred */ },
+            teleport(monst, target, safe) { teleportImpl(monst, target, safe); },
             createFlare(x, y, flareType) { createFlareFn(x, y, flareType, rogue as any, lightCatalogData); },
             animateFlares(flares, _count) {
                 animateFlaresFn(flares, buildLightingContext(), {
