@@ -94,6 +94,9 @@
 - [ ] Wire `recordKeystroke()` / `cancelKeystroke()` — recording system
 - [ ] Wire `saveRecording()` / `saveRecordingNoPrompt()`
 - [ ] Wire `printHighScores()` — high score display
-- [ ] Wire `animateFlares()` — visual flare effects
+- [ ] Wire `createFlare()` / `animateFlares()` — visual flare effects
+- [ ] Wire `cloneMonster()` — monster duplication (plenty runic, armor multiplicity, jelly splitting)
+- [ ] Wire `forceWeaponHit()` — force weapon blinking bolt effect
+- [ ] Wire `monsterStealsFromPlayer()` — thief monster item-stealing AI
 - [ ] Wire `vomit()`, `alertMonster()`, `monsterAvoids()` — miscellaneous creature functions
 - [ ] Verify: save/load works, search reveals secrets, all visual effects functional
