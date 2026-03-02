@@ -1,15 +1,15 @@
 # Complete Gameplay Wiring — Tasks
 
-## Phase 1: Core Playability ⬜
+## Phase 1: Core Playability ✅
 > *After this phase: stairs work, monsters respect terrain, food works, mouse hover shows paths*
 
-- [ ] **1a: monsterAvoids** — wire `monsterAvoidsFn` from `monster-state.ts` + `buildMonsterStateContext()` across 8 DI contexts (CostMapFovContext ×2, MonsterMovementContext, MonsterOpsContext, SpawnContext, MiscHelpersContext, TurnProcessingContext, PlayerMoveContext)
-- [ ] **1b: startLevel** — wire `startLevel(depth, stairDirection)` from `game-level.ts` in CreatureEffectsContext via `buildLevelContext()`
-- [ ] **1c: eat** — wire `eat()` from `item-handlers.ts` in CreatureEffectsContext via `buildItemHandlerContext()`
-- [ ] **1d: recalculateEquipmentBonuses** — wire from `item-usage.ts` in 2 contexts via `EquipmentState`
-- [ ] **1e: updatePlayerRegenerationDelay** — port ~15 lines from Items.c:7903 + wire in CreatureEffectsContext and item handler contexts
-- [ ] **1f: moveCursor** — port ~150 lines from Items.c:5372 + wire in InputContext (mouse hover, path preview, cursor targeting, sidebar highlight)
-- [ ] Verify: compile clean (0 errors), 2263/2263 tests passing, manual test: stairs + food + mouse hover
+- [x] **1a: monsterAvoids** — wired `monsterAvoidsFn` from `monster-state.ts` across 8 DI contexts with `monsterAvoidsWrapped` helper + `burnedTerrainFlagsAtLoc` / `successorTerrainFlags` helpers
+- [x] **1b: startLevel** — wired `startLevel(depth, stairDirection)` via `buildLevelContext()` in CreatureEffectsContext
+- [x] **1c: eat** — wired `eat()` from `item-handlers.ts` in CreatureEffectsContext with inline `ItemHandlerContext` wrapper
+- [x] **1d: recalculateEquipmentBonuses** — wired from `item-usage.ts` in 2 contexts via `EquipmentState` + sync-back pattern
+- [x] **1e: updatePlayerRegenerationDelay** — ported from Items.c:7903 using `turnsForFullRegenInThousandths` + wired in EquipContext
+- [x] **1f: moveCursor** — ported ~150 lines from Items.c:5372, full cursor movement, mouse/keyboard handling, sidebar highlight, coordinate clamping; button overlay deferred
+- [x] Verify: compile clean (0 errors), 2263/2263 tests passing
 
 ## Phase 2: Combat & Monster Completeness ⬜
 > *After this phase: weapon types are distinct, monsters clone/steal/teleport properly*

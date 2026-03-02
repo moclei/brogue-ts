@@ -94,7 +94,7 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
 
 ## Complete Gameplay Wiring
 - [ ] `complete-gameplay-wiring` — Wire the final ~16 actionable runtime stubs + port ~7 missing functions for full playability
-  - [ ] Phase 1: Core Playability — monsterAvoids (×8 contexts), startLevel, eat, recalculateEquipmentBonuses, updatePlayerRegenerationDelay (port), moveCursor (port)
+  - [x] Phase 1: Core Playability — monsterAvoids (×8 contexts), startLevel, eat, recalculateEquipmentBonuses, updatePlayerRegenerationDelay (port), moveCursor (port)
   - [ ] Phase 2: Combat & Monster Completeness — whip/spear/abort attacks, cloneMonster (port), forceWeaponHit (port), monsterStealsFromPlayer (port), teleport (port)
   - [ ] Phase 3: World Simulation — spawnPeriodicHorde, updateSafetyMap, updateClairvoyance, updateFloorItems (port), cosmeticRNG
 

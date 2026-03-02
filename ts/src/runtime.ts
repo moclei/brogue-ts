@@ -72,6 +72,12 @@ import {
     REST_KEY, SEARCH_KEY, ESCAPE_KEY,
     HUNGER_THRESHOLD, WEAK_THRESHOLD, FAINT_THRESHOLD,
     NUMBER_GOOD_WEAPON_ENCHANT_KINDS,
+    LEFT_ARROW, LEFT_KEY, RIGHT_ARROW, RIGHT_KEY,
+    UP_ARROW, UP_KEY, DOWN_ARROW, DOWN_KEY,
+    UPLEFT_KEY, UPRIGHT_KEY, DOWNLEFT_KEY, DOWNRIGHT_KEY,
+    TAB_KEY, SHIFT_TAB_KEY, RETURN_KEY, ACKNOWLEDGE_KEY,
+    NUMPAD_0, NUMPAD_1, NUMPAD_2, NUMPAD_3, NUMPAD_4,
+    NUMPAD_6, NUMPAD_7, NUMPAD_8, NUMPAD_9,
 } from "./types/constants.js";
 // PAUSE_BEHAVIOR_DEFAULT imported inline where needed
 
@@ -281,7 +287,7 @@ import { playerRecoversFromAttacking as playerRecoversFromAttackingFn } from "./
 import { alertMonster } from "./monsters/monster-state.js";
 import { monsterIsInClass, monstersAreEnemies as monstersAreEnemiesFn } from "./monsters/monster-queries.js";
 // MonsterAbilityFlag and weapon attack functions (whip, spear, flail) require full WeaponAttackContext — deferred
-import { ringWisdomMultiplier as ringWisdomMultiplierFn, charmRechargeDelay as charmRechargeDelayFn } from "./power/power-tables.js";
+import { ringWisdomMultiplier as ringWisdomMultiplierFn, charmRechargeDelay as charmRechargeDelayFn, turnsForFullRegenInThousandths } from "./power/power-tables.js";
 
 // -- Dijkstra scan import -----------------------------------------------------
 import { dijkstraScan as dijkstraScanFn } from "./dijkstra/dijkstra.js";
@@ -340,7 +346,8 @@ import type { ItemNamingContext } from "./items/item-naming.js";
 import { shuffleFlavors } from "./items/item-naming.js";
 import { equipItem, unequipItem, recalculateEquipmentBonuses, updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, strengthCheck, displayedArmorValue as displayedArmorValueFn } from "./items/item-usage.js";
 import type { EquipContext, EquipmentState } from "./items/item-usage.js";
-import { updateIdentifiableItems as updateIdentifiableItemsFn, magicCharDiscoverySuffix as magicCharDiscoverySuffixFn } from "./items/item-handlers.js";
+import { updateIdentifiableItems as updateIdentifiableItemsFn, magicCharDiscoverySuffix as magicCharDiscoverySuffixFn, eat as eatFn } from "./items/item-handlers.js";
+import type { ItemHandlerContext } from "./items/item-handlers.js";
 import { useKeyAt as useKeyAtFn } from "./movement/item-helpers.js";
 import type { ItemHelperContext } from "./movement/item-helpers.js";
 
@@ -349,7 +356,7 @@ import { monsterCatalog as monsterCatalogData } from "./globals/monster-catalog.
 import { monsterText } from "./globals/monster-text.js";
 import { lightCatalog as lightCatalogData } from "./globals/light-catalog.js";
 import { meteredItemsGenerationTable as meteredItemsGenTable } from "./globals/item-catalog.js";
-import { scrollTable, potionTable, lumenstoneDistribution, staffTable, ringTable, wandTable, charmTable, charmEffectTable, armorTable } from "./globals/item-catalog.js";
+import { scrollTable, potionTable, lumenstoneDistribution, staffTable, ringTable, wandTable, charmTable, charmEffectTable, armorTable, foodTable } from "./globals/item-catalog.js";
 import { populateItems as populateItemsFn } from "./items/item-population.js";
 import { populateMonsters as populateMonstersFn, spawnHorde as spawnHordeFn, monsterCanSubmergeNow as monsterCanSubmergeNowFn } from "./monsters/monster-spawning.js";
 import { generateMonster as generateMonsterFn } from "./monsters/monster-creation.js";
@@ -383,7 +390,8 @@ import { vomit as vomitFn } from "./movement/player-movement.js";
 import { search as searchFn } from "./movement/item-helpers.js";
 import { flashMonster as flashMonsterFn, addPoison as addPoisonFn } from "./combat/combat-damage.js";
 import { exposeTileToFire as exposeTileToFireFn } from "./time/environment.js";
-// monsterAvoids / MonsterStateContext — removed (not yet used in Phase 6)
+import { monsterAvoids as monsterAvoidsFn } from "./monsters/monster-state.js";
+import type { MonsterStateContext } from "./monsters/monster-state.js";
 import { recordKeystroke as recordKeystrokeFn, cancelKeystroke as cancelKeystrokeFn, recordMouseClick as recordMouseClickFn } from "./recordings/recording-events.js";
 import { printHighScores as printHighScoresFn } from "./io/io-screens.js";
 
@@ -980,6 +988,65 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         return null;
     }
 
+    // -- burnedTerrainFlagsAtLoc -----------------------------------------------
+    // Returns terrain flags of the tiles that would replace flammable tiles
+    // at this location if burned (and also any explosive promote successors).
+    // C: burnedTerrainFlagsAtLoc() in Monsters.c
+    function burnedTerrainFlagsAtLocFn(loc: Pos): number {
+        const cell = pmap[loc.x][loc.y];
+        let flags = 0;
+        for (let layer = 0; layer < NUMBER_TERRAIN_LAYERS; layer++) {
+            const tileType = cell.layers[layer];
+            if (tileCatalog[tileType].flags & TerrainFlag.T_IS_FLAMMABLE) {
+                // Successor terrain flags for burning
+                const fireDF = tileCatalog[tileType].fireType;
+                if (fireDF) {
+                    flags |= tileCatalog[dungeonFeatureCatalog[fireDF].tile].flags;
+                }
+                // Also include promote-type successor if tile is explosive
+                if (tileCatalog[tileType].mechFlags & TerrainMechFlag.TM_EXPLOSIVE_PROMOTE) {
+                    const promoteDF = tileCatalog[tileType].promoteType;
+                    if (promoteDF) {
+                        flags |= tileCatalog[dungeonFeatureCatalog[promoteDF].tile].flags;
+                    }
+                }
+            }
+        }
+        return flags;
+    }
+
+    // -- monsterAvoids wrapper ------------------------------------------------
+    // Wraps the real monsterAvoids (Monsters.c) with a minimal context built
+    // from runtime state.  Used by 8+ DI context builders.
+    function monsterAvoidsWrapped(monst: Creature, p: Pos): boolean {
+        return monsterAvoidsFn(monst, p, {
+            player,
+            downLoc: rogue.downLoc,
+            upLoc: rogue.upLoc,
+            terrainFlags: terrainFlagsAt,
+            cellFlags: (loc: Pos) => pmap[loc.x]?.[loc.y]?.flags ?? 0,
+            cellHasTerrainFlag: cellHasTerrainFlagAt,
+            cellHasTMFlag: cellHasTMFlagAt,
+            discoveredTerrainFlagsAtLoc: discoveredTerrainFlagsAtLocFn,
+            monsterAtLoc: monsterAtLocFn,
+            passableArcCount: (x: number, y: number) => passableArcCount(pmap, x, y),
+            burnedTerrainFlagsAtLoc: burnedTerrainFlagsAtLocFn,
+            playerHasRespirationArmor: () => !!(
+                rogue.armor &&
+                (rogue.armor.flags & ItemFlag.ITEM_RUNIC) &&
+                rogue.armor.enchant2 === ArmorEnchant.Respiration
+            ),
+            mapToShore: rogue.mapToShore,
+            HAS_MONSTER: TileFlag.HAS_MONSTER,
+            HAS_PLAYER: TileFlag.HAS_PLAYER,
+            PRESSURE_PLATE_DEPRESSED: TileFlag.PRESSURE_PLATE_DEPRESSED,
+            HAS_STAIRS: TileFlag.HAS_STAIRS,
+            IN_FIELD_OF_VIEW: TileFlag.IN_FIELD_OF_VIEW,
+            monsterCanSubmergeNow: (m) => monsterCanSubmergeNowFn(m, cellHasTMFlagAt, cellHasTerrainFlagAt),
+            isPosInMap: (loc) => coordinatesAreInMap(loc.x, loc.y),
+        } as MonsterStateContext);
+    }
+
     // -- FOV wrapper ----------------------------------------------------------
     const fovCtx: FOVContext = {
         cellHasTerrainFlag: cellHasTerrainFlagAt,
@@ -998,7 +1065,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             cellHasTerrainFlag: cellHasTerrainFlagAt,
             cellHasTMFlag: cellHasTMFlagAt,
             monsterAtLoc: monsterAtLocFn,
-            monsterAvoids: () => false, // stub for now
+            monsterAvoids: monsterAvoidsWrapped,
             discoveredTerrainFlagsAtLoc: discoveredTerrainFlagsAtLocFn,
             isPlayer: (creature: Creature) => creature === player,
             getCellFlags: (x: number, y: number) => pmap[x][y].flags,
@@ -1036,7 +1103,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             terrainFlags: terrainFlagsAt,
             terrainMechFlags: terrainMechFlagsAt,
             discoveredTerrainFlagsAtLoc: discoveredTerrainFlagsAtLocFn,
-            monsterAvoids: () => false,
+            monsterAvoids: monsterAvoidsWrapped,
             canPass: () => false,
             distanceBetween,
             monsterAtLoc: monsterAtLocFn,
@@ -1930,7 +1997,22 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             updateClairvoyance: () => { /* stub — deferred */ },
             updateFieldOfViewDisplay: () => { updateVisionFn(true); },
             updateMinersLightRadius: () => { /* stub — deferred */ },
-            updatePlayerRegenerationDelay: () => { /* stub — deferred */ },
+            updatePlayerRegenerationDelay() {
+                // C: updatePlayerRegenerationDelay() in Items.c
+                let maxHP = player.info.maxHP;
+                const turnsForFull = turnsForFullRegenInThousandths(
+                    BigInt(rogue.regenerationBonus) * FP_FACTOR,
+                );
+                player.regenPerTurn = 0;
+                const turnsForFullInTurns = Math.floor(turnsForFull / 1000);
+                while (maxHP > turnsForFullInTurns) {
+                    player.regenPerTurn++;
+                    maxHP -= turnsForFullInTurns;
+                }
+                player.info.turnsBetweenRegen = maxHP > 0
+                    ? Math.floor(turnsForFull / maxHP)
+                    : turnsForFull;
+            },
         };
     }
 
@@ -3040,7 +3122,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             terrainFlags: terrainFlagsAt,
             terrainMechFlags: terrainMechFlagsAt,
             discoveredTerrainFlagsAtLoc: discoveredTerrainFlagsAtLocFn,
-            monsterAvoids: () => false,
+            monsterAvoids: monsterAvoidsWrapped,
             canPass: () => false,
             distanceBetween,
             monsterAtLoc: monsterAtLocFn,
@@ -3106,7 +3188,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                     return terrainFlagsAt(loc);
                 });
             },
-            monsterAvoids: () => false,  // stub
+            monsterAvoids: monsterAvoidsWrapped,
             monsterAtLoc: monsterAtLocFn,
             canSeeMonster: (monst) => !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE),
             canPass: () => false,
@@ -3467,7 +3549,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 return `${article}${monst.info.monsterName}`;
             },
             monstersAreTeammates: () => false,
-            monsterAvoids: () => false,
+            monsterAvoids: monsterAvoidsWrapped,
             monsterIsInClass: (monst, mc) => monsterIsInClass(monst, mc),
             monsterAtLoc: monsterAtLocFn,
             cellHasMonsterOrPlayer(loc) {
@@ -3768,7 +3850,24 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             },
             deleteItem(_theItem) { /* GC handles cleanup */ },
             dropItem(_theItem) { return null; /* stub — full drop logic deferred */ },
-            eat(_theItem, _fromInventory) { /* stub — nutrition deferred */ },
+            eat(theItem, recordCommands) {
+                eatFn(theItem, recordCommands, {
+                    player,
+                    packItems,
+                    foodTable: foodTable as any,
+                    itemMessageColor: Colors.itemMessageColor,
+                    confirm: () => true, // forced eating always proceeds
+                    messageWithColor: msgOps.messageWithColor,
+                    removeItemFromChain(item: Item, chain: Item[]) {
+                        const idx = chain.indexOf(item);
+                        if (idx >= 0) chain.splice(idx, 1);
+                    },
+                    deleteItem() { /* GC handles cleanup */ },
+                    recordKeystrokeSequence(keys: number[]) {
+                        for (const k of keys) recordKeystrokeFn(k, false, false, recordingBuffer, rogue.playbackMode);
+                    },
+                } as unknown as ItemHandlerContext);
+            },
             makeMonsterDropItem: makeMonsterDropItemImpl,
 
             // Combat helpers
@@ -3822,7 +3921,12 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             spawnDungeonFeature: spawnDungeonFeatureFromObject,
             promoteTile: promoteTileImpl,
             exposeTileToFire(x, y, alwaysIgnite) { return exposeTileToFireFn(x, y, alwaysIgnite, buildEnvironmentContext()); },
-            startLevel(_depth, _stairDirection) { /* stub — level transitions deferred */ },
+            startLevel(previousDepth, stairDirection) {
+                const levelCtx = buildLevelContext();
+                startLevelFn(levelCtx, previousDepth, stairDirection);
+                displayLevelFn();
+                commitDraws();
+            },
             teleport(_monst, _target, _safe) { /* stub — teleportation deferred */ },
             createFlare(x, y, flareType) { createFlareFn(x, y, flareType, rogue as any, lightCatalogData); },
             animateFlares(flares, _count) {
@@ -3836,7 +3940,32 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             monstersFall() { monstersFallFn(buildCreatureEffectsContext()); },
             updateFloorItems() { /* stub — floor item decay deferred */ },
             synchronizePlayerTimeState() { synchronizePlayerTimeStateFn(buildCreatureEffectsContext() as any); },
-            recalculateEquipmentBonuses() { /* stub */ },
+            recalculateEquipmentBonuses() {
+                const equipState: EquipmentState = {
+                    player,
+                    weapon: rogue.weapon,
+                    armor: rogue.armor,
+                    ringLeft: rogue.ringLeft,
+                    ringRight: rogue.ringRight,
+                    strength: rogue.strength,
+                    clairvoyance: rogue.clairvoyance,
+                    stealthBonus: rogue.stealthBonus,
+                    regenerationBonus: rogue.regenerationBonus,
+                    lightMultiplier: rogue.lightMultiplier,
+                    awarenessBonus: 0,
+                    transference: rogue.transference,
+                    wisdomBonus: rogue.wisdomBonus,
+                    reaping: rogue.reaping,
+                };
+                recalculateEquipmentBonuses(equipState);
+                rogue.clairvoyance = equipState.clairvoyance;
+                rogue.stealthBonus = equipState.stealthBonus;
+                rogue.regenerationBonus = equipState.regenerationBonus;
+                rogue.lightMultiplier = equipState.lightMultiplier;
+                rogue.transference = equipState.transference;
+                rogue.wisdomBonus = equipState.wisdomBonus;
+                rogue.reaping = equipState.reaping;
+            },
             updateEncumbrance() {
                 const eqCtx = buildFullEquipContext();
                 updateEncumbranceFn(eqCtx.state);
@@ -4165,7 +4294,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                     : "";
                 return `${article}${monst.info.monsterName}`;
             },
-            monsterAvoids: () => false,
+            monsterAvoids: monsterAvoidsWrapped,
             monsterShouldFall: () => false,
             forbiddenFlagsForMonster: () => 0,
             distanceBetween,
@@ -4375,7 +4504,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             message: msgOps.message,
             messageWithColor: msgOps.messageWithColor,
 
-            monsterAvoids: () => false,
+            monsterAvoids: monsterAvoidsWrapped,
             canSeeMonster: (monst) => !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE),
             monsterName: () => "monster",
             messageColorFromVictim: () => Colors.white,
@@ -4639,9 +4768,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             monstersAreEnemies(_monst1, _monst2) {
                 return true; // simplified
             },
-            monsterAvoids(_monst, _p) {
-                return false; // simplified
-            },
+            monsterAvoids: monsterAvoidsWrapped,
             monsterIsInClass(_monst, _monsterClass) {
                 return false; // simplified
             },
@@ -5294,24 +5421,190 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
 
             // -- Targeting / cursor -----------------------------------------------
             moveCursor(
-                _targetConfirmed, canceled, _tabKey, _cursorLoc, theEvent,
-                _state, _doButtons, _cursorMode, _restingAllowed,
+                targetConfirmed, canceled, tabKey, cursorLoc, theEvent,
+                _state, colorsDance, keysMoveCursor, targetCanLeaveMap,
             ) {
-                // Simplified moveCursor stub: read next event from queue and
-                // dispatch. The full cursor/path system is not yet wired.
-                commitDraws();
-                const ev = browserConsole.nextKeyOrMouseEvent(false, false);
-                if (ev.eventType === EventType.Keystroke && ev.param1 !== 0) {
-                    theEvent.value = ev;
-                    return true; // doEvent = true → dispatch the event
+                // Full moveCursor port — C: Items.c:5372
+                // Maps TS interface params to C semantics:
+                //   colorsDance ← doButtons (controls animation while waiting)
+                //   keysMoveCursor ← cursorMode (whether keys move cursor)
+                //   targetCanLeaveMap ← restingAllowed (whether cursor can leave map)
+                rogue.cursorLoc = { ...cursorLoc.value };
+
+                targetConfirmed.value = false;
+                canceled.value = false;
+                tabKey.value = false;
+                let sidebarHighlighted = false;
+
+                let again: boolean;
+                let cursorMovementCommand: boolean;
+                let movementKeystroke: boolean;
+                let ev: RogueEvent = theEvent.value;
+
+                do {
+                    again = false;
+                    cursorMovementCommand = false;
+                    movementKeystroke = false;
+
+                    // Get next event (button overlay handling deferred)
+                    commitDraws();
+                    ev = browserConsole.nextKeyOrMouseEvent(false, colorsDance);
+
+                    if (ev.eventType === EventType.MouseUp || ev.eventType === EventType.MouseEnteredCell) {
+                        if (ev.param1 >= 0
+                            && ev.param1 < mapToWindowX(0)
+                            && ev.param2 >= 0
+                            && ev.param2 < ROWS - 1
+                            && rogue.sidebarLocationList[ev.param2]
+                            && coordinatesAreInMap(
+                                rogue.sidebarLocationList[ev.param2].x,
+                                rogue.sidebarLocationList[ev.param2].y,
+                            )) {
+                            // Cursor is on an entity in the sidebar
+                            rogue.cursorLoc = { ...rogue.sidebarLocationList[ev.param2] };
+                            sidebarHighlighted = true;
+                            cursorMovementCommand = true;
+                            refreshSideBarRuntime(rogue.cursorLoc.x, rogue.cursorLoc.y, false);
+                            if (ev.eventType === EventType.MouseUp) {
+                                targetConfirmed.value = true;
+                            }
+                        } else if (
+                            coordinatesAreInMap(
+                                windowToMapXFromDisplay(ev.param1),
+                                windowToMapYFromDisplay(ev.param2),
+                            )
+                            || (targetCanLeaveMap && ev.eventType !== EventType.MouseUp)
+                        ) {
+                            // Cursor is in the map area (or allowed to leave)
+                            if (ev.eventType === EventType.MouseUp
+                                && !ev.shiftKey
+                                && (ev.controlKey
+                                    || (rogue.cursorLoc.x === windowToMapXFromDisplay(ev.param1)
+                                        && rogue.cursorLoc.y === windowToMapYFromDisplay(ev.param2)))) {
+                                targetConfirmed.value = true;
+                            }
+                            rogue.cursorLoc.x = windowToMapXFromDisplay(ev.param1);
+                            rogue.cursorLoc.y = windowToMapYFromDisplay(ev.param2);
+                            cursorMovementCommand = true;
+                        } else {
+                            cursorMovementCommand = false;
+                            again = ev.eventType !== EventType.MouseUp;
+                        }
+                    } else if (ev.eventType === EventType.Keystroke) {
+                        let keystroke = ev.param1;
+                        const moveIncrement = (ev.controlKey || ev.shiftKey) ? 5 : 1;
+                        keystroke = stripShiftFromMovementKeystrokeFn(keystroke);
+
+                        switch (keystroke) {
+                            case LEFT_ARROW: case LEFT_KEY: case NUMPAD_4:
+                                if (keysMoveCursor && rogue.cursorLoc.x > 0) {
+                                    rogue.cursorLoc.x -= moveIncrement;
+                                }
+                                cursorMovementCommand = movementKeystroke = keysMoveCursor;
+                                break;
+                            case RIGHT_ARROW: case RIGHT_KEY: case NUMPAD_6:
+                                if (keysMoveCursor && rogue.cursorLoc.x < DCOLS - 1) {
+                                    rogue.cursorLoc.x += moveIncrement;
+                                }
+                                cursorMovementCommand = movementKeystroke = keysMoveCursor;
+                                break;
+                            case UP_ARROW: case UP_KEY: case NUMPAD_8:
+                                if (keysMoveCursor && rogue.cursorLoc.y > 0) {
+                                    rogue.cursorLoc.y -= moveIncrement;
+                                }
+                                cursorMovementCommand = movementKeystroke = keysMoveCursor;
+                                break;
+                            case DOWN_ARROW: case DOWN_KEY: case NUMPAD_2:
+                                if (keysMoveCursor && rogue.cursorLoc.y < DROWS - 1) {
+                                    rogue.cursorLoc.y += moveIncrement;
+                                }
+                                cursorMovementCommand = movementKeystroke = keysMoveCursor;
+                                break;
+                            case UPLEFT_KEY: case NUMPAD_7:
+                                if (keysMoveCursor && rogue.cursorLoc.x > 0 && rogue.cursorLoc.y > 0) {
+                                    rogue.cursorLoc.x -= moveIncrement;
+                                    rogue.cursorLoc.y -= moveIncrement;
+                                }
+                                cursorMovementCommand = movementKeystroke = keysMoveCursor;
+                                break;
+                            case UPRIGHT_KEY: case NUMPAD_9:
+                                if (keysMoveCursor && rogue.cursorLoc.x < DCOLS - 1 && rogue.cursorLoc.y > 0) {
+                                    rogue.cursorLoc.x += moveIncrement;
+                                    rogue.cursorLoc.y -= moveIncrement;
+                                }
+                                cursorMovementCommand = movementKeystroke = keysMoveCursor;
+                                break;
+                            case DOWNLEFT_KEY: case NUMPAD_1:
+                                if (keysMoveCursor && rogue.cursorLoc.x > 0 && rogue.cursorLoc.y < DROWS - 1) {
+                                    rogue.cursorLoc.x -= moveIncrement;
+                                    rogue.cursorLoc.y += moveIncrement;
+                                }
+                                cursorMovementCommand = movementKeystroke = keysMoveCursor;
+                                break;
+                            case DOWNRIGHT_KEY: case NUMPAD_3:
+                                if (keysMoveCursor && rogue.cursorLoc.x < DCOLS - 1 && rogue.cursorLoc.y < DROWS - 1) {
+                                    rogue.cursorLoc.x += moveIncrement;
+                                    rogue.cursorLoc.y += moveIncrement;
+                                }
+                                cursorMovementCommand = movementKeystroke = keysMoveCursor;
+                                break;
+                            case TAB_KEY: case SHIFT_TAB_KEY: case NUMPAD_0:
+                                tabKey.value = true;
+                                break;
+                            case RETURN_KEY:
+                                targetConfirmed.value = true;
+                                break;
+                            case ESCAPE_KEY: case ACKNOWLEDGE_KEY:
+                                canceled.value = true;
+                                break;
+                            default:
+                                break;
+                        }
+                    } else if (ev.eventType === EventType.RightMouseUp) {
+                        // do nothing
+                    } else {
+                        again = true;
+                    }
+
+                    // Un-highlight sidebar if cursor moved off a visible entity
+                    if (sidebarHighlighted) {
+                        const cellFlags = pmap[rogue.cursorLoc.x]?.[rogue.cursorLoc.y]?.flags ?? 0;
+                        const monst = monsterAtLocFn(rogue.cursorLoc);
+                        const canSee = monst
+                            ? !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE)
+                            : false;
+
+                        if ((!(cellFlags & (TileFlag.HAS_PLAYER | TileFlag.HAS_MONSTER)) || !canSee)
+                            && (!(cellFlags & TileFlag.HAS_ITEM) || !(cellFlags & TileFlag.VISIBLE))
+                            && (!cellHasTMFlagAt(rogue.cursorLoc, TerrainMechFlag.TM_LIST_IN_SIDEBAR)
+                                || !(cellFlags & TileFlag.VISIBLE))) {
+                            refreshSideBarRuntime(-1, -1, false);
+                            sidebarHighlighted = false;
+                        }
+                    }
+
+                    // Clamp cursor to valid range
+                    if (targetCanLeaveMap && !movementKeystroke) {
+                        rogue.cursorLoc.x = clamp(rogue.cursorLoc.x, -1, DCOLS);
+                        rogue.cursorLoc.y = clamp(rogue.cursorLoc.y, -1, DROWS);
+                    } else {
+                        rogue.cursorLoc.x = clamp(rogue.cursorLoc.x, 0, DCOLS - 1);
+                        rogue.cursorLoc.y = clamp(rogue.cursorLoc.y, 0, DROWS - 1);
+                    }
+                } while (again && !cursorMovementCommand);
+
+                // Write event back to caller
+                theEvent.value = ev;
+
+                // Un-highlight sidebar on exit
+                if (sidebarHighlighted) {
+                    refreshSideBarRuntime(-1, -1, false);
                 }
-                if (ev.eventType === EventType.MouseUp || ev.eventType === EventType.RightMouseUp) {
-                    theEvent.value = ev;
-                    return true;
-                }
-                // No meaningful event — signal canceled to break the inner loop
-                canceled.value = true;
-                return false;
+
+                // Write cursor location back
+                cursorLoc.value = { ...rogue.cursorLoc };
+
+                return !cursorMovementCommand;
             },
             nextTargetAfter() { return false; },
             hilitePath(path, steps, unhilite) {
