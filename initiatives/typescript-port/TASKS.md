@@ -87,6 +87,6 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
     - applyInstantTileEffectsToCreature / applyGradualTileEffectsToCreature in CombatDamageContext, TurnProcessingContext
     - monsterShouldFall / monstersFall / playerFalls in TurnProcessingContext, EnvironmentContext
     - decrementPlayerStatus upgraded from minimal stub to real function
-  - [ ] Phase 4: Combat Effects — weapon/armor runics, special hits, feats (~10 stubs)
+  - [x] Phase 4: Combat Effects — weapon/armor runics (magicWeaponHit, specialHit, applyArmorRunicEffect via buildRunicContext), feats (paladin, dragonslayer, pureMage), decrementWeaponAutoIDTimer, rechargeItemsIncrementally, processIncrementalAutoID, checkForDisenchantment, strengthCheck, equipItem in AttackContext
   - [ ] Phase 5: UI Panels — sidebar, inventory screen, flavor text (~10 stubs)
   - [ ] Phase 6: Polish — save/load, search, miner's light, recordings (~15 stubs)
