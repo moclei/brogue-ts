@@ -62,6 +62,7 @@ import {
     CreatureState,
     FeatType,
     ArmorEnchant,
+    BoltType,
 } from "./types/enums.js";
 import {
     COLS, ROWS, DCOLS, DROWS,
@@ -285,8 +286,16 @@ import { specialHit as specialHitFn, magicWeaponHit as magicWeaponHitFn, applyAr
 import type { RunicContext } from "./combat/combat-runics.js";
 import { playerRecoversFromAttacking as playerRecoversFromAttackingFn } from "./time/turn-processing.js";
 import { alertMonster } from "./monsters/monster-state.js";
-import { monsterIsInClass, monstersAreEnemies as monstersAreEnemiesFn } from "./monsters/monster-queries.js";
-// MonsterAbilityFlag and weapon attack functions (whip, spear, flail) require full WeaponAttackContext — deferred
+import { monsterIsInClass, monstersAreEnemies as monstersAreEnemiesFn, monsterIsHidden as monsterIsHiddenFn, monsterWillAttackTarget as monsterWillAttackTargetFn } from "./monsters/monster-queries.js";
+import type { MonsterQueryContext } from "./monsters/monster-queries.js";
+import {
+    handleWhipAttacks as handleWhipAttacksFn,
+    handleSpearAttacks as handleSpearAttacksFn,
+    abortAttack as abortAttackFn,
+    buildFlailHitList as buildFlailHitListFn,
+} from "./movement/weapon-attacks.js";
+import type { WeaponAttackContext, BoltInfo } from "./movement/weapon-attacks.js";
+import { getImpactLoc as getImpactLocFn } from "./items/bolt-geometry.js";
 import { ringWisdomMultiplier as ringWisdomMultiplierFn, charmRechargeDelay as charmRechargeDelayFn, turnsForFullRegenInThousandths } from "./power/power-tables.js";
 
 // -- Dijkstra scan import -----------------------------------------------------
@@ -4251,6 +4260,140 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     }
 
     /**
+     * Build a MonsterQueryContext for monster visibility checks.
+     */
+    function buildMonsterQueryContext(): MonsterQueryContext {
+        return {
+            player,
+            cellHasTerrainFlag: cellHasTerrainFlagAt,
+            cellHasGas(loc) {
+                return pmap[loc.x]?.[loc.y]?.layers[DungeonLayer.Gas] !== 0;
+            },
+            playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+            playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+            playbackOmniscience: false,
+        };
+    }
+
+    /**
+     * Build a WeaponAttackContext for whip/spear/flail/abort-attack functions.
+     */
+    function buildWeaponAttackContext(): WeaponAttackContext {
+        const mqCtx = buildMonsterQueryContext();
+
+        // Minimal bolt catalog — only WHIP entry needed for now
+        const minimalBoltCatalog: BoltInfo[] = [];
+        minimalBoltCatalog[BoltType.WHIP] = { theChar: 0 };
+
+        return {
+            pmap,
+            player,
+            rogue: {
+                weapon: rogue.weapon,
+                playbackFastForward: false,
+            },
+            nbDirs: nbDirs as any,
+
+            // -- Map queries --
+            coordinatesAreInMap,
+            isPosInMap: (pos) => coordinatesAreInMap(pos.x, pos.y),
+            cellHasTerrainFlag: cellHasTerrainFlagAt,
+            diagonalBlocked(x1, y1, x2, y2, _isPlayer) {
+                return diagonalBlockedFn(x1, y1, x2, y2, (loc) => terrainFlagsAt(loc));
+            },
+
+            // -- Monster queries --
+            monsterAtLoc: monsterAtLocFn,
+            canSeeMonster: (monst) => !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE),
+            monsterIsHidden(monst, observer) {
+                return monsterIsHiddenFn(monst, observer, mqCtx);
+            },
+            monsterWillAttackTarget(attacker, defender) {
+                return monsterWillAttackTargetFn(attacker, defender, player, cellHasTerrainFlagAt);
+            },
+            monsterIsInClass(monst, mc) {
+                return monsterIsInClass(monst, monsterClassCatalog[mc as number]);
+            },
+            monstersAreEnemies(monst1, monst2) {
+                return monstersAreEnemiesFn(monst1, monst2, player, cellHasTerrainFlagAt);
+            },
+            monsterName(monst, includeArticle) {
+                if (monst === player) return "you";
+                const article = includeArticle
+                    ? (monst.creatureState === CreatureState.Ally ? "your " : "the ")
+                    : "";
+                return `${article}${monst.info.monsterName}`;
+            },
+            distanceBetween,
+
+            // -- Item queries --
+            itemName: (item) => getItemName(item, false, false),
+
+            // -- Combat --
+            attack(attacker, defender, lungeAttack) {
+                const atkCtx = buildAttackContext();
+                return attackFn(attacker, defender, lungeAttack, atkCtx);
+            },
+
+            // -- Bolt system --
+            boltCatalog: minimalBoltCatalog,
+            getImpactLoc(origin, target, maxDistance, returnLastEmpty, _bolt) {
+                return getImpactLocFn(
+                    origin, target, maxDistance, returnLastEmpty, null,
+                    // creatureBlocks: a creature at loc (other than origin) blocks
+                    (loc, originLoc) => {
+                        if (loc.x === originLoc.x && loc.y === originLoc.y) return false;
+                        return monsterAtLocFn(loc) !== null;
+                    },
+                    // cellBlocks: impassable terrain blocks
+                    (loc) => cellHasTerrainFlagAt(loc, TerrainFlag.T_OBSTRUCTS_PASSABILITY),
+                );
+            },
+            zap(origin, _target, _bolt, _hideDetails, _boltInView) {
+                // Simplified zap for whip attacks: find the first creature along the
+                // bolt path and attack it. Full bolt animation/effects deferred.
+                const attacker = (origin.x === player.loc.x && origin.y === player.loc.y)
+                    ? player
+                    : monsterAtLocFn(origin);
+                if (!attacker) return;
+                // The defender was already verified by handleWhipAttacks via getImpactLoc.
+                // Re-find it by scanning the impact location.
+                const strikeLoc = getImpactLocFn(
+                    origin, _target, 5, false, null,
+                    (loc, originLoc) => {
+                        if (loc.x === originLoc.x && loc.y === originLoc.y) return false;
+                        return monsterAtLocFn(loc) !== null;
+                    },
+                    (loc) => cellHasTerrainFlagAt(loc, TerrainFlag.T_OBSTRUCTS_PASSABILITY),
+                );
+                const defender = monsterAtLocFn(strikeLoc);
+                if (defender) {
+                    const atkCtx = buildAttackContext();
+                    attackFn(attacker, defender, false, atkCtx);
+                }
+            },
+
+            // -- UI --
+            confirm: () => true, // Full confirm dialog not yet wired
+            playerCanSeeOrSense: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+            plotForegroundChar(_ch, _x, _y, _color, _isOverlay) {
+                // Visual overlay for spear attacks — deferred
+            },
+            pauseAnimation(frames, _behavior) {
+                browserConsole.pauseForMilliseconds(frames * 16, { interruptForMouseMove: false });
+            },
+            refreshDungeonCell(loc) {
+                const { glyph, foreColor, backColor } = getCellAppearance(loc);
+                plotCharWithColor(glyph, { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) }, foreColor, backColor, displayBuffer);
+            },
+            lightBlue: Colors.lightBlue,
+
+            // -- All monsters --
+            allMonsters: () => monsters,
+        };
+    }
+
+    /**
      * Build the PlayerMoveContext for playerMoves/playerRuns.
      */
     function buildPlayerMoveContext(): PlayerMoveContext & PlayerRunContext {
@@ -4303,9 +4446,18 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             layerWithTMFlag: (x, y, _flag) => highestPriorityLayer(pmap, x, y, false),
             layerWithFlag: (x, y, _flag) => highestPriorityLayer(pmap, x, y, false),
 
-            handleWhipAttacks: () => false, // Whip requires full WeaponAttackContext with bolt system — deferred
-            handleSpearAttacks: () => false, // Spear requires full WeaponAttackContext — deferred
-            buildFlailHitList: () => [],
+            handleWhipAttacks(monst, dir, aborted) {
+                const wCtx = buildWeaponAttackContext();
+                return handleWhipAttacksFn(monst, dir, aborted, wCtx);
+            },
+            handleSpearAttacks(monst, dir, aborted) {
+                const wCtx = buildWeaponAttackContext();
+                return handleSpearAttacksFn(monst, dir, aborted, wCtx);
+            },
+            buildFlailHitList(x1, y1, x2, y2, hitList) {
+                const wCtx = buildWeaponAttackContext();
+                buildFlailHitListFn(x1, y1, x2, y2, hitList, wCtx);
+            },
             buildHitList(hitList, attacker, defender, allAdjacent) {
                 const atkCtx = buildAttackContext();
                 const result = buildHitListFn(attacker, defender, allAdjacent, atkCtx);
@@ -4313,7 +4465,10 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                     hitList[i] = result[i];
                 }
             },
-            abortAttack: () => false, // Requires full WeaponAttackContext — deferred
+            abortAttack(hitList) {
+                const wCtx = buildWeaponAttackContext();
+                return abortAttackFn(hitList, wCtx);
+            },
             attack(attacker, defender, lungeAttack) {
                 const atkCtx = buildAttackContext();
                 return attackFn(attacker, defender, lungeAttack, atkCtx);
