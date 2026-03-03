@@ -7319,11 +7319,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                             await executeKeystrokeFn(inputCtx, menuButtons[chosenIdx].hotkey[0], false, false);
                         }
                     } else if (event.eventType === EventType.Keystroke) {
-                        try {
-                            await executeKeystrokeFn(inputCtx, event.param1, event.controlKey, event.shiftKey);
-                        } catch (err) {
-                            console.error("[MAINLOOP] Error in executeKeystroke:", err);
-                        }
+                        await executeKeystrokeFn(inputCtx, event.param1, event.controlKey, event.shiftKey);
                     } else if (
                         event.eventType === EventType.MouseUp ||
                         event.eventType === EventType.RightMouseUp
