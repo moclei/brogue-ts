@@ -109,6 +109,7 @@ import {
 import {
     applyColorAverage,
     applyColorAugment,
+    applyColorMultiplier,
     bakeColor,
     separateColors,
     encodeMessageColor,
@@ -1221,18 +1222,20 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         cellBackColor.green = clamp(Math.floor(cellBackColor.green * (100 + lightG) / 100), 0, 100);
         cellBackColor.blue = clamp(Math.floor(cellBackColor.blue * (100 + lightB) / 100), 0, 100);
 
+        // Collect the final glyph and colors — entity rendering may override these
+        let resultGlyph = cellChar;
+        let resultForeColor = cellForeColor;
+        let resultBackColor = cellBackColor;
+
         if (isVisible) {
             // --- Check for player at this cell ---
             if (pos.x === player.loc.x && pos.y === player.loc.y) {
-                return {
-                    glyph: player.info.displayChar,
-                    foreColor: { ...Colors.white },
-                    backColor: cellBackColor,
-                };
+                resultGlyph = player.info.displayChar;
+                resultForeColor = { ...Colors.white };
             }
 
             // --- Check for visible monsters (C: IO.c:1236-1262) ---
-            if (cell.flags & TileFlag.HAS_MONSTER) {
+            else if (cell.flags & TileFlag.HAS_MONSTER) {
                 const monst = monsterAtLocFn(pos);
                 if (monst && !(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DYING)) {
                     // Check if monster is hidden (dormant, invisible, submerged)
@@ -1261,38 +1264,47 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                             applyColorAverage(monstForeColor, Colors.pink, 50);
                         }
 
-                        return {
-                            glyph: monst.info.displayChar,
-                            foreColor: monstForeColor,
-                            backColor: cellBackColor,
-                        };
+                        resultGlyph = monst.info.displayChar;
+                        resultForeColor = monstForeColor;
                     }
                 }
             }
 
             // --- Check for items on the floor ---
-            if (cell.flags & TileFlag.HAS_ITEM) {
+            else if (cell.flags & TileFlag.HAS_ITEM) {
                 for (const item of floorItems) {
                     if (item.loc.x === pos.x && item.loc.y === pos.y) {
-                        return {
-                            glyph: item.displayChar,
-                            foreColor: item.foreColor ? { ...item.foreColor } : { ...Colors.itemMessageColor },
-                            backColor: cellBackColor,
-                        };
+                        resultGlyph = item.displayChar;
+                        resultForeColor = item.foreColor ? { ...item.foreColor } : { ...Colors.itemMessageColor };
+                        break;
                     }
                 }
             }
+
+            // Apply underwater tint (C: IO.c:1428-1431)
+            // When the player is submerged in deep water, all visible cells get
+            // a blue tint via deepWaterLightColor multiplier.
+            if (rogue.inWater) {
+                applyColorMultiplier(resultForeColor, Colors.deepWaterLightColor);
+                applyColorMultiplier(resultBackColor, Colors.deepWaterLightColor);
+            }
         } else if (isDiscovered) {
-            // Remembered cells: dim the colors for "fog of war" effect
-            cellForeColor.red = Math.floor(cellForeColor.red * 40 / 100);
-            cellForeColor.green = Math.floor(cellForeColor.green * 40 / 100);
-            cellForeColor.blue = Math.floor(cellForeColor.blue * 40 / 100);
-            cellBackColor.red = Math.floor(cellBackColor.red * 40 / 100);
-            cellBackColor.green = Math.floor(cellBackColor.green * 40 / 100);
-            cellBackColor.blue = Math.floor(cellBackColor.blue * 40 / 100);
+            // Remembered cells when underwater: heavy darkening (C: IO.c:1398-1401)
+            if (rogue.inWater) {
+                applyColorAverage(resultForeColor, Colors.black, 80);
+                applyColorAverage(resultBackColor, Colors.black, 80);
+            } else {
+                // Normal fog of war dimming
+                resultForeColor.red = Math.floor(resultForeColor.red * 40 / 100);
+                resultForeColor.green = Math.floor(resultForeColor.green * 40 / 100);
+                resultForeColor.blue = Math.floor(resultForeColor.blue * 40 / 100);
+                resultBackColor.red = Math.floor(resultBackColor.red * 40 / 100);
+                resultBackColor.green = Math.floor(resultBackColor.green * 40 / 100);
+                resultBackColor.blue = Math.floor(resultBackColor.blue * 40 / 100);
+            }
         }
 
-        return { glyph: cellChar, foreColor: cellForeColor, backColor: cellBackColor };
+        return { glyph: resultGlyph, foreColor: resultForeColor, backColor: resultBackColor };
     }
 
     // -- displayLevel (minimal) ------------------------------------------------
@@ -5824,6 +5836,47 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                             pmap[nx][ny].flags |= TileFlag.HAS_MONSTER;
                             monst.turnsSpentStationary = 0;
                         }
+                    }
+                    monst.ticksUntilTurn = monst.movementSpeed || 100;
+                    return;
+                }
+
+                // Fleeing: move away from the player (inverse of tracking scent)
+                // This handles monkeys after stealing (PermFleeing + Fleeing state)
+                // and other flee scenarios.
+                if (monst.creatureState === CreatureState.Fleeing) {
+                    let bestDir = -1;
+                    let bestDist = dist;
+                    for (let dir = 0; dir < 8; dir++) {
+                        const nx = mx + nbDirs[dir][0];
+                        const ny = my + nbDirs[dir][1];
+                        if (!coordinatesAreInMap(nx, ny)) continue;
+                        const newDist = Math.abs(player.loc.x - nx) + Math.abs(player.loc.y - ny);
+                        if (
+                            newDist > bestDist &&
+                            !(pmap[nx][ny].flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER)) &&
+                            !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY) &&
+                            !monsterAvoidsWrapped(monst, { x: nx, y: ny })
+                        ) {
+                            bestDist = newDist;
+                            bestDir = dir;
+                        }
+                    }
+                    if (bestDir >= 0) {
+                        const nx = mx + nbDirs[bestDir][0];
+                        const ny = my + nbDirs[bestDir][1];
+                        pmap[mx][my].flags &= ~TileFlag.HAS_MONSTER;
+                        monst.loc.x = nx;
+                        monst.loc.y = ny;
+                        pmap[nx][ny].flags |= TileFlag.HAS_MONSTER;
+                        monst.turnsSpentStationary = 0;
+                    } else if (dist <= 1) {
+                        // Cornered — attack the player as a last resort
+                        if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_SUBMERGED) {
+                            monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_SUBMERGED;
+                            refreshDungeonCellRuntime(monst.loc);
+                        }
+                        attackFn(monst, player, false, buildAttackContext());
                     }
                     monst.ticksUntilTurn = monst.movementSpeed || 100;
                     return;

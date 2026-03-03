@@ -675,6 +675,17 @@ export function shuffleFlavors(
             itemTitles[i] += separator + titlePhonemes[phonemeIdx];
         }
     }
+
+    // Assign shuffled flavors to item tables.
+    // In C, the item table flavor fields are char* pointers into the shuffled
+    // arrays (itemColors, itemWoods, itemMetals, itemGems, itemTitles), so they
+    // automatically reflect the shuffled values. In TS, strings are values not
+    // pointers, so we must explicitly copy them after shuffling.
+    for (let i = 0; i < gc.numberPotionKinds; i++) potionTable[i].flavor = itemColors[i];
+    for (let i = 0; i < gc.numberScrollKinds; i++) scrollTable[i].flavor = itemTitles[i];
+    for (let i = 0; i < StaffKind.NumberStaffKinds; i++) staffTable[i].flavor = itemWoods[i];
+    for (let i = 0; i < gc.numberWandKinds; i++) wandTable[i].flavor = itemMetals[i];
+    for (let i = 0; i < RingKind.NumberRingKinds; i++) ringTable[i].flavor = itemGems[i];
 }
 
 // =============================================================================
