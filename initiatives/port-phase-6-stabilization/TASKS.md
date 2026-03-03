@@ -154,15 +154,47 @@ The fully ported `monstersTurn` in `monster-actions.ts:285` handles all states i
 **Branch:** `fix/playtest-round1-session-a`  
 **Status:** Complete — all 2,263 tests pass, zero compilation errors.
 
-### Session B — Death notice + Menu ✅
-**Bugs:** #1, #4  
+### Session B — Death notice + Menu + Bottom bar + Inventory ✅
+**Bugs:** #1, #4, plus follow-up fixes  
 **Branch:** `fix/playtest-round1-session-b`  
 **Status:** Complete — all 2,263 tests pass, zero compilation errors.  
 **Notes:**
 - Bug #1 used a "deferred death screen" pattern: `doGameOver` runs Phase 1 (state changes) synchronously, then `mainInputLoop` runs Phase 2 (interactive death screen) asynchronously after the while-loop exits.
 - Bug #4 mapped ESCAPE key to `actionMenu()` in `executeKeystroke`. Added `gameHasEnded` guard after `waitForEvent` to prevent processing events when game ended.
+- Follow-up: Death screen was auto-dismissing from leftover mouse events — added event-type filter loop.
+- Follow-up: Bottom bar (Explore, Rest, Search, Menu, Inventory) now renders via `initializeMenuButtons` + `drawButtonsInState` in mainInputLoop.
+- Follow-up: Inventory (`i` key) was not awaited — added `await` and changed interface to `void | Promise<void>`.
 
 ### Session C — Bloat effects + Plunge messages + Captive rescue
 **Bugs:** #7, #2, #6  
 **Surface area:** `runtime.ts` (spawnDungeonFeature), dungeon generation, player-movement wiring  
 **Rationale:** These require deeper investigation into dungeon generation and terrain mechanics. May need to wire the full spawnDungeonFeature and audit dungeon placement.
+
+### Session D — Inventory actions + Explore animation
+**Bugs:** #9, #10  
+**Surface area:** `io-inventory.ts` (buildInventoryContext wiring), `travel-explore.ts` (async pauseAnimation)  
+**Rationale:** Inventory actions are a new finding from playtest round 1.5. Explore animation is a deeper architectural issue (sync→async).
+
+---
+
+## Playtest Round 1.5 (follow-up bugs found during verification)
+
+### Bug 9: Inventory item actions don't work
+**Symptom:** The inventory screen opens when pressing `i`, but selecting an item does nothing — no action menu appears (use, throw, call, equip, etc.).
+
+**Root Cause (suspected):** The `buildInventoryContext()` in `runtime.ts` likely has stubs or incomplete wiring for the item action callbacks (`equip`, `unequip`, `apply`, `throw`, `call`, `relabel`). The inventory display may also not be rendering action buttons if `includeButtons` isn't propagated correctly, or the `buttonInputLoop` inside the inventory is not properly async-compatible.
+
+**Proposed Fix:** Trace through `displayInventoryFn` → `buildInventoryContext()` to identify which callbacks are stubbed vs. wired. Ensure the item action menu (shown when selecting an item) has working button rendering and input handling.
+
+**Files:** `ts/src/runtime.ts` (buildInventoryContext), `ts/src/io/io-inventory.ts`
+
+---
+
+### Bug 10: Explore animation jumps instead of walking
+**Symptom:** Pressing `x` to explore causes the player to teleport to the destination instead of visibly walking step by step.
+
+**Root Cause:** `explore()` in `travel-explore.ts` runs a synchronous `do-while` loop calling `playerMoves()` for each step. `pauseAnimation()` in `buildTravelExploreContext` (runtime.ts:3371) is stubbed to `browserConsole.pauseForMilliseconds(0, ...)` — it passes duration `0` and returns immediately. The browser never gets a chance to repaint between steps because JS blocks the rendering thread in a synchronous loop.
+
+**Proposed Fix:** Make `pauseAnimation` async with a real delay (`await new Promise(r => setTimeout(r, duration))`). This requires making `explore()` and its callers async, propagating through `exploreKey` → `executeKeystroke`. A significant but contained refactor.
+
+**Files:** `ts/src/runtime.ts` (buildTravelExploreContext.pauseAnimation), `ts/src/movement/travel-explore.ts`
