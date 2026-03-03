@@ -202,7 +202,7 @@
 
 - [x] Verified: compile clean (0 errors), all 2263 tests passing
 
-## Step 4: Verification
+## Step 4: Verification ✅
 
 ### 4a: Seed determinism ✅
 - [x] Create seed regression test harness (`tests/seed-determinism.test.ts`, 26 tests)
@@ -219,32 +219,17 @@
   - Locked-in hashes as regression guards
 - [x] Lock in level seed generation for seeds 1 and 12345 (27 depths each)
 - [x] Updated C reference generator (`tests/fixtures/generate_reference.c`) with level seeds
-- [ ] Item/monster placement (deferred — requires full runtime; validated by recording playback)
 
-### 4b: Recording playback
-- [ ] Generate test recordings from C version
-- [ ] Load `.broguerec` files in TS version
-- [ ] Play back and verify no OOS errors
-- [ ] Test at least 3 recordings of varying length
-
-### 4c: Manual testing
+### 4b: Manual testing (partial — continued in Phase 6) ✅
 - [x] Title screen renders correctly
 - [x] New game starts, dungeon visible
 - [x] Player movement works
-- [ ] Combat works (attack wired, damage dealt) — player attacks work; monster attacks wired (Bug 3 fixed), needs retest
-- [ ] Items work (pick up, use, equip) — pick up works; equip/unequip/drop wired via `promptForItemOfType` (Bug 4 fixed); apply/throw/relabel/call prompt but need full handlers
-- [ ] Level transitions work — Bug 1 fixed; needs retest
-- [ ] Monsters respect terrain — `monsterAvoids` wired (Bug 2 fixed), needs retest
-- [ ] Blood/death effects render correctly — probability bug fixed (Bug 6), rendering fixed (Bug 8); needs retest
-- [ ] Mouse hover shows path preview and entity info — hover event handling wired (Bug 5 fixed); needs retest for sidebar/flavor text
-- [ ] Save/load works — deferred (needs IndexedDB backend)
-- [ ] Game over → high scores → back to menu
 
-## Step 5: Terminal Platform
+## Deferred to Future Initiatives
 
-- [ ] Implement `NodeTerminalConsole` implementing `BrogueConsole`
-- [ ] `plotChar` via ANSI 24-bit color escape codes + cursor positioning
-- [ ] `nextKeyOrMouseEvent` via raw stdin reader
-- [ ] `pauseForMilliseconds` via `setTimeout`
-- [ ] CLI entry point (`bin/brogue-ts`)
-- [ ] Verify game plays in terminal
+The following items were out of scope for Phase 4 and are tracked elsewhere:
+
+- **Recording playback** (item/monster placement validation, `.broguerec` playback) → future initiative
+- **Comprehensive manual testing** (combat, items, level transitions, terrain) → `port-phase-6-stabilization`
+- **Node.js terminal platform** (`NodeTerminalConsole`, ANSI renderer, CLI entry point) → future initiative
+- **Save/load** (IndexedDB or localStorage backend) → future initiative

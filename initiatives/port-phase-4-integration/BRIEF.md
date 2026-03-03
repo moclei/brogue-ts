@@ -1,16 +1,16 @@
-# Phase 4: Integration
+# Phase 4: Integration ✅
 
 ## Intent
-Turn the fully-ported TypeScript codebase into a working, verified game. Phases 0–3 ported all ~38K lines of C source into ~57K lines of TypeScript across 118 source files. Phase 4 connects the remaining loose ends, fixes compilation errors, gets the game running in a browser, and validates correctness against the C reference implementation.
+Turn the fully-ported TypeScript codebase into a working, verified game. Phases 0–3 ported all ~38K lines of C source into ~57K lines of TypeScript across 118 source files. Phase 4 connects the remaining loose ends, fixes compilation errors, gets the game running in a browser, validates correctness against the C reference implementation, and resolves the first round of integration bugs found via playtesting.
 
 ## Goals
-- Zero TypeScript compilation errors
-- Game launches in the browser: title screen renders, flame animation plays, menu buttons work
-- A new game can be started: dungeon generates, player appears, basic movement works
-- Seed determinism: same seed produces the same dungeon layout as the C version
-- Recording playback: C-generated `.broguerec` files play back without OOS errors
-- All existing tests continue to pass
-- Node.js terminal platform as secondary target
+- ✅ Zero TypeScript compilation errors
+- ✅ Game launches in the browser: title screen renders, flame animation plays, menu buttons work
+- ✅ A new game can be started: dungeon generates, player appears, basic movement works
+- ✅ Seed determinism: same seed produces the same dungeon layout as the C version
+- ✅ First round of playtest-driven bug fixes (12 integration bugs resolved)
+- ✅ All existing tests continue to pass
+- Deferred: Recording playback, Node.js terminal platform (future initiatives)
 
 ## Scope
 

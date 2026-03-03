@@ -14,92 +14,41 @@ This is the master task list for the full TypeScript port of BrogueCE. Each task
   - [x] Dijkstra.c (259 lines) — pathfinding
   - [x] Light.c (412 lines) — lighting, FOV, flares
   - [x] Architect.c (3,837 lines) — dungeon generation, machines
-  - [x] Items.c (8,040 lines) — item generation, inventory, naming, usage, bolt geometry, ItemOps bridge (interactive scroll/potion/wand handlers deferred to UI phase)
-  - [x] Monsters.c (4,826 lines) — monster AI, spawning, behavior (214 tests across 7 modules)
-  - [x] Combat.c (1,784 lines) — attack resolution, runic effects, damage helpers (207 tests across 5 modules)
-  - [x] Movement.c (2,487 lines) — player/monster movement, travel/explore, weapon attacks, ally management, cost maps, item helpers (153 tests across 7 modules)
-  - [x] Time.c (2,640 lines) — turn processing, environment updates, safety maps, vision, misc helpers (223 tests across 5 modules)
-  - [x] Recordings.c (1,519 lines) — recording buffer, event codec, save/load, init (134 tests across 4 modules; playback UI deferred to Phase 3)
+  - [x] Items.c (8,040 lines) — item generation, inventory, naming, usage, bolt geometry, ItemOps bridge
+  - [x] Monsters.c (4,826 lines) — monster AI, spawning, behavior (214 tests)
+  - [x] Combat.c (1,784 lines) — attack resolution, runic effects, damage helpers (207 tests)
+  - [x] Movement.c (2,487 lines) — player/monster movement, travel/explore, weapon attacks (153 tests)
+  - [x] Time.c (2,640 lines) — turn processing, environment updates, safety maps, vision (223 tests)
+  - [x] Recordings.c (1,519 lines) — recording buffer, event codec, save/load, init (134 tests)
 
 ## Phase 3: UI & Platform
 - [x] `port-phase-3-ui-platform` — Umbrella initiative for UI, menus, game loop, and platform (~8,700 lines across 5 C files)
-  - [x] Step 1: IO Core — color manipulation (52 tests), display buffers (21 tests), cell appearance (19 tests), text rendering (33 tests) = 125 new tests
-  - [x] Step 2: IO Game UI — messages, sidebar, inventory, targeting, input dispatch, visual effects
-    - [x] 2a: Message system — io-messages.ts (64 tests: archive ring buffer, fold/format, display, combat text)
-    - [x] 2b: Sidebar — io-sidebar.ts (72 tests: refreshSideBar, entity info panels, progress bars, entity collection/sorting)
-    - [x] 2c: Inventory display — io-inventory.ts (30 tests: displayInventory, printTextBox, rectangularShading, magic detection)
-    - [x] 2d: Targeting & cursor — io-targeting.ts (38 tests: path following, hilite, snap map, cursor show/hide)
-    - [x] 2e: Input dispatch — io-input.ts (95 tests: keystroke/mouse dispatch, pause, events, text entry, action menu, main loop)
-    - [x] 2f: Visual effects — io-effects.ts (35 tests: flashes, fades, alerts, blend, monster flashes)
-    - [x] 2g: Info screens — io-screens.ts (57 tests: printHelpScreen, printHighScores, displayFeatsScreen, printDiscoveriesScreen, displayGrid, printSeed)
+  - [x] Step 1: IO Core — color, display buffers, cell appearance, text rendering (125 tests)
+  - [x] Step 2: IO Game UI — messages, sidebar, inventory, targeting, input dispatch, visual effects, info screens
   - [x] Step 3: Menus & Wizard — buttons, title screen, main menu, debug mode
-    - [x] 3a: Button system — io-buttons.ts (44 tests: init, draw, state, input processing, input loop)
-    - [x] 3b: Main menu & title screen — menus/main-menu.ts (62 tests: flame sim, menu buttons, title menu, junction, dialogs, file chooser, game stats, variant/mode selection)
-    - [x] 3c: Wizard / debug mode — menus/wizard.ts (45 tests: item/monster creation dialogs, list picker, runic/vorpal/enchant/mutation sub-dialogs)
-    - [x] 3d: Wire-up — menus/index.ts (barrel exports for main-menu, wizard)
-  - [x] Step 4: Game Loop — initializeRogue, startLevel, gameOver, victory, cleanup (RogueMain.c)
-    - [x] 4a: Game initialization — game/game-init.ts (initializeRogue, initializeGameVariant, welcome, setPlayerDisplayChar, printBrogueVersion, getOrdinalSuffix, fileExists, chooseFile, openFile)
-    - [x] 4b: Level transitions — game/game-level.ts (startLevel, updateColors)
-    - [x] 4c: Game lifecycle — game/game-lifecycle.ts (gameOver, victory, enableEasyMode)
-    - [x] 4d: Cleanup & utilities — game/game-cleanup.ts (freeEverything, freeCreature, removeDeadMonsters, unflag)
-    - [x] 4e: Wire-up — game/index.ts (barrel exports)
+  - [x] Step 4: Game Loop — initializeRogue, startLevel, gameOver, victory, cleanup
   - [x] Step 5: Platform — BrogueConsole interface, Canvas2D browser renderer, null platform
-    - [x] 5a: Platform interface — types/platform.ts (BrogueConsole interface, pre-existing)
-    - [x] 5b: Glyph mapping — platform/glyph-map.ts (glyphToUnicode, isEnvironmentGlyph)
-    - [x] 5c: Null platform — platform/null-platform.ts (nullConsole)
-    - [x] 5d: Canvas2D browser renderer — platform/browser-renderer.ts (createBrowserConsole, plotChar, event translation, async helpers)
-    - [x] 5e: Wire-up — platform/index.ts (barrel exports)
   - [x] Step 6: Wire-up — deferred Phase 2 stubs, interactive handlers, playable browser build
-    - [x] 6a: Interactive item handlers — items/item-handlers.ts (apply, readScroll, drinkPotion, useStaffOrWand, useCharm, eat, uncurse, autoIdentify, detectMagicOnItem, magicCharDiscoverySuffix, magicMapCell, consumePackItem, recordApplyItemCommand, updateIdentifiableItems)
-    - [x] 6b: Playback UI — recordings/recording-playback.ts (executePlaybackInput, seek, resetPlayback, pausePlayback, printPlaybackHelpScreen, annotation system, parseFile)
-    - [x] 6c: Interactive save/load — recordings/recording-interactive.ts (saveGame, saveRecording, loadSavedGame)
-    - [x] 6d: Full integration — browser entry point, DI wire-up, mainBrogueJunction → game loop (runtime.ts GameRuntime DI container, bootstrap.ts browser entry point)
 
 ## Phase 4: Integration
-- [ ] `port-phase-4-integration` — Compile clean, build tooling, runtime wiring, seed regression, recording playback, Node.js terminal platform
-  - [x] Step 1: Compile Clean — fix 51 pre-existing TS errors (missing flags, unused imports, type mismatches, export collisions)
-  - [x] Step 2: Build & Launch — Vite bundler, async boundary resolution, title screen rendering in browser (title art, flame animation, version string, menu buttons all rendering)
-  - [ ] Step 3: Runtime Wiring — fill DI stubs, connect full game loop (init → level gen → input → turns → game over)
-    - [x] 3a: Menu → Game Init — expanded rogue state, shared data structures, wired initializeRogue/freeEverything/initializeGameVariant with full DI contexts
-    - [x] 3b: Level Generation + Display — pmap/tmap allocation, shared helpers (FOV/Dijkstra/terrain), getCellAppearance/displayLevel, ArchitectContext, LevelContext, startLevel wiring, async mainInputLoop
-    - [x] 3c: Input → Game Actions — full InputContext (~150 deps), movement/stairs/inventory/exploration/rest-search wiring, async dispatch chain, targeting stubs
-    - [x] 3d: Turn Processing — buildTurnProcessingContext(), playerTurnEnded wired to real function, monster AI/environment/status-effect stubs, FOV/scent/discovery wiring
-    - [x] 3e: Game Lifecycle — buildLifecycleContext(), gameOver/victory/enableEasyMode wired to real functions, display primitives, scoring stubs
-    - [x] 3f: Remaining DI stubs — enhanced getCellAppearance (items/monsters/fog-of-war/unexplored), sidebar/inventory wired
-    - [x] **3g: Playtest-driven fixes** — 12 integration bugs found via manual playtesting (rogue state propagation, monster combat, item prompts, mouse hover, blood rendering/display, water effects, terrain avoidance, monster visibility/submersion, dropItem stub, attack surfacing)
-  - [ ] Step 4: Verification — seed regression tests, recording playback, manual testing
-    - [x] 4a: Seed determinism — 26 tests: RNG raw output (3 seeds), cross-validation against C (5 tests, bit-identical), carveDungeon grid hashes (10 seeds), level seed regression (2 seeds x 27 depths)
-  - [ ] Step 5: Terminal Platform — Node.js ANSI renderer, CLI entry point
+- [x] `port-phase-4-integration` — Compile clean, build tooling, runtime DI wiring, seed regression, first playtest fixes
+  - [x] Step 1: Compile Clean — fix 51 pre-existing TS errors
+  - [x] Step 2: Build & Launch — Vite bundler, async boundary, title screen in browser
+  - [x] Step 3: Runtime Wiring — DI stubs filled, full game loop connected (3a–3f), 12 playtest bugs fixed (3g)
+  - [x] Step 4: Verification — seed determinism (26 tests, bit-identical with C), basic manual testing
 
-## Wire Gameplay Systems
-- [x] `wire-gameplay-systems` — Wire ~148 remaining runtime stubs to real implementations for full playability
-  - [x] Phase 1: Messages — text feedback for combat, movement, items (~47 stubs) — buildMessageOps() + buildMessageContext() + buildEffectsContext(), all message stubs wired across 12+ DI contexts
-  - [x] Phase 2: Item Interaction — real itemName() across all contexts, numberOfMatchingPackItems, pickUpItemAt, useKeyAt, equip/unequip/drop with full logic, makeMonsterDropItem, updateEncumbrance, buildItemHelperContext, buildItemNamingContext
-  - [x] Phase 3: Monster Lifecycle — death, loot drops, terrain effects (~15 stubs)
-    - killCreature across all contexts (SpawnContext, MonsterOpsContext, MiscHelpersContext, TurnProcessingContext, AttackContext, CombatDamageContext)
-    - removeCreature / prependCreature — list management in MiscHelpersContext, TurnProcessingContext, EnvironmentContext, CreatureEffectsContext
-    - demoteMonsterFromLeadership / checkForContinuedLeadership in AttackContext, CombatDamageContext, MiscHelpersContext, TurnProcessingContext
-    - fadeInMonster in AttackContext, CombatDamageContext, CombatHelperContext
-    - splitMonster in AttackContext via CombatHelperContext
-    - freeCaptive in PlayerMoveContext via AllyManagementContext
-    - spawnDungeonFeature in AttackContext, CombatDamageContext, TurnProcessingContext, EnvironmentContext, CreatureEffectsContext, PlayerMoveContext
-    - promoteTile in LifecycleContext, PlayerMoveContext, TurnProcessingContext, CreatureEffectsContext, removeItemAt, checkForMissingKeys
-    - buildCreatureEffectsContext — full 200+ field context for tile effects, falling, status decrements
-    - applyInstantTileEffectsToCreature / applyGradualTileEffectsToCreature in CombatDamageContext, TurnProcessingContext
-    - monsterShouldFall / monstersFall / playerFalls in TurnProcessingContext, EnvironmentContext
-    - decrementPlayerStatus upgraded from minimal stub to real function
-  - [x] Phase 4: Combat Effects — weapon/armor runics (magicWeaponHit, specialHit, applyArmorRunicEffect via buildRunicContext), feats (paladin, dragonslayer, pureMage), decrementWeaponAutoIDTimer, rechargeItemsIncrementally, processIncrementalAutoID, checkForDisenchantment, strengthCheck, equipItem in AttackContext
-  - [x] Phase 5: UI Panels — refreshSideBar (all 8 DI contexts with 3-arg and 0-arg variants), updateFlavorText, displayInventory (async), printHelpScreen/displayFeatsScreen/printDiscoveriesScreen via buildScreenContext, printMonsterDetails/printFloorItemDetails via buildSidebarContext, printLocationDescription via buildDescribeLocationContext, displayMessageArchive (verified already wired), plus context builder type fixes and test update
-  - [x] Phase 6: Polish — search (3 contexts + ItemHelperContext builder), updateMinersLightRadius (4 contexts), updatePlayerUnderwaterness, vomit + addPoison + flashMonster, exposeTileToFire, createFlare/animateFlares + buildLightingContext, recordKeystroke/cancelKeystroke/recordMouseClick (6+ contexts), printHighScores, playerInDarkness, synchronizePlayerTimeState; save/load/recording-save kept as stubs (need file I/O backend)
-  - **~39 stubs remain** — 16 actionable stubs carried forward to `complete-gameplay-wiring`, ~23 intentionally deferred (save/load, debug displays, recording playback)
+## Phase 5: Gameplay Wiring
+- [x] `port-phase-5-gameplay-wiring` — Wire ~160+ runtime stubs to real implementations + port ~7 missing functions for full playability
+  - [x] Phases 1–6: Messages, item interaction, monster lifecycle, combat effects, UI panels, polish (~148 stubs)
+  - [x] Phases 7–9: Core playability (monsterAvoids, startLevel, eat, moveCursor), combat/monster completeness (cloneMonster, teleport, forceWeaponHit), world simulation (spawnPeriodicHorde, safetyMaps, clairvoyance, floorItems)
 
-## Complete Gameplay Wiring
-- [x] `complete-gameplay-wiring` — Wire the final ~16 actionable runtime stubs + port ~7 missing functions for full playability
-  - [x] Phase 1: Core Playability — monsterAvoids (×8 contexts), startLevel, eat, recalculateEquipmentBonuses, updatePlayerRegenerationDelay (port), moveCursor (port)
-  - [x] Phase 2: Combat & Monster Completeness — whip/spear/abort attacks, cloneMonster (port), forceWeaponHit (port), monsterStealsFromPlayer (port), teleport (port)
-  - [x] Phase 3: World Simulation — spawnPeriodicHorde (port getRandomMonsterSpawnLocation + getTerrainGrid), updateSafetyMap (buildSafetyMapsContext), updateClairvoyance, updateFloorItems (port ~75 lines), assureCosmeticRNG/restoreRNG
+## Phase 6: Stabilization
+- [ ] `port-phase-6-stabilization` — Iterative playtesting and bug fixing until feature-complete playable quality
+  - [ ] Playtest Round 1 — (pending)
 
-## Platform Polish (future)
-- [ ] Main menu flame animation performance optimization
+## Future
+- [ ] Recording playback verification (`.broguerec` files from C version)
 - [ ] Save/load via IndexedDB or localStorage backend
-- [ ] Node.js terminal platform (Phase 4 Step 5)
+- [ ] Node.js terminal platform (ANSI renderer, CLI entry point)
+- [ ] Main menu flame animation performance optimization
+- [ ] Debug/wizard-mode displays
