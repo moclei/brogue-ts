@@ -156,13 +156,13 @@
   - Remaining value-copy contexts (cost maps, describe location, item helpers, search, scent) are read-only for rogue fields — safe as-is.
 - [x] Verified: compile clean (0 errors), all 2263 tests passing
 
-#### Bug 2 — Monsters walk on water / no terrain avoidance
-- [ ] **Root cause:** Simplified `monstersTurn` (line ~5720) only checks `T_OBSTRUCTS_PASSABILITY` for movement, but water is passable — the real AI calls `monsterAvoids()` which checks water/lava/trap flags.
-- [ ] **Fix:** Add `monsterAvoidsWrapped(monst, {x: nx, y: ny})` check to the movement logic in simplified `monstersTurn`.
+#### Bug 2 — Monsters walk on water / no terrain avoidance ✅
+- [x] **Root cause:** Simplified `monstersTurn` (line ~5720) only checks `T_OBSTRUCTS_PASSABILITY` for movement, but water is passable — the real AI calls `monsterAvoids()` which checks water/lava/trap flags.
+- [x] **Fix:** Add `monsterAvoidsWrapped(monst, {x: nx, y: ny})` check to all three movement paths in simplified `monstersTurn` (scent-following, direct-approach, wandering).
 
-#### Bug 3 — Player doesn't take damage from monster attacks
-- [ ] **Root cause:** Simplified `monstersTurn` (line ~5737) has an empty branch `else if (dist <= 1) { // Adjacent to player — just tick (combat is stubbed) }`. Monsters walk up to the player but never call `attack()`.
-- [ ] **Fix:** When adjacent and tracking/hunting, call `attackFn(monst, player, false, buildAttackContext())`.
+#### Bug 3 — Player doesn't take damage from monster attacks ✅
+- [x] **Root cause:** Simplified `monstersTurn` (line ~5737) has an empty branch `else if (dist <= 1) { // Adjacent to player — just tick (combat is stubbed) }`. Monsters walk up to the player but never call `attack()`.
+- [x] **Fix:** When adjacent and tracking/hunting, call `attackFn(monst, player, false, buildAttackContext())`.
 
 #### Bug 4 — Item actions show "Inventory display not yet available"
 - [ ] **Root cause:** `equip(null)`, `unequip(null)`, `drop(null)` (lines ~6199-6221) short-circuit because `promptForItemOfType()` is not wired. The keyboard handlers call these with `null` (meaning "prompt the user to pick an item"), but without the prompt they can't proceed.
@@ -211,10 +211,10 @@
 - [x] Title screen renders correctly
 - [x] New game starts, dungeon visible
 - [x] Player movement works
-- [ ] ~~Combat works (attack wired, damage dealt)~~ — player attacks work, but monsters don't attack player (Bug 3)
+- [ ] Combat works (attack wired, damage dealt) — player attacks work; monster attacks wired (Bug 3 fixed), needs retest
 - [ ] Items work (pick up, use, equip) — pick up works; equip/apply/drop blocked on `promptForItemOfType` (Bug 4)
 - [ ] Level transitions work — Bug 1 fixed; needs retest
-- [ ] Monsters respect terrain — blocked on simplified AI missing `monsterAvoids` (Bug 2)
+- [ ] Monsters respect terrain — `monsterAvoids` wired (Bug 2 fixed), needs retest
 - [ ] Blood/death effects render correctly — blocked on probability bug (Bug 6)
 - [ ] Mouse hover shows path preview and entity info — blocked on missing hover event handling (Bug 5)
 - [ ] Save/load works — deferred (needs IndexedDB backend)

@@ -5656,7 +5656,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                         if (
                             cellScent > bestScent &&
                             !(pmap[nx][ny].flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER)) &&
-                            !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY)
+                            !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY) &&
+                            !monsterAvoidsWrapped(monst, { x: nx, y: ny })
                         ) {
                             bestScent = cellScent;
                             bestDir = dir;
@@ -5672,7 +5673,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                         pmap[newX][newY].flags |= TileFlag.HAS_MONSTER;
                         monst.turnsSpentStationary = 0;
                     } else if (dist <= 1) {
-                        // Adjacent to player — just tick (combat is stubbed)
+                        // Adjacent to player — attack!
+                        attackFn(monst, player, false, buildAttackContext());
                     } else {
                         // No scent — fall back to direct approach
                         const dx = Math.sign(player.loc.x - mx);
@@ -5682,7 +5684,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                         if (
                             coordinatesAreInMap(nx, ny) &&
                             !(pmap[nx][ny].flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER)) &&
-                            !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY)
+                            !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY) &&
+                            !monsterAvoidsWrapped(monst, { x: nx, y: ny })
                         ) {
                             pmap[mx][my].flags &= ~TileFlag.HAS_MONSTER;
                             monst.loc.x = nx;
@@ -5704,7 +5707,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                         if (
                             coordinatesAreInMap(nx, ny) &&
                             !(pmap[nx][ny].flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER)) &&
-                            !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY)
+                            !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY) &&
+                            !monsterAvoidsWrapped(monst, { x: nx, y: ny })
                         ) {
                             pmap[mx][my].flags &= ~TileFlag.HAS_MONSTER;
                             monst.loc.x = nx;
