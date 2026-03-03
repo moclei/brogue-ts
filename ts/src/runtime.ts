@@ -265,7 +265,7 @@ import type { DescribeLocationContext } from "./movement/map-queries.js";
 // item-helpers inline implementations are defined within buildDescribeLocationContext
 
 // -- Game lifecycle imports ---------------------------------------------------
-import { gameOver as gameOverFn, victory as victoryFn, enableEasyMode as enableEasyModeFn } from "./game/game-lifecycle.js";
+import { victory as victoryFn, enableEasyMode as enableEasyModeFn } from "./game/game-lifecycle.js";
 import type { LifecycleContext } from "./game/game-lifecycle.js";
 
 // (Creature effects, environment, safety maps, monster AI, combat damage,
@@ -5651,10 +5651,99 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     }
 
     /**
-     * Call gameOver with the full lifecycle context.
+     * Pending death screen info — stored by doGameOver (Phase 1) so the
+     * interactive death screen can be shown asynchronously after
+     * mainInputLoop exits (Phase 2).
+     */
+    let pendingDeathScreen: { killedBy: string; useCustomPhrasing: boolean } | null = null;
+
+    /**
+     * Phase 1 of gameOver: synchronous state changes.
+     *
+     * Sets essential flags so the main loop exits, then stores the death
+     * info for the async Phase 2 (runDeathScreen) that runs after
+     * mainInputLoop's while-loop finishes.
+     *
+     * We intentionally skip calling the full gameOverFn here because it
+     * needs async input (nextBrogueEvent) which can't be awaited from a
+     * synchronous call-chain (combat → killCreature → doGameOver).
      */
     function doGameOver(killedBy: string, useCustomPhrasing: boolean): void {
-        gameOverFn(buildLifecycleContext(), killedBy, useCustomPhrasing);
+        // Guard against double-entry (matches C gameOver guard)
+        if (player.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DYING) {
+            return;
+        }
+        player.bookkeepingFlags |= MonsterBookkeepingFlag.MB_IS_DYING;
+
+        rogue.autoPlayingLevel = false;
+        rogue.gameInProgress = false;
+        rogue.gameHasEnded = true;
+
+        // Store for the async Phase 2
+        pendingDeathScreen = { killedBy, useCustomPhrasing };
+    }
+
+    /**
+     * Phase 2 of gameOver: async interactive death screen.
+     *
+     * Shows "You die..." message, waits for player acknowledgment,
+     * displays death description and score summary.
+     * Called from mainInputLoop after the while-loop exits.
+     */
+    async function runDeathScreen(killedBy: string, useCustomPhrasing: boolean): Promise<void> {
+        const isQuit = rogue.quit;
+
+        // Build death description
+        let description: string;
+        if (useCustomPhrasing) {
+            description = `${killedBy} on depth ${rogue.depthLevel}`;
+        } else {
+            const article = isVowelishFn(killedBy) ? "n" : "";
+            description = `Killed by a${article} ${killedBy} on depth ${rogue.depthLevel}`;
+        }
+
+        // Count gems
+        const numGems = numberOfMatchingPackItemsFn(packItems, ItemCategory.GEM, 0, 0);
+        rogue.gold += 500 * numGems;
+
+        const score = rogue.mode === GameMode.Easy
+            ? Math.floor(rogue.gold / 10)
+            : rogue.gold;
+
+        if (!isQuit) {
+            // Show "You die..." and wait for acknowledge
+            player.currentHP = 0;
+            refreshSideBarRuntime(-1, -1, false);
+
+            // Build the full death summary line
+            let summaryBuf = description;
+            if (score > 0) {
+                summaryBuf += numGems > 0
+                    ? ` with treasure worth ${score} gold`
+                    : ` with ${score} gold`;
+            }
+            summaryBuf += ".";
+
+            msgOps.messageWithColor("You die...", Colors.badMessageColor, 0);
+            displayLevelFn();
+
+            // Simplified funkyFade: just black out screen after a brief pause
+            blackOutScreen(displayBuffer);
+            printStringFn(
+                summaryBuf,
+                Math.floor((COLS - strLenWithoutEscapes(summaryBuf)) / 2),
+                Math.floor(ROWS / 2),
+                Colors.gray, Colors.black, displayBuffer,
+            );
+            commitDraws();
+
+            // Single wait: player presses any key or clicks to dismiss
+            await browserConsole.waitForEvent();
+        }
+
+        // Black out and return to let the title screen take over.
+        blackOutScreen(displayBuffer);
+        commitDraws();
     }
 
     /**
@@ -7022,6 +7111,11 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
 
                 const event = await browserConsole.waitForEvent();
 
+                // Re-check after awaiting — gameHasEnded may have been set
+                // externally (e.g. by doGameOver or tests) while we were
+                // waiting for an event. If so, don't dispatch the event.
+                if (rogue.gameHasEnded) break;
+
                 try {
                     if (event.eventType === EventType.Keystroke) {
                         await executeKeystrokeFn(inputCtx, event.param1, event.controlKey, event.shiftKey);
@@ -7062,6 +7156,14 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 } catch (e) {
                     console.error("[BrogueCE] Error processing input event:", e);
                 }
+            }
+
+            // Phase 2: if player died, show the interactive death screen now
+            // that we're back in an async context.
+            if (pendingDeathScreen) {
+                const { killedBy, useCustomPhrasing } = pendingDeathScreen;
+                pendingDeathScreen = null;
+                await runDeathScreen(killedBy, useCustomPhrasing);
             }
         },
         freeEverything(): void {

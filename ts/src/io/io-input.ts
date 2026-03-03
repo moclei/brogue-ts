@@ -1043,6 +1043,14 @@ export async function executeKeystroke(ctx: InputContext, keystroke: number, con
                     ctx.flashTemporaryAlert(" Screenshot saved in save directory ", 2000);
                 }
                 break;
+            case ESCAPE_KEY: {
+                // Open the in-game action menu (Save, Quit, settings, etc.)
+                const menuResult = await actionMenu(ctx, 20, ctx.rogue.playbackMode);
+                if (menuResult > 0) {
+                    await executeKeystroke(ctx, menuResult, false, false);
+                }
+                break;
+            }
             default:
                 break;
         }
