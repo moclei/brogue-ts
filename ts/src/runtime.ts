@@ -81,6 +81,7 @@ import {
     TAB_KEY, SHIFT_TAB_KEY, RETURN_KEY, ACKNOWLEDGE_KEY,
     NUMPAD_0, NUMPAD_1, NUMPAD_2, NUMPAD_3, NUMPAD_4,
     NUMPAD_6, NUMPAD_7, NUMPAD_8, NUMPAD_9,
+    APPLY_KEY, EQUIP_KEY, UNEQUIP_KEY, DROP_KEY, THROW_KEY, RELABEL_KEY, CALL_KEY,
 } from "./types/constants.js";
 // PAUSE_BEHAVIOR_DEFAULT imported inline where needed
 
@@ -90,6 +91,8 @@ import {
     executeKeystroke as executeKeystrokeFn,
     executeMouseClick as executeMouseClickFn,
     stripShiftFromMovementKeystroke as stripShiftFromMovementKeystrokeFn,
+    initializeMenuButtons,
+    actionMenu as actionMenuFn,
 } from "./io/io-input.js";
 
 // -- Targeting imports --------------------------------------------------------
@@ -109,6 +112,7 @@ import {
 import {
     applyColorAverage,
     applyColorAugment,
+    applyColorMultiplier,
     bakeColor,
     separateColors,
     encodeMessageColor,
@@ -146,7 +150,6 @@ import {
     refreshSideBar as refreshSideBarFn,
     printMonsterDetails as printMonsterDetailsFn,
     printFloorItemDetails as printFloorItemDetailsFn,
-    printCarriedItemDetails as printCarriedItemDetailsFn,
     printProgressBar as printProgressBarFn,
 } from "./io/io-sidebar.js";
 import type { SidebarContext } from "./io/io-sidebar.js";
@@ -264,7 +267,7 @@ import type { DescribeLocationContext } from "./movement/map-queries.js";
 // item-helpers inline implementations are defined within buildDescribeLocationContext
 
 // -- Game lifecycle imports ---------------------------------------------------
-import { gameOver as gameOverFn, victory as victoryFn, enableEasyMode as enableEasyModeFn } from "./game/game-lifecycle.js";
+import { victory as victoryFn, enableEasyMode as enableEasyModeFn } from "./game/game-lifecycle.js";
 import type { LifecycleContext } from "./game/game-lifecycle.js";
 
 // (Creature effects, environment, safety maps, monster AI, combat damage,
@@ -327,10 +330,11 @@ import {
 import type { ArchitectContext } from "./architect/architect.js";
 import { analyzeMap as analyzeMapFn } from "./architect/analysis.js";
 import type { MachineContext, ItemOps } from "./architect/machines.js";
+import { spawnDungeonFeature as spawnDungeonFeatureFull } from "./architect/machines.js";
 import type { BuildBridgeContext } from "./architect/lakes.js";
 
 // -- Flag imports -------------------------------------------------------------
-import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MonsterBookkeepingFlag, MonsterAbilityFlag, ItemFlag, MessageFlag, T_OBSTRUCTS_SCENT, T_DIVIDES_LEVEL, T_PATHING_BLOCKER, T_HARMFUL_TERRAIN, T_MOVES_ITEMS, ANY_KIND_OF_VISIBLE, IS_IN_MACHINE } from "./types/flags.js";
+import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MonsterBookkeepingFlag, MonsterAbilityFlag, ItemFlag, MessageFlag, ButtonFlag, T_OBSTRUCTS_SCENT, T_DIVIDES_LEVEL, T_PATHING_BLOCKER, T_HARMFUL_TERRAIN, T_MOVES_ITEMS, ANY_KIND_OF_VISIBLE, IS_IN_MACHINE } from "./types/flags.js";
 
 // -- State helper imports -----------------------------------------------------
 import { cellHasTerrainFlag, cellHasTMFlag, cellHasTerrainType, terrainFlags, terrainMechFlags, discoveredTerrainFlagsAtLoc, highestPriorityLayer } from "./state/helpers.js";
@@ -1221,18 +1225,20 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         cellBackColor.green = clamp(Math.floor(cellBackColor.green * (100 + lightG) / 100), 0, 100);
         cellBackColor.blue = clamp(Math.floor(cellBackColor.blue * (100 + lightB) / 100), 0, 100);
 
+        // Collect the final glyph and colors — entity rendering may override these
+        let resultGlyph = cellChar;
+        let resultForeColor = cellForeColor;
+        let resultBackColor = cellBackColor;
+
         if (isVisible) {
             // --- Check for player at this cell ---
             if (pos.x === player.loc.x && pos.y === player.loc.y) {
-                return {
-                    glyph: player.info.displayChar,
-                    foreColor: { ...Colors.white },
-                    backColor: cellBackColor,
-                };
+                resultGlyph = player.info.displayChar;
+                resultForeColor = { ...Colors.white };
             }
 
             // --- Check for visible monsters (C: IO.c:1236-1262) ---
-            if (cell.flags & TileFlag.HAS_MONSTER) {
+            else if (cell.flags & TileFlag.HAS_MONSTER) {
                 const monst = monsterAtLocFn(pos);
                 if (monst && !(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DYING)) {
                     // Check if monster is hidden (dormant, invisible, submerged)
@@ -1261,38 +1267,47 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                             applyColorAverage(monstForeColor, Colors.pink, 50);
                         }
 
-                        return {
-                            glyph: monst.info.displayChar,
-                            foreColor: monstForeColor,
-                            backColor: cellBackColor,
-                        };
+                        resultGlyph = monst.info.displayChar;
+                        resultForeColor = monstForeColor;
                     }
                 }
             }
 
             // --- Check for items on the floor ---
-            if (cell.flags & TileFlag.HAS_ITEM) {
+            else if (cell.flags & TileFlag.HAS_ITEM) {
                 for (const item of floorItems) {
                     if (item.loc.x === pos.x && item.loc.y === pos.y) {
-                        return {
-                            glyph: item.displayChar,
-                            foreColor: item.foreColor ? { ...item.foreColor } : { ...Colors.itemMessageColor },
-                            backColor: cellBackColor,
-                        };
+                        resultGlyph = item.displayChar;
+                        resultForeColor = item.foreColor ? { ...item.foreColor } : { ...Colors.itemMessageColor };
+                        break;
                     }
                 }
             }
+
+            // Apply underwater tint (C: IO.c:1428-1431)
+            // When the player is submerged in deep water, all visible cells get
+            // a blue tint via deepWaterLightColor multiplier.
+            if (rogue.inWater) {
+                applyColorMultiplier(resultForeColor, Colors.deepWaterLightColor);
+                applyColorMultiplier(resultBackColor, Colors.deepWaterLightColor);
+            }
         } else if (isDiscovered) {
-            // Remembered cells: dim the colors for "fog of war" effect
-            cellForeColor.red = Math.floor(cellForeColor.red * 40 / 100);
-            cellForeColor.green = Math.floor(cellForeColor.green * 40 / 100);
-            cellForeColor.blue = Math.floor(cellForeColor.blue * 40 / 100);
-            cellBackColor.red = Math.floor(cellBackColor.red * 40 / 100);
-            cellBackColor.green = Math.floor(cellBackColor.green * 40 / 100);
-            cellBackColor.blue = Math.floor(cellBackColor.blue * 40 / 100);
+            // Remembered cells when underwater: heavy darkening (C: IO.c:1398-1401)
+            if (rogue.inWater) {
+                applyColorAverage(resultForeColor, Colors.black, 80);
+                applyColorAverage(resultBackColor, Colors.black, 80);
+            } else {
+                // Normal fog of war dimming
+                resultForeColor.red = Math.floor(resultForeColor.red * 40 / 100);
+                resultForeColor.green = Math.floor(resultForeColor.green * 40 / 100);
+                resultForeColor.blue = Math.floor(resultForeColor.blue * 40 / 100);
+                resultBackColor.red = Math.floor(resultBackColor.red * 40 / 100);
+                resultBackColor.green = Math.floor(resultBackColor.green * 40 / 100);
+                resultBackColor.blue = Math.floor(resultBackColor.blue * 40 / 100);
+            }
         }
 
-        return { glyph: cellChar, foreColor: cellForeColor, backColor: cellBackColor };
+        return { glyph: resultGlyph, foreColor: resultForeColor, backColor: resultBackColor };
     }
 
     // -- displayLevel (minimal) ------------------------------------------------
@@ -1999,9 +2014,97 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 return { chosenButton: result.chosenButton, event: result.event };
             },
 
-            // Sidebar detail panels
-            printCarriedItemDetails(theItem, x, y, width, includeButtons) {
-                return printCarriedItemDetailsFn(theItem, x, y, width, includeButtons, buildSidebarContext());
+            // Sidebar detail panels — full implementation with action buttons
+            async printCarriedItemDetails(theItem, x, y, width, includeButtons) {
+                // Build item description text
+                const sidebarCtx = buildSidebarContext();
+                const textBuf = sidebarCtx.itemDetails(theItem);
+
+                // Build action buttons (matching C IO.c:printCarriedItemDetails)
+                const btns: import("./types/types.js").BrogueButton[] = [];
+                const goldEsc = includeButtons ? encodeMessageColor(Colors.yellow) : "";
+                const whiteEsc = includeButtons ? encodeMessageColor(Colors.white) : "";
+
+                if (includeButtons) {
+                    if (theItem.category & (ItemCategory.FOOD | ItemCategory.SCROLL | ItemCategory.POTION |
+                        ItemCategory.WAND | ItemCategory.STAFF | ItemCategory.CHARM)) {
+                        const btn = initializeButton();
+                        btn.text = `   ${goldEsc}a${whiteEsc}pply   `;
+                        btn.hotkey = [APPLY_KEY];
+                        btn.flags |= ButtonFlag.B_WIDE_CLICK_AREA;
+                        btns.push(btn);
+                    }
+                    if (theItem.category & (ItemCategory.ARMOR | ItemCategory.WEAPON | ItemCategory.RING)) {
+                        const btn = initializeButton();
+                        if (theItem.flags & ItemFlag.ITEM_EQUIPPED) {
+                            btn.text = `  ${goldEsc}r${whiteEsc}emove   `;
+                            btn.hotkey = [UNEQUIP_KEY];
+                        } else {
+                            btn.text = `   ${goldEsc}e${whiteEsc}quip   `;
+                            btn.hotkey = [EQUIP_KEY];
+                        }
+                        btn.flags |= ButtonFlag.B_WIDE_CLICK_AREA;
+                        btns.push(btn);
+                    }
+                    {
+                        const btn = initializeButton();
+                        btn.text = `   ${goldEsc}d${whiteEsc}rop    `;
+                        btn.hotkey = [DROP_KEY];
+                        btn.flags |= ButtonFlag.B_WIDE_CLICK_AREA;
+                        btns.push(btn);
+                    }
+                    {
+                        const btn = initializeButton();
+                        btn.text = `   ${goldEsc}t${whiteEsc}hrow   `;
+                        btn.hotkey = [THROW_KEY];
+                        btn.flags |= ButtonFlag.B_WIDE_CLICK_AREA;
+                        btns.push(btn);
+                    }
+                    if (theItem.category & (ItemCategory.WEAPON | ItemCategory.ARMOR | ItemCategory.SCROLL |
+                        ItemCategory.RING | ItemCategory.POTION | ItemCategory.STAFF |
+                        ItemCategory.WAND | ItemCategory.CHARM)) {
+                        const btn = initializeButton();
+                        btn.text = `   ${goldEsc}c${whiteEsc}all    `;
+                        btn.hotkey = [CALL_KEY];
+                        btn.flags |= ButtonFlag.B_WIDE_CLICK_AREA;
+                        btns.push(btn);
+                    }
+                    {
+                        const btn = initializeButton();
+                        btn.text = `  ${goldEsc}R${whiteEsc}elabel  `;
+                        btn.hotkey = [RELABEL_KEY];
+                        btn.flags |= ButtonFlag.B_WIDE_CLICK_AREA;
+                        btns.push(btn);
+                    }
+                }
+
+                // Invisible UP/DOWN navigation buttons
+                {
+                    const btn = initializeButton();
+                    btn.flags = ButtonFlag.B_ENABLED;
+                    btn.hotkey = [UP_KEY, NUMPAD_8, UP_ARROW];
+                    btns.push(btn);
+                }
+                {
+                    const btn = initializeButton();
+                    btn.flags = ButtonFlag.B_ENABLED;
+                    btn.hotkey = [DOWN_KEY, NUMPAD_2, DOWN_ARROW];
+                    btns.push(btn);
+                }
+
+                // Render via printTextBox (async, supports buttons)
+                const result = await printTextBoxFn(
+                    textBuf, x, y, width,
+                    Colors.white, { ...Colors.black, red: 5, green: 5, blue: 20 },
+                    this,
+                    btns,
+                    btns.length,
+                );
+
+                if (result >= 0 && result < btns.length) {
+                    return btns[result].hotkey[0];
+                }
+                return -1;
             },
 
             // Text & item naming
@@ -2012,6 +2115,36 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             itemMagicPolarity: itemMagicPolarityFn,
             numberOfItemsInPack: () => numberOfItemsInPackFn(packItems),
             clearCursorPath() { clearCursorPathFn(buildTargetingContext()); },
+
+            // Item actions (dispatched from the item detail panel)
+            async apply(theItem) {
+                const inputCtx = buildInputContext();
+                await inputCtx.apply(theItem);
+            },
+            async equip(theItem) {
+                const inputCtx = buildInputContext();
+                await inputCtx.equip(theItem);
+            },
+            async unequip(theItem) {
+                const inputCtx = buildInputContext();
+                await inputCtx.unequip(theItem);
+            },
+            async drop(theItem) {
+                const inputCtx = buildInputContext();
+                await inputCtx.drop(theItem);
+            },
+            async throwCommand(theItem, confirmed) {
+                const inputCtx = buildInputContext();
+                await inputCtx.throwCommand(theItem, confirmed);
+            },
+            async relabel(theItem) {
+                const inputCtx = buildInputContext();
+                await inputCtx.relabel(theItem);
+            },
+            async call(theItem) {
+                const inputCtx = buildInputContext();
+                await inputCtx.call(theItem);
+            },
 
             // Messages
             confirmMessages: msgOps.confirmMessages,
@@ -2441,6 +2574,14 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         itemMagicPolarity: itemMagicPolarityFn,
         numberOfItemsInPack: () => numberOfItemsInPackFn(packItems),
         clearCursorPath: () => {},               // stub
+        // Item actions — stubs here since this context is only used for printTextBox
+        async apply() {},
+        async equip() {},
+        async unequip() {},
+        async drop() {},
+        async throwCommand() {},
+        async relabel() {},
+        async call() {},
         confirmMessages: msgOps.confirmMessages,
         message: msgOps.message,
         mapToWindowX,
@@ -3354,8 +3495,13 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 return getPlayerPathOnMapFn(path, distanceMap, playerLoc, buildTargetingContext());
             },
             commitDraws,
-            pauseAnimation(_duration, _behavior) {
-                // Synchronous: check for interrupt via queue
+            async pauseAnimation(duration, _behavior) {
+                // Commit current frame so the player sees the step
+                commitDraws();
+                // Wait for the actual delay (convert frame count to ms, min 16ms)
+                const ms = Math.max(16, duration * 16);
+                await new Promise<void>(resolve => setTimeout(resolve, ms));
+                // Check for interrupt via queued events
                 return browserConsole.pauseForMilliseconds(0, { interruptForMouseMove: false });
             },
             recordMouseClick(x, y, controlKey, shiftKey) {
@@ -3958,26 +4104,41 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     }
 
     /**
-     * Simplified runtime spawnDungeonFeature. Handles single-tile placement
-     * and gas volume. Full propagation/blocking deferred.
+     * Refresh all cells in a rectangular area on screen.
+     * Used after spawnDungeonFeature to visually update affected tiles.
+     */
+    function refreshDungeonArea(cx: number, cy: number, radius: number): void {
+        const x0 = Math.max(0, cx - radius);
+        const y0 = Math.max(0, cy - radius);
+        const x1 = Math.min(DCOLS - 1, cx + radius);
+        const y1 = Math.min(DROWS - 1, cy + radius);
+        for (let i = x0; i <= x1; i++) {
+            for (let j = y0; j <= y1; j++) {
+                if (coordinatesAreInMap(i, j)) {
+                    const { glyph, foreColor, backColor } = getCellAppearance({ x: i, y: j });
+                    plotCharWithColor(glyph, { windowX: mapToWindowX(i), windowY: mapToWindowY(j) }, foreColor, backColor, displayBuffer);
+                }
+            }
+        }
+    }
+
+    /**
+     * Runtime spawnDungeonFeature by feature index.
+     * Uses the full area-propagation implementation from machines.ts,
+     * then refreshes affected cells visually.
      */
     function spawnDungeonFeatureRuntime(x: number, y: number, featureIndex: number, _probability: number, _isGas: boolean): void {
         if (featureIndex <= 0 || featureIndex >= dungeonFeatureCatalog.length) return;
         const feat = dungeonFeatureCatalog[featureIndex];
         if (!feat) return;
 
-        if (feat.tile) {
-            if (feat.layer === DungeonLayer.Gas) {
-                pmap[x][y].volume += feat.startProbability;
-            }
-            pmap[x][y].layers[feat.layer] = feat.tile;
-        }
+        spawnDungeonFeatureFull(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat, true, false);
 
-        // Refresh the cell
-        if (coordinatesAreInMap(x, y)) {
-            const { glyph, foreColor, backColor } = getCellAppearance({ x, y });
-            plotCharWithColor(glyph, { windowX: mapToWindowX(x), windowY: mapToWindowY(y) }, foreColor, backColor, displayBuffer);
-        }
+        // Refresh the area visually — use a radius based on the feature's propagation
+        const radius = feat.startProbability > 0 && feat.probabilityDecrement > 0
+            ? Math.ceil(feat.startProbability / feat.probabilityDecrement) + 1
+            : 1;
+        refreshDungeonArea(x, y, Math.min(radius, 10));
     }
 
     /**
@@ -3987,23 +4148,13 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     function spawnDungeonFeatureFromObject(x: number, y: number, feat: DungeonFeature, _isVolatile: boolean, _overrideProtection: boolean): void {
         if (!feat) return;
 
-        if (feat.tile) {
-            if (feat.layer === DungeonLayer.Gas) {
-                pmap[x][y].volume += feat.startProbability;
-            }
-            pmap[x][y].layers[feat.layer] = feat.tile;
-        }
+        spawnDungeonFeatureFull(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat, true, false);
 
-        // Handle subsequent DFs
-        if (feat.subsequentDF && feat.subsequentDF < dungeonFeatureCatalog.length) {
-            spawnDungeonFeatureFromObject(x, y, dungeonFeatureCatalog[feat.subsequentDF], _isVolatile, _overrideProtection);
-        }
-
-        // Refresh the cell
-        if (coordinatesAreInMap(x, y)) {
-            const { glyph, foreColor, backColor } = getCellAppearance({ x, y });
-            plotCharWithColor(glyph, { windowX: mapToWindowX(x), windowY: mapToWindowY(y) }, foreColor, backColor, displayBuffer);
-        }
+        // Refresh the area visually
+        const radius = feat.startProbability > 0 && feat.probabilityDecrement > 0
+            ? Math.ceil(feat.startProbability / feat.probabilityDecrement) + 1
+            : 1;
+        refreshDungeonArea(x, y, Math.min(radius, 10));
     }
 
     // =========================================================================
@@ -5639,10 +5790,110 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     }
 
     /**
-     * Call gameOver with the full lifecycle context.
+     * Pending death screen info — stored by doGameOver (Phase 1) so the
+     * interactive death screen can be shown asynchronously after
+     * mainInputLoop exits (Phase 2).
+     */
+    let pendingDeathScreen: { killedBy: string; useCustomPhrasing: boolean } | null = null;
+
+    /**
+     * Phase 1 of gameOver: synchronous state changes.
+     *
+     * Sets essential flags so the main loop exits, then stores the death
+     * info for the async Phase 2 (runDeathScreen) that runs after
+     * mainInputLoop's while-loop finishes.
+     *
+     * We intentionally skip calling the full gameOverFn here because it
+     * needs async input (nextBrogueEvent) which can't be awaited from a
+     * synchronous call-chain (combat → killCreature → doGameOver).
      */
     function doGameOver(killedBy: string, useCustomPhrasing: boolean): void {
-        gameOverFn(buildLifecycleContext(), killedBy, useCustomPhrasing);
+        // Guard against double-entry (matches C gameOver guard)
+        if (player.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DYING) {
+            return;
+        }
+        player.bookkeepingFlags |= MonsterBookkeepingFlag.MB_IS_DYING;
+
+        rogue.autoPlayingLevel = false;
+        rogue.gameInProgress = false;
+        rogue.gameHasEnded = true;
+
+        // Store for the async Phase 2
+        pendingDeathScreen = { killedBy, useCustomPhrasing };
+    }
+
+    /**
+     * Phase 2 of gameOver: async interactive death screen.
+     *
+     * Shows "You die..." message, waits for player acknowledgment,
+     * displays death description and score summary.
+     * Called from mainInputLoop after the while-loop exits.
+     */
+    async function runDeathScreen(killedBy: string, useCustomPhrasing: boolean): Promise<void> {
+        const isQuit = rogue.quit;
+
+        // Build death description
+        let description: string;
+        if (useCustomPhrasing) {
+            description = `${killedBy} on depth ${rogue.depthLevel}`;
+        } else {
+            const article = isVowelishFn(killedBy) ? "n" : "";
+            description = `Killed by a${article} ${killedBy} on depth ${rogue.depthLevel}`;
+        }
+
+        // Count gems
+        const numGems = numberOfMatchingPackItemsFn(packItems, ItemCategory.GEM, 0, 0);
+        rogue.gold += 500 * numGems;
+
+        const score = rogue.mode === GameMode.Easy
+            ? Math.floor(rogue.gold / 10)
+            : rogue.gold;
+
+        if (!isQuit) {
+            // Show "You die..." and wait for acknowledge
+            player.currentHP = 0;
+            refreshSideBarRuntime(-1, -1, false);
+
+            // Build the full death summary line
+            let summaryBuf = description;
+            if (score > 0) {
+                summaryBuf += numGems > 0
+                    ? ` with treasure worth ${score} gold`
+                    : ` with ${score} gold`;
+            }
+            summaryBuf += ".";
+
+            msgOps.messageWithColor("You die...", Colors.badMessageColor, 0);
+            displayLevelFn();
+
+            // Simplified funkyFade: just black out screen after a brief pause
+            blackOutScreen(displayBuffer);
+            printStringFn(
+                summaryBuf,
+                Math.floor((COLS - strLenWithoutEscapes(summaryBuf)) / 2),
+                Math.floor(ROWS / 2),
+                Colors.gray, Colors.black, displayBuffer,
+            );
+            commitDraws();
+
+            // Wait for a real interactive event (keystroke or mouse click)
+            // to dismiss. Ignore mouse-move events that may be queued from
+            // gameplay before the player died.
+            while (true) {
+                const ev = await browserConsole.waitForEvent();
+                if (ev.eventType === EventType.Keystroke
+                    || ev.eventType === EventType.MouseUp
+                    || ev.eventType === EventType.RightMouseUp
+                    || ev.eventType === EventType.MouseDown) {
+                    break;
+                }
+                // Ignore MouseEnteredCell and other non-interactive events
+            }
+        }
+
+        // Black out and return to let the title screen take over.
+        blackOutScreen(displayBuffer);
+        commitDraws();
     }
 
     /**
@@ -5824,6 +6075,47 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                             pmap[nx][ny].flags |= TileFlag.HAS_MONSTER;
                             monst.turnsSpentStationary = 0;
                         }
+                    }
+                    monst.ticksUntilTurn = monst.movementSpeed || 100;
+                    return;
+                }
+
+                // Fleeing: move away from the player (inverse of tracking scent)
+                // This handles monkeys after stealing (PermFleeing + Fleeing state)
+                // and other flee scenarios.
+                if (monst.creatureState === CreatureState.Fleeing) {
+                    let bestDir = -1;
+                    let bestDist = dist;
+                    for (let dir = 0; dir < 8; dir++) {
+                        const nx = mx + nbDirs[dir][0];
+                        const ny = my + nbDirs[dir][1];
+                        if (!coordinatesAreInMap(nx, ny)) continue;
+                        const newDist = Math.abs(player.loc.x - nx) + Math.abs(player.loc.y - ny);
+                        if (
+                            newDist > bestDist &&
+                            !(pmap[nx][ny].flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER)) &&
+                            !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY) &&
+                            !monsterAvoidsWrapped(monst, { x: nx, y: ny })
+                        ) {
+                            bestDist = newDist;
+                            bestDir = dir;
+                        }
+                    }
+                    if (bestDir >= 0) {
+                        const nx = mx + nbDirs[bestDir][0];
+                        const ny = my + nbDirs[bestDir][1];
+                        pmap[mx][my].flags &= ~TileFlag.HAS_MONSTER;
+                        monst.loc.x = nx;
+                        monst.loc.y = ny;
+                        pmap[nx][ny].flags |= TileFlag.HAS_MONSTER;
+                        monst.turnsSpentStationary = 0;
+                    } else if (dist <= 1) {
+                        // Cornered — attack the player as a last resort
+                        if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_SUBMERGED) {
+                            monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_SUBMERGED;
+                            refreshDungeonCellRuntime(monst.loc);
+                        }
+                        attackFn(monst, player, false, buildAttackContext());
                     }
                     monst.ticksUntilTurn = monst.movementSpeed || 100;
                     return;
@@ -6286,14 +6578,14 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 manualSearchFn(miscCtx);
                 rogue.justSearched = miscCtx.rogue.justSearched;
             },
-            travel(loc, autoConfirm) {
+            async travel(loc, autoConfirm) {
                 const travelCtx = buildTravelExploreContext();
-                travelFn(loc, autoConfirm, travelCtx);
+                await travelFn(loc, autoConfirm, travelCtx);
                 rogue.disturbed = travelCtx.rogue.disturbed;
             },
-            travelRoute(path, steps) {
+            async travelRoute(path, steps) {
                 const travelCtx = buildTravelExploreContext();
-                travelRouteFn(path, steps, travelCtx);
+                await travelRouteFn(path, steps, travelCtx);
                 rogue.disturbed = travelCtx.rogue.disturbed;
             },
             async equip(theItem: Item | null) {
@@ -6461,15 +6753,15 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             hideCursor() {
                 hideCursorFn(buildTargetingContext());
             },
-            exploreKey(controlKey) {
+            async exploreKey(controlKey) {
                 const travelCtx = buildTravelExploreContext();
-                exploreFn(controlKey ? 1 : 5, travelCtx);
+                await exploreFn(controlKey ? 1 : 5, travelCtx);
                 rogue.disturbed = travelCtx.rogue.disturbed;
                 rogue.automationActive = travelCtx.rogue.automationActive;
             },
-            autoPlayLevel(controlKey) {
+            async autoPlayLevel(controlKey) {
                 const travelCtx = buildTravelExploreContext();
-                autoPlayLevelFn(controlKey, travelCtx);
+                await autoPlayLevelFn(controlKey, travelCtx);
                 rogue.autoPlayingLevel = travelCtx.rogue.autoPlayingLevel;
             },
             useStairs(delta) {
@@ -6949,6 +7241,19 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         startLevel(depth: number, stairDirection: number): void {
             const levelCtx = buildLevelContext();
             startLevelFn(levelCtx, depth, stairDirection);
+
+            // Clear MB_PREPLACED on all monsters now that the level is fully
+            // generated. In C this is done by monstersApproachStairs() which
+            // runs at the start of the game cycle. Without this, monsters on
+            // auto-descent terrain would never fall during gameplay.
+            // Conversely, MB_PREPLACED prevents the first monstersFall() call
+            // (during startLevel's playerTurnEnded) from making monsters that
+            // were validly placed on chasms/pits during generation "plunge
+            // out of sight" before the player even acts.
+            for (const monst of monsters) {
+                monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_PREPLACED;
+            }
+
             // Render the newly generated level
             displayLevelFn();
             commitDraws();
@@ -6963,22 +7268,68 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             // which update state and re-render.
             const inputCtx = buildInputContext();
 
+            // Initialize bottom-bar buttons (Explore, Rest, Search, Menu, Inventory)
+            const menuButtons: BrogueButton[] = [];
+            for (let i = 0; i < 5; i++) {
+                menuButtons.push(initializeButton());
+            }
+            const menuState: ButtonState = {
+                buttonFocused: -1,
+                buttonDepressed: -1,
+                buttonChosen: -1,
+                buttonCount: 0,
+                buttons: [],
+                winX: 0,
+                winY: 0,
+                winWidth: 0,
+                winHeight: 0,
+            };
+            initializeMenuButtons(inputCtx, menuState, menuButtons);
+
             while (!rogue.gameHasEnded) {
                 displayLevelFn();
+
+                // Render the bottom-bar buttons
+                drawButtonsInStateFn(menuState, displayBuffer, buttonCtx);
                 commitDraws();
 
                 const event = await browserConsole.waitForEvent();
 
+                // Re-check after awaiting — gameHasEnded may have been set
+                // externally (e.g. by doGameOver or tests) while we were
+                // waiting for an event. If so, don't dispatch the event.
+                if (rogue.gameHasEnded) break;
+
                 try {
-                    if (event.eventType === EventType.Keystroke) {
+                    // Process button hover/click state for the bottom bar
+                    await processButtonInputFn(menuState, event, buttonCtx);
+                    if (menuState.buttonChosen >= 0) {
+                        const chosenIdx = menuState.buttonChosen;
+                        menuState.buttonChosen = -1;
+                        menuState.buttonDepressed = -1;
+
+                        if (chosenIdx === 3) {
+                            // Menu button — open the action menu
+                            const menuResult = await actionMenuFn(inputCtx, menuButtons[3].x - 4, rogue.playbackMode);
+                            if (menuResult > 0) {
+                                await executeKeystrokeFn(inputCtx, menuResult, false, false);
+                            }
+                        } else if (chosenIdx >= 0 && menuButtons[chosenIdx].hotkey?.length) {
+                            // Other button (Explore, Rest, Search, Inventory) — dispatch hotkey
+                            await executeKeystrokeFn(inputCtx, menuButtons[chosenIdx].hotkey[0], false, false);
+                        }
+                    } else if (event.eventType === EventType.Keystroke) {
                         await executeKeystrokeFn(inputCtx, event.param1, event.controlKey, event.shiftKey);
                     } else if (
                         event.eventType === EventType.MouseUp ||
                         event.eventType === EventType.RightMouseUp
                     ) {
-                        await executeMouseClickFn(inputCtx, event);
+                        // Only dispatch map clicks (not button-bar clicks)
+                        if (event.param2 < ROWS - 1) {
+                            await executeMouseClickFn(inputCtx, event);
+                        }
                     } else if (event.eventType === EventType.MouseEnteredCell) {
-                        // Bug 5 fix: Handle mouse hover for sidebar updates,
+                        // Handle mouse hover for sidebar updates,
                         // flavor text, and path preview — mirrors C mainInputLoop
                         // logic (IO.c:651-694) that processes moveCursor results.
                         const mapX = windowToMapXFromDisplay(event.param1);
@@ -7009,6 +7360,14 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 } catch (e) {
                     console.error("[BrogueCE] Error processing input event:", e);
                 }
+            }
+
+            // Phase 2: if player died, show the interactive death screen now
+            // that we're back in an async context.
+            if (pendingDeathScreen) {
+                const { killedBy, useCustomPhrasing } = pendingDeathScreen;
+                pendingDeathScreen = null;
+                await runDeathScreen(killedBy, useCustomPhrasing);
             }
         },
         freeEverything(): void {

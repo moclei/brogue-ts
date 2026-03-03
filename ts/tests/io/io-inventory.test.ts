@@ -129,6 +129,13 @@ function createCtx(overrides: Partial<InventoryContext> = {}): InventoryContext 
         itemMagicPolarity: vi.fn(() => 0),
         numberOfItemsInPack: vi.fn(() => 0),
         clearCursorPath: vi.fn(),
+        apply: vi.fn(),
+        equip: vi.fn(),
+        unequip: vi.fn(),
+        drop: vi.fn(),
+        throwCommand: vi.fn(),
+        relabel: vi.fn(),
+        call: vi.fn(),
         confirmMessages: vi.fn(),
         message: vi.fn(),
         mapToWindowX: vi.fn((x: number) => x + 1),
@@ -516,6 +523,29 @@ describe("displayInventory — detail view", () => {
 
         const result = await displayInventory(0xFFFF, 0, 0, false, false, ctx);
         expect(result).toBe("");
+    });
+
+    it("dispatches equip action when EQUIP_KEY returned from detail view", async () => {
+        const sword = makeItem({ inventoryLetter: "a" });
+        const equipFn = vi.fn();
+        const ctx = createCtx({
+            packItems: [sword],
+            buttonInputLoop: vi.fn(async () => ({
+                chosenButton: 0,
+                event: {
+                    eventType: EventType.Keystroke,
+                    param1: "a".charCodeAt(0),
+                    param2: 0,
+                    controlKey: false,
+                    shiftKey: true,
+                },
+            })),
+            printCarriedItemDetails: vi.fn(() => EQUIP_KEY),
+            equip: equipFn,
+        });
+
+        await displayInventory(0xFFFF, 0, 0, false, false, ctx);
+        expect(equipFn).toHaveBeenCalledWith(sword);
     });
 });
 

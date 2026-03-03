@@ -194,7 +194,7 @@ export interface InputContext {
 
     displayLevel(): void;
     refreshSideBar(x: number, y: number, justClearing: boolean): void;
-    displayInventory(categoryMask: number, titleFlags: number, focusFlags: number, includeDetails: boolean, includeButtons: boolean): void;
+    displayInventory(categoryMask: number, titleFlags: number, focusFlags: number, includeDetails: boolean, includeButtons: boolean): void | Promise<void>;
     displayMessageArchive(): void;
     printHelpScreen(): void;
     displayFeatsScreen(): void;
@@ -210,8 +210,8 @@ export interface InputContext {
     playerTurnEnded(): void;
     autoRest(): void;
     manualSearch(): void;
-    travel(loc: Pos, autoConfirm: boolean): void;
-    travelRoute(path: Pos[], steps: number): void;
+    travel(loc: Pos, autoConfirm: boolean): void | Promise<void>;
+    travelRoute(path: Pos[], steps: number): void | Promise<void>;
     equip(item: Item | null): void | Promise<void>;
     unequip(item: Item | null): void | Promise<void>;
     drop(item: Item | null): void | Promise<void>;
@@ -226,8 +226,8 @@ export interface InputContext {
     printSeed(): void;
     showCursor(): void;
     hideCursor(): void;
-    exploreKey(controlKey: boolean): void;
-    autoPlayLevel(controlKey: boolean): void;
+    exploreKey(controlKey: boolean): void | Promise<void>;
+    autoPlayLevel(controlKey: boolean): void | Promise<void>;
     useStairs(delta: number): void;
     takeScreenshot(): boolean;
     itemIsCarried(item: Item): boolean;
@@ -743,10 +743,10 @@ export async function executeMouseClick(ctx: InputContext, theEvent: RogueEvent)
     const autoConfirm = theEvent.controlKey;
 
     if (theEvent.eventType === EventType.RightMouseUp) {
-        ctx.displayInventory(ctx.ALL_ITEMS, 0, 0, true, true);
+        await ctx.displayInventory(ctx.ALL_ITEMS, 0, 0, true, true);
     } else if (ctx.isPosInMap(ctx.windowToMap(mouse))) {
         if (autoConfirm) {
-            ctx.travel(ctx.windowToMap(mouse), autoConfirm);
+            await ctx.travel(ctx.windowToMap(mouse), autoConfirm);
         } else {
             ctx.rogue.cursorLoc = ctx.windowToMap(mouse);
             await mainInputLoop(ctx);
@@ -824,7 +824,7 @@ export async function executeKeystroke(ctx: InputContext, keystroke: number, con
                     ctx.recordKeystroke(DESCEND_KEY, false, false);
                     ctx.useStairs(1);
                 } else if (ctx.proposeOrConfirmLocation(ctx.rogue.downLoc, "I see no way down.")) {
-                    ctx.travel(ctx.rogue.downLoc, true);
+                    await ctx.travel(ctx.rogue.downLoc, true);
                 }
                 break;
             case ASCEND_KEY:
@@ -833,7 +833,7 @@ export async function executeKeystroke(ctx: InputContext, keystroke: number, con
                     ctx.recordKeystroke(ASCEND_KEY, false, false);
                     ctx.useStairs(-1);
                 } else if (ctx.proposeOrConfirmLocation(ctx.rogue.upLoc, "I see no way up.")) {
-                    ctx.travel(ctx.rogue.upLoc, true);
+                    await ctx.travel(ctx.rogue.upLoc, true);
                 }
                 break;
             case RETURN_KEY:
@@ -870,7 +870,7 @@ export async function executeKeystroke(ctx: InputContext, keystroke: number, con
                 }
                 break;
             case INVENTORY_KEY:
-                ctx.displayInventory(ctx.ALL_ITEMS, 0, 0, true, true);
+                await ctx.displayInventory(ctx.ALL_ITEMS, 0, 0, true, true);
                 break;
             case EQUIP_KEY:
                 await ctx.equip(null);
@@ -947,11 +947,11 @@ export async function executeKeystroke(ctx: InputContext, keystroke: number, con
                 break;
             case EXPLORE_KEY:
                 considerCautiousMode(ctx);
-                ctx.exploreKey(controlKey);
+                await ctx.exploreKey(controlKey);
                 break;
             case AUTOPLAY_KEY:
                 if (await confirm(ctx, "Turn on autopilot?", false)) {
-                    ctx.autoPlayLevel(controlKey);
+                    await ctx.autoPlayLevel(controlKey);
                 }
                 break;
             case MESSAGE_ARCHIVE_KEY:
@@ -1043,6 +1043,14 @@ export async function executeKeystroke(ctx: InputContext, keystroke: number, con
                     ctx.flashTemporaryAlert(" Screenshot saved in save directory ", 2000);
                 }
                 break;
+            case ESCAPE_KEY: {
+                // Open the in-game action menu (Save, Quit, settings, etc.)
+                const menuResult = await actionMenu(ctx, 20, ctx.rogue.playbackMode);
+                if (menuResult > 0) {
+                    await executeKeystroke(ctx, menuResult, false, false);
+                }
+                break;
+            }
             default:
                 break;
         }
@@ -1802,7 +1810,7 @@ export async function mainInputLoop(ctx: InputContext): Promise<void> {
                     ctx.playerMoves(dir);
                 }
             } else if (ctx.D_WORMHOLING) {
-                ctx.travel(ctx.rogue.cursorLoc, true);
+                await ctx.travel(ctx.rogue.cursorLoc, true);
             } else {
                 ctx.confirmMessages();
                 if (ctx.posEq(originLoc, ctx.rogue.cursorLoc)) {
@@ -1838,7 +1846,7 @@ export async function mainInputLoop(ctx: InputContext): Promise<void> {
                         ctx.playerMoves(dir);
                     }
                 } else if (steps) {
-                    ctx.travelRoute(path, steps);
+                    await ctx.travelRoute(path, steps);
                 }
             }
         } else if (doEvent) {

@@ -197,7 +197,7 @@ export function initializeMonster(
 
     monst.loc = { x: 0, y: 0 };
     monst.depth = depthLevel;
-    monst.bookkeepingFlags = 0;
+    monst.bookkeepingFlags = MonsterBookkeepingFlag.MB_PREPLACED;
     monst.mapToMe = null;
     monst.safetyMap = null;
     monst.leader = null;
