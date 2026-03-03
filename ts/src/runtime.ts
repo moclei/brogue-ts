@@ -2116,6 +2116,36 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             numberOfItemsInPack: () => numberOfItemsInPackFn(packItems),
             clearCursorPath() { clearCursorPathFn(buildTargetingContext()); },
 
+            // Item actions (dispatched from the item detail panel)
+            async apply(theItem) {
+                const inputCtx = buildInputContext();
+                await inputCtx.apply(theItem);
+            },
+            async equip(theItem) {
+                const inputCtx = buildInputContext();
+                await inputCtx.equip(theItem);
+            },
+            async unequip(theItem) {
+                const inputCtx = buildInputContext();
+                await inputCtx.unequip(theItem);
+            },
+            async drop(theItem) {
+                const inputCtx = buildInputContext();
+                await inputCtx.drop(theItem);
+            },
+            async throwCommand(theItem, confirmed) {
+                const inputCtx = buildInputContext();
+                await inputCtx.throwCommand(theItem, confirmed);
+            },
+            async relabel(theItem) {
+                const inputCtx = buildInputContext();
+                await inputCtx.relabel(theItem);
+            },
+            async call(theItem) {
+                const inputCtx = buildInputContext();
+                await inputCtx.call(theItem);
+            },
+
             // Messages
             confirmMessages: msgOps.confirmMessages,
             message: msgOps.message,
@@ -2544,6 +2574,14 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         itemMagicPolarity: itemMagicPolarityFn,
         numberOfItemsInPack: () => numberOfItemsInPackFn(packItems),
         clearCursorPath: () => {},               // stub
+        // Item actions — stubs here since this context is only used for printTextBox
+        async apply() {},
+        async equip() {},
+        async unequip() {},
+        async drop() {},
+        async throwCommand() {},
+        async relabel() {},
+        async call() {},
         confirmMessages: msgOps.confirmMessages,
         message: msgOps.message,
         mapToWindowX,
@@ -7281,7 +7319,11 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                             await executeKeystrokeFn(inputCtx, menuButtons[chosenIdx].hotkey[0], false, false);
                         }
                     } else if (event.eventType === EventType.Keystroke) {
-                        await executeKeystrokeFn(inputCtx, event.param1, event.controlKey, event.shiftKey);
+                        try {
+                            await executeKeystrokeFn(inputCtx, event.param1, event.controlKey, event.shiftKey);
+                        } catch (err) {
+                            console.error("[MAINLOOP] Error in executeKeystroke:", err);
+                        }
                     } else if (
                         event.eventType === EventType.MouseUp ||
                         event.eventType === EventType.RightMouseUp

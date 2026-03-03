@@ -174,13 +174,23 @@ The fully ported `monstersTurn` in `monster-actions.ts:285` handles all states i
 - Bug #2: Set `MB_PREPLACED` on all monsters during `initializeMonster` (matching C behavior). This prevents monsters from falling through auto-descent terrain during level generation. Flag is cleared after `startLevelFn` completes, so monsters fall normally during gameplay.
 - Bug #6: Captive rescue code in `playerMoves` is correctly ported. The rescue requires the player to have the matching key (`keyInPackFor`) to open the cage (`TM_PROMOTES_WITH_KEY`). Likely the user didn't have the key, or the machine builder didn't generate one — needs a specific seed to reproduce further. No code change needed.
 
-### Session D — Inventory actions + Explore animation ✅
+### Session D — Inventory actions + Explore animation ✅ (partial — Bug #9 required follow-up)
 **Bugs:** #9, #10  
 **Branch:** `fix/playtest-round1-session-d`  
 **Status:** Complete — all 2,263 tests pass, zero compilation errors.  
 **Notes:**
-- Bug #9: `printCarriedItemDetails` in `buildInventoryContext` was a stub returning `0` (no action). Replaced with full implementation matching C's `IO.c:printCarriedItemDetails` — creates action buttons (Apply, Equip/Remove, Drop, Throw, Call, Relabel) based on item category, plus invisible UP/DOWN navigation buttons. Uses `printTextBox` + `buttonInputLoop` for interactive selection. Changed return type to `number | Promise<number>` and added `await` in `displayInventory`.
+- Bug #9 (partial): `printCarriedItemDetails` in `buildInventoryContext` was a stub returning `0` (no action). Replaced with full implementation matching C's `IO.c:printCarriedItemDetails` — creates action buttons (Apply, Equip/Remove, Drop, Throw, Call, Relabel) based on item category, plus invisible UP/DOWN navigation buttons. Uses `printTextBox` + `buttonInputLoop` for interactive selection. Changed return type to `number | Promise<number>` and added `await` in `displayInventory`. **However**, the action buttons themselves were never dispatched — see Session E.
 - Bug #10: `pauseAnimation` in `buildTravelExploreContext` was a synchronous no-op passing `duration=0`. Made it async with real `setTimeout` delays and `commitDraws()` before each pause. Required making `explore`, `travelRoute`, `travelMap`, `startFighting`, `travel`, `autoPlayLevel` all async. Updated `TravelExploreContext.pauseAnimation` return type to `boolean | Promise<boolean>`, `InputContext` method signatures to `void | Promise<void>`, and all callers to `await`. Updated 42 unit tests to handle async.
+
+### Session E — Inventory action dispatch fix ✅
+**Bugs:** #9 (follow-up)  
+**Branch:** `fix/playtest-round1-session-e`  
+**Status:** Complete — all 2,264 tests pass, zero compilation errors.  
+**Notes:**
+- Bug #9 issue 1 (action dispatch): The item detail panel (from Session D) showed action buttons and returned the chosen action key (e.g., `EQUIP_KEY`), but `displayInventory` in `io-inventory.ts` had a dead switch statement that never actually called the action functions. In C (`Items.c:3076`), the switch directly calls `apply(theItem)`, `equip(theItem)`, etc. The TS switch just had a comment "Action taken directly — will return 0" and fell through without executing anything.
+- Fix: Added `apply`, `equip`, `unequip`, `drop`, `throwCommand`, `relabel`, `call` methods to the `InventoryContext` interface. Each action case in the switch now calls `await ctx.apply(itemList[currentHighlight])`, etc. Wired the methods in `buildInventoryContext()` to delegate to `buildInputContext()`'s action implementations. Added stubs to `inventoryCtxForTextBox` (used only for menu text boxes).
+- Bug #9 issue 2 (null dbuf crash): `displayInventory` called `ctx.drawButton(button, PRESSED, null)` to highlight the selected item. C's `plotCharToBuffer` accepts NULL dbuf (draws to screen directly), but TS's `plotCharToBuffer` requires a non-null buffer. Fix: create a temporary display buffer, draw the highlighted button into it, then overlay.
+- Current action status: **Equip**, **Remove** (unequip), and **Drop** are fully implemented. **Apply** (scroll/potion/staff/wand use), **Throw** (targeting), **Relabel** (text input), and **Call** (text input) show "coming soon" stubs — they require the targeting system and item-effect system which are not yet wired.
 
 ---
 

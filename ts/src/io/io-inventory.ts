@@ -135,6 +135,16 @@ export interface InventoryContext {
     numberOfItemsInPack(): number;
     clearCursorPath(): void;
 
+    // -- Item actions (dispatched from item detail panel) --------------------
+
+    apply(theItem: Item): void | Promise<void>;
+    equip(theItem: Item): void | Promise<void>;
+    unequip(theItem: Item): void | Promise<void>;
+    drop(theItem: Item): void | Promise<void>;
+    throwCommand(theItem: Item, confirmed: boolean): void | Promise<void>;
+    relabel(theItem: Item): void | Promise<void>;
+    call(theItem: Item): void | Promise<void>;
+
     // -- Messages -------------------------------------------------------------
 
     confirmMessages(): void;
@@ -594,7 +604,12 @@ export async function displayInventory(
 
             do {
                 ctx.overlayDisplayBuffer(dbuf);
-                ctx.drawButton(buttons[currentHighlight], ButtonDrawState.Pressed, null);
+                // Highlight the selected button by drawing it as "pressed"
+                // C passes NULL to draw directly to screen; TS needs a temp buffer.
+                const highlightBuf = ctx.createScreenDisplayBuffer();
+                ctx.clearDisplayBuffer(highlightBuf);
+                ctx.drawButton(buttons[currentHighlight], ButtonDrawState.Pressed, highlightBuf);
+                ctx.overlayDisplayBuffer(highlightBuf);
 
                 if (theEvent.shiftKey || theEvent.controlKey || waitForAcknowledge) {
                     actionKey = await ctx.printCarriedItemDetails(
@@ -617,13 +632,25 @@ export async function displayInventory(
 
                     switch (actionKey) {
                         case APPLY_KEY:
+                            await ctx.apply(itemList[currentHighlight]);
+                            break;
                         case EQUIP_KEY:
+                            await ctx.equip(itemList[currentHighlight]);
+                            break;
                         case UNEQUIP_KEY:
+                            await ctx.unequip(itemList[currentHighlight]);
+                            break;
                         case DROP_KEY:
+                            await ctx.drop(itemList[currentHighlight]);
+                            break;
                         case THROW_KEY:
+                            await ctx.throwCommand(itemList[currentHighlight], false);
+                            break;
                         case RELABEL_KEY:
+                            await ctx.relabel(itemList[currentHighlight]);
+                            break;
                         case CALL_KEY:
-                            // Action taken directly — will return 0
+                            await ctx.call(itemList[currentHighlight]);
                             break;
                         case UP_KEY:
                             currentHighlight--;
