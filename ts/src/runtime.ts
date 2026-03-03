@@ -90,6 +90,8 @@ import {
     executeKeystroke as executeKeystrokeFn,
     executeMouseClick as executeMouseClickFn,
     stripShiftFromMovementKeystroke as stripShiftFromMovementKeystrokeFn,
+    initializeMenuButtons,
+    actionMenu as actionMenuFn,
 } from "./io/io-input.js";
 
 // -- Targeting imports --------------------------------------------------------
@@ -5737,8 +5739,19 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             );
             commitDraws();
 
-            // Single wait: player presses any key or clicks to dismiss
-            await browserConsole.waitForEvent();
+            // Wait for a real interactive event (keystroke or mouse click)
+            // to dismiss. Ignore mouse-move events that may be queued from
+            // gameplay before the player died.
+            while (true) {
+                const ev = await browserConsole.waitForEvent();
+                if (ev.eventType === EventType.Keystroke
+                    || ev.eventType === EventType.MouseUp
+                    || ev.eventType === EventType.RightMouseUp
+                    || ev.eventType === EventType.MouseDown) {
+                    break;
+                }
+                // Ignore MouseEnteredCell and other non-interactive events
+            }
         }
 
         // Black out and return to let the title screen take over.
@@ -7105,8 +7118,29 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             // which update state and re-render.
             const inputCtx = buildInputContext();
 
+            // Initialize bottom-bar buttons (Explore, Rest, Search, Menu, Inventory)
+            const menuButtons: BrogueButton[] = [];
+            for (let i = 0; i < 5; i++) {
+                menuButtons.push(initializeButton());
+            }
+            const menuState: ButtonState = {
+                buttonFocused: -1,
+                buttonDepressed: -1,
+                buttonChosen: -1,
+                buttonCount: 0,
+                buttons: [],
+                winX: 0,
+                winY: 0,
+                winWidth: 0,
+                winHeight: 0,
+            };
+            initializeMenuButtons(inputCtx, menuState, menuButtons);
+
             while (!rogue.gameHasEnded) {
                 displayLevelFn();
+
+                // Render the bottom-bar buttons
+                drawButtonsInStateFn(menuState, displayBuffer, buttonCtx);
                 commitDraws();
 
                 const event = await browserConsole.waitForEvent();
@@ -7117,15 +7151,35 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 if (rogue.gameHasEnded) break;
 
                 try {
-                    if (event.eventType === EventType.Keystroke) {
+                    // Process button hover/click state for the bottom bar
+                    await processButtonInputFn(menuState, event, buttonCtx);
+                    if (menuState.buttonChosen >= 0) {
+                        const chosenIdx = menuState.buttonChosen;
+                        menuState.buttonChosen = -1;
+                        menuState.buttonDepressed = -1;
+
+                        if (chosenIdx === 3) {
+                            // Menu button — open the action menu
+                            const menuResult = await actionMenuFn(inputCtx, menuButtons[3].x - 4, rogue.playbackMode);
+                            if (menuResult > 0) {
+                                await executeKeystrokeFn(inputCtx, menuResult, false, false);
+                            }
+                        } else if (chosenIdx >= 0 && menuButtons[chosenIdx].hotkey?.length) {
+                            // Other button (Explore, Rest, Search, Inventory) — dispatch hotkey
+                            await executeKeystrokeFn(inputCtx, menuButtons[chosenIdx].hotkey[0], false, false);
+                        }
+                    } else if (event.eventType === EventType.Keystroke) {
                         await executeKeystrokeFn(inputCtx, event.param1, event.controlKey, event.shiftKey);
                     } else if (
                         event.eventType === EventType.MouseUp ||
                         event.eventType === EventType.RightMouseUp
                     ) {
-                        await executeMouseClickFn(inputCtx, event);
+                        // Only dispatch map clicks (not button-bar clicks)
+                        if (event.param2 < ROWS - 1) {
+                            await executeMouseClickFn(inputCtx, event);
+                        }
                     } else if (event.eventType === EventType.MouseEnteredCell) {
-                        // Bug 5 fix: Handle mouse hover for sidebar updates,
+                        // Handle mouse hover for sidebar updates,
                         // flavor text, and path preview — mirrors C mainInputLoop
                         // logic (IO.c:651-694) that processes moveCursor results.
                         const mapX = windowToMapXFromDisplay(event.param1);

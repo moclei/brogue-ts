@@ -194,7 +194,7 @@ export interface InputContext {
 
     displayLevel(): void;
     refreshSideBar(x: number, y: number, justClearing: boolean): void;
-    displayInventory(categoryMask: number, titleFlags: number, focusFlags: number, includeDetails: boolean, includeButtons: boolean): void;
+    displayInventory(categoryMask: number, titleFlags: number, focusFlags: number, includeDetails: boolean, includeButtons: boolean): void | Promise<void>;
     displayMessageArchive(): void;
     printHelpScreen(): void;
     displayFeatsScreen(): void;
@@ -743,7 +743,7 @@ export async function executeMouseClick(ctx: InputContext, theEvent: RogueEvent)
     const autoConfirm = theEvent.controlKey;
 
     if (theEvent.eventType === EventType.RightMouseUp) {
-        ctx.displayInventory(ctx.ALL_ITEMS, 0, 0, true, true);
+        await ctx.displayInventory(ctx.ALL_ITEMS, 0, 0, true, true);
     } else if (ctx.isPosInMap(ctx.windowToMap(mouse))) {
         if (autoConfirm) {
             ctx.travel(ctx.windowToMap(mouse), autoConfirm);
@@ -870,7 +870,7 @@ export async function executeKeystroke(ctx: InputContext, keystroke: number, con
                 }
                 break;
             case INVENTORY_KEY:
-                ctx.displayInventory(ctx.ALL_ITEMS, 0, 0, true, true);
+                await ctx.displayInventory(ctx.ALL_ITEMS, 0, 0, true, true);
                 break;
             case EQUIP_KEY:
                 await ctx.equip(null);

@@ -149,15 +149,18 @@ The fully ported `monstersTurn` in `monster-actions.ts:285` handles all states i
 
 ## Session Grouping
 
-### Session A — Scroll naming + Underwater rendering + Monkey flee
+### Session A — Scroll naming + Underwater rendering + Monkey flee ✅
 **Bugs:** #5, #3, #8  
-**Surface area:** `item-naming.ts`, `runtime.ts` (getCellAppearance, simplified monstersTurn)  
-**Rationale:** Three quick-to-fix bugs in distinct files with no overlap. Bug #5 is a one-line fix, Bug #3 is a small addition to getCellAppearance, Bug #8 adds a Fleeing handler to the simplified monstersTurn.
+**Branch:** `fix/playtest-round1-session-a`  
+**Status:** Complete — all 2,263 tests pass, zero compilation errors.
 
-### Session B — Death notice + Menu
+### Session B — Death notice + Menu ✅
 **Bugs:** #1, #4  
-**Surface area:** `runtime.ts` (buildLifecycleContext, mainInputLoop)  
-**Rationale:** Both involve async input handling stubs in runtime.ts. Bug #1 needs async nextBrogueEvent; Bug #4 needs button rendering/handling in the main loop.
+**Branch:** `fix/playtest-round1-session-b`  
+**Status:** Complete — all 2,263 tests pass, zero compilation errors.  
+**Notes:**
+- Bug #1 used a "deferred death screen" pattern: `doGameOver` runs Phase 1 (state changes) synchronously, then `mainInputLoop` runs Phase 2 (interactive death screen) asynchronously after the while-loop exits.
+- Bug #4 mapped ESCAPE key to `actionMenu()` in `executeKeystroke`. Added `gameHasEnded` guard after `waitForEvent` to prevent processing events when game ended.
 
 ### Session C — Bloat effects + Plunge messages + Captive rescue
 **Bugs:** #7, #2, #6  
