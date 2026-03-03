@@ -125,7 +125,7 @@ export interface InventoryContext {
         y: number,
         width: number,
         includeButtons: boolean,
-    ): number;
+    ): number | Promise<number>;
 
     // -- Text & item naming ---------------------------------------------------
 
@@ -597,7 +597,7 @@ export async function displayInventory(
                 ctx.drawButton(buttons[currentHighlight], ButtonDrawState.Pressed, null);
 
                 if (theEvent.shiftKey || theEvent.controlKey || waitForAcknowledge) {
-                    actionKey = ctx.printCarriedItemDetails(
+                    actionKey = await ctx.printCarriedItemDetails(
                         itemList[currentHighlight],
                         Math.max(2, ctx.mapToWindowX(DCOLS - maxLength - 42)),
                         ctx.mapToWindowY(2),

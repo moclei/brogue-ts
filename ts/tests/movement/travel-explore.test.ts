@@ -304,7 +304,7 @@ describe("displayRoute", () => {
 // =============================================================================
 
 describe("travelRoute", () => {
-    it("moves player along the path", () => {
+    it("moves player along the path", async () => {
         const movesSpy = vi.fn().mockReturnValue(true);
         const ctx = makeCtx({ playerMoves: movesSpy });
         ctx.player.loc = { x: 1, y: 1 };
@@ -312,25 +312,25 @@ describe("travelRoute", () => {
         // Path: player at (1,1), path goes to (2,1) which is Right (+1,0)
         const path: Pos[] = [{ x: 2, y: 1 }];
 
-        travelRoute(path, 1, ctx);
+        await travelRoute(path, 1, ctx);
 
         expect(movesSpy).toHaveBeenCalled();
         expect(ctx.rogue.disturbed).toBe(true); // always true after
         expect(ctx.rogue.automationActive).toBe(false);
     });
 
-    it("stops if player can't move", () => {
+    it("stops if player can't move", async () => {
         const movesSpy = vi.fn().mockReturnValue(false);
         const ctx = makeCtx({ playerMoves: movesSpy });
         ctx.player.loc = { x: 1, y: 1 };
 
         const path: Pos[] = [{ x: 2, y: 1 }];
-        travelRoute(path, 1, ctx);
+        await travelRoute(path, 1, ctx);
 
         expect(ctx.rogue.disturbed).toBe(true);
     });
 
-    it("marks already-seen monsters", () => {
+    it("marks already-seen monsters", async () => {
         const monst = makeCreature({ loc: { x: 3, y: 3 } });
         const ctx = makeCtx({
             monsters: [monst],
@@ -338,7 +338,7 @@ describe("travelRoute", () => {
             playerMoves: () => true,
         });
 
-        travelRoute([], 0, ctx);
+        await travelRoute([], 0, ctx);
 
         expect(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_ALREADY_SEEN).toBeTruthy();
     });
@@ -349,7 +349,7 @@ describe("travelRoute", () => {
 // =============================================================================
 
 describe("travelMap", () => {
-    it("follows the gradient downhill", () => {
+    it("follows the gradient downhill", async () => {
         let moved = false;
         const ctx = makeCtx({
             playerMoves: () => {
@@ -364,19 +364,19 @@ describe("travelMap", () => {
         distMap[2][1] = 1;
         distMap[3][1] = 0;
 
-        travelMap(distMap, ctx);
+        await travelMap(distMap, ctx);
 
         expect(moved).toBe(true);
     });
 
-    it("doesn't move if player location is unreachable", () => {
+    it("doesn't move if player location is unreachable", async () => {
         const movesSpy = vi.fn();
         const ctx = makeCtx({ playerMoves: movesSpy });
         ctx.player.loc = { x: 1, y: 1 };
         const distMap = makeGrid(GW, GH, 30000);
         // player at (1,1) = 30000, unreachable
 
-        travelMap(distMap, ctx);
+        await travelMap(distMap, ctx);
 
         expect(movesSpy).not.toHaveBeenCalled();
     });
@@ -445,7 +445,7 @@ describe("adjacentFightingDir", () => {
 // =============================================================================
 
 describe("startFighting", () => {
-    it("fights the monster until disturbed", () => {
+    it("fights the monster until disturbed", async () => {
         const enemy = makeCreature({ loc: { x: 2, y: 1 } });
         let moveCount = 0;
         const pmap = makePmap();
@@ -461,24 +461,24 @@ describe("startFighting", () => {
         });
         ctx.player.loc = { x: 1, y: 1 };
 
-        const result = startFighting(3 as Direction, false, ctx);
+        const result = await startFighting(3 as Direction, false, ctx);
 
         expect(moveCount).toBe(3);
         expect(result).toBe(true);
         expect(ctx.rogue.blockCombatText).toBe(false);
     });
 
-    it("returns false for immune-to-weapons monsters", () => {
+    it("returns false for immune-to-weapons monsters", async () => {
         const enemy = makeCreature({ loc: { x: 2, y: 1 } });
         enemy.info.flags = MonsterBehaviorFlag.MONST_IMMUNE_TO_WEAPONS;
         const ctx = makeCtx({ monsterAtLoc: () => enemy });
 
-        expect(startFighting(3 as Direction, false, ctx)).toBe(false);
+        expect(await startFighting(3 as Direction, false, ctx)).toBe(false);
     });
 
-    it("returns false if no monster at location", () => {
+    it("returns false if no monster at location", async () => {
         const ctx = makeCtx();
-        expect(startFighting(3 as Direction, false, ctx)).toBe(false);
+        expect(await startFighting(3 as Direction, false, ctx)).toBe(false);
     });
 });
 
@@ -633,28 +633,28 @@ describe("useStairs", () => {
 // =============================================================================
 
 describe("travel", () => {
-    it("directly moves to cardinal neighbor", () => {
+    it("directly moves to cardinal neighbor", async () => {
         const movesSpy = vi.fn().mockReturnValue(true);
         const ctx = makeCtx({ playerMoves: movesSpy });
         ctx.player.loc = { x: 2, y: 2 };
 
-        travel({ x: 3, y: 2 }, false, ctx); // one step right
+        await travel({ x: 3, y: 2 }, false, ctx); // one step right
 
         expect(movesSpy).toHaveBeenCalled();
     });
 
-    it("shows message for unexplored location", () => {
+    it("shows message for unexplored location", async () => {
         const msgSpy = vi.fn();
         const ctx = makeCtx({ message: msgSpy });
         ctx.player.loc = { x: 0, y: 0 };
         ctx.pmap[3][3].flags = 0; // not discovered
 
-        travel({ x: 3, y: 3 }, false, ctx);
+        await travel({ x: 3, y: 3 }, false, ctx);
 
         expect(msgSpy).toHaveBeenCalledWith("You have not explored that location.", 0);
     });
 
-    it("auto-confirms when autoConfirm is true and path exists", () => {
+    it("auto-confirms when autoConfirm is true and path exists", async () => {
         const ctx = makeCtx({
             allocGrid: () => makeGrid(),
             calculateDistances: (dm: number[][]) => {
@@ -666,10 +666,10 @@ describe("travel", () => {
         ctx.pmap[3][3].flags |= TileFlag.DISCOVERED;
 
         // Should not throw
-        travel({ x: 3, y: 3 }, true, ctx);
+        await travel({ x: 3, y: 3 }, true, ctx);
     });
 
-    it("shows no-path message when target is unreachable", () => {
+    it("shows no-path message when target is unreachable", async () => {
         const msgSpy = vi.fn();
         const ctx = makeCtx({
             message: msgSpy,
@@ -679,7 +679,7 @@ describe("travel", () => {
         ctx.player.loc = { x: 1, y: 1 };
         ctx.pmap[3][3].flags |= TileFlag.DISCOVERED;
 
-        travel({ x: 3, y: 3 }, true, ctx);
+        await travel({ x: 3, y: 3 }, true, ctx);
 
         expect(msgSpy).toHaveBeenCalledWith("No path is available.", 0);
     });
@@ -731,22 +731,22 @@ describe("getExploreMap", () => {
 // =============================================================================
 
 describe("explore", () => {
-    it("returns false when player is confused", () => {
+    it("returns false when player is confused", async () => {
         const ctx = makeCtx();
         ctx.player.status[StatusEffect.Confused] = 1;
 
-        expect(explore(50, ctx)).toBe(false);
+        expect(await explore(50, ctx)).toBe(false);
     });
 
-    it("returns false when player is trapped", () => {
+    it("returns false when player is trapped", async () => {
         const ctx = makeCtx({
             cellHasTerrainFlag: (_p, f) => !!(f & TerrainFlag.T_OBSTRUCTS_PASSABILITY),
         });
 
-        expect(explore(50, ctx)).toBe(false);
+        expect(await explore(50, ctx)).toBe(false);
     });
 
-    it("fights adjacent enemy and returns true", () => {
+    it("fights adjacent enemy and returns true", async () => {
         const enemy = makeCreature({ loc: { x: 2, y: 1 } });
         const pmap = makePmap();
         pmap[2][1].flags |= TileFlag.HAS_MONSTER;
@@ -762,7 +762,7 @@ describe("explore", () => {
         });
         ctx.player.loc = { x: 1, y: 1 };
 
-        const result = explore(50, ctx);
+        const result = await explore(50, ctx);
         expect(result).toBe(true);
     });
 });
@@ -772,18 +772,18 @@ describe("explore", () => {
 // =============================================================================
 
 describe("autoPlayLevel", () => {
-    it("sets autoPlayingLevel and explores until no progress", () => {
+    it("sets autoPlayingLevel and explores until no progress", async () => {
         // Make explore return false immediately (player confused)
         const ctx = makeCtx();
         ctx.player.status[StatusEffect.Confused] = 1;
 
-        autoPlayLevel(false, ctx);
+        await autoPlayLevel(false, ctx);
 
         // After autoPlayLevel finishes, autoPlayingLevel should be false
         expect(ctx.rogue.autoPlayingLevel).toBe(false);
     });
 
-    it("descends stairs when no more explore progress and at stairs", () => {
+    it("descends stairs when no more explore progress and at stairs", async () => {
         const startLevelSpy = vi.fn().mockImplementation(() => {
             // Stop the loop after descending once
             ctx.rogue.autoPlayingLevel = false;
@@ -795,7 +795,7 @@ describe("autoPlayLevel", () => {
         ctx.rogue.downLoc = { x: 4, y: 4 };
         ctx.rogue.depthLevel = 1;
 
-        autoPlayLevel(false, ctx);
+        await autoPlayLevel(false, ctx);
 
         // Should have tried to descend stairs
         expect(startLevelSpy).toHaveBeenCalled();

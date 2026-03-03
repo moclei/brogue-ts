@@ -81,6 +81,7 @@ import {
     TAB_KEY, SHIFT_TAB_KEY, RETURN_KEY, ACKNOWLEDGE_KEY,
     NUMPAD_0, NUMPAD_1, NUMPAD_2, NUMPAD_3, NUMPAD_4,
     NUMPAD_6, NUMPAD_7, NUMPAD_8, NUMPAD_9,
+    APPLY_KEY, EQUIP_KEY, UNEQUIP_KEY, DROP_KEY, THROW_KEY, RELABEL_KEY, CALL_KEY,
 } from "./types/constants.js";
 // PAUSE_BEHAVIOR_DEFAULT imported inline where needed
 
@@ -149,7 +150,6 @@ import {
     refreshSideBar as refreshSideBarFn,
     printMonsterDetails as printMonsterDetailsFn,
     printFloorItemDetails as printFloorItemDetailsFn,
-    printCarriedItemDetails as printCarriedItemDetailsFn,
     printProgressBar as printProgressBarFn,
 } from "./io/io-sidebar.js";
 import type { SidebarContext } from "./io/io-sidebar.js";
@@ -334,7 +334,7 @@ import { spawnDungeonFeature as spawnDungeonFeatureFull } from "./architect/mach
 import type { BuildBridgeContext } from "./architect/lakes.js";
 
 // -- Flag imports -------------------------------------------------------------
-import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MonsterBookkeepingFlag, MonsterAbilityFlag, ItemFlag, MessageFlag, T_OBSTRUCTS_SCENT, T_DIVIDES_LEVEL, T_PATHING_BLOCKER, T_HARMFUL_TERRAIN, T_MOVES_ITEMS, ANY_KIND_OF_VISIBLE, IS_IN_MACHINE } from "./types/flags.js";
+import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MonsterBookkeepingFlag, MonsterAbilityFlag, ItemFlag, MessageFlag, ButtonFlag, T_OBSTRUCTS_SCENT, T_DIVIDES_LEVEL, T_PATHING_BLOCKER, T_HARMFUL_TERRAIN, T_MOVES_ITEMS, ANY_KIND_OF_VISIBLE, IS_IN_MACHINE } from "./types/flags.js";
 
 // -- State helper imports -----------------------------------------------------
 import { cellHasTerrainFlag, cellHasTMFlag, cellHasTerrainType, terrainFlags, terrainMechFlags, discoveredTerrainFlagsAtLoc, highestPriorityLayer } from "./state/helpers.js";
@@ -2014,9 +2014,97 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 return { chosenButton: result.chosenButton, event: result.event };
             },
 
-            // Sidebar detail panels
-            printCarriedItemDetails(theItem, x, y, width, includeButtons) {
-                return printCarriedItemDetailsFn(theItem, x, y, width, includeButtons, buildSidebarContext());
+            // Sidebar detail panels — full implementation with action buttons
+            async printCarriedItemDetails(theItem, x, y, width, includeButtons) {
+                // Build item description text
+                const sidebarCtx = buildSidebarContext();
+                const textBuf = sidebarCtx.itemDetails(theItem);
+
+                // Build action buttons (matching C IO.c:printCarriedItemDetails)
+                const btns: import("./types/types.js").BrogueButton[] = [];
+                const goldEsc = includeButtons ? encodeMessageColor(Colors.yellow) : "";
+                const whiteEsc = includeButtons ? encodeMessageColor(Colors.white) : "";
+
+                if (includeButtons) {
+                    if (theItem.category & (ItemCategory.FOOD | ItemCategory.SCROLL | ItemCategory.POTION |
+                        ItemCategory.WAND | ItemCategory.STAFF | ItemCategory.CHARM)) {
+                        const btn = initializeButton();
+                        btn.text = `   ${goldEsc}a${whiteEsc}pply   `;
+                        btn.hotkey = [APPLY_KEY];
+                        btn.flags |= ButtonFlag.B_WIDE_CLICK_AREA;
+                        btns.push(btn);
+                    }
+                    if (theItem.category & (ItemCategory.ARMOR | ItemCategory.WEAPON | ItemCategory.RING)) {
+                        const btn = initializeButton();
+                        if (theItem.flags & ItemFlag.ITEM_EQUIPPED) {
+                            btn.text = `  ${goldEsc}r${whiteEsc}emove   `;
+                            btn.hotkey = [UNEQUIP_KEY];
+                        } else {
+                            btn.text = `   ${goldEsc}e${whiteEsc}quip   `;
+                            btn.hotkey = [EQUIP_KEY];
+                        }
+                        btn.flags |= ButtonFlag.B_WIDE_CLICK_AREA;
+                        btns.push(btn);
+                    }
+                    {
+                        const btn = initializeButton();
+                        btn.text = `   ${goldEsc}d${whiteEsc}rop    `;
+                        btn.hotkey = [DROP_KEY];
+                        btn.flags |= ButtonFlag.B_WIDE_CLICK_AREA;
+                        btns.push(btn);
+                    }
+                    {
+                        const btn = initializeButton();
+                        btn.text = `   ${goldEsc}t${whiteEsc}hrow   `;
+                        btn.hotkey = [THROW_KEY];
+                        btn.flags |= ButtonFlag.B_WIDE_CLICK_AREA;
+                        btns.push(btn);
+                    }
+                    if (theItem.category & (ItemCategory.WEAPON | ItemCategory.ARMOR | ItemCategory.SCROLL |
+                        ItemCategory.RING | ItemCategory.POTION | ItemCategory.STAFF |
+                        ItemCategory.WAND | ItemCategory.CHARM)) {
+                        const btn = initializeButton();
+                        btn.text = `   ${goldEsc}c${whiteEsc}all    `;
+                        btn.hotkey = [CALL_KEY];
+                        btn.flags |= ButtonFlag.B_WIDE_CLICK_AREA;
+                        btns.push(btn);
+                    }
+                    {
+                        const btn = initializeButton();
+                        btn.text = `  ${goldEsc}R${whiteEsc}elabel  `;
+                        btn.hotkey = [RELABEL_KEY];
+                        btn.flags |= ButtonFlag.B_WIDE_CLICK_AREA;
+                        btns.push(btn);
+                    }
+                }
+
+                // Invisible UP/DOWN navigation buttons
+                {
+                    const btn = initializeButton();
+                    btn.flags = ButtonFlag.B_ENABLED;
+                    btn.hotkey = [UP_KEY, NUMPAD_8, UP_ARROW];
+                    btns.push(btn);
+                }
+                {
+                    const btn = initializeButton();
+                    btn.flags = ButtonFlag.B_ENABLED;
+                    btn.hotkey = [DOWN_KEY, NUMPAD_2, DOWN_ARROW];
+                    btns.push(btn);
+                }
+
+                // Render via printTextBox (async, supports buttons)
+                const result = await printTextBoxFn(
+                    textBuf, x, y, width,
+                    Colors.white, { ...Colors.black, red: 5, green: 5, blue: 20 },
+                    this,
+                    btns,
+                    btns.length,
+                );
+
+                if (result >= 0 && result < btns.length) {
+                    return btns[result].hotkey[0];
+                }
+                return -1;
             },
 
             // Text & item naming
@@ -3369,8 +3457,13 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 return getPlayerPathOnMapFn(path, distanceMap, playerLoc, buildTargetingContext());
             },
             commitDraws,
-            pauseAnimation(_duration, _behavior) {
-                // Synchronous: check for interrupt via queue
+            async pauseAnimation(duration, _behavior) {
+                // Commit current frame so the player sees the step
+                commitDraws();
+                // Wait for the actual delay (convert frame count to ms, min 16ms)
+                const ms = Math.max(16, duration * 16);
+                await new Promise<void>(resolve => setTimeout(resolve, ms));
+                // Check for interrupt via queued events
                 return browserConsole.pauseForMilliseconds(0, { interruptForMouseMove: false });
             },
             recordMouseClick(x, y, controlKey, shiftKey) {
@@ -6447,14 +6540,14 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 manualSearchFn(miscCtx);
                 rogue.justSearched = miscCtx.rogue.justSearched;
             },
-            travel(loc, autoConfirm) {
+            async travel(loc, autoConfirm) {
                 const travelCtx = buildTravelExploreContext();
-                travelFn(loc, autoConfirm, travelCtx);
+                await travelFn(loc, autoConfirm, travelCtx);
                 rogue.disturbed = travelCtx.rogue.disturbed;
             },
-            travelRoute(path, steps) {
+            async travelRoute(path, steps) {
                 const travelCtx = buildTravelExploreContext();
-                travelRouteFn(path, steps, travelCtx);
+                await travelRouteFn(path, steps, travelCtx);
                 rogue.disturbed = travelCtx.rogue.disturbed;
             },
             async equip(theItem: Item | null) {
@@ -6622,15 +6715,15 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             hideCursor() {
                 hideCursorFn(buildTargetingContext());
             },
-            exploreKey(controlKey) {
+            async exploreKey(controlKey) {
                 const travelCtx = buildTravelExploreContext();
-                exploreFn(controlKey ? 1 : 5, travelCtx);
+                await exploreFn(controlKey ? 1 : 5, travelCtx);
                 rogue.disturbed = travelCtx.rogue.disturbed;
                 rogue.automationActive = travelCtx.rogue.automationActive;
             },
-            autoPlayLevel(controlKey) {
+            async autoPlayLevel(controlKey) {
                 const travelCtx = buildTravelExploreContext();
-                autoPlayLevelFn(controlKey, travelCtx);
+                await autoPlayLevelFn(controlKey, travelCtx);
                 rogue.autoPlayingLevel = travelCtx.rogue.autoPlayingLevel;
             },
             useStairs(delta) {

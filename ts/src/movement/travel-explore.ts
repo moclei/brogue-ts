@@ -118,7 +118,7 @@ export interface TravelExploreContext {
     hilitePath(path: Pos[], steps: number, removeHighlight: boolean): void;
     getPlayerPathOnMap(path: Pos[], distanceMap: number[][], playerLoc: Pos): number;
     commitDraws(): void;
-    pauseAnimation(duration: number, behavior: number): boolean;
+    pauseAnimation(duration: number, behavior: number): boolean | Promise<boolean>;
     recordMouseClick(x: number, y: number, shift: boolean, alt: boolean): void;
     mapToWindowX(x: number): number;
     mapToWindowY(y: number): number;
@@ -274,11 +274,11 @@ export function displayRoute(
  *
  * C: void travelRoute(pos path[1000], short steps)
  */
-export function travelRoute(
+export async function travelRoute(
     path: Pos[],
     steps: number,
     ctx: TravelExploreContext,
-): void {
+): Promise<void> {
     ctx.rogue.disturbed = false;
     ctx.rogue.automationActive = true;
 
@@ -311,7 +311,7 @@ export function travelRoute(
                 if (!ctx.playerMoves(dir as Direction)) {
                     ctx.rogue.disturbed = true;
                 }
-                if (ctx.pauseAnimation(25, 0 /* PAUSE_BEHAVIOR_DEFAULT */)) {
+                if (await ctx.pauseAnimation(25, 0 /* PAUSE_BEHAVIOR_DEFAULT */)) {
                     ctx.rogue.disturbed = true;
                 }
                 break;
@@ -333,10 +333,10 @@ export function travelRoute(
  *
  * C: static void travelMap(short **distanceMap)
  */
-export function travelMap(
+export async function travelMap(
     distanceMap: number[][],
     ctx: TravelExploreContext,
-): void {
+): Promise<void> {
     let currentX = ctx.player.loc.x;
     let currentY = ctx.player.loc.y;
 
@@ -362,7 +362,7 @@ export function travelMap(
                 if (!ctx.playerMoves(dir as Direction)) {
                     ctx.rogue.disturbed = true;
                 }
-                if (ctx.pauseAnimation(500, 0 /* PAUSE_BEHAVIOR_DEFAULT */)) {
+                if (await ctx.pauseAnimation(500, 0 /* PAUSE_BEHAVIOR_DEFAULT */)) {
                     ctx.rogue.disturbed = true;
                 }
                 currentX = newX;
@@ -388,11 +388,11 @@ export function travelMap(
  *
  * C: void travel(pos target, boolean autoConfirm)
  */
-export function travel(
+export async function travel(
     target: Pos,
     autoConfirm: boolean,
     ctx: TravelExploreContext,
-): void {
+): Promise<void> {
     ctx.confirmMessages();
 
     if (ctx.D_WORMHOLING) {
@@ -431,7 +431,7 @@ export function travel(
 
     if (distanceMap[ctx.player.loc.x][ctx.player.loc.y] < 30000) {
         if (autoConfirm) {
-            travelMap(distanceMap, ctx);
+            await travelMap(distanceMap, ctx);
         } else {
             let staircaseConfirmKey = 0;
             if (ctx.posEq(ctx.rogue.upLoc, target)) {
@@ -467,7 +467,7 @@ export function travel(
                         theEvent.param1 === ctx.RETURN_KEY ||
                         (theEvent.param1 === staircaseConfirmKey && theEvent.param1 !== 0)))
             ) {
-                travelMap(distanceMap, ctx);
+                await travelMap(distanceMap, ctx);
                 ctx.commitDraws();
             } else if (theEvent.eventType === 2 /* MOUSE_UP */) {
                 ctx.executeMouseClick(theEvent);
@@ -602,11 +602,11 @@ export function adjacentFightingDir(ctx: TravelExploreContext): Direction {
  *
  * C: boolean startFighting(enum directions dir, boolean tillDeath)
  */
-export function startFighting(
+export async function startFighting(
     dir: Direction,
     tillDeath: boolean,
     ctx: TravelExploreContext,
-): boolean {
+): Promise<boolean> {
     const neighborX = ctx.player.loc.x + ctx.nbDirs[dir][0];
     const neighborY = ctx.player.loc.y + ctx.nbDirs[dir][1];
     const neighborLoc: Pos = { x: neighborX, y: neighborY };
@@ -631,7 +631,7 @@ export function startFighting(
         if (!ctx.playerMoves(dir)) {
             break;
         }
-        if (ctx.pauseAnimation(1, 0 /* PAUSE_BEHAVIOR_DEFAULT */)) {
+        if (await ctx.pauseAnimation(1, 0 /* PAUSE_BEHAVIOR_DEFAULT */)) {
             break;
         }
     } while (
@@ -656,10 +656,10 @@ export function startFighting(
  *
  * C: boolean explore(short frameDelay)
  */
-export function explore(
+export async function explore(
     frameDelay: number,
     ctx: TravelExploreContext,
-): boolean {
+): Promise<boolean> {
     ctx.clearCursorPath();
 
     let madeProgress = false;
@@ -687,7 +687,7 @@ export function explore(
     let dir: Direction = adjacentFightingDir(ctx);
     if (
         dir !== NO_DIRECTION &&
-        startFighting(dir, ctx.player.status[StatusEffect.Hallucinating] ? true : false, ctx)
+        await startFighting(dir, ctx.player.status[StatusEffect.Hallucinating] ? true : false, ctx)
     ) {
         return true;
     }
@@ -709,7 +709,7 @@ export function explore(
         // Fight any adjacent enemies
         dir = adjacentFightingDir(ctx);
         if (dir !== NO_DIRECTION) {
-            startFighting(dir, ctx.player.status[StatusEffect.Hallucinating] ? true : false, ctx);
+            await startFighting(dir, ctx.player.status[StatusEffect.Hallucinating] ? true : false, ctx);
             if (ctx.rogue.disturbed) {
                 madeProgress = true;
                 continue;
@@ -742,7 +742,7 @@ export function explore(
             ctx.rogue.disturbed = true;
         } else {
             madeProgress = true;
-            if (ctx.pauseAnimation(frameDelay, 0 /* PAUSE_BEHAVIOR_DEFAULT */)) {
+            if (await ctx.pauseAnimation(frameDelay, 0 /* PAUSE_BEHAVIOR_DEFAULT */)) {
                 ctx.rogue.disturbed = true;
                 ctx.rogue.autoPlayingLevel = false;
             }
@@ -766,10 +766,10 @@ export function explore(
  *
  * C: void autoPlayLevel(boolean fastForward)
  */
-export function autoPlayLevel(
+export async function autoPlayLevel(
     fastForward: boolean,
     ctx: TravelExploreContext,
-): void {
+): Promise<void> {
     ctx.rogue.autoPlayingLevel = true;
 
     ctx.confirmMessages();
@@ -780,7 +780,7 @@ export function autoPlayLevel(
 
     let madeProgress: boolean;
     do {
-        madeProgress = explore(fastForward ? 1 : 50, ctx);
+        madeProgress = await explore(fastForward ? 1 : 50, ctx);
 
         if (
             !madeProgress &&

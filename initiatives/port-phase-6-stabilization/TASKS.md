@@ -174,10 +174,13 @@ The fully ported `monstersTurn` in `monster-actions.ts:285` handles all states i
 - Bug #2: Set `MB_PREPLACED` on all monsters during `initializeMonster` (matching C behavior). This prevents monsters from falling through auto-descent terrain during level generation. Flag is cleared after `startLevelFn` completes, so monsters fall normally during gameplay.
 - Bug #6: Captive rescue code in `playerMoves` is correctly ported. The rescue requires the player to have the matching key (`keyInPackFor`) to open the cage (`TM_PROMOTES_WITH_KEY`). Likely the user didn't have the key, or the machine builder didn't generate one — needs a specific seed to reproduce further. No code change needed.
 
-### Session D — Inventory actions + Explore animation
+### Session D — Inventory actions + Explore animation ✅
 **Bugs:** #9, #10  
-**Surface area:** `io-inventory.ts` (buildInventoryContext wiring), `travel-explore.ts` (async pauseAnimation)  
-**Rationale:** Inventory actions are a new finding from playtest round 1.5. Explore animation is a deeper architectural issue (sync→async).
+**Branch:** `fix/playtest-round1-session-d`  
+**Status:** Complete — all 2,263 tests pass, zero compilation errors.  
+**Notes:**
+- Bug #9: `printCarriedItemDetails` in `buildInventoryContext` was a stub returning `0` (no action). Replaced with full implementation matching C's `IO.c:printCarriedItemDetails` — creates action buttons (Apply, Equip/Remove, Drop, Throw, Call, Relabel) based on item category, plus invisible UP/DOWN navigation buttons. Uses `printTextBox` + `buttonInputLoop` for interactive selection. Changed return type to `number | Promise<number>` and added `await` in `displayInventory`.
+- Bug #10: `pauseAnimation` in `buildTravelExploreContext` was a synchronous no-op passing `duration=0`. Made it async with real `setTimeout` delays and `commitDraws()` before each pause. Required making `explore`, `travelRoute`, `travelMap`, `startFighting`, `travel`, `autoPlayLevel` all async. Updated `TravelExploreContext.pauseAnimation` return type to `boolean | Promise<boolean>`, `InputContext` method signatures to `void | Promise<void>`, and all callers to `await`. Updated 42 unit tests to handle async.
 
 ---
 
