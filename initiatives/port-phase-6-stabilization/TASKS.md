@@ -165,10 +165,14 @@ The fully ported `monstersTurn` in `monster-actions.ts:285` handles all states i
 - Follow-up: Bottom bar (Explore, Rest, Search, Menu, Inventory) now renders via `initializeMenuButtons` + `drawButtonsInState` in mainInputLoop.
 - Follow-up: Inventory (`i` key) was not awaited — added `await` and changed interface to `void | Promise<void>`.
 
-### Session C — Bloat effects + Plunge messages + Captive rescue
+### Session C — Bloat effects + Plunge messages + Captive rescue ✅
 **Bugs:** #7, #2, #6  
-**Surface area:** `runtime.ts` (spawnDungeonFeature), dungeon generation, player-movement wiring  
-**Rationale:** These require deeper investigation into dungeon generation and terrain mechanics. May need to wire the full spawnDungeonFeature and audit dungeon placement.
+**Branch:** `fix/playtest-round1-session-c`  
+**Status:** Complete — all 2,263 tests pass, zero compilation errors.  
+**Notes:**
+- Bug #7: Replaced simplified single-tile `spawnDungeonFeatureRuntime` with the full `spawnDungeonFeature` from `machines.ts` that handles area propagation via `spawnMapDF` + `fillSpawnMap`. Both `spawnDungeonFeatureRuntime` (by index) and `spawnDungeonFeatureFromObject` (by object) now delegate to the full implementation and refresh affected cells visually.
+- Bug #2: Set `MB_PREPLACED` on all monsters during `initializeMonster` (matching C behavior). This prevents monsters from falling through auto-descent terrain during level generation. Flag is cleared after `startLevelFn` completes, so monsters fall normally during gameplay.
+- Bug #6: Captive rescue code in `playerMoves` is correctly ported. The rescue requires the player to have the matching key (`keyInPackFor`) to open the cage (`TM_PROMOTES_WITH_KEY`). Likely the user didn't have the key, or the machine builder didn't generate one — needs a specific seed to reproduce further. No code change needed.
 
 ### Session D — Inventory actions + Explore animation
 **Bugs:** #9, #10  

@@ -330,6 +330,7 @@ import {
 import type { ArchitectContext } from "./architect/architect.js";
 import { analyzeMap as analyzeMapFn } from "./architect/analysis.js";
 import type { MachineContext, ItemOps } from "./architect/machines.js";
+import { spawnDungeonFeature as spawnDungeonFeatureFull } from "./architect/machines.js";
 import type { BuildBridgeContext } from "./architect/lakes.js";
 
 // -- Flag imports -------------------------------------------------------------
@@ -3972,26 +3973,41 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     }
 
     /**
-     * Simplified runtime spawnDungeonFeature. Handles single-tile placement
-     * and gas volume. Full propagation/blocking deferred.
+     * Refresh all cells in a rectangular area on screen.
+     * Used after spawnDungeonFeature to visually update affected tiles.
+     */
+    function refreshDungeonArea(cx: number, cy: number, radius: number): void {
+        const x0 = Math.max(0, cx - radius);
+        const y0 = Math.max(0, cy - radius);
+        const x1 = Math.min(DCOLS - 1, cx + radius);
+        const y1 = Math.min(DROWS - 1, cy + radius);
+        for (let i = x0; i <= x1; i++) {
+            for (let j = y0; j <= y1; j++) {
+                if (coordinatesAreInMap(i, j)) {
+                    const { glyph, foreColor, backColor } = getCellAppearance({ x: i, y: j });
+                    plotCharWithColor(glyph, { windowX: mapToWindowX(i), windowY: mapToWindowY(j) }, foreColor, backColor, displayBuffer);
+                }
+            }
+        }
+    }
+
+    /**
+     * Runtime spawnDungeonFeature by feature index.
+     * Uses the full area-propagation implementation from machines.ts,
+     * then refreshes affected cells visually.
      */
     function spawnDungeonFeatureRuntime(x: number, y: number, featureIndex: number, _probability: number, _isGas: boolean): void {
         if (featureIndex <= 0 || featureIndex >= dungeonFeatureCatalog.length) return;
         const feat = dungeonFeatureCatalog[featureIndex];
         if (!feat) return;
 
-        if (feat.tile) {
-            if (feat.layer === DungeonLayer.Gas) {
-                pmap[x][y].volume += feat.startProbability;
-            }
-            pmap[x][y].layers[feat.layer] = feat.tile;
-        }
+        spawnDungeonFeatureFull(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat, true, false);
 
-        // Refresh the cell
-        if (coordinatesAreInMap(x, y)) {
-            const { glyph, foreColor, backColor } = getCellAppearance({ x, y });
-            plotCharWithColor(glyph, { windowX: mapToWindowX(x), windowY: mapToWindowY(y) }, foreColor, backColor, displayBuffer);
-        }
+        // Refresh the area visually — use a radius based on the feature's propagation
+        const radius = feat.startProbability > 0 && feat.probabilityDecrement > 0
+            ? Math.ceil(feat.startProbability / feat.probabilityDecrement) + 1
+            : 1;
+        refreshDungeonArea(x, y, Math.min(radius, 10));
     }
 
     /**
@@ -4001,23 +4017,13 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     function spawnDungeonFeatureFromObject(x: number, y: number, feat: DungeonFeature, _isVolatile: boolean, _overrideProtection: boolean): void {
         if (!feat) return;
 
-        if (feat.tile) {
-            if (feat.layer === DungeonLayer.Gas) {
-                pmap[x][y].volume += feat.startProbability;
-            }
-            pmap[x][y].layers[feat.layer] = feat.tile;
-        }
+        spawnDungeonFeatureFull(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat, true, false);
 
-        // Handle subsequent DFs
-        if (feat.subsequentDF && feat.subsequentDF < dungeonFeatureCatalog.length) {
-            spawnDungeonFeatureFromObject(x, y, dungeonFeatureCatalog[feat.subsequentDF], _isVolatile, _overrideProtection);
-        }
-
-        // Refresh the cell
-        if (coordinatesAreInMap(x, y)) {
-            const { glyph, foreColor, backColor } = getCellAppearance({ x, y });
-            plotCharWithColor(glyph, { windowX: mapToWindowX(x), windowY: mapToWindowY(y) }, foreColor, backColor, displayBuffer);
-        }
+        // Refresh the area visually
+        const radius = feat.startProbability > 0 && feat.probabilityDecrement > 0
+            ? Math.ceil(feat.startProbability / feat.probabilityDecrement) + 1
+            : 1;
+        refreshDungeonArea(x, y, Math.min(radius, 10));
     }
 
     // =========================================================================
@@ -7104,6 +7110,19 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         startLevel(depth: number, stairDirection: number): void {
             const levelCtx = buildLevelContext();
             startLevelFn(levelCtx, depth, stairDirection);
+
+            // Clear MB_PREPLACED on all monsters now that the level is fully
+            // generated. In C this is done by monstersApproachStairs() which
+            // runs at the start of the game cycle. Without this, monsters on
+            // auto-descent terrain would never fall during gameplay.
+            // Conversely, MB_PREPLACED prevents the first monstersFall() call
+            // (during startLevel's playerTurnEnded) from making monsters that
+            // were validly placed on chasms/pits during generation "plunge
+            // out of sight" before the player even acts.
+            for (const monst of monsters) {
+                monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_PREPLACED;
+            }
+
             // Render the newly generated level
             displayLevelFn();
             commitDraws();
