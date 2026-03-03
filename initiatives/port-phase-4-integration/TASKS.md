@@ -172,15 +172,35 @@
 - [x] **Root cause:** `mainInputLoop` (line ~6781) only handles `Keystroke` and `MouseUp`/`RightMouseUp` events. It doesn't track `MouseEnteredCell` for hover-based sidebar updates or path preview. In the original C game, `moveCursor` is called continuously during the main loop to process mouse movement.
 - [x] **Fix:** Added `MouseEnteredCell` handler in `mainInputLoop` that converts window coords to map coords, updates `rogue.cursorLoc`, calls `refreshSideBarRuntime()` for sidebar highlighting, and `printLocationDescriptionFn()` for flavor text. Also handles sidebar entity hover (clicking on sidebar row focuses that entity's location).
 
-#### Bug 6 — Blood doesn't appear when monsters die (cell goes dark instead of red)
-- [ ] **Root cause:** Blood probability calculation in `combat-damage.ts` (line ~244) divides by 100 inside `Math.floor()`, making `startProb` always 0 for typical damage values. The C code passes the raw percentage and `spawnDungeonFeature` handles the scaling internally.
-- [ ] **Fix:** Remove the `/100` from the probability calculation so blood spawns at the correct rate.
+#### Bug 6 — Blood doesn't appear when monsters die (cell goes dark instead of red) ✅
+- [x] **Root cause:** Blood probability calculation in `combat-damage.ts` (line ~244) divides by 100 inside `Math.floor()`, making `startProb` always 0 for typical damage values. The C code passes the raw percentage and `spawnDungeonFeature` handles the scaling internally.
+- [x] **Fix:** Removed the `/100` from the probability calculation so blood spawns at the correct rate. The raw factor `15 + bleedAmount * 3 / 2` is now passed directly, matching C behavior.
 
-#### Bug 7 — Water effects missing for player (items don't float away, no visual change)
-- [ ] **Root cause:** `applyGradualTileEffectsToCreature` (line ~1195 in creature-effects.ts) has an empty code block where the "pick random non-equipped item and drop it in water" logic should be.
-- [ ] **Fix:** Implement the item-loss-in-water logic: select a random non-equipped pack item, split from stack if needed, place on the floor tile, message the player.
+#### Bug 7 — Water effects missing for player (items don't float away, no visual change) ✅
+- [x] **Root cause:** `applyGradualTileEffectsToCreature` (line ~1195 in creature-effects.ts) has an empty code block where the "pick random non-equipped item and drop it in water" logic should be.
+- [x] **Fix:** Implemented the item-loss-in-water logic: pick random non-equipped pack item via `rand_range(1, itemCandidates)`, iterate pack to find nth non-equipped item, call `dropItem()` to remove from pack and place on floor, message player with "{item} floats away in the current!" (matching C `Time.c:472-489`).
 
-- [ ] Verify: compile clean (0 errors), all tests passing
+#### Bug 8 — Blood/surface tiles render with black background instead of blending ✅
+- [x] **Root cause:** `getCellAppearance` in `runtime.ts` picks a single terrain layer for ALL display attributes (glyph, foreColor, backColor). The C version (IO.c:1139-1184) tracks **separate priorities** per attribute — `bestFCPriority`, `bestBCPriority`, `bestCharPriority` — so a surface tile like blood (drawPriority 80, foreColor=red, backColor=null) gets its glyph/foreColor from blood but its backColor from the floor layer below (drawPriority 95, backColor=brown). Our single-layer pick caused blood tiles to render with a black background, making them nearly invisible.
+- [x] **Fix:** Rewrote `getCellAppearance` terrain loop to track three separate priorities matching the C algorithm. Each attribute (foreColor, backColor, displayChar) is only updated when the layer HAS that attribute (non-null) and beats the current best priority. This also fixed surface-layer rendering for other features (ashes, cobwebs, fungus, etc.).
+
+#### Bug 9 — Monsters always visible regardless of invisibility/submersion state ✅
+- [x] **Root cause:** `getCellAppearance` monster rendering (old lines 1211-1222) showed ALL monsters as long as they weren't dying (`MB_IS_DYING`). It didn't check `MB_SUBMERGED`, `StatusEffect.Invisible`, or `MB_IS_DORMANT`. The C version (IO.c:1236-1262) calls `monsterIsHidden()` and applies transparency for invisible/submerged creatures.
+- [x] **Fix:** Added full visibility checks to `getCellAppearance`: dormant monsters are hidden, invisible monsters (without gas) are hidden, submerged monsters are hidden (unless observer is also in deep water). For visible but invisible/submerged creatures (e.g. allies), applies 75% transparency via `applyColorAverage`. Allies are tinted pink (matching C behavior).
+
+#### Bug 10 — Eels never submerge (MONST_SUBMERGES flag never activates at runtime) ✅
+- [x] **Root cause:** The simplified `decrementMonsterStatus` in `buildTurnProcessingContext` (lines ~5775-5784) only decremented status counters. The real `decrementMonsterStatus` (monster-state.ts:896-913) also checks `monsterCanSubmergeNow()` and has a 20% per-turn chance to set `MB_SUBMERGED`, which is critical for eels and other aquatic submerging creatures.
+- [x] **Fix:** Added the submersion logic from the real function: checks `monsterCanSubmergeNowFn()`, rolls 20% chance to submerge, re-evaluates fleeing state on submersion, and forces restricted-to-liquid monsters to flee if they can't submerge. Also refreshes the dungeon cell after submersion so the visual change is immediate.
+
+#### Bug 11 — dropItem is a stub (items can't be dropped at runtime) ✅
+- [x] **Root cause:** `buildCreatureEffectsContext()` had `dropItem(_theItem) { return null; /* stub — full drop logic deferred */ }`. This blocked Bug 7's water item loss code from actually working — the `dropItem()` call always returned null.
+- [x] **Fix:** Implemented `dropItem` matching C `Items.c:7652`: checks `T_OBSTRUCTS_ITEMS`, handles stack splitting for quantity > 1 items (clone + decrement original), and single-item drops (remove from packItems, place at player loc, set HAS_ITEM flag on pmap cell).
+
+#### Bug 12 — Submerged monsters don't surface when attacking ✅
+- [x] **Root cause:** The simplified `monstersTurn` in `buildTurnProcessingContext` calls `attackFn(monst, player, false, buildAttackContext())` directly when adjacent. The C version goes through `moveMonster()` (Monsters.c:3863-3866) which clears `MB_SUBMERGED` and refreshes the cell **before** calling `attack()`. Without this, eels attack while invisible — the player takes damage from nothing.
+- [x] **Fix:** Added `MB_SUBMERGED` clearance and `refreshDungeonCellRuntime()` call before `attackFn` in the adjacent-attack branch of simplified `monstersTurn`.
+
+- [x] Verified: compile clean (0 errors), all 2263 tests passing
 
 ## Step 4: Verification
 
@@ -215,7 +235,7 @@
 - [ ] Items work (pick up, use, equip) — pick up works; equip/unequip/drop wired via `promptForItemOfType` (Bug 4 fixed); apply/throw/relabel/call prompt but need full handlers
 - [ ] Level transitions work — Bug 1 fixed; needs retest
 - [ ] Monsters respect terrain — `monsterAvoids` wired (Bug 2 fixed), needs retest
-- [ ] Blood/death effects render correctly — blocked on probability bug (Bug 6)
+- [ ] Blood/death effects render correctly — probability bug fixed (Bug 6), rendering fixed (Bug 8); needs retest
 - [ ] Mouse hover shows path preview and entity info — hover event handling wired (Bug 5 fixed); needs retest for sidebar/flavor text
 - [ ] Save/load works — deferred (needs IndexedDB backend)
 - [ ] Game over → high scores → back to menu

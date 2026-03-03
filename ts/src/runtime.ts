@@ -1156,11 +1156,16 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         analyzeMapFn(pmap, chokeMap, calculateChokeMap);
     }
 
-    // -- getCellAppearance (minimal) -------------------------------------------
+    // -- getCellAppearance ------------------------------------------------------
+    // Mirrors C getCellAppearance (IO.c:1094). Tracks separate priorities for
+    // foreColor, backColor, and displayChar so that surface tiles (e.g. blood)
+    // with a null backColor inherit the floor's background instead of going black.
+    // Also checks monster visibility (dormant, invisible, submerged).
     function getCellAppearance(pos: Pos): { glyph: DisplayGlyph; foreColor: Color; backColor: Color } {
         const cell = pmap[pos.x][pos.y];
         const isVisible = !!(cell.flags & TileFlag.VISIBLE);
         const isDiscovered = !!(cell.flags & TileFlag.DISCOVERED);
+
         // If cell is neither visible nor discovered, render as unexplored
         if (!isVisible && !isDiscovered) {
             return {
@@ -1170,32 +1175,51 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             };
         }
 
-        // --- Get terrain base appearance ---
-        const layer = highestPriorityLayer(pmap, pos.x, pos.y, false);
-        const tile = tileCatalog[cell.layers[layer]];
+        // --- Per-attribute priority terrain rendering (C: IO.c:1139-1184) ---
+        // Default to floor appearance
+        const floorTile = tileCatalog[TileType.FLOOR];
+        const defaultBlack: Color = { red: 0, green: 0, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false };
+        let cellForeColor: Color = floorTile.foreColor ? { ...floorTile.foreColor } : { ...defaultBlack };
+        let cellBackColor: Color = floorTile.backColor ? { ...floorTile.backColor } : { ...defaultBlack };
+        let cellChar: DisplayGlyph = floorTile.displayChar as DisplayGlyph;
+        let bestFCPriority = 10000;
+        let bestBCPriority = 10000;
+        let bestCharPriority = 10000;
 
-        const foreColor: Color = tile.foreColor
-            ? { ...tile.foreColor }
-            : { red: 0, green: 0, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false };
-        const backColor: Color = tile.backColor
-            ? { ...tile.backColor }
-            : { red: 0, green: 0, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false };
+        for (let layer = 0; layer < NUMBER_TERRAIN_LAYERS; layer++) {
+            if (layer === DungeonLayer.Gas) continue; // Gas is handled separately
+            const tileType = cell.layers[layer];
+            if (!tileType) continue; // NOTHING
+            const tile = tileCatalog[tileType];
+            if (!tile) continue;
+
+            if (tile.drawPriority < bestFCPriority && tile.foreColor) {
+                cellForeColor = { ...tile.foreColor };
+                bestFCPriority = tile.drawPriority;
+            }
+            if (tile.drawPriority < bestBCPriority && tile.backColor) {
+                cellBackColor = { ...tile.backColor };
+                bestBCPriority = tile.drawPriority;
+            }
+            if (tile.drawPriority < bestCharPriority && tile.displayChar) {
+                cellChar = tile.displayChar as DisplayGlyph;
+                bestCharPriority = tile.drawPriority;
+            }
+        }
 
         // Bake terrain random values into colors
-        bakeTerrainColors(foreColor, backColor, terrainRandomValues[pos.x][pos.y], rogue.trueColorMode);
+        bakeTerrainColors(cellForeColor, cellBackColor, terrainRandomValues[pos.x][pos.y], rogue.trueColorMode);
 
         // Apply tmap lighting
         const lightR = tmap[pos.x][pos.y].light[0];
         const lightG = tmap[pos.x][pos.y].light[1];
         const lightB = tmap[pos.x][pos.y].light[2];
-        foreColor.red = clamp(Math.floor(foreColor.red * (100 + lightR) / 100), 0, 100);
-        foreColor.green = clamp(Math.floor(foreColor.green * (100 + lightG) / 100), 0, 100);
-        foreColor.blue = clamp(Math.floor(foreColor.blue * (100 + lightB) / 100), 0, 100);
-        backColor.red = clamp(Math.floor(backColor.red * (100 + lightR) / 100), 0, 100);
-        backColor.green = clamp(Math.floor(backColor.green * (100 + lightG) / 100), 0, 100);
-        backColor.blue = clamp(Math.floor(backColor.blue * (100 + lightB) / 100), 0, 100);
-
-        let glyph: DisplayGlyph = tile.displayChar as DisplayGlyph;
+        cellForeColor.red = clamp(Math.floor(cellForeColor.red * (100 + lightR) / 100), 0, 100);
+        cellForeColor.green = clamp(Math.floor(cellForeColor.green * (100 + lightG) / 100), 0, 100);
+        cellForeColor.blue = clamp(Math.floor(cellForeColor.blue * (100 + lightB) / 100), 0, 100);
+        cellBackColor.red = clamp(Math.floor(cellBackColor.red * (100 + lightR) / 100), 0, 100);
+        cellBackColor.green = clamp(Math.floor(cellBackColor.green * (100 + lightG) / 100), 0, 100);
+        cellBackColor.blue = clamp(Math.floor(cellBackColor.blue * (100 + lightB) / 100), 0, 100);
 
         if (isVisible) {
             // --- Check for player at this cell ---
@@ -1203,45 +1227,72 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 return {
                     glyph: player.info.displayChar,
                     foreColor: { ...Colors.white },
-                    backColor,
+                    backColor: cellBackColor,
                 };
             }
 
-            // --- Check for visible monsters ---
-            for (const m of monsters) {
-                if (m.loc.x === pos.x && m.loc.y === pos.y) {
-                    // Show the monster if it's visible (simplified — full version checks invisibility, etc.)
-                    if (!(m.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DYING)) {
+            // --- Check for visible monsters (C: IO.c:1236-1262) ---
+            if (cell.flags & TileFlag.HAS_MONSTER) {
+                const monst = monsterAtLocFn(pos);
+                if (monst && !(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DYING)) {
+                    // Check if monster is hidden (dormant, invisible, submerged)
+                    const isDormant = !!(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DORMANT);
+                    const isInvisible = !!monst.status[StatusEffect.Invisible];
+                    const isSubmerged = !!(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_SUBMERGED);
+
+                    // monsterIsHidden: dormant always hidden; invisible (and no gas) hidden;
+                    // submerged hidden unless observer is also in deep water
+                    const observerInWater = cellHasTerrainFlagAt(player.loc, TerrainFlag.T_IS_DEEP_WATER)
+                        && !player.status[StatusEffect.Levitating];
+                    const hiddenBySubmersion = isSubmerged && !observerInWater;
+                    const isHidden = isDormant || (isInvisible && !(cell.layers[DungeonLayer.Gas])) || hiddenBySubmersion;
+
+                    if (!isHidden) {
+                        let monstForeColor: Color = monst.info.foreColor
+                            ? { ...monst.info.foreColor }
+                            : { ...Colors.white };
+
+                        // Invisible or submerged but shown (allies) — semi-transparent
+                        if (isInvisible || isSubmerged) {
+                            applyColorAverage(monstForeColor, cellBackColor, 75);
+                        } else if (monst.creatureState === CreatureState.Ally
+                            && !(monst.info.flags & MonsterBehaviorFlag.MONST_INANIMATE)) {
+                            // Allies tinted pink
+                            applyColorAverage(monstForeColor, Colors.pink, 50);
+                        }
+
                         return {
-                            glyph: m.info.displayChar,
-                            foreColor: m.info.foreColor ? { ...m.info.foreColor } : { ...Colors.white },
-                            backColor,
+                            glyph: monst.info.displayChar,
+                            foreColor: monstForeColor,
+                            backColor: cellBackColor,
                         };
                     }
                 }
             }
 
             // --- Check for items on the floor ---
-            for (const item of floorItems) {
-                if (item.loc.x === pos.x && item.loc.y === pos.y) {
-                    return {
-                        glyph: item.displayChar,
-                        foreColor: item.foreColor ? { ...item.foreColor } : { ...Colors.itemMessageColor },
-                        backColor,
-                    };
+            if (cell.flags & TileFlag.HAS_ITEM) {
+                for (const item of floorItems) {
+                    if (item.loc.x === pos.x && item.loc.y === pos.y) {
+                        return {
+                            glyph: item.displayChar,
+                            foreColor: item.foreColor ? { ...item.foreColor } : { ...Colors.itemMessageColor },
+                            backColor: cellBackColor,
+                        };
+                    }
                 }
             }
         } else if (isDiscovered) {
             // Remembered cells: dim the colors for "fog of war" effect
-            foreColor.red = Math.floor(foreColor.red * 40 / 100);
-            foreColor.green = Math.floor(foreColor.green * 40 / 100);
-            foreColor.blue = Math.floor(foreColor.blue * 40 / 100);
-            backColor.red = Math.floor(backColor.red * 40 / 100);
-            backColor.green = Math.floor(backColor.green * 40 / 100);
-            backColor.blue = Math.floor(backColor.blue * 40 / 100);
+            cellForeColor.red = Math.floor(cellForeColor.red * 40 / 100);
+            cellForeColor.green = Math.floor(cellForeColor.green * 40 / 100);
+            cellForeColor.blue = Math.floor(cellForeColor.blue * 40 / 100);
+            cellBackColor.red = Math.floor(cellBackColor.red * 40 / 100);
+            cellBackColor.green = Math.floor(cellBackColor.green * 40 / 100);
+            cellBackColor.blue = Math.floor(cellBackColor.blue * 40 / 100);
         }
 
-        return { glyph, foreColor, backColor };
+        return { glyph: cellChar, foreColor: cellForeColor, backColor: cellBackColor };
     }
 
     // -- displayLevel (minimal) ------------------------------------------------
@@ -4612,7 +4663,35 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 if (idx >= 0) chain.splice(idx, 1);
             },
             deleteItem(_theItem) { /* GC handles cleanup */ },
-            dropItem(_theItem) { return null; /* stub — full drop logic deferred */ },
+            dropItem(theItem) {
+                // C: dropItem() in Items.c:7652
+                // Check if terrain obstructs items at player's location
+                if (cellHasTerrainFlagAt(player.loc, TerrainFlag.T_OBSTRUCTS_ITEMS)) {
+                    return null;
+                }
+
+                if (theItem.quantity > 1 && !(theItem.category & (ItemCategory.WEAPON | ItemCategory.GEM))) {
+                    // Peel off one copy from the stack
+                    const clone = initializeItemFn();
+                    Object.assign(clone, theItem);
+                    theItem.quantity--;
+                    clone.quantity = 1;
+                    // Place the clone on the floor
+                    clone.loc = { ...player.loc };
+                    removeItemFromArray(clone, floorItems); // safety
+                    floorItems.push(clone);
+                    pmap[player.loc.x][player.loc.y].flags |= TileFlag.HAS_ITEM;
+                    return clone;
+                } else {
+                    // Drop the entire item — remove from pack, place on floor
+                    removeItemFromArray(theItem, packItems);
+                    theItem.loc = { ...player.loc };
+                    removeItemFromArray(theItem, floorItems); // safety
+                    floorItems.push(theItem);
+                    pmap[player.loc.x][player.loc.y].flags |= TileFlag.HAS_ITEM;
+                    return theItem;
+                }
+            },
             eat(theItem, recordCommands) {
                 eatFn(theItem, recordCommands, {
                     player,
@@ -5721,6 +5800,11 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                         monst.turnsSpentStationary = 0;
                     } else if (dist <= 1) {
                         // Adjacent to player — attack!
+                        // Surface submerged monsters before attacking (C: moveMonster, Monsters.c:3863)
+                        if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_SUBMERGED) {
+                            monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_SUBMERGED;
+                            refreshDungeonCellRuntime(monst.loc);
+                        }
                         attackFn(monst, player, false, buildAttackContext());
                     } else {
                         // No scent — fall back to direct approach
@@ -5773,13 +5857,41 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 monst.ticksUntilTurn = monst.movementSpeed || 100;
             },
             decrementMonsterStatus(monst) {
-                // Minimal: decrement all positive status counters to prevent stale status.
-                // Full version needs MonsterStateContext for side effects.
+                // Decrement all positive status counters
                 for (let i = 0; i < monst.status.length; i++) {
                     if (monst.status[i] > 0) {
                         monst.status[i]--;
                     }
                 }
+
+                // Submersion check (C: decrementMonsterStatus in Monsters.c)
+                // Monsters with MONST_SUBMERGES that are in submersion-compatible
+                // terrain have a 20% chance per turn to submerge.
+                if (
+                    monsterCanSubmergeNowFn(monst, cellHasTMFlagAt, cellHasTerrainFlagAt) &&
+                    !(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_SUBMERGED)
+                ) {
+                    if (randPercent(20)) {
+                        monst.bookkeepingFlags |= MonsterBookkeepingFlag.MB_SUBMERGED;
+                        // Re-evaluate fleeing state if we just submerged
+                        if (
+                            !monst.status[StatusEffect.MagicalFear] &&
+                            monst.creatureState === CreatureState.Fleeing &&
+                            (!(monst.info.flags & MonsterBehaviorFlag.MONST_FLEES_NEAR_DEATH) ||
+                                monst.currentHP >= Math.floor(monst.info.maxHP * 3 / 4))
+                        ) {
+                            monst.creatureState = CreatureState.TrackingScent;
+                        }
+                        refreshDungeonCellRuntime(monst.loc);
+                    } else if (
+                        (monst.info.flags & MonsterBehaviorFlag.MONST_RESTRICTED_TO_LIQUID) &&
+                        monst.creatureState !== CreatureState.Ally
+                    ) {
+                        // Restricted-to-liquid monsters flee if they can't submerge
+                        monst.creatureState = CreatureState.Fleeing;
+                    }
+                }
+
                 return false; // monster survived
             },
             removeCreature(list, monst) {

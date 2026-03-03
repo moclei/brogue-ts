@@ -1194,9 +1194,31 @@ export function applyGradualTileEffectsToCreature(
             ) {
                 const itemCandidates = ctx.numberOfMatchingPackItems(ctx.ALL_ITEMS, 0, ItemFlag.ITEM_EQUIPPED, false);
                 if (itemCandidates) {
-                    // Player loses an item in the water
-                    // Simplified: in the full implementation this walks packItems and picks a random non-equipped item
-                    // For now, delegate to dropItem helper
+                    // Pick a random non-equipped item from the pack
+                    // C: rand_range(1, itemCandidates) then walk packItems skipping equipped
+                    let randItemIndex = ctx.rand_range(1, itemCandidates);
+                    let theItem: Item | null = null;
+                    for (const item of ctx.packItems) {
+                        if (!(item.flags & ItemFlag.ITEM_EQUIPPED)) {
+                            if (randItemIndex === 1) {
+                                theItem = item;
+                                break;
+                            }
+                            randItemIndex--;
+                        }
+                    }
+                    if (theItem) {
+                        const droppedItem = ctx.dropItem(theItem);
+                        if (droppedItem) {
+                            const buf2: string[] = [""];
+                            ctx.itemName(droppedItem, buf2, false, true, null);
+                            ctx.messageWithColor(
+                                `${buf2[0]} float${droppedItem.quantity === 1 ? "s" : ""} away in the current!`,
+                                ctx.itemMessageColor,
+                                0,
+                            );
+                        }
+                    }
                 }
             }
         } else if (
