@@ -239,10 +239,13 @@ export function inflictDamage(
     defender.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_ABSORBING;
 
     // Bleed (spawn blood dungeon feature), proportional to damage
+    // C: theBlood.startProbability = (theBlood.startProbability * (15 + min(damage, defender->currentHP) * 3 / 2) / 100);
+    // The /100 scaling is applied inside spawnDungeonFeature against the catalog's startProbability.
+    // We pass the raw factor here; the runtime handler uses it for propagation probability.
     if (damage > 0 && defender.info.bloodType) {
         const bleedAmount = Math.min(damage, defender.currentHP);
         const startProb = Math.floor(
-            (15 + (bleedAmount * 3) / 2) / 100 // scaled probability
+            15 + (bleedAmount * 3) / 2
         );
         ctx.spawnDungeonFeature(
             defender.loc.x,

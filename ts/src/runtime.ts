@@ -1156,11 +1156,16 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         analyzeMapFn(pmap, chokeMap, calculateChokeMap);
     }
 
-    // -- getCellAppearance (minimal) -------------------------------------------
+    // -- getCellAppearance ------------------------------------------------------
+    // Mirrors C getCellAppearance (IO.c:1094). Tracks separate priorities for
+    // foreColor, backColor, and displayChar so that surface tiles (e.g. blood)
+    // with a null backColor inherit the floor's background instead of going black.
+    // Also checks monster visibility (dormant, invisible, submerged).
     function getCellAppearance(pos: Pos): { glyph: DisplayGlyph; foreColor: Color; backColor: Color } {
         const cell = pmap[pos.x][pos.y];
         const isVisible = !!(cell.flags & TileFlag.VISIBLE);
         const isDiscovered = !!(cell.flags & TileFlag.DISCOVERED);
+
         // If cell is neither visible nor discovered, render as unexplored
         if (!isVisible && !isDiscovered) {
             return {
@@ -1170,32 +1175,51 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             };
         }
 
-        // --- Get terrain base appearance ---
-        const layer = highestPriorityLayer(pmap, pos.x, pos.y, false);
-        const tile = tileCatalog[cell.layers[layer]];
+        // --- Per-attribute priority terrain rendering (C: IO.c:1139-1184) ---
+        // Default to floor appearance
+        const floorTile = tileCatalog[TileType.FLOOR];
+        const defaultBlack: Color = { red: 0, green: 0, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false };
+        let cellForeColor: Color = floorTile.foreColor ? { ...floorTile.foreColor } : { ...defaultBlack };
+        let cellBackColor: Color = floorTile.backColor ? { ...floorTile.backColor } : { ...defaultBlack };
+        let cellChar: DisplayGlyph = floorTile.displayChar as DisplayGlyph;
+        let bestFCPriority = 10000;
+        let bestBCPriority = 10000;
+        let bestCharPriority = 10000;
 
-        const foreColor: Color = tile.foreColor
-            ? { ...tile.foreColor }
-            : { red: 0, green: 0, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false };
-        const backColor: Color = tile.backColor
-            ? { ...tile.backColor }
-            : { red: 0, green: 0, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false };
+        for (let layer = 0; layer < NUMBER_TERRAIN_LAYERS; layer++) {
+            if (layer === DungeonLayer.Gas) continue; // Gas is handled separately
+            const tileType = cell.layers[layer];
+            if (!tileType) continue; // NOTHING
+            const tile = tileCatalog[tileType];
+            if (!tile) continue;
+
+            if (tile.drawPriority < bestFCPriority && tile.foreColor) {
+                cellForeColor = { ...tile.foreColor };
+                bestFCPriority = tile.drawPriority;
+            }
+            if (tile.drawPriority < bestBCPriority && tile.backColor) {
+                cellBackColor = { ...tile.backColor };
+                bestBCPriority = tile.drawPriority;
+            }
+            if (tile.drawPriority < bestCharPriority && tile.displayChar) {
+                cellChar = tile.displayChar as DisplayGlyph;
+                bestCharPriority = tile.drawPriority;
+            }
+        }
 
         // Bake terrain random values into colors
-        bakeTerrainColors(foreColor, backColor, terrainRandomValues[pos.x][pos.y], rogue.trueColorMode);
+        bakeTerrainColors(cellForeColor, cellBackColor, terrainRandomValues[pos.x][pos.y], rogue.trueColorMode);
 
         // Apply tmap lighting
         const lightR = tmap[pos.x][pos.y].light[0];
         const lightG = tmap[pos.x][pos.y].light[1];
         const lightB = tmap[pos.x][pos.y].light[2];
-        foreColor.red = clamp(Math.floor(foreColor.red * (100 + lightR) / 100), 0, 100);
-        foreColor.green = clamp(Math.floor(foreColor.green * (100 + lightG) / 100), 0, 100);
-        foreColor.blue = clamp(Math.floor(foreColor.blue * (100 + lightB) / 100), 0, 100);
-        backColor.red = clamp(Math.floor(backColor.red * (100 + lightR) / 100), 0, 100);
-        backColor.green = clamp(Math.floor(backColor.green * (100 + lightG) / 100), 0, 100);
-        backColor.blue = clamp(Math.floor(backColor.blue * (100 + lightB) / 100), 0, 100);
-
-        let glyph: DisplayGlyph = tile.displayChar as DisplayGlyph;
+        cellForeColor.red = clamp(Math.floor(cellForeColor.red * (100 + lightR) / 100), 0, 100);
+        cellForeColor.green = clamp(Math.floor(cellForeColor.green * (100 + lightG) / 100), 0, 100);
+        cellForeColor.blue = clamp(Math.floor(cellForeColor.blue * (100 + lightB) / 100), 0, 100);
+        cellBackColor.red = clamp(Math.floor(cellBackColor.red * (100 + lightR) / 100), 0, 100);
+        cellBackColor.green = clamp(Math.floor(cellBackColor.green * (100 + lightG) / 100), 0, 100);
+        cellBackColor.blue = clamp(Math.floor(cellBackColor.blue * (100 + lightB) / 100), 0, 100);
 
         if (isVisible) {
             // --- Check for player at this cell ---
@@ -1203,45 +1227,72 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 return {
                     glyph: player.info.displayChar,
                     foreColor: { ...Colors.white },
-                    backColor,
+                    backColor: cellBackColor,
                 };
             }
 
-            // --- Check for visible monsters ---
-            for (const m of monsters) {
-                if (m.loc.x === pos.x && m.loc.y === pos.y) {
-                    // Show the monster if it's visible (simplified — full version checks invisibility, etc.)
-                    if (!(m.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DYING)) {
+            // --- Check for visible monsters (C: IO.c:1236-1262) ---
+            if (cell.flags & TileFlag.HAS_MONSTER) {
+                const monst = monsterAtLocFn(pos);
+                if (monst && !(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DYING)) {
+                    // Check if monster is hidden (dormant, invisible, submerged)
+                    const isDormant = !!(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DORMANT);
+                    const isInvisible = !!monst.status[StatusEffect.Invisible];
+                    const isSubmerged = !!(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_SUBMERGED);
+
+                    // monsterIsHidden: dormant always hidden; invisible (and no gas) hidden;
+                    // submerged hidden unless observer is also in deep water
+                    const observerInWater = cellHasTerrainFlagAt(player.loc, TerrainFlag.T_IS_DEEP_WATER)
+                        && !player.status[StatusEffect.Levitating];
+                    const hiddenBySubmersion = isSubmerged && !observerInWater;
+                    const isHidden = isDormant || (isInvisible && !(cell.layers[DungeonLayer.Gas])) || hiddenBySubmersion;
+
+                    if (!isHidden) {
+                        let monstForeColor: Color = monst.info.foreColor
+                            ? { ...monst.info.foreColor }
+                            : { ...Colors.white };
+
+                        // Invisible or submerged but shown (allies) — semi-transparent
+                        if (isInvisible || isSubmerged) {
+                            applyColorAverage(monstForeColor, cellBackColor, 75);
+                        } else if (monst.creatureState === CreatureState.Ally
+                            && !(monst.info.flags & MonsterBehaviorFlag.MONST_INANIMATE)) {
+                            // Allies tinted pink
+                            applyColorAverage(monstForeColor, Colors.pink, 50);
+                        }
+
                         return {
-                            glyph: m.info.displayChar,
-                            foreColor: m.info.foreColor ? { ...m.info.foreColor } : { ...Colors.white },
-                            backColor,
+                            glyph: monst.info.displayChar,
+                            foreColor: monstForeColor,
+                            backColor: cellBackColor,
                         };
                     }
                 }
             }
 
             // --- Check for items on the floor ---
-            for (const item of floorItems) {
-                if (item.loc.x === pos.x && item.loc.y === pos.y) {
-                    return {
-                        glyph: item.displayChar,
-                        foreColor: item.foreColor ? { ...item.foreColor } : { ...Colors.itemMessageColor },
-                        backColor,
-                    };
+            if (cell.flags & TileFlag.HAS_ITEM) {
+                for (const item of floorItems) {
+                    if (item.loc.x === pos.x && item.loc.y === pos.y) {
+                        return {
+                            glyph: item.displayChar,
+                            foreColor: item.foreColor ? { ...item.foreColor } : { ...Colors.itemMessageColor },
+                            backColor: cellBackColor,
+                        };
+                    }
                 }
             }
         } else if (isDiscovered) {
             // Remembered cells: dim the colors for "fog of war" effect
-            foreColor.red = Math.floor(foreColor.red * 40 / 100);
-            foreColor.green = Math.floor(foreColor.green * 40 / 100);
-            foreColor.blue = Math.floor(foreColor.blue * 40 / 100);
-            backColor.red = Math.floor(backColor.red * 40 / 100);
-            backColor.green = Math.floor(backColor.green * 40 / 100);
-            backColor.blue = Math.floor(backColor.blue * 40 / 100);
+            cellForeColor.red = Math.floor(cellForeColor.red * 40 / 100);
+            cellForeColor.green = Math.floor(cellForeColor.green * 40 / 100);
+            cellForeColor.blue = Math.floor(cellForeColor.blue * 40 / 100);
+            cellBackColor.red = Math.floor(cellBackColor.red * 40 / 100);
+            cellBackColor.green = Math.floor(cellBackColor.green * 40 / 100);
+            cellBackColor.blue = Math.floor(cellBackColor.blue * 40 / 100);
         }
 
-        return { glyph, foreColor, backColor };
+        return { glyph: cellChar, foreColor: cellForeColor, backColor: cellBackColor };
     }
 
     // -- displayLevel (minimal) ------------------------------------------------
@@ -1983,6 +2034,53 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             G_GOOD_MAGIC: DisplayGlyph.G_GOOD_MAGIC,
             G_BAD_MAGIC: DisplayGlyph.G_BAD_MAGIC,
         };
+    }
+
+    /**
+     * Prompt the player to select an item from their inventory matching
+     * the given filters. Returns the selected Item, or null if cancelled.
+     *
+     * C: promptForItemOfType() in Items.c:7586
+     */
+    async function promptForItemOfType(
+        category: number,
+        requiredFlags: number,
+        forbiddenFlags: number,
+        prompt: string,
+        allowInventoryActions: boolean,
+    ): Promise<Item | null> {
+        if (!numberOfMatchingPackItemsFn(packItems, ALL_ITEMS, requiredFlags, forbiddenFlags)) {
+            return null;
+        }
+
+        msgOps.temporaryMessage(prompt, 0);
+
+        const keystroke = await displayInventoryFn(
+            category, requiredFlags, forbiddenFlags,
+            false, allowInventoryActions, buildInventoryContext(),
+        );
+
+        if (!keystroke) {
+            // Player took a direct action from inventory screen, or cancelled
+            return null;
+        }
+
+        if (keystroke < "a" || keystroke > "z") {
+            msgOps.confirmMessages();
+            if (keystroke.charCodeAt(0) !== ESCAPE_KEY && keystroke.charCodeAt(0) !== ACKNOWLEDGE_KEY) {
+                msgOps.message("Invalid entry.", 0);
+            }
+            return null;
+        }
+
+        const theItem = packItems.find(it => it.inventoryLetter === keystroke) ?? null;
+        if (!theItem) {
+            msgOps.confirmMessages();
+            msgOps.message("No such item.", 0);
+            return null;
+        }
+
+        return theItem;
     }
 
     /**
@@ -3178,20 +3276,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         return {
             pmap,
             player,
-            rogue: {
-                disturbed: rogue.disturbed,
-                automationActive: rogue.automationActive,
-                autoPlayingLevel: rogue.autoPlayingLevel,
-                gameHasEnded: rogue.gameHasEnded,
-                blockCombatText: rogue.blockCombatText,
-                playbackMode: rogue.playbackMode,
-                cursorLoc: rogue.cursorLoc,
-                upLoc: rogue.upLoc,
-                downLoc: rogue.downLoc,
-                depthLevel: rogue.depthLevel,
-                deepestLevel: rogue.deepestLevel,
-                mode: rogue.mode as any,
-            },
+            rogue,
             monsters,
             nbDirs: nbDirs as any,
             gameConst: { deepestLevel: gameConst.deepestLevel },
@@ -4436,11 +4521,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     function buildEnvironmentContext(): EnvironmentContext {
         return {
             player,
-            rogue: {
-                depthLevel: rogue.depthLevel,
-                staleLoopMap: rogue.staleLoopMap,
-                yendorWarden: rogue.yendorWarden,
-            },
+            rogue,
             monsters,
             pmap,
             levels,
@@ -4521,29 +4602,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     function buildCreatureEffectsContext(): CreatureEffectsContext {
         return {
             player,
-            rogue: {
-                weapon: rogue.weapon,
-                armor: rogue.armor,
-                disturbed: rogue.disturbed,
-                automationActive: rogue.automationActive,
-                autoPlayingLevel: rogue.autoPlayingLevel,
-                gameHasEnded: rogue.gameHasEnded,
-                depthLevel: rogue.depthLevel,
-                deepestLevel: gameConst.deepestLevel,
-                staleLoopMap: rogue.staleLoopMap,
-                inWater: rogue.inWater,
-                previousPoisonPercent: rogue.previousPoisonPercent,
-                playbackMode: rogue.playbackMode,
-                minersLight: rogue.minersLight,
-                monsterSpawnFuse: rogue.monsterSpawnFuse,
-                stealthBonus: rogue.stealthBonus,
-                awarenessBonus: rogue.awarenessBonus,
-                justRested: rogue.justRested,
-                flares: rogue.flares,
-                flareCount: rogue.flareCount,
-                xpxpThisTurn: rogue.xpxpThisTurn,
-                yendorWarden: rogue.yendorWarden,
-            },
+            rogue,
             monsters,
             pmap,
             tmap,
@@ -4604,7 +4663,35 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 if (idx >= 0) chain.splice(idx, 1);
             },
             deleteItem(_theItem) { /* GC handles cleanup */ },
-            dropItem(_theItem) { return null; /* stub — full drop logic deferred */ },
+            dropItem(theItem) {
+                // C: dropItem() in Items.c:7652
+                // Check if terrain obstructs items at player's location
+                if (cellHasTerrainFlagAt(player.loc, TerrainFlag.T_OBSTRUCTS_ITEMS)) {
+                    return null;
+                }
+
+                if (theItem.quantity > 1 && !(theItem.category & (ItemCategory.WEAPON | ItemCategory.GEM))) {
+                    // Peel off one copy from the stack
+                    const clone = initializeItemFn();
+                    Object.assign(clone, theItem);
+                    theItem.quantity--;
+                    clone.quantity = 1;
+                    // Place the clone on the floor
+                    clone.loc = { ...player.loc };
+                    removeItemFromArray(clone, floorItems); // safety
+                    floorItems.push(clone);
+                    pmap[player.loc.x][player.loc.y].flags |= TileFlag.HAS_ITEM;
+                    return clone;
+                } else {
+                    // Drop the entire item — remove from pack, place on floor
+                    removeItemFromArray(theItem, packItems);
+                    theItem.loc = { ...player.loc };
+                    removeItemFromArray(theItem, floorItems); // safety
+                    floorItems.push(theItem);
+                    pmap[player.loc.x][player.loc.y].flags |= TileFlag.HAS_ITEM;
+                    return theItem;
+                }
+            },
             eat(theItem, recordCommands) {
                 eatFn(theItem, recordCommands, {
                     player,
@@ -5144,15 +5231,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         return {
             pmap,
             player,
-            rogue: {
-                disturbed: rogue.disturbed,
-                automationActive: rogue.automationActive,
-                weapon: rogue.weapon,
-                armor: rogue.armor,
-                downLoc: rogue.downLoc,
-                upLoc: rogue.upLoc,
-                gameHasEnded: rogue.gameHasEnded,
-            },
+            rogue,
             nbDirs: nbDirs as any,
 
             coordinatesAreInMap,
@@ -5345,23 +5424,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     function buildMiscHelpersContext(): MiscHelpersContext {
         return {
             player,
-            rogue: {
-                depthLevel: rogue.depthLevel,
-                wisdomBonus: rogue.wisdomBonus,
-                awarenessBonus: 0,
-                justRested: rogue.justRested,
-                justSearched: rogue.justSearched,
-                automationActive: rogue.automationActive,
-                disturbed: rogue.disturbed,
-                yendorWarden: rogue.yendorWarden,
-                weapon: rogue.weapon,
-                armor: rogue.armor,
-                ringLeft: rogue.ringLeft,
-                ringRight: rogue.ringRight,
-                upLoc: rogue.upLoc,
-                downLoc: rogue.downLoc,
-                monsterSpawnFuse: rogue.monsterSpawnFuse,
-            },
+            rogue,
             monsters,
             levels,
             pmap,
@@ -5719,7 +5782,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                         if (
                             cellScent > bestScent &&
                             !(pmap[nx][ny].flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER)) &&
-                            !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY)
+                            !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY) &&
+                            !monsterAvoidsWrapped(monst, { x: nx, y: ny })
                         ) {
                             bestScent = cellScent;
                             bestDir = dir;
@@ -5735,7 +5799,13 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                         pmap[newX][newY].flags |= TileFlag.HAS_MONSTER;
                         monst.turnsSpentStationary = 0;
                     } else if (dist <= 1) {
-                        // Adjacent to player — just tick (combat is stubbed)
+                        // Adjacent to player — attack!
+                        // Surface submerged monsters before attacking (C: moveMonster, Monsters.c:3863)
+                        if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_SUBMERGED) {
+                            monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_SUBMERGED;
+                            refreshDungeonCellRuntime(monst.loc);
+                        }
+                        attackFn(monst, player, false, buildAttackContext());
                     } else {
                         // No scent — fall back to direct approach
                         const dx = Math.sign(player.loc.x - mx);
@@ -5745,7 +5815,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                         if (
                             coordinatesAreInMap(nx, ny) &&
                             !(pmap[nx][ny].flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER)) &&
-                            !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY)
+                            !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY) &&
+                            !monsterAvoidsWrapped(monst, { x: nx, y: ny })
                         ) {
                             pmap[mx][my].flags &= ~TileFlag.HAS_MONSTER;
                             monst.loc.x = nx;
@@ -5767,7 +5838,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                         if (
                             coordinatesAreInMap(nx, ny) &&
                             !(pmap[nx][ny].flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER)) &&
-                            !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY)
+                            !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY) &&
+                            !monsterAvoidsWrapped(monst, { x: nx, y: ny })
                         ) {
                             pmap[mx][my].flags &= ~TileFlag.HAS_MONSTER;
                             monst.loc.x = nx;
@@ -5785,13 +5857,41 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 monst.ticksUntilTurn = monst.movementSpeed || 100;
             },
             decrementMonsterStatus(monst) {
-                // Minimal: decrement all positive status counters to prevent stale status.
-                // Full version needs MonsterStateContext for side effects.
+                // Decrement all positive status counters
                 for (let i = 0; i < monst.status.length; i++) {
                     if (monst.status[i] > 0) {
                         monst.status[i]--;
                     }
                 }
+
+                // Submersion check (C: decrementMonsterStatus in Monsters.c)
+                // Monsters with MONST_SUBMERGES that are in submersion-compatible
+                // terrain have a 20% chance per turn to submerge.
+                if (
+                    monsterCanSubmergeNowFn(monst, cellHasTMFlagAt, cellHasTerrainFlagAt) &&
+                    !(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_SUBMERGED)
+                ) {
+                    if (randPercent(20)) {
+                        monst.bookkeepingFlags |= MonsterBookkeepingFlag.MB_SUBMERGED;
+                        // Re-evaluate fleeing state if we just submerged
+                        if (
+                            !monst.status[StatusEffect.MagicalFear] &&
+                            monst.creatureState === CreatureState.Fleeing &&
+                            (!(monst.info.flags & MonsterBehaviorFlag.MONST_FLEES_NEAR_DEATH) ||
+                                monst.currentHP >= Math.floor(monst.info.maxHP * 3 / 4))
+                        ) {
+                            monst.creatureState = CreatureState.TrackingScent;
+                        }
+                        refreshDungeonCellRuntime(monst.loc);
+                    } else if (
+                        (monst.info.flags & MonsterBehaviorFlag.MONST_RESTRICTED_TO_LIQUID) &&
+                        monst.creatureState !== CreatureState.Ally
+                    ) {
+                        // Restricted-to-liquid monsters flee if they can't submerge
+                        monst.creatureState = CreatureState.Fleeing;
+                    }
+                }
+
                 return false; // monster survived
             },
             removeCreature(list, monst) {
@@ -6196,64 +6296,149 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 travelRouteFn(path, steps, travelCtx);
                 rogue.disturbed = travelCtx.rogue.disturbed;
             },
-            equip(theItem: Item | null) {
+            async equip(theItem: Item | null) {
                 if (!theItem) {
-                    // Needs displayInventory (Phase 5) to prompt for item
-                    msgOps.message("Inventory display not yet available.", 0);
-                    return;
+                    theItem = await promptForItemOfType(
+                        ItemCategory.WEAPON | ItemCategory.ARMOR | ItemCategory.RING,
+                        0, ItemFlag.ITEM_EQUIPPED,
+                        KEYBOARD_LABELS
+                            ? "Equip what? (a-z, shift for more info; or <esc> to cancel)"
+                            : "Equip what?",
+                        true,
+                    );
                 }
+                if (!theItem) return;
                 const ctx = buildFullEquipContext();
                 equipItem(theItem, false, null, ctx);
                 syncFullEquipState(ctx);
             },
-            unequip(theItem: Item | null) {
+            async unequip(theItem: Item | null) {
                 if (!theItem) {
-                    msgOps.message("Inventory display not yet available.", 0);
+                    theItem = await promptForItemOfType(
+                        ALL_ITEMS, ItemFlag.ITEM_EQUIPPED, 0,
+                        KEYBOARD_LABELS
+                            ? "Remove (unequip) what? (a-z or <esc> to cancel)"
+                            : "Remove (unequip) what?",
+                        true,
+                    );
+                }
+                if (!theItem) return;
+                if (!(theItem.flags & ItemFlag.ITEM_EQUIPPED)) {
+                    const name = getItemName(theItem, false, false);
+                    msgOps.confirmMessages();
+                    msgOps.messageWithColor(
+                        `your ${name} ${theItem.quantity === 1 ? "was" : "were"} not equipped.`,
+                        Colors.itemMessageColor, 0,
+                    );
                     return;
                 }
                 const ctx = buildFullEquipContext();
                 unequipItem(theItem, false, ctx);
                 syncFullEquipState(ctx);
+                const name = getItemName(theItem, true, true);
+                msgOps.confirmMessages();
+                msgOps.messageWithColor(
+                    `you are no longer ${theItem.category & ItemCategory.WEAPON ? "wielding" : "wearing"} ${name}.`,
+                    Colors.itemMessageColor, 0,
+                );
+                doPlayerTurnEnded();
             },
-            drop(theItem: Item | null) {
+            async drop(theItem: Item | null) {
                 if (!theItem) {
-                    msgOps.message("Inventory display not yet available.", 0);
-                    return;
+                    theItem = await promptForItemOfType(
+                        ALL_ITEMS, 0, 0,
+                        KEYBOARD_LABELS
+                            ? "Drop what? (a-z, shift for more info; or <esc> to cancel)"
+                            : "Drop what?",
+                        true,
+                    );
                 }
+                if (!theItem) return;
                 // Remove from pack and place on floor
-                if (theItem.flags & ItemFlag.ITEM_CURSED) {
+                if ((theItem.flags & ItemFlag.ITEM_EQUIPPED) && (theItem.flags & ItemFlag.ITEM_CURSED)) {
                     const name = getItemName(theItem, false, false);
-                    msgOps.message(`you can't; your ${name} appears to be cursed.`, 0);
+                    msgOps.confirmMessages();
+                    msgOps.messageWithColor(`you can't; your ${name} appears to be cursed.`, Colors.itemMessageColor, 0);
                     return;
                 }
-                removeItemFromArray(theItem, packItems);
                 if (theItem.flags & ItemFlag.ITEM_EQUIPPED) {
                     const ctx = buildFullEquipContext();
-                    unequipItem(theItem, true, ctx);
+                    unequipItem(theItem, false, ctx);
                     syncFullEquipState(ctx);
                 }
+                removeItemFromArray(theItem, packItems);
                 theItem.loc = { ...player.loc };
+                theItem.flags |= ItemFlag.ITEM_PLAYER_AVOIDS;
                 floorItems.push(theItem);
                 pmap[player.loc.x][player.loc.y].flags |= TileFlag.HAS_ITEM;
                 const name = getItemName(theItem, true, true);
-                msgOps.messageWithColor(`you dropped ${name}.`, Colors.itemMessageColor, 0);
+                msgOps.messageWithColor(`You dropped ${name}.`, Colors.itemMessageColor, 0);
+                doPlayerTurnEnded();
             },
-            apply(_item: Item | null) {
-                // apply() needs the full ItemHandlerContext with promptForItemOfType,
-                // targeting, creature helpers, etc. — deferred to Phase 5
-                msgOps.message("Item usage not yet available.", 0);
+            async apply(theItem: Item | null) {
+                if (!theItem) {
+                    theItem = await promptForItemOfType(
+                        ItemCategory.SCROLL | ItemCategory.FOOD | ItemCategory.POTION
+                            | ItemCategory.STAFF | ItemCategory.WAND | ItemCategory.CHARM,
+                        0, 0,
+                        KEYBOARD_LABELS
+                            ? "Apply what? (a-z, shift for more info; or <esc> to cancel)"
+                            : "Apply what?",
+                        true,
+                    );
+                }
+                if (!theItem) return;
+                msgOps.confirmMessages();
+                // Full apply dispatch requires targeting, bolts, etc.
+                // For now, handle food/potions which don't need targeting:
+                const name = getItemName(theItem, false, true);
+                msgOps.message(`you can't apply ${name} yet (full item usage coming soon).`, 0);
             },
-            throwCommand(_item: Item | null, _confirmed: boolean) {
-                // throwCommand needs targeting system — deferred
-                msgOps.message("Throwing not yet available.", 0);
+            async throwCommand(theItem: Item | null, _confirmed: boolean) {
+                if (!theItem) {
+                    theItem = await promptForItemOfType(
+                        ALL_ITEMS, 0, 0,
+                        KEYBOARD_LABELS
+                            ? "Throw what? (a-z, shift for more info; or <esc> to cancel)"
+                            : "Throw what?",
+                        true,
+                    );
+                }
+                if (!theItem) return;
+                // Throwing requires targeting system — show selected item but defer full throw
+                const name = getItemName(theItem, false, false);
+                msgOps.message(`Throwing ${name} requires targeting (coming soon).`, 0);
             },
-            relabel(_item: Item | null) {
-                // relabel needs inventory prompt — deferred
-                msgOps.message("Relabeling not yet available.", 0);
+            async relabel(theItem: Item | null) {
+                if (!theItem) {
+                    theItem = await promptForItemOfType(
+                        ALL_ITEMS, 0, 0,
+                        KEYBOARD_LABELS
+                            ? "Relabel what? (a-z, shift for more info; or <esc> to cancel)"
+                            : "Relabel what?",
+                        true,
+                    );
+                }
+                if (!theItem) return;
+                // Relabel needs a second key input for the new letter
+                // For now, just acknowledge the selection
+                msgOps.message("Relabeling not yet fully available.", 0);
             },
-            call(_item: Item | null) {
-                // call needs inventory prompt — deferred
-                msgOps.message("Calling not yet available.", 0);
+            async call(theItem: Item | null) {
+                if (!theItem) {
+                    theItem = await promptForItemOfType(
+                        ItemCategory.WEAPON | ItemCategory.ARMOR | ItemCategory.SCROLL
+                            | ItemCategory.RING | ItemCategory.POTION | ItemCategory.STAFF
+                            | ItemCategory.WAND | ItemCategory.CHARM,
+                        0, 0,
+                        KEYBOARD_LABELS
+                            ? "Call what? (a-z, shift for more info; or <esc> to cancel)"
+                            : "Call what?",
+                        true,
+                    );
+                }
+                if (!theItem) return;
+                msgOps.message("Calling/naming not yet fully available.", 0);
             },
             swapLastEquipment() {
                 // Requires lastEquippedWeapon/lastEquippedArmor tracking on rogue state
@@ -6792,6 +6977,34 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                         event.eventType === EventType.RightMouseUp
                     ) {
                         await executeMouseClickFn(inputCtx, event);
+                    } else if (event.eventType === EventType.MouseEnteredCell) {
+                        // Bug 5 fix: Handle mouse hover for sidebar updates,
+                        // flavor text, and path preview — mirrors C mainInputLoop
+                        // logic (IO.c:651-694) that processes moveCursor results.
+                        const mapX = windowToMapXFromDisplay(event.param1);
+                        const mapY = windowToMapYFromDisplay(event.param2);
+
+                        if (coordinatesAreInMap(mapX, mapY)) {
+                            rogue.cursorLoc = { x: mapX, y: mapY };
+                            refreshSideBarRuntime(mapX, mapY, false);
+                            printLocationDescriptionFn(mapX, mapY, buildDescribeLocationContext());
+                        } else if (
+                            event.param1 >= 0
+                            && event.param1 < mapToWindowX(0)
+                            && event.param2 >= 0
+                            && event.param2 < ROWS - 1
+                            && rogue.sidebarLocationList[event.param2]
+                            && coordinatesAreInMap(
+                                rogue.sidebarLocationList[event.param2].x,
+                                rogue.sidebarLocationList[event.param2].y,
+                            )
+                        ) {
+                            // Mouse is over a sidebar entity — focus on it
+                            const loc = rogue.sidebarLocationList[event.param2];
+                            rogue.cursorLoc = { x: loc.x, y: loc.y };
+                            refreshSideBarRuntime(loc.x, loc.y, false);
+                            printLocationDescriptionFn(loc.x, loc.y, buildDescribeLocationContext());
+                        }
                     }
                 } catch (e) {
                     console.error("[BrogueCE] Error processing input event:", e);

@@ -134,9 +134,73 @@
   - Discovered-but-not-visible cells render at 40% brightness (fog of war)
   - Unexplored cells render as black
   - Monsters filtered by MB_IS_DYING flag
-- [ ] Wire sidebar `refreshSideBar` with full entity collection — deferred to `wire-gameplay-systems` Phase 5
-- [ ] Wire `displayInventory` with full button-based UI — deferred to `wire-gameplay-systems` Phase 5
+- [x] Wire sidebar `refreshSideBar` with full entity collection — done in `wire-gameplay-systems` Phase 5
+- [x] Wire `displayInventory` with full button-based UI — done in `wire-gameplay-systems` Phase 5
 - [x] Zero compilation errors, all 2232 tests pass, Vite build succeeds
+
+### 3g: Playtest-driven fixes
+> Bugs found during manual playtesting that reveal integration issues in the
+> existing wiring. Root causes are primarily: (1) DI contexts that value-copy
+> primitive `rogue` state instead of sharing the real object, so mutations are
+> lost; (2) simplified stand-in implementations that omit critical behavior
+> paths; (3) missing `promptForItemOfType` flow preventing item action commands.
+
+#### Bug 1 — Stairs broken (player teleports to start of same level + overspawning) ✅
+- [x] **Root cause:** `buildTravelExploreContext()` copies `rogue.depthLevel` by value (line ~3191). When `useStairs()` increments `ctx.rogue.depthLevel`, the real `rogue.depthLevel` is unchanged. `startLevel()` then reads the stale real value and regenerates the current level instead of generating the next one.
+- [x] **Fix:** Pass real `rogue` object by reference in `buildTravelExploreContext()` instead of spreading primitive fields into a new object. TypeScript structural typing accepts the wider `RuntimeRogueState` for the narrower context interface.
+- [x] **Audit:** Systematically audited all 18 `rogue: {` constructions across 34 `buildXContext()` functions. Found and fixed 4 additional contexts with the same value-copy-on-mutation-path pattern:
+  - `buildPlayerMoveContext()` — `playerMoves()` mutates `rogue.disturbed` in 10+ places
+  - `buildMiscHelpersContext()` — `autoRest()`/`manualSearch()` mutate `disturbed`, `automationActive`, `justRested`, `justSearched`
+  - `buildCreatureEffectsContext()` — `creature-effects.ts` mutates `inWater`, `monsterSpawnFuse`, `disturbed`, `deepestLevel`, `flareCount` (also fixed incorrect `deepestLevel: gameConst.deepestLevel` → now uses real `rogue.deepestLevel`)
+  - `buildEnvironmentContext()` — `updateEnvironment()` mutates `staleLoopMap`
+  - Remaining value-copy contexts (cost maps, describe location, item helpers, search, scent) are read-only for rogue fields — safe as-is.
+- [x] Verified: compile clean (0 errors), all 2263 tests passing
+
+#### Bug 2 — Monsters walk on water / no terrain avoidance ✅
+- [x] **Root cause:** Simplified `monstersTurn` (line ~5720) only checks `T_OBSTRUCTS_PASSABILITY` for movement, but water is passable — the real AI calls `monsterAvoids()` which checks water/lava/trap flags.
+- [x] **Fix:** Add `monsterAvoidsWrapped(monst, {x: nx, y: ny})` check to all three movement paths in simplified `monstersTurn` (scent-following, direct-approach, wandering).
+
+#### Bug 3 — Player doesn't take damage from monster attacks ✅
+- [x] **Root cause:** Simplified `monstersTurn` (line ~5737) has an empty branch `else if (dist <= 1) { // Adjacent to player — just tick (combat is stubbed) }`. Monsters walk up to the player but never call `attack()`.
+- [x] **Fix:** When adjacent and tracking/hunting, call `attackFn(monst, player, false, buildAttackContext())`.
+
+#### Bug 4 — Item actions show "Inventory display not yet available" ✅
+- [x] **Root cause:** `equip(null)`, `unequip(null)`, `drop(null)` (lines ~6199-6221) short-circuit because `promptForItemOfType()` is not wired. The keyboard handlers call these with `null` (meaning "prompt the user to pick an item"), but without the prompt they can't proceed.
+- [x] **Fix:** Implemented `promptForItemOfType()` in `runtime.ts` — mirrors C `Items.c:7586`, calls `displayInventory()` with category filter and returns selected item. Updated `equip`/`unequip`/`drop`/`apply`/`throw`/`relabel`/`call` to use it (all now async). Updated `InputContext` interface to allow `Promise<void>` returns and added `await` at all call sites in `io-input.ts`.
+
+#### Bug 5 — Mouse hover doesn't show path or inspect terrain/monsters ✅
+- [x] **Root cause:** `mainInputLoop` (line ~6781) only handles `Keystroke` and `MouseUp`/`RightMouseUp` events. It doesn't track `MouseEnteredCell` for hover-based sidebar updates or path preview. In the original C game, `moveCursor` is called continuously during the main loop to process mouse movement.
+- [x] **Fix:** Added `MouseEnteredCell` handler in `mainInputLoop` that converts window coords to map coords, updates `rogue.cursorLoc`, calls `refreshSideBarRuntime()` for sidebar highlighting, and `printLocationDescriptionFn()` for flavor text. Also handles sidebar entity hover (clicking on sidebar row focuses that entity's location).
+
+#### Bug 6 — Blood doesn't appear when monsters die (cell goes dark instead of red) ✅
+- [x] **Root cause:** Blood probability calculation in `combat-damage.ts` (line ~244) divides by 100 inside `Math.floor()`, making `startProb` always 0 for typical damage values. The C code passes the raw percentage and `spawnDungeonFeature` handles the scaling internally.
+- [x] **Fix:** Removed the `/100` from the probability calculation so blood spawns at the correct rate. The raw factor `15 + bleedAmount * 3 / 2` is now passed directly, matching C behavior.
+
+#### Bug 7 — Water effects missing for player (items don't float away, no visual change) ✅
+- [x] **Root cause:** `applyGradualTileEffectsToCreature` (line ~1195 in creature-effects.ts) has an empty code block where the "pick random non-equipped item and drop it in water" logic should be.
+- [x] **Fix:** Implemented the item-loss-in-water logic: pick random non-equipped pack item via `rand_range(1, itemCandidates)`, iterate pack to find nth non-equipped item, call `dropItem()` to remove from pack and place on floor, message player with "{item} floats away in the current!" (matching C `Time.c:472-489`).
+
+#### Bug 8 — Blood/surface tiles render with black background instead of blending ✅
+- [x] **Root cause:** `getCellAppearance` in `runtime.ts` picks a single terrain layer for ALL display attributes (glyph, foreColor, backColor). The C version (IO.c:1139-1184) tracks **separate priorities** per attribute — `bestFCPriority`, `bestBCPriority`, `bestCharPriority` — so a surface tile like blood (drawPriority 80, foreColor=red, backColor=null) gets its glyph/foreColor from blood but its backColor from the floor layer below (drawPriority 95, backColor=brown). Our single-layer pick caused blood tiles to render with a black background, making them nearly invisible.
+- [x] **Fix:** Rewrote `getCellAppearance` terrain loop to track three separate priorities matching the C algorithm. Each attribute (foreColor, backColor, displayChar) is only updated when the layer HAS that attribute (non-null) and beats the current best priority. This also fixed surface-layer rendering for other features (ashes, cobwebs, fungus, etc.).
+
+#### Bug 9 — Monsters always visible regardless of invisibility/submersion state ✅
+- [x] **Root cause:** `getCellAppearance` monster rendering (old lines 1211-1222) showed ALL monsters as long as they weren't dying (`MB_IS_DYING`). It didn't check `MB_SUBMERGED`, `StatusEffect.Invisible`, or `MB_IS_DORMANT`. The C version (IO.c:1236-1262) calls `monsterIsHidden()` and applies transparency for invisible/submerged creatures.
+- [x] **Fix:** Added full visibility checks to `getCellAppearance`: dormant monsters are hidden, invisible monsters (without gas) are hidden, submerged monsters are hidden (unless observer is also in deep water). For visible but invisible/submerged creatures (e.g. allies), applies 75% transparency via `applyColorAverage`. Allies are tinted pink (matching C behavior).
+
+#### Bug 10 — Eels never submerge (MONST_SUBMERGES flag never activates at runtime) ✅
+- [x] **Root cause:** The simplified `decrementMonsterStatus` in `buildTurnProcessingContext` (lines ~5775-5784) only decremented status counters. The real `decrementMonsterStatus` (monster-state.ts:896-913) also checks `monsterCanSubmergeNow()` and has a 20% per-turn chance to set `MB_SUBMERGED`, which is critical for eels and other aquatic submerging creatures.
+- [x] **Fix:** Added the submersion logic from the real function: checks `monsterCanSubmergeNowFn()`, rolls 20% chance to submerge, re-evaluates fleeing state on submersion, and forces restricted-to-liquid monsters to flee if they can't submerge. Also refreshes the dungeon cell after submersion so the visual change is immediate.
+
+#### Bug 11 — dropItem is a stub (items can't be dropped at runtime) ✅
+- [x] **Root cause:** `buildCreatureEffectsContext()` had `dropItem(_theItem) { return null; /* stub — full drop logic deferred */ }`. This blocked Bug 7's water item loss code from actually working — the `dropItem()` call always returned null.
+- [x] **Fix:** Implemented `dropItem` matching C `Items.c:7652`: checks `T_OBSTRUCTS_ITEMS`, handles stack splitting for quantity > 1 items (clone + decrement original), and single-item drops (remove from packItems, place at player loc, set HAS_ITEM flag on pmap cell).
+
+#### Bug 12 — Submerged monsters don't surface when attacking ✅
+- [x] **Root cause:** The simplified `monstersTurn` in `buildTurnProcessingContext` calls `attackFn(monst, player, false, buildAttackContext())` directly when adjacent. The C version goes through `moveMonster()` (Monsters.c:3863-3866) which clears `MB_SUBMERGED` and refreshes the cell **before** calling `attack()`. Without this, eels attack while invisible — the player takes damage from nothing.
+- [x] **Fix:** Added `MB_SUBMERGED` clearance and `refreshDungeonCellRuntime()` call before `attackFn` in the adjacent-attack branch of simplified `monstersTurn`.
+
+- [x] Verified: compile clean (0 errors), all 2263 tests passing
 
 ## Step 4: Verification
 
@@ -167,10 +231,13 @@
 - [x] Title screen renders correctly
 - [x] New game starts, dungeon visible
 - [x] Player movement works
-- [x] Combat works (attack wired, damage dealt)
-- [ ] Items work (pick up, use, equip) — blocked on `wire-gameplay-systems` Phase 2
-- [ ] Level transitions work
-- [ ] Save/load works — blocked on `wire-gameplay-systems` Phase 6
+- [ ] Combat works (attack wired, damage dealt) — player attacks work; monster attacks wired (Bug 3 fixed), needs retest
+- [ ] Items work (pick up, use, equip) — pick up works; equip/unequip/drop wired via `promptForItemOfType` (Bug 4 fixed); apply/throw/relabel/call prompt but need full handlers
+- [ ] Level transitions work — Bug 1 fixed; needs retest
+- [ ] Monsters respect terrain — `monsterAvoids` wired (Bug 2 fixed), needs retest
+- [ ] Blood/death effects render correctly — probability bug fixed (Bug 6), rendering fixed (Bug 8); needs retest
+- [ ] Mouse hover shows path preview and entity info — hover event handling wired (Bug 5 fixed); needs retest for sidebar/flavor text
+- [ ] Save/load works — deferred (needs IndexedDB backend)
 - [ ] Game over → high scores → back to menu
 
 ## Step 5: Terminal Platform
