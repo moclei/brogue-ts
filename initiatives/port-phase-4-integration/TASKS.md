@@ -164,13 +164,13 @@
 - [x] **Root cause:** Simplified `monstersTurn` (line ~5737) has an empty branch `else if (dist <= 1) { // Adjacent to player — just tick (combat is stubbed) }`. Monsters walk up to the player but never call `attack()`.
 - [x] **Fix:** When adjacent and tracking/hunting, call `attackFn(monst, player, false, buildAttackContext())`.
 
-#### Bug 4 — Item actions show "Inventory display not yet available"
-- [ ] **Root cause:** `equip(null)`, `unequip(null)`, `drop(null)` (lines ~6199-6221) short-circuit because `promptForItemOfType()` is not wired. The keyboard handlers call these with `null` (meaning "prompt the user to pick an item"), but without the prompt they can't proceed.
-- [ ] **Fix:** Implement `promptForItemOfType()` — calls `displayInventory()` with the appropriate category filter and returns the selected item. Then update `equip`/`unequip`/`drop`/`apply`/`throw`/`relabel`/`call` to use it.
+#### Bug 4 — Item actions show "Inventory display not yet available" ✅
+- [x] **Root cause:** `equip(null)`, `unequip(null)`, `drop(null)` (lines ~6199-6221) short-circuit because `promptForItemOfType()` is not wired. The keyboard handlers call these with `null` (meaning "prompt the user to pick an item"), but without the prompt they can't proceed.
+- [x] **Fix:** Implemented `promptForItemOfType()` in `runtime.ts` — mirrors C `Items.c:7586`, calls `displayInventory()` with category filter and returns selected item. Updated `equip`/`unequip`/`drop`/`apply`/`throw`/`relabel`/`call` to use it (all now async). Updated `InputContext` interface to allow `Promise<void>` returns and added `await` at all call sites in `io-input.ts`.
 
-#### Bug 5 — Mouse hover doesn't show path or inspect terrain/monsters
-- [ ] **Root cause:** `mainInputLoop` (line ~6781) only handles `Keystroke` and `MouseUp`/`RightMouseUp` events. It doesn't track `MouseEnteredCell` for hover-based sidebar updates or path preview. In the original C game, `moveCursor` is called continuously during the main loop to process mouse movement.
-- [ ] **Fix:** Handle `MouseEnteredCell` events in the main input loop to update sidebar, flavor text, and cursor path highlighting.
+#### Bug 5 — Mouse hover doesn't show path or inspect terrain/monsters ✅
+- [x] **Root cause:** `mainInputLoop` (line ~6781) only handles `Keystroke` and `MouseUp`/`RightMouseUp` events. It doesn't track `MouseEnteredCell` for hover-based sidebar updates or path preview. In the original C game, `moveCursor` is called continuously during the main loop to process mouse movement.
+- [x] **Fix:** Added `MouseEnteredCell` handler in `mainInputLoop` that converts window coords to map coords, updates `rogue.cursorLoc`, calls `refreshSideBarRuntime()` for sidebar highlighting, and `printLocationDescriptionFn()` for flavor text. Also handles sidebar entity hover (clicking on sidebar row focuses that entity's location).
 
 #### Bug 6 — Blood doesn't appear when monsters die (cell goes dark instead of red)
 - [ ] **Root cause:** Blood probability calculation in `combat-damage.ts` (line ~244) divides by 100 inside `Math.floor()`, making `startProb` always 0 for typical damage values. The C code passes the raw percentage and `spawnDungeonFeature` handles the scaling internally.
@@ -212,11 +212,11 @@
 - [x] New game starts, dungeon visible
 - [x] Player movement works
 - [ ] Combat works (attack wired, damage dealt) — player attacks work; monster attacks wired (Bug 3 fixed), needs retest
-- [ ] Items work (pick up, use, equip) — pick up works; equip/apply/drop blocked on `promptForItemOfType` (Bug 4)
+- [ ] Items work (pick up, use, equip) — pick up works; equip/unequip/drop wired via `promptForItemOfType` (Bug 4 fixed); apply/throw/relabel/call prompt but need full handlers
 - [ ] Level transitions work — Bug 1 fixed; needs retest
 - [ ] Monsters respect terrain — `monsterAvoids` wired (Bug 2 fixed), needs retest
 - [ ] Blood/death effects render correctly — blocked on probability bug (Bug 6)
-- [ ] Mouse hover shows path preview and entity info — blocked on missing hover event handling (Bug 5)
+- [ ] Mouse hover shows path preview and entity info — hover event handling wired (Bug 5 fixed); needs retest for sidebar/flavor text
 - [ ] Save/load works — deferred (needs IndexedDB backend)
 - [ ] Game over → high scores → back to menu
 

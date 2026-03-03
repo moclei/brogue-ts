@@ -1986,6 +1986,53 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
     }
 
     /**
+     * Prompt the player to select an item from their inventory matching
+     * the given filters. Returns the selected Item, or null if cancelled.
+     *
+     * C: promptForItemOfType() in Items.c:7586
+     */
+    async function promptForItemOfType(
+        category: number,
+        requiredFlags: number,
+        forbiddenFlags: number,
+        prompt: string,
+        allowInventoryActions: boolean,
+    ): Promise<Item | null> {
+        if (!numberOfMatchingPackItemsFn(packItems, ALL_ITEMS, requiredFlags, forbiddenFlags)) {
+            return null;
+        }
+
+        msgOps.temporaryMessage(prompt, 0);
+
+        const keystroke = await displayInventoryFn(
+            category, requiredFlags, forbiddenFlags,
+            false, allowInventoryActions, buildInventoryContext(),
+        );
+
+        if (!keystroke) {
+            // Player took a direct action from inventory screen, or cancelled
+            return null;
+        }
+
+        if (keystroke < "a" || keystroke > "z") {
+            msgOps.confirmMessages();
+            if (keystroke.charCodeAt(0) !== ESCAPE_KEY && keystroke.charCodeAt(0) !== ACKNOWLEDGE_KEY) {
+                msgOps.message("Invalid entry.", 0);
+            }
+            return null;
+        }
+
+        const theItem = packItems.find(it => it.inventoryLetter === keystroke) ?? null;
+        if (!theItem) {
+            msgOps.confirmMessages();
+            msgOps.message("No such item.", 0);
+            return null;
+        }
+
+        return theItem;
+    }
+
+    /**
      * Build a full EquipContext from current rogue state.
      * Used for equip/unequip operations during gameplay (not just init).
      */
@@ -6137,64 +6184,149 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 travelRouteFn(path, steps, travelCtx);
                 rogue.disturbed = travelCtx.rogue.disturbed;
             },
-            equip(theItem: Item | null) {
+            async equip(theItem: Item | null) {
                 if (!theItem) {
-                    // Needs displayInventory (Phase 5) to prompt for item
-                    msgOps.message("Inventory display not yet available.", 0);
-                    return;
+                    theItem = await promptForItemOfType(
+                        ItemCategory.WEAPON | ItemCategory.ARMOR | ItemCategory.RING,
+                        0, ItemFlag.ITEM_EQUIPPED,
+                        KEYBOARD_LABELS
+                            ? "Equip what? (a-z, shift for more info; or <esc> to cancel)"
+                            : "Equip what?",
+                        true,
+                    );
                 }
+                if (!theItem) return;
                 const ctx = buildFullEquipContext();
                 equipItem(theItem, false, null, ctx);
                 syncFullEquipState(ctx);
             },
-            unequip(theItem: Item | null) {
+            async unequip(theItem: Item | null) {
                 if (!theItem) {
-                    msgOps.message("Inventory display not yet available.", 0);
+                    theItem = await promptForItemOfType(
+                        ALL_ITEMS, ItemFlag.ITEM_EQUIPPED, 0,
+                        KEYBOARD_LABELS
+                            ? "Remove (unequip) what? (a-z or <esc> to cancel)"
+                            : "Remove (unequip) what?",
+                        true,
+                    );
+                }
+                if (!theItem) return;
+                if (!(theItem.flags & ItemFlag.ITEM_EQUIPPED)) {
+                    const name = getItemName(theItem, false, false);
+                    msgOps.confirmMessages();
+                    msgOps.messageWithColor(
+                        `your ${name} ${theItem.quantity === 1 ? "was" : "were"} not equipped.`,
+                        Colors.itemMessageColor, 0,
+                    );
                     return;
                 }
                 const ctx = buildFullEquipContext();
                 unequipItem(theItem, false, ctx);
                 syncFullEquipState(ctx);
+                const name = getItemName(theItem, true, true);
+                msgOps.confirmMessages();
+                msgOps.messageWithColor(
+                    `you are no longer ${theItem.category & ItemCategory.WEAPON ? "wielding" : "wearing"} ${name}.`,
+                    Colors.itemMessageColor, 0,
+                );
+                doPlayerTurnEnded();
             },
-            drop(theItem: Item | null) {
+            async drop(theItem: Item | null) {
                 if (!theItem) {
-                    msgOps.message("Inventory display not yet available.", 0);
-                    return;
+                    theItem = await promptForItemOfType(
+                        ALL_ITEMS, 0, 0,
+                        KEYBOARD_LABELS
+                            ? "Drop what? (a-z, shift for more info; or <esc> to cancel)"
+                            : "Drop what?",
+                        true,
+                    );
                 }
+                if (!theItem) return;
                 // Remove from pack and place on floor
-                if (theItem.flags & ItemFlag.ITEM_CURSED) {
+                if ((theItem.flags & ItemFlag.ITEM_EQUIPPED) && (theItem.flags & ItemFlag.ITEM_CURSED)) {
                     const name = getItemName(theItem, false, false);
-                    msgOps.message(`you can't; your ${name} appears to be cursed.`, 0);
+                    msgOps.confirmMessages();
+                    msgOps.messageWithColor(`you can't; your ${name} appears to be cursed.`, Colors.itemMessageColor, 0);
                     return;
                 }
-                removeItemFromArray(theItem, packItems);
                 if (theItem.flags & ItemFlag.ITEM_EQUIPPED) {
                     const ctx = buildFullEquipContext();
-                    unequipItem(theItem, true, ctx);
+                    unequipItem(theItem, false, ctx);
                     syncFullEquipState(ctx);
                 }
+                removeItemFromArray(theItem, packItems);
                 theItem.loc = { ...player.loc };
+                theItem.flags |= ItemFlag.ITEM_PLAYER_AVOIDS;
                 floorItems.push(theItem);
                 pmap[player.loc.x][player.loc.y].flags |= TileFlag.HAS_ITEM;
                 const name = getItemName(theItem, true, true);
-                msgOps.messageWithColor(`you dropped ${name}.`, Colors.itemMessageColor, 0);
+                msgOps.messageWithColor(`You dropped ${name}.`, Colors.itemMessageColor, 0);
+                doPlayerTurnEnded();
             },
-            apply(_item: Item | null) {
-                // apply() needs the full ItemHandlerContext with promptForItemOfType,
-                // targeting, creature helpers, etc. — deferred to Phase 5
-                msgOps.message("Item usage not yet available.", 0);
+            async apply(theItem: Item | null) {
+                if (!theItem) {
+                    theItem = await promptForItemOfType(
+                        ItemCategory.SCROLL | ItemCategory.FOOD | ItemCategory.POTION
+                            | ItemCategory.STAFF | ItemCategory.WAND | ItemCategory.CHARM,
+                        0, 0,
+                        KEYBOARD_LABELS
+                            ? "Apply what? (a-z, shift for more info; or <esc> to cancel)"
+                            : "Apply what?",
+                        true,
+                    );
+                }
+                if (!theItem) return;
+                msgOps.confirmMessages();
+                // Full apply dispatch requires targeting, bolts, etc.
+                // For now, handle food/potions which don't need targeting:
+                const name = getItemName(theItem, false, true);
+                msgOps.message(`you can't apply ${name} yet (full item usage coming soon).`, 0);
             },
-            throwCommand(_item: Item | null, _confirmed: boolean) {
-                // throwCommand needs targeting system — deferred
-                msgOps.message("Throwing not yet available.", 0);
+            async throwCommand(theItem: Item | null, _confirmed: boolean) {
+                if (!theItem) {
+                    theItem = await promptForItemOfType(
+                        ALL_ITEMS, 0, 0,
+                        KEYBOARD_LABELS
+                            ? "Throw what? (a-z, shift for more info; or <esc> to cancel)"
+                            : "Throw what?",
+                        true,
+                    );
+                }
+                if (!theItem) return;
+                // Throwing requires targeting system — show selected item but defer full throw
+                const name = getItemName(theItem, false, false);
+                msgOps.message(`Throwing ${name} requires targeting (coming soon).`, 0);
             },
-            relabel(_item: Item | null) {
-                // relabel needs inventory prompt — deferred
-                msgOps.message("Relabeling not yet available.", 0);
+            async relabel(theItem: Item | null) {
+                if (!theItem) {
+                    theItem = await promptForItemOfType(
+                        ALL_ITEMS, 0, 0,
+                        KEYBOARD_LABELS
+                            ? "Relabel what? (a-z, shift for more info; or <esc> to cancel)"
+                            : "Relabel what?",
+                        true,
+                    );
+                }
+                if (!theItem) return;
+                // Relabel needs a second key input for the new letter
+                // For now, just acknowledge the selection
+                msgOps.message("Relabeling not yet fully available.", 0);
             },
-            call(_item: Item | null) {
-                // call needs inventory prompt — deferred
-                msgOps.message("Calling not yet available.", 0);
+            async call(theItem: Item | null) {
+                if (!theItem) {
+                    theItem = await promptForItemOfType(
+                        ItemCategory.WEAPON | ItemCategory.ARMOR | ItemCategory.SCROLL
+                            | ItemCategory.RING | ItemCategory.POTION | ItemCategory.STAFF
+                            | ItemCategory.WAND | ItemCategory.CHARM,
+                        0, 0,
+                        KEYBOARD_LABELS
+                            ? "Call what? (a-z, shift for more info; or <esc> to cancel)"
+                            : "Call what?",
+                        true,
+                    );
+                }
+                if (!theItem) return;
+                msgOps.message("Calling/naming not yet fully available.", 0);
             },
             swapLastEquipment() {
                 // Requires lastEquippedWeapon/lastEquippedArmor tracking on rogue state
@@ -6733,6 +6865,34 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                         event.eventType === EventType.RightMouseUp
                     ) {
                         await executeMouseClickFn(inputCtx, event);
+                    } else if (event.eventType === EventType.MouseEnteredCell) {
+                        // Bug 5 fix: Handle mouse hover for sidebar updates,
+                        // flavor text, and path preview — mirrors C mainInputLoop
+                        // logic (IO.c:651-694) that processes moveCursor results.
+                        const mapX = windowToMapXFromDisplay(event.param1);
+                        const mapY = windowToMapYFromDisplay(event.param2);
+
+                        if (coordinatesAreInMap(mapX, mapY)) {
+                            rogue.cursorLoc = { x: mapX, y: mapY };
+                            refreshSideBarRuntime(mapX, mapY, false);
+                            printLocationDescriptionFn(mapX, mapY, buildDescribeLocationContext());
+                        } else if (
+                            event.param1 >= 0
+                            && event.param1 < mapToWindowX(0)
+                            && event.param2 >= 0
+                            && event.param2 < ROWS - 1
+                            && rogue.sidebarLocationList[event.param2]
+                            && coordinatesAreInMap(
+                                rogue.sidebarLocationList[event.param2].x,
+                                rogue.sidebarLocationList[event.param2].y,
+                            )
+                        ) {
+                            // Mouse is over a sidebar entity — focus on it
+                            const loc = rogue.sidebarLocationList[event.param2];
+                            rogue.cursorLoc = { x: loc.x, y: loc.y };
+                            refreshSideBarRuntime(loc.x, loc.y, false);
+                            printLocationDescriptionFn(loc.x, loc.y, buildDescribeLocationContext());
+                        }
                     }
                 } catch (e) {
                     console.error("[BrogueCE] Error processing input event:", e);

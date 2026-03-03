@@ -212,13 +212,13 @@ export interface InputContext {
     manualSearch(): void;
     travel(loc: Pos, autoConfirm: boolean): void;
     travelRoute(path: Pos[], steps: number): void;
-    equip(item: Item | null): void;
-    unequip(item: Item | null): void;
-    drop(item: Item | null): void;
-    apply(item: Item | null): void;
-    throwCommand(item: Item | null, confirmed: boolean): void;
-    relabel(item: Item | null): void;
-    call(item: Item | null): void;
+    equip(item: Item | null): void | Promise<void>;
+    unequip(item: Item | null): void | Promise<void>;
+    drop(item: Item | null): void | Promise<void>;
+    apply(item: Item | null): void | Promise<void>;
+    throwCommand(item: Item | null, confirmed: boolean): void | Promise<void>;
+    relabel(item: Item | null): void | Promise<void>;
+    call(item: Item | null): void | Promise<void>;
     swapLastEquipment(): void;
     enableEasyMode(): void;
     saveGame(): void;
@@ -873,27 +873,27 @@ export async function executeKeystroke(ctx: InputContext, keystroke: number, con
                 ctx.displayInventory(ctx.ALL_ITEMS, 0, 0, true, true);
                 break;
             case EQUIP_KEY:
-                ctx.equip(null);
+                await ctx.equip(null);
                 break;
             case UNEQUIP_KEY:
-                ctx.unequip(null);
+                await ctx.unequip(null);
                 break;
             case DROP_KEY:
-                ctx.drop(null);
+                await ctx.drop(null);
                 break;
             case APPLY_KEY:
-                ctx.apply(null);
+                await ctx.apply(null);
                 break;
             case THROW_KEY:
-                ctx.throwCommand(null, false);
+                await ctx.throwCommand(null, false);
                 break;
             case RETHROW_KEY:
                 if (ctx.rogue.lastItemThrown != null && ctx.itemIsCarried(ctx.rogue.lastItemThrown)) {
-                    ctx.throwCommand(ctx.rogue.lastItemThrown, true);
+                    await ctx.throwCommand(ctx.rogue.lastItemThrown, true);
                 }
                 break;
             case RELABEL_KEY:
-                ctx.relabel(null);
+                await ctx.relabel(null);
                 break;
             case SWAP_KEY:
                 ctx.swapLastEquipment();
@@ -943,7 +943,7 @@ export async function executeKeystroke(ctx: InputContext, keystroke: number, con
                 }
                 break;
             case CALL_KEY:
-                ctx.call(null);
+                await ctx.call(null);
                 break;
             case EXPLORE_KEY:
                 considerCautiousMode(ctx);
