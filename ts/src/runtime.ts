@@ -97,6 +97,8 @@ import {
     stripShiftFromMovementKeystroke as stripShiftFromMovementKeystrokeFn,
     initializeMenuButtons,
     actionMenu as actionMenuFn,
+    nextKeyPress as nextKeyPressFn,
+    getInputTextString as getInputTextStringFn,
 } from "./io/io-input.js";
 
 // -- Targeting imports --------------------------------------------------------
@@ -371,7 +373,7 @@ import { bakeTerrainColors } from "./io/io-appearance.js";
 
 // -- Item imports -------------------------------------------------------------
 import { generateItem, initializeItem as initializeItemFn, itemMagicPolarity as itemMagicPolarityFn, getItemCategoryGlyph as getItemCategoryGlyphFn, getHallucinatedItemCategory as getHallucinatedItemCategoryFn } from "./items/item-generation.js";
-import { addItemToPack, removeItemFromArray, numberOfItemsInPack as numberOfItemsInPackFn, numberOfMatchingPackItems as numberOfMatchingPackItemsFn, itemAtLoc as itemAtLocFn, canPickUpItem, checkForDisenchantment as checkForDisenchantmentFn } from "./items/item-inventory.js";
+import { addItemToPack, removeItemFromArray, numberOfItemsInPack as numberOfItemsInPackFn, numberOfMatchingPackItems as numberOfMatchingPackItemsFn, itemAtLoc as itemAtLocFn, canPickUpItem, checkForDisenchantment as checkForDisenchantmentFn, itemOfPackLetter } from "./items/item-inventory.js";
 import { identify, identifyItemKind as identifyItemKindFn, itemName as itemNameFn, isVowelish as isVowelishFn, itemValue as itemValueFn } from "./items/item-naming.js";
 import type { ItemNamingContext } from "./items/item-naming.js";
 import { shuffleFlavors } from "./items/item-naming.js";
@@ -7555,9 +7557,30 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                     );
                 }
                 if (!theItem) return;
-                // Relabel needs a second key input for the new letter
-                // For now, just acknowledge the selection
-                msgOps.message("Relabeling not yet fully available.", 0);
+                msgOps.temporaryMessage("New letter? (a-z)", 0);
+                const keyCode = nextKeyPressFn(buildInputContext(), true);
+                let newLabel = String.fromCharCode(keyCode).toLowerCase();
+                if (newLabel < "a" || newLabel > "z") return;
+                if (newLabel === theItem.inventoryLetter) {
+                    const theName = getItemName(theItem, true, true);
+                    msgOps.messageWithColor(
+                        `${theName} ${theItem.quantity === 1 ? "is" : "are"} already labeled (${newLabel}).`,
+                        Colors.itemMessageColor, 0,
+                    );
+                    return;
+                }
+                const displaced = itemOfPackLetter(newLabel, packItems);
+                if (displaced) {
+                    displaced.inventoryLetter = theItem.inventoryLetter;
+                    const dispName = getItemName(displaced, true, true);
+                    msgOps.messageWithColor(`Relabeled ${dispName} as (${displaced.inventoryLetter});`, Colors.itemMessageColor, 0);
+                }
+                theItem.inventoryLetter = newLabel;
+                const theName = getItemName(theItem, true, true);
+                msgOps.messageWithColor(
+                    `${displaced ? " r" : "R"}elabeled ${theName} as (${newLabel}).`,
+                    Colors.itemMessageColor, 0,
+                );
             },
             async call(theItem: Item | null) {
                 if (!theItem) {
@@ -7573,12 +7596,35 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                     );
                 }
                 if (!theItem) return;
-                msgOps.message("Calling/naming not yet fully available.", 0);
+                msgOps.confirmMessages();
+                const inscription = getInputTextStringFn(
+                    buildInputContext(),
+                    `Inscription for ${getItemName(theItem, false, false)}:`,
+                    29,
+                    theItem.inscription ?? "",
+                    "",
+                    TextEntryType.Normal,
+                    true,
+                );
+                if (inscription !== null) {
+                    theItem.inscription = inscription;
+                }
             },
             swapLastEquipment() {
-                // Requires lastEquippedWeapon/lastEquippedArmor tracking on rogue state
-                // Deferred until Phase 5 when inventory UI is fully wired
-                msgOps.message("Equipment swapping not yet available.", 0);
+                if (!rogue.swappedIn || !rogue.swappedOut) {
+                    msgOps.confirmMessages();
+                    msgOps.message("You have nothing to swap.", 0);
+                    return;
+                }
+                const ctx = buildFullEquipContext();
+                if (!equipItem(rogue.swappedOut, false, rogue.swappedIn, ctx)) {
+                    return; // cursed — equipItem already showed message
+                }
+                syncFullEquipState(ctx);
+                const tmp = rogue.swappedIn;
+                rogue.swappedIn = rogue.swappedOut;
+                rogue.swappedOut = tmp;
+                playerTurnEndedFn(buildTurnProcessingContext());
             },
             enableEasyMode() {
                 enableEasyModeFn(buildLifecycleContext());

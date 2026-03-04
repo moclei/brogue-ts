@@ -30,24 +30,24 @@
 - [x] Verify: 0 compilation errors, all 2,264 tests passing
 - [ ] Smoke test: drink a potion, read a scroll, eat food, zap a wand — all produce effects
 
-## Phase 3: Full Monster AI
+## Phase 3: Full Monster AI ✅
 
-- [ ] Port `scentDirection(monst)` — find direction of strongest uphill scent
-- [ ] Port `isLocalScentMaximum(loc)` — check if at local scent peak
-- [ ] Port `pathTowardCreature(monst, target)` — Dijkstra move toward creature
-- [ ] Port `traversiblePathBetween(monst, x, y)` — unobstructed path check
-- [ ] Port `monsterMillAbout(monst, chance)` — random in-place wandering
-- [ ] Port `randValidDirectionFrom(monst, x, y, diag)` — random valid direction
-- [ ] Port `wanderToward(monst, loc)` / export from monster-state.ts
-- [ ] Port `moveAlly(monst)` — ally follow/assist behavior
-- [ ] Port `isValidWanderDestination(monst, idx)` — waypoint validity check
-- [ ] Wire `waypointDistanceMap(idx)` — return precomputed waypoint Dijkstra map
-- [ ] Stub `monstUseMagic(monst)` — return `false` initially (monsters won't cast spells)
-- [ ] Stub `monsterBlinkToPreferenceMap()` / `monsterBlinkToSafety()` — return `false`
-- [ ] Stub `updateMonsterCorpseAbsorption()` — return `false`
-- [ ] Build `buildMonstersTurnContext()` in runtime.ts wiring all the above
-- [ ] Replace simplified `monstersTurn` in `buildTurnProcessingContext` with `monstersTurnFn(monst, buildMonstersTurnContext())`
-- [ ] Verify: 0 compilation errors, all tests passing
+- [x] Port `scentDirection(monst)` — find direction of strongest uphill scent
+- [x] Port `isLocalScentMaximum(loc)` — check if at local scent peak
+- [x] Port `pathTowardCreature(monst, target)` — Dijkstra move toward creature
+- [x] Port `traversiblePathBetween(monst, x, y)` — unobstructed path check
+- [x] Port `monsterMillAbout(monst, chance)` — random in-place wandering
+- [x] Port `randValidDirectionFrom(monst, x, y, diag)` — random valid direction
+- [x] Port `wanderToward(monst, loc)` / exported from monster-actions.ts
+- [x] Port `moveAlly(monst)` — ally follow/assist behavior
+- [x] Port `isValidWanderDestination(monst, idx)` — waypoint validity check
+- [x] Wire `waypointDistanceMap(idx)` — return precomputed waypoint Dijkstra map
+- [x] Stub `monstUseMagic(monst)` — returns `false` (monsters won't cast spells)
+- [x] Stub `monsterBlinkToPreferenceMap()` / `monsterBlinkToSafety()` — return `false`
+- [x] Stub `updateMonsterCorpseAbsorption()` — return `false`
+- [x] Build `buildMonstersTurnContext()` in runtime.ts wiring all the above
+- [x] Replace simplified `monstersTurn` with `monstersTurnFn(monst, buildMonstersTurnContext())`
+- [x] Verify: 0 compilation errors, all 2,264 tests passing
 - [ ] Smoke test: monkeys flee, turrets fire, followers stay near leader
 
 ## Phase 4: Player Turn Systems
