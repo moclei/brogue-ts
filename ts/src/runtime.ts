@@ -1344,6 +1344,14 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 applyColorMultiplier(resultForeColor, Colors.deepWaterLightColor);
                 applyColorMultiplier(resultBackColor, Colors.deepWaterLightColor);
             }
+
+            // Cursor path highlight (C: IO.c, after getCellAppearance)
+            // Blend cells in the cursor path with a yellow tint at cursorPathIntensity%.
+            if (cell.flags & TileFlag.IS_IN_PATH) {
+                const pathHighlight = { red: 100, green: 100, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false as boolean };
+                applyColorAverage(resultForeColor, pathHighlight, rogue.cursorPathIntensity);
+                applyColorAverage(resultBackColor, pathHighlight, rogue.cursorPathIntensity);
+            }
         } else if (isDiscovered) {
             // Remembered cells when underwater: heavy darkening (C: IO.c:1398-1401)
             if (rogue.inWater) {
@@ -2955,7 +2963,10 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 gameConst.numberScrollKinds = mutableScrollTable.length;
                 gameConst.numberPotionKinds = mutablePotionTable.length;
                 gameConst.numberMeteredItems = meteredItemsGenTable.length;
-                // Other counts remain at their defaults or 0 until those catalogs are wired
+                gameConst.numberAutogenerators = autoGeneratorCatalog.length;
+                gameConst.numberBlueprints = blueprintCatalog.length;
+                gameConst.numberHordes = hordeCatalog.length;
+                gameConst.numberBoltKinds = boltCatalog.length;
             },
             initializeGameVariantRapidBrogue(): void {
                 // Rapid Brogue uses the same catalogs but different constants
@@ -2965,6 +2976,10 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 gameConst.numberScrollKinds = mutableScrollTable.length;
                 gameConst.numberPotionKinds = mutablePotionTable.length;
                 gameConst.numberMeteredItems = meteredItemsGenTable.length;
+                gameConst.numberAutogenerators = autoGeneratorCatalog.length;
+                gameConst.numberBlueprints = blueprintCatalog.length;
+                gameConst.numberHordes = hordeCatalog.length;
+                gameConst.numberBoltKinds = boltCatalog.length;
             },
             initializeGameVariantBulletBrogue(): void {
                 // Bullet Brogue: very short
@@ -2974,6 +2989,10 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 gameConst.numberScrollKinds = mutableScrollTable.length;
                 gameConst.numberPotionKinds = mutablePotionTable.length;
                 gameConst.numberMeteredItems = meteredItemsGenTable.length;
+                gameConst.numberAutogenerators = autoGeneratorCatalog.length;
+                gameConst.numberBlueprints = blueprintCatalog.length;
+                gameConst.numberHordes = hordeCatalog.length;
+                gameConst.numberBoltKinds = boltCatalog.length;
             },
 
             // Misc
@@ -7593,6 +7612,8 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 }
                 if (!theItem) return;
                 applyFn(theItem, buildItemHandlerContext());
+                displayLevelFn();
+                commitDraws();
             },
             async throwCommand(theItem: Item | null, _confirmed: boolean) {
                 if (!theItem) {
@@ -8238,6 +8259,12 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             };
             initializeMenuButtons(inputCtx, menuState, menuButtons);
 
+            // Grids for mouse hover path preview — allocated once and reused
+            const hoverPathingMap = allocGrid();
+            const hoverCostMap = allocGrid();
+            const hoverPath: { x: number; y: number }[] = new Array(1000).fill(null).map(() => ({ x: 0, y: 0 }));
+            let hoverSteps = 0;
+
             while (!rogue.gameHasEnded) {
                 displayLevelFn();
 
@@ -8291,6 +8318,28 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                             rogue.cursorLoc = { x: mapX, y: mapY };
                             refreshSideBarRuntime(mapX, mapY, false);
                             printLocationDescriptionFn(mapX, mapY, buildDescribeLocationContext());
+
+                            // Path preview: unhilite old path, compute new one
+                            const hoverTargetCtx = buildTargetingContext();
+                            if (hoverSteps > 0) {
+                                hilitePatchFn(hoverPath, hoverSteps, true, hoverTargetCtx);
+                            }
+                            populateCreatureCostMapWrapped(hoverCostMap, player);
+                            fillGrid(hoverPathingMap, 30000);
+                            hoverPathingMap[mapX][mapY] = 0;
+                            const backupCost = hoverCostMap[mapX][mapY];
+                            hoverCostMap[mapX][mapY] = 1;
+                            dijkstraScanFn(hoverPathingMap, hoverCostMap, true);
+                            hoverCostMap[mapX][mapY] = backupCost;
+                            hoverSteps = getPlayerPathOnMapFn(hoverPath, hoverPathingMap, player.loc, hoverTargetCtx);
+                            if (hoverSteps >= 0) {
+                                hoverPath[hoverSteps] = { x: mapX, y: mapY };
+                                hoverSteps++;
+                            }
+                            if (hoverSteps > 0) {
+                                hilitePatchFn(hoverPath, hoverSteps, false, hoverTargetCtx);
+                            }
+                            commitDraws();
                         } else if (
                             event.param1 >= 0
                             && event.param1 < mapToWindowX(0)
