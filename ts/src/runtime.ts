@@ -8299,13 +8299,34 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                         }
                     } else if (event.eventType === EventType.Keystroke) {
                         await executeKeystrokeFn(inputCtx, event.param1, event.controlKey, event.shiftKey);
-                    } else if (
-                        event.eventType === EventType.MouseUp ||
-                        event.eventType === EventType.RightMouseUp
-                    ) {
-                        // Only dispatch map clicks (not button-bar clicks)
+                    } else if (event.eventType === EventType.RightMouseUp) {
+                        // Right-click: open inventory via executeMouseClick, which
+                        // uses the async buttonInputLoop — no synchronous spin.
                         if (event.param2 < ROWS - 1) {
                             await executeMouseClickFn(inputCtx, event);
+                        }
+                    } else if (event.eventType === EventType.MouseUp) {
+                        // Left-click: handle directly.  io-input.ts mainInputLoop
+                        // uses a synchronous nextKeyOrMouseEvent spin loop that
+                        // deadlocks the browser's single-threaded async model, so
+                        // we bypass it and travel directly to the clicked cell.
+                        if (event.param2 < ROWS - 1) {
+                            const mapX = windowToMapXFromDisplay(event.param1);
+                            const mapY = windowToMapYFromDisplay(event.param2);
+                            if (coordinatesAreInMap(mapX, mapY)) {
+                                // Clear hover path before traveling
+                                if (hoverSteps > 0) {
+                                    hilitePatchFn(hoverPath, hoverSteps, true, buildTargetingContext());
+                                    hoverSteps = 0;
+                                }
+                                await inputCtx.travel({ x: mapX, y: mapY }, event.controlKey);
+                            } else if (
+                                mapX >= 0 && mapX < DCOLS &&
+                                event.param2 >= 0 && event.param2 < MESSAGE_LINES
+                            ) {
+                                // Click in message area: show archive
+                                msgOps.displayMessageArchive();
+                            }
                         }
                     } else if (event.eventType === EventType.MouseEnteredCell) {
                         // Handle mouse hover for sidebar updates,
