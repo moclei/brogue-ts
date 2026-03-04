@@ -332,8 +332,7 @@ import {
     initializeLevel as initializeLevelFn,
     setUpWaypoints as setUpWaypointsFn,
     updateMapToShore as updateMapToShoreFn,
-    restoreMonster as restoreMonsterFn,
-    restoreItems as restoreItemsFn,
+    getQualifyingLocNear as getQualifyingLocNearFn,
 } from "./architect/architect.js";
 import type { ArchitectContext } from "./architect/architect.js";
 import { analyzeMap as analyzeMapFn } from "./architect/analysis.js";
@@ -3284,11 +3283,75 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 floorItems.push(item);
             },
 
-            restoreMonster(_monst, _mapToStairs, _mapToPit) {
-                restoreMonsterFn(); // stub
+            restoreMonster(monst, mapToStairs, mapToPit) {
+                if (monst.status[StatusEffect.EntersLevelIn] > 0) {
+                    const theMap = (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_APPROACHING_PIT) ? mapToPit : mapToStairs;
+                    pmap[monst.loc.x][monst.loc.y].flags &= ~TileFlag.HAS_MONSTER;
+                    if (theMap) {
+                        const turnCount = Math.floor(theMap[monst.loc.x][monst.loc.y] - (monst.status[StatusEffect.EntersLevelIn] * 100 / monst.movementSpeed));
+                        for (let i = 0; i < turnCount; i++) {
+                            const dir = nextStepFn(theMap, monst.loc, null, true, buildTravelExploreContext());
+                            if (dir !== -1) {
+                                const [dx, dy] = nbDirs[dir];
+                                monst.loc = { x: monst.loc.x + dx, y: monst.loc.y + dy };
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                    monst.bookkeepingFlags |= MonsterBookkeepingFlag.MB_PREPLACED;
+                }
+                const mx = monst.loc.x;
+                const my = monst.loc.y;
+                if ((pmap[mx][my].flags & (TileFlag.HAS_PLAYER | TileFlag.HAS_STAIRS))
+                    || (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_PREPLACED)) {
+                    if (!(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_PREPLACED)) {
+                        pmap[mx][my].flags &= ~TileFlag.HAS_MONSTER;
+                    }
+                    const qLoc = getQualifyingLocNearFn(pmap, monst.loc,
+                        T_DIVIDES_LEVEL,
+                        TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER | TileFlag.HAS_STAIRS | IS_IN_MACHINE);
+                    if (qLoc) monst.loc = { ...qLoc };
+                }
+                pmap[monst.loc.x][monst.loc.y].flags |= TileFlag.HAS_MONSTER;
+                monst.bookkeepingFlags &= ~(MonsterBookkeepingFlag.MB_PREPLACED
+                    | MonsterBookkeepingFlag.MB_APPROACHING_DOWNSTAIRS
+                    | MonsterBookkeepingFlag.MB_APPROACHING_UPSTAIRS
+                    | MonsterBookkeepingFlag.MB_APPROACHING_PIT
+                    | MonsterBookkeepingFlag.MB_ABSORBING);
+                monst.status[StatusEffect.EntersLevelIn] = 0;
+                monst.corpseAbsorptionCounter = 0;
+                if ((monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_SUBMERGED)
+                    && !cellHasTMFlagAt(monst.loc, TerrainMechFlag.TM_ALLOWS_SUBMERGING)) {
+                    monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_SUBMERGED;
+                }
+                if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_FOLLOWER) {
+                    if (!monsters.some(m => m === monst.leader)) {
+                        monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_FOLLOWER;
+                        monst.leader = null;
+                    }
+                }
             },
             restoreItems() {
-                restoreItemsFn(); // stub
+                const preplaced: Item[] = [];
+                for (let i = floorItems.length - 1; i >= 0; i--) {
+                    const item = floorItems[i];
+                    if (item.flags & ItemFlag.ITEM_PREPLACED) {
+                        item.flags &= ~ItemFlag.ITEM_PREPLACED;
+                        floorItems.splice(i, 1);
+                        preplaced.push(item);
+                    }
+                }
+                for (const item of preplaced) {
+                    const loc = getQualifyingLocNearFn(pmap, item.loc,
+                        TerrainFlag.T_OBSTRUCTS_ITEMS,
+                        TileFlag.HAS_MONSTER | TileFlag.HAS_ITEM | TileFlag.HAS_STAIRS | IS_IN_MACHINE);
+                    if (loc) {
+                        item.loc = { ...loc };
+                        pmap[loc.x][loc.y].flags |= TileFlag.HAS_ITEM;
+                        floorItems.push(item);
+                    }
+                }
             },
             updateMonsterState(_monst) {
                 // Stub — monster AI not yet wired
@@ -5021,7 +5084,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
 
             // Movement/search
             keyOnTileAt: (loc: Pos) => itemAtLocFn(loc, floorItems),
-            useKeyAt(_theItem, _x, _y) { /* stub — key usage deferred */ },
+            useKeyAt(theItem, x, y) { useKeyAtFn(theItem, x, y, buildItemHelperContext()); },
             discover(x, y) {
                 if (coordinatesAreInMap(x, y)) {
                     pmap[x][y].flags |= TileFlag.DISCOVERED;
