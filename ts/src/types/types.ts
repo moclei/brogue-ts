@@ -238,12 +238,12 @@ export interface Bolt {
     description: string;
     abilityDescription: string;
     theChar: DisplayGlyph;
-    foreColor: Color;
-    backColor: Color;
+    foreColor: Color | null;
+    backColor: Color | null;
     boltEffect: BoltEffect;
     magnitude: number;
-    pathDF: DungeonFeatureType;
-    targetDF: DungeonFeatureType;
+    pathDF: DungeonFeatureType | 0;
+    targetDF: DungeonFeatureType | 0;
     forbiddenMonsterFlags: number;
     flags: number;  // boltFlags bitmask
 }

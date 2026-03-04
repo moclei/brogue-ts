@@ -1148,8 +1148,11 @@ export function useCharm(theItem: Item, ctx: ItemHandlerContext): boolean {
                 ctx.player.status[StatusEffect.Shielded] = ctx.charmProtection(enchant);
             }
             ctx.player.maxStatus[StatusEffect.Shielded] = ctx.player.status[StatusEffect.Shielded];
-            if (ctx.boltCatalog[ctx.BOLT_SHIELDING].backColor) {
-                ctx.flashMonster(ctx.player, ctx.boltCatalog[ctx.BOLT_SHIELDING].backColor, 100);
+            {
+                const shieldingBackColor = ctx.boltCatalog[ctx.BOLT_SHIELDING].backColor;
+                if (shieldingBackColor) {
+                    ctx.flashMonster(ctx.player, shieldingBackColor, 100);
+                }
             }
             ctx.message("A shimmering shield coalesces around you.", 0);
             break;

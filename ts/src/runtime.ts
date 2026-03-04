@@ -27,6 +27,7 @@ import type {
     CreatureType,
     DungeonFeature,
     Fixpt,
+    Flare,
     GameConstants,
     Item,
     ItemTable,
@@ -34,6 +35,7 @@ import type {
     LightSource,
     MeteredItem,
     Pcell,
+    PlayerCharacter,
     Pos,
     ScreenDisplayBuffer,
     SavedDisplayBuffer,
@@ -59,6 +61,7 @@ import {
     StatusEffect,
     ItemCategory,
     DungeonLayer,
+    DungeonFeatureType,
     CreatureState,
     CreatureMode,
     FeatType,
@@ -201,6 +204,7 @@ import type { EffectsContext } from "./io/io-effects.js";
 import {
     flashTemporaryAlert as flashTemporaryAlertFn,
     flashMessage as flashMessageFn,
+    colorFlash as colorFlashFn,
 } from "./io/io-effects.js";
 
 // -- Async helpers for browser ------------------------------------------------
@@ -232,6 +236,7 @@ import {
     playerFalls as playerFallsFn,
     decrementPlayerStatus as decrementPlayerStatusFn,
     exposeCreatureToFire as exposeCreatureToFireFn,
+    extinguishFireOnCreature as extinguishFireOnCreatureFn,
     updateFlavorText as updateFlavorTextFn,
     updatePlayerUnderwaterness as updatePlayerUnderwaternessFn,
 } from "./time/creature-effects.js";
@@ -284,7 +289,7 @@ import {
 } from "./combat/combat-attack.js";
 import type { AttackContext } from "./combat/combat-attack.js";
 // killCreature is also called directly from several contexts beyond attack()
-import { killCreature as killCreatureFn, inflictDamage as inflictDamageFn } from "./combat/combat-damage.js";
+import { killCreature as killCreatureFn, inflictDamage as inflictDamageFn, heal as healFn } from "./combat/combat-damage.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import { splitMonster as splitMonsterFn, anyoneWantABite as anyoneWantABiteFn, handlePaladinFeat as handlePaladinFeatFn, decrementWeaponAutoIDTimer as decrementWeaponAutoIDTimerFn, playerImmuneToMonster as playerImmuneToMonsterFn } from "./combat/combat-helpers.js";
 import type { CombatHelperContext } from "./combat/combat-helpers.js";
@@ -302,7 +307,7 @@ import {
 } from "./movement/weapon-attacks.js";
 import type { WeaponAttackContext, BoltInfo } from "./movement/weapon-attacks.js";
 import { getImpactLoc as getImpactLocFn } from "./items/bolt-geometry.js";
-import { ringWisdomMultiplier as ringWisdomMultiplierFn, charmRechargeDelay as charmRechargeDelayFn, turnsForFullRegenInThousandths, weaponForceDistance as weaponForceDistanceFn } from "./power/power-tables.js";
+import { ringWisdomMultiplier as ringWisdomMultiplierFn, charmRechargeDelay as charmRechargeDelayFn, turnsForFullRegenInThousandths, weaponForceDistance as weaponForceDistanceFn, charmHealing as charmHealingFn, charmProtection as charmProtectionFn, charmEffectDuration as charmEffectDurationFn, charmShattering as charmShatteringFn, charmNegationRadius as charmNegationRadiusFn, staffBlinkDistance as staffBlinkDistanceFn } from "./power/power-tables.js";
 
 // -- Dijkstra scan import -----------------------------------------------------
 import { dijkstraScan as dijkstraScanFn } from "./dijkstra/dijkstra.js";
@@ -334,7 +339,7 @@ import { spawnDungeonFeature as spawnDungeonFeatureFull } from "./architect/mach
 import type { BuildBridgeContext } from "./architect/lakes.js";
 
 // -- Flag imports -------------------------------------------------------------
-import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MonsterBookkeepingFlag, MonsterAbilityFlag, ItemFlag, MessageFlag, ButtonFlag, T_OBSTRUCTS_SCENT, T_DIVIDES_LEVEL, T_PATHING_BLOCKER, T_HARMFUL_TERRAIN, T_MOVES_ITEMS, ANY_KIND_OF_VISIBLE, IS_IN_MACHINE } from "./types/flags.js";
+import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MonsterBookkeepingFlag, MonsterAbilityFlag, ItemFlag, MessageFlag, ButtonFlag, HordeFlag, HORDE_MACHINE_ONLY, T_OBSTRUCTS_SCENT, T_OBSTRUCTS_EVERYTHING, T_DIVIDES_LEVEL, T_PATHING_BLOCKER, T_HARMFUL_TERRAIN, T_MOVES_ITEMS, ANY_KIND_OF_VISIBLE, IS_IN_MACHINE } from "./types/flags.js";
 
 // -- State helper imports -----------------------------------------------------
 import { cellHasTerrainFlag, cellHasTMFlag, cellHasTerrainType, terrainFlags, terrainMechFlags, discoveredTerrainFlagsAtLoc, highestPriorityLayer } from "./state/helpers.js";
@@ -343,6 +348,7 @@ import { FP_FACTOR } from "./math/fixpt.js";
 
 // -- Catalog imports (more) ---------------------------------------------------
 import { tileCatalog } from "./globals/tile-catalog.js";
+import { boltCatalog } from "./globals/bolt-catalog.js";
 import { dungeonProfileCatalog } from "./globals/dungeon-profile-catalog.js";
 import { blueprintCatalog } from "./globals/blueprint-catalog.js";
 import { autoGeneratorCatalog } from "./globals/autogenerator-catalog.js";
@@ -368,9 +374,9 @@ import { addItemToPack, removeItemFromArray, numberOfItemsInPack as numberOfItem
 import { identify, identifyItemKind as identifyItemKindFn, itemName as itemNameFn, isVowelish as isVowelishFn, itemValue as itemValueFn } from "./items/item-naming.js";
 import type { ItemNamingContext } from "./items/item-naming.js";
 import { shuffleFlavors } from "./items/item-naming.js";
-import { equipItem, unequipItem, recalculateEquipmentBonuses, updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, strengthCheck, displayedArmorValue as displayedArmorValueFn, netEnchant as netEnchantFn } from "./items/item-usage.js";
+import { equipItem, unequipItem, recalculateEquipmentBonuses, updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, strengthCheck, displayedArmorValue as displayedArmorValueFn, netEnchant as netEnchantFn, enchantMagnitude as enchantMagnitudeFn } from "./items/item-usage.js";
 import type { EquipContext, EquipmentState } from "./items/item-usage.js";
-import { updateIdentifiableItems as updateIdentifiableItemsFn, magicCharDiscoverySuffix as magicCharDiscoverySuffixFn, eat as eatFn } from "./items/item-handlers.js";
+import { updateIdentifiableItems as updateIdentifiableItemsFn, magicCharDiscoverySuffix as magicCharDiscoverySuffixFn, eat as eatFn, apply as applyFn } from "./items/item-handlers.js";
 import type { ItemHandlerContext } from "./items/item-handlers.js";
 import { useKeyAt as useKeyAtFn } from "./movement/item-helpers.js";
 import type { ItemHelperContext } from "./movement/item-helpers.js";
@@ -406,7 +412,7 @@ import { initRecording as initRecordingFn } from "./recordings/recording-init.js
 
 // -- Flare imports ------------------------------------------------------------
 import { createFlare as createFlareFn, animateFlares as animateFlaresFn, deleteAllFlares } from "./light/flares.js";
-import { playerInDarkness as playerInDarknessFn, updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
+import { playerInDarkness as playerInDarknessFn, updateMinersLightRadius as updateMinersLightRadiusFn, updateLighting as updateLightingFn } from "./light/light.js";
 import type { LightingContext } from "./light/light.js";
 
 // -- Additional creature/combat imports for Phase 6 --------------------------
@@ -520,10 +526,10 @@ const BROGUE_TITLE_ART =
 
 /**
  * Unified rogue state that satisfies MenuRogueState, GameInitRogueState,
- * CleanupRogueState, and InitRecordingRogue. This single object is the
- * superset shared by every DI context.
+ * CleanupRogueState, InitRecordingRogue, and PlayerCharacter. This single
+ * object is the superset shared by every DI context.
  */
-interface RuntimeRogueState extends MenuRogueState {
+interface RuntimeRogueState extends MenuRogueState, PlayerCharacter {
     // -- Fields from GameInitRogueState not in MenuRogueState --
     playbackOmniscience: boolean;
     hideSeed: boolean;
@@ -542,7 +548,7 @@ interface RuntimeRogueState extends MenuRogueState {
     ringRight: Item | null;
     swappedIn: Item | null;
     swappedOut: Item | null;
-    flares: unknown[];
+    flares: Flare[];
     yendorWarden: Creature | null;
     minersLight: LightSource;
     minersLightRadius: Fixpt;
@@ -615,6 +621,12 @@ interface RuntimeRogueState extends MenuRogueState {
     nextAnnotation: string;
     locationInAnnotationFile: number;
     versionString: string;
+
+    // -- Fields from PlayerCharacter not in any sub-context above --
+    alreadyFell: boolean;
+    eligibleToUseStairs: boolean;
+    machineNumber: number;
+    howManyDepthChanges: number;
 }
 
 /**
@@ -740,6 +752,12 @@ function createRogueState(): RuntimeRogueState {
         nextAnnotation: "",
         locationInAnnotationFile: 0,
         versionString: "",
+
+        // -- PlayerCharacter-only fields --
+        alreadyFell: false,
+        eligibleToUseStairs: false,
+        machineNumber: 0,
+        howManyDepthChanges: 0,
     };
 }
 
@@ -4269,7 +4287,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 getFOVMaskWrapped(grid, x, y, BigInt(radius), obstructionFlags, extraFlags, omniscient);
             },
             updateLighting() {
-                // Simplified — full lighting update deferred
+                updateLightingFn(buildLightingContext());
             },
             updateFieldOfViewDisplay(_newlyVisible, _refreshDisplay) {
                 displayLevelFn();
@@ -5569,6 +5587,371 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
         } satisfies PlayerMoveContext & PlayerRunContext;
     }
 
+    // =========================================================================
+    // buildItemHandlerContext — wires the full ItemHandlerContext for apply()
+    // =========================================================================
+
+    /**
+     * Build the ItemHandlerContext for apply() and related item-handler functions.
+     */
+    function buildItemHandlerContext(): ItemHandlerContext {
+        const equipCtx = buildFullEquipContext();
+
+        function updateEncumbranceWrapper(): void {
+            updateEncumbranceFn(equipCtx.state);
+            syncFullEquipState(equipCtx);
+        }
+
+        function updateRingBonusesWrapper(): void {
+            updateRingBonusesFn(equipCtx.state);
+        }
+
+        function recalculateEquipmentBonusesWrapper(): void {
+            recalculateEquipmentBonuses(equipCtx.state);
+            syncFullEquipState(equipCtx);
+        }
+
+        function equipItemWrapper(theItem: Item, forceEquip: boolean, unequipHint: null): void {
+            equipItem(theItem, forceEquip, unequipHint, equipCtx);
+            syncFullEquipState(equipCtx);
+        }
+
+        return {
+            // ── Game state ──
+            gc: gameConst,
+            rogue,
+            player,
+            pmap,
+            packItems,
+            floorItems,
+            monsters,
+
+            // ── Item tables ──
+            scrollTable: mutableScrollTable,
+            potionTable: mutablePotionTable,
+            foodTable: foodTable as ItemTable[],
+            wandTable: wandTable as ItemTable[],
+            staffTable: staffTable as ItemTable[],
+            ringTable: ringTable as ItemTable[],
+            charmTable: charmTable as ItemTable[],
+
+            // ── Catalogs ──
+            tileCatalog: tileCatalog as any,
+            boltCatalog,
+            dungeonFeatureCatalog,
+
+            // ── Colors ──
+            itemMessageColor: Colors.itemMessageColor,
+            advancementMessageColor: Colors.advancementMessageColor,
+
+            // ── Naming context ──
+            namingCtx: buildItemNamingContext(),
+
+            // ── RNG ──
+            randRange,
+            randPercent,
+            randClump,
+
+            // ── UI functions ──
+            message: msgOps.message,
+            messageWithColor: msgOps.messageWithColor,
+            confirmMessages: msgOps.confirmMessages,
+            confirm(_prompt, _defaultYes) { return true; },
+            temporaryMessage: msgOps.temporaryMessage,
+            printString(s, x, y, fg, bg, _grid) {
+                printStringFn(s, x, y, fg, bg, displayBuffer);
+            },
+
+            // ── Inventory / item management ──
+            promptForItemOfType(category, requiredFlags, forbiddenFlags, prompt, allowEscape) {
+                // Synchronous version — returns null (async interaction is handled in the input loop)
+                void category; void requiredFlags; void forbiddenFlags; void prompt; void allowEscape;
+                return null;
+            },
+            numberOfMatchingPackItems(category, requiredFlags, forbiddenFlags, _displayErrors) {
+                return numberOfMatchingPackItemsFn(packItems, category, requiredFlags, forbiddenFlags);
+            },
+            removeItemFromChain(theItem, chain) {
+                removeItemFromArray(theItem, chain);
+            },
+            deleteItem(_theItem) { /* GC handles cleanup */ },
+            updateIdentifiableItem(_theItem) { /* Simplified — deferred */ },
+            updateEncumbrance: updateEncumbranceWrapper,
+            updateRingBonuses: updateRingBonusesWrapper,
+            equipItem: equipItemWrapper,
+            recalculateEquipmentBonuses: recalculateEquipmentBonusesWrapper,
+            itemMagicPolarity: (theItem) => itemMagicPolarityFn(theItem),
+
+            // ── Recording ──
+            recordKeystroke(key, shift, ctrl) {
+                recordKeystrokeFn(key, ctrl, shift, recordingBuffer, rogue.playbackMode);
+            },
+            recordKeystrokeSequence(keys) {
+                for (const k of keys) recordKeystrokeFn(k, false, false, recordingBuffer, rogue.playbackMode);
+            },
+            recordMouseClick(x, y, leftClick, shift) {
+                recordMouseClickFn(x, y, leftClick, shift, recordingBuffer, rogue.playbackMode);
+            },
+
+            // ── Creature/combat helpers ──
+            heal(target, percent, increaseMax) {
+                const dmgCtx = buildCombatDamageContext();
+                healFn(target, percent, increaseMax, dmgCtx);
+            },
+            haste(target, duration) {
+                target.status[StatusEffect.Hasted] = Math.max(target.status[StatusEffect.Hasted], duration);
+                target.maxStatus[StatusEffect.Hasted] = Math.max(target.maxStatus[StatusEffect.Hasted], duration);
+            },
+            teleport(target, destination, voluntary) {
+                teleportImpl(target, destination, voluntary);
+            },
+            exposeCreatureToFire(target) {
+                exposeCreatureToFireFn(target, buildCreatureEffectsContext());
+            },
+            extinguishFireOnCreature(target) {
+                extinguishFireOnCreatureFn(target, buildCreatureEffectsContext());
+            },
+            makePlayerTelepathic(duration) {
+                player.status[StatusEffect.Telepathic] = Math.max(player.status[StatusEffect.Telepathic], duration);
+                player.maxStatus[StatusEffect.Telepathic] = Math.max(player.maxStatus[StatusEffect.Telepathic], duration);
+            },
+            imbueInvisibility(target, duration) {
+                target.status[StatusEffect.Invisible] = Math.max(target.status[StatusEffect.Invisible], duration);
+                target.maxStatus[StatusEffect.Invisible] = Math.max(target.maxStatus[StatusEffect.Invisible], duration);
+            },
+            wakeUp(monst) { alertMonster(monst, player); },
+            fadeInMonster: fadeInMonsterImpl,
+            flashMonster(monst, color, strength) {
+                flashMonsterFn(monst, color, strength, buildCombatDamageContext());
+            },
+            aggravateMonsters(range, x, y, _color) {
+                for (const monst of monsters) {
+                    if (monst === player) continue;
+                    const dx = monst.loc.x - x;
+                    const dy = monst.loc.y - y;
+                    if (dx * dx + dy * dy <= range * range) {
+                        alertMonster(monst, player);
+                    }
+                }
+            },
+            monsterAtLoc: monsterAtLocFn,
+            monsterName(monst, includeArticle) {
+                if (monst === player) return "you";
+                const article = includeArticle
+                    ? (monst.creatureState === CreatureState.Ally ? "your " : "the ")
+                    : "";
+                return `${article}${monst.info.monsterName}`;
+            },
+            spawnHorde(_depth, pos, flags, forbiddenFlags) {
+                return spawnHordeFn(-1, pos, forbiddenFlags, flags, buildSpawnContext()) ?? null;
+            },
+            summonGuardian(_charm) {
+                console.warn("summonGuardian not yet implemented");
+            },
+
+            // ── Dungeon feature / environment ──
+            spawnDungeonFeature(x, y, feature, _refreshCell, _abortIfBlocking) {
+                spawnDungeonFeatureFromObject(x, y, feature as DungeonFeature, false, false);
+            },
+            cellHasTMFlag: cellHasTMFlagAt,
+            cellHasTerrainFlag: cellHasTerrainFlagAt,
+            discover(x, y) {
+                if (coordinatesAreInMap(x, y)) pmap[x][y].flags |= TileFlag.DISCOVERED;
+            },
+            refreshDungeonCell(pos) {
+                const { glyph, foreColor, backColor } = getCellAppearance(pos);
+                plotCharWithColor(glyph, { windowX: mapToWindowX(pos.x), windowY: mapToWindowY(pos.y) }, foreColor, backColor, displayBuffer);
+            },
+            crystalize(radius) {
+                const cx = player.loc.x;
+                const cy = player.loc.y;
+                for (let x = Math.max(0, cx - radius); x <= Math.min(DCOLS - 1, cx + radius); x++) {
+                    for (let y = Math.max(0, cy - radius); y <= Math.min(DROWS - 1, cy + radius); y++) {
+                        if ((x - cx) * (x - cx) + (y - cy) * (y - cy) <= radius * radius) {
+                            if (cellHasTerrainFlagAt({ x, y }, TerrainFlag.T_OBSTRUCTS_PASSABILITY)
+                                && !cellHasTerrainFlagAt({ x, y }, T_OBSTRUCTS_EVERYTHING)) {
+                                spawnDungeonFeatureRuntime(x, y, DungeonFeatureType.DF_SHATTERING_SPELL, 100, false);
+                            }
+                        }
+                    }
+                }
+            },
+            rechargeItems(category) {
+                for (const item of packItems) {
+                    if (item.category & category) {
+                        item.charges = item.enchant2;
+                    }
+                }
+            },
+            negationBlast(source, radius) {
+                void source;
+                const cx = player.loc.x;
+                const cy = player.loc.y;
+                for (const monst of monsters) {
+                    if (monst === player) continue;
+                    const dx = monst.loc.x - cx;
+                    const dy = monst.loc.y - cy;
+                    if (dx * dx + dy * dy <= radius * radius
+                        && !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.IN_FIELD_OF_VIEW)) {
+                        // Strip status effects (simplified)
+                        for (let i = 0; i < monst.status.length; i++) {
+                            monst.status[i] = 0;
+                        }
+                    }
+                }
+            },
+            discordBlast(source, radius) {
+                void source;
+                const cx = player.loc.x;
+                const cy = player.loc.y;
+                for (const monst of monsters) {
+                    if (monst === player) continue;
+                    const dx = monst.loc.x - cx;
+                    const dy = monst.loc.y - cy;
+                    if (dx * dx + dy * dy <= radius * radius
+                        && !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.IN_FIELD_OF_VIEW)) {
+                        const dur = Math.max(monst.status[StatusEffect.Discordant], 5 + randRange(0, 5));
+                        monst.status[StatusEffect.Discordant] = dur;
+                        monst.maxStatus[StatusEffect.Discordant] = dur;
+                    }
+                }
+            },
+
+            // ── Visual effects ──
+            colorFlash(color, _flags, tileFlags, radius, maxRadius, x, y) {
+                const effCtx = buildEffectsContext();
+                colorFlashFn(color, 0, tileFlags, radius, maxRadius, x, y, effCtx);
+            },
+            createFlare(x, y, lightIndex) {
+                createFlareFn(x, y, lightIndex, rogue as any, lightCatalogData);
+            },
+            displayLevel() { displayLevelFn(); commitDraws(); },
+
+            // ── Vision/light ──
+            updateMinersLightRadius() { updateMinersLightRadiusFn(rogue as any, player); },
+            updateVision(refreshDisplay) { updateVisionFn(refreshDisplay); },
+            updateClairvoyance() { updateClairvoyanceFn(buildSafetyMapsContext()); },
+            updatePlayerRegenerationDelay() {
+                let maxHP = player.info.maxHP;
+                const turnsForFull = turnsForFullRegenInThousandths(BigInt(rogue.regenerationBonus) * FP_FACTOR);
+                player.regenPerTurn = 0;
+                const turnsForFullInTurns = Math.floor(turnsForFull / 1000);
+                while (maxHP > turnsForFullInTurns) {
+                    player.regenPerTurn++;
+                    maxHP -= turnsForFullInTurns;
+                }
+                player.info.turnsBetweenRegen = maxHP > 0
+                    ? Math.floor(turnsForFull / maxHP)
+                    : turnsForFull;
+            },
+
+            // ── Targeting ──
+            chooseTarget(maxDistance, _autoTargetMode, _theItem) {
+                // Auto-target: find the nearest visible monster
+                let nearestLoc = INVALID_POS;
+                let nearestDist = Infinity;
+                for (const monst of monsters) {
+                    if (monst === player) continue;
+                    if (!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE)) continue;
+                    const dx = monst.loc.x - player.loc.x;
+                    const dy = monst.loc.y - player.loc.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist <= maxDistance && dist < nearestDist) {
+                        nearestDist = dist;
+                        nearestLoc = { ...monst.loc };
+                    }
+                }
+                if (nearestLoc.x === INVALID_POS.x && nearestLoc.y === INVALID_POS.y) {
+                    nearestLoc = { ...player.loc };
+                }
+                return { confirmed: true, target: nearestLoc };
+            },
+            staffBlinkDistance(enchant) {
+                return staffBlinkDistanceFn(enchant);
+            },
+            playerCancelsBlinking(_origin, _target, _maxDistance) {
+                return false;
+            },
+
+            // ── Turn management ──
+            playerTurnEnded() { doPlayerTurnEnded(); },
+
+            // ── Map helpers ──
+            mapToWindowX,
+            mapToWindowY,
+
+            // ── Charm calculation helpers ──
+            charmHealing(enchant) {
+                const entry = charmEffectTable[0]; // CharmKind.Health
+                return charmHealingFn(enchant, entry ? entry.effectMagnitudeMultiplier : 100);
+            },
+            charmProtection(enchant) {
+                const entry = charmEffectTable[1]; // CharmKind.Protection
+                return charmProtectionFn(enchant, entry ? entry.effectMagnitudeMultiplier : 50);
+            },
+            charmEffectDuration(kind, enchant) {
+                const entry = charmEffectTable[kind];
+                return entry ? charmEffectDurationFn(entry, enchant) : 0;
+            },
+            charmShattering(enchant) {
+                const entry = charmEffectTable[7]; // CharmKind.Shattering
+                return charmShatteringFn(enchant, entry ? entry.effectMagnitudeConstant : 3);
+            },
+            charmNegationRadius(enchant) {
+                const entry = charmEffectTable[11]; // CharmKind.Negation
+                return charmNegationRadiusFn(
+                    enchant,
+                    entry ? entry.effectMagnitudeConstant : 1,
+                    entry ? entry.effectMagnitudeMultiplier : 1,
+                );
+            },
+            charmRechargeDelay(kind, enchant) {
+                const entry = charmEffectTable[kind];
+                return entry ? charmRechargeDelayFn(entry, enchant) : 0;
+            },
+            enchantMagnitude() {
+                return enchantMagnitudeFn();
+            },
+
+            // ── Feature constants ──
+            DF_INCINERATION_POTION: DungeonFeatureType.DF_INCINERATION_POTION,
+            DF_HOLE_POTION: DungeonFeatureType.DF_HOLE_POTION,
+            DF_POISON_GAS_CLOUD_POTION: DungeonFeatureType.DF_POISON_GAS_CLOUD_POTION,
+            DF_PARALYSIS_GAS_CLOUD_POTION: DungeonFeatureType.DF_PARALYSIS_GAS_CLOUD_POTION,
+            DF_CONFUSION_GAS_CLOUD_POTION: DungeonFeatureType.DF_CONFUSION_GAS_CLOUD_POTION,
+            DF_LICHEN_PLANTED: DungeonFeatureType.DF_LICHEN_PLANTED,
+            DF_SACRED_GLYPHS: DungeonFeatureType.DF_SACRED_GLYPHS,
+
+            SCROLL_ENCHANTMENT_LIGHT: LightType.SCROLL_ENCHANTMENT_LIGHT,
+            SCROLL_PROTECTION_LIGHT: LightType.SCROLL_PROTECTION_LIGHT,
+            POTION_STRENGTH_LIGHT: LightType.POTION_STRENGTH_LIGHT,
+
+            REQUIRE_ACKNOWLEDGMENT: MessageFlag.REQUIRE_ACKNOWLEDGMENT,
+            REFRESH_SIDEBAR: MessageFlag.REFRESH_SIDEBAR,
+
+            KEYBOARD_LABELS,
+
+            INVALID_POS,
+
+            BOLT_SHIELDING: BoltType.SHIELDING,
+
+            HORDE_LEADER_CAPTIVE: HordeFlag.HORDE_LEADER_CAPTIVE,
+            HORDE_NO_PERIODIC_SPAWN: HordeFlag.HORDE_NO_PERIODIC_SPAWN,
+            HORDE_IS_SUMMONED: HordeFlag.HORDE_IS_SUMMONED,
+            HORDE_MACHINE_ONLY: HORDE_MACHINE_ONLY,
+
+            magicMapFlashColor: Colors.white,
+            darkBlue: Colors.darkBlue,
+            gray: Colors.gray,
+            black: Colors.black,
+
+            MAGIC_MAPPED: TileFlag.MAGIC_MAPPED,
+            IN_FIELD_OF_VIEW: TileFlag.IN_FIELD_OF_VIEW,
+
+            nbDirs: nbDirs as readonly [number, number][],
+        } satisfies ItemHandlerContext;
+    }
+
     /**
      * Build the MiscHelpersContext for autoRest and manualSearch.
      */
@@ -5974,16 +6357,23 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             monsterRevealed(monst) {
                 return !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE);
             },
-            monsterName(buf, _monst, _includeArticle) {
-                buf[0] = "monster"; // simplified — full monsterName needs item-naming context
+            monsterName(buf, monst, includeArticle) {
+                if (monst === player) {
+                    buf[0] = "you";
+                } else {
+                    const article = includeArticle
+                        ? (monst.creatureState === CreatureState.Ally ? "your " : "the ")
+                        : "";
+                    buf[0] = `${article}${monst.info.monsterName}`;
+                }
             },
             monsterAtLoc,
-            monstersAreEnemies(_monst1, _monst2) {
-                return true; // simplified
+            monstersAreEnemies(monst1, monst2) {
+                return monstersAreEnemiesFn(monst1, monst2, player, cellHasTerrainFlagAt);
             },
             monsterAvoids: monsterAvoidsWrapped,
-            monsterIsInClass(_monst, _monsterClass) {
-                return false; // simplified
+            monsterIsInClass(monst, monsterClass) {
+                return monsterIsInClass(monst, monsterClassCatalog[monsterClass as number]);
             },
             isVowelish(word) {
                 return "aeiouAEIOU".includes(word[0] ?? "");
@@ -6338,8 +6728,20 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                     pmap[_x][_y].flags |= TileFlag.DISCOVERED;
                 }
             },
-            storeMemories(_x, _y) {
-                // Stub — stores terrain memory for visited cells
+            storeMemories(x, y) {
+                if (!coordinatesAreInMap(x, y)) return;
+                const cell = pmap[x][y];
+                cell.rememberedTerrain = cell.layers[highestPriorityLayer(pmap, x, y, false)];
+                cell.rememberedCellFlags = cell.flags;
+                cell.rememberedTerrainFlags = terrainFlagsAt({ x, y });
+                cell.rememberedTMFlags = terrainMechFlagsAt({ x, y });
+                const appearance = getCellAppearance({ x, y });
+                cell.rememberedAppearance = {
+                    character: appearance.glyph,
+                    foreColorComponents: [appearance.foreColor.red, appearance.foreColor.green, appearance.foreColor.blue],
+                    backColorComponents: [appearance.backColor.red, appearance.backColor.green, appearance.backColor.blue],
+                    opacity: 100,
+                };
             },
 
             // -- Items / recharging ------------------------------------------
@@ -6680,11 +7082,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                     );
                 }
                 if (!theItem) return;
-                msgOps.confirmMessages();
-                // Full apply dispatch requires targeting, bolts, etc.
-                // For now, handle food/potions which don't need targeting:
-                const name = getItemName(theItem, false, true);
-                msgOps.message(`you can't apply ${name} yet (full item usage coming soon).`, 0);
+                applyFn(theItem, buildItemHandlerContext());
             },
             async throwCommand(theItem: Item | null, _confirmed: boolean) {
                 if (!theItem) {

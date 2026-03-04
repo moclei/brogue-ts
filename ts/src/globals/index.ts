@@ -16,3 +16,4 @@ export * from "./monster-catalog.js";
 export * from "./horde-catalog.js";
 export * from "./string-tables.js";
 export * from "./status-effects.js";
+export * from "./bolt-catalog.js";
