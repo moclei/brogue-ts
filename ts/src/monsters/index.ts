@@ -74,11 +74,15 @@ export {
     findAlternativeHomeFor,
     getQualifyingLocNear,
     getQualifyingGridLocNear,
+    randValidDirectionFrom,
+    moveMonsterPassivelyTowards,
 } from "./monster-movement.js";
 
 export type {
     MonsterMovementContext,
     MoveMonsterContext,
+    RandValidDirectionContext,
+    MoveMonsterPassivelyContext,
 } from "./monster-movement.js";
 
 export {
@@ -88,11 +92,31 @@ export {
     negateCreatureStatusEffects,
     monsterSummons,
     monstersTurn,
+    monstUseMagicStub,
+    monsterBlinkToPreferenceMapStub,
+    monsterBlinkToSafetyStub,
+    updateMonsterCorpseAbsorptionStub,
+    isValidWanderDestination,
+    wanderToward,
+    traversiblePathBetween,
+    pathTowardCreature,
+    isLocalScentMaximum,
+    scentDirection,
+    monsterMillAbout,
+    moveAlly,
 } from "./monster-actions.js";
 
 export type {
     MonsterSummonsContext,
     MonstersTurnContext,
+    WanderContext,
+    WanderTowardContext,
+    TraversiblePathContext,
+    PathTowardCreatureContext,
+    LocalScentContext,
+    ScentDirectionContext,
+    MonsterMillAboutContext,
+    MoveAllyContext,
 } from "./monster-actions.js";
 
 export {

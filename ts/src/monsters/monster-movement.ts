@@ -2,10 +2,11 @@
  *  monster-movement.ts — Monster movement helpers
  *  brogue-ts
  *
- *  Ported from: src/brogue/Monsters.c, src/brogue/Grid.c
+ *  Ported from: src/brogue/Monsters.c, src/brogue/Grid.c, src/brogue/Movement.c
  *  Functions: canPass, isPassableOrSecretDoor, setMonsterLocation,
  *             moveMonster, findAlternativeHomeFor, getQualifyingLocNear,
- *             getQualifyingGridLocNear
+ *             getQualifyingGridLocNear, randValidDirectionFrom,
+ *             moveMonsterPassivelyTowards
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -14,7 +15,7 @@
  */
 
 import type { Creature, Pos } from "../types/types.js";
-import { StatusEffect } from "../types/enums.js";
+import { StatusEffect, CreatureState } from "../types/enums.js";
 import {
     MonsterBehaviorFlag,
     MonsterBookkeepingFlag,
@@ -687,6 +688,195 @@ export function moveMonster(
                 monst.ticksUntilTurn = monst.movementSpeed;
                 return true;
             }
+        }
+    }
+
+    return false;
+}
+
+// ============================================================================
+// randValidDirectionFrom — Monsters.c via Movement.c:462
+// ============================================================================
+
+/**
+ * Context for randValidDirectionFrom — subset of MoveMonsterContext.
+ */
+export interface RandValidDirectionContext {
+    coordinatesAreInMap(x: number, y: number): boolean;
+    cellHasTerrainFlag(loc: Pos, flags: number): boolean;
+    cellFlags(loc: Pos): number;
+    diagonalBlocked(x1: number, y1: number, x2: number, y2: number, isPlayer: boolean): boolean;
+    monsterAvoids(monst: Creature, loc: Pos): boolean;
+    nbDirs: readonly [number, number][];
+    HAS_PLAYER: number;
+    NO_DIRECTION: number;
+    rng: { randRange(lo: number, hi: number): number };
+}
+
+/**
+ * Returns a random valid direction for a monster to move from (x, y).
+ * Returns NO_DIRECTION (-1) if no valid direction exists.
+ *
+ * Ported from randValidDirectionFrom() in Movement.c.
+ */
+export function randValidDirectionFrom(
+    monst: Creature,
+    x: number,
+    y: number,
+    respectAvoidancePreferences: boolean,
+    ctx: RandValidDirectionContext,
+): number {
+    const validDirections: number[] = [];
+
+    for (let i = 0; i < 8; i++) {
+        const newX = x + ctx.nbDirs[i][0];
+        const newY = y + ctx.nbDirs[i][1];
+        if (
+            ctx.coordinatesAreInMap(newX, newY) &&
+            !ctx.cellHasTerrainFlag({ x: newX, y: newY }, TerrainFlag.T_OBSTRUCTS_PASSABILITY) &&
+            !ctx.diagonalBlocked(x, y, newX, newY, false) &&
+            (!respectAvoidancePreferences ||
+                !ctx.monsterAvoids(monst, { x: newX, y: newY }) ||
+                ((ctx.cellFlags({ x: newX, y: newY }) & ctx.HAS_PLAYER) &&
+                    monst.creatureState !== CreatureState.Ally))
+        ) {
+            validDirections.push(i);
+        }
+    }
+
+    if (validDirections.length === 0) {
+        return ctx.NO_DIRECTION;
+    }
+    return validDirections[ctx.rng.randRange(0, validDirections.length - 1)];
+}
+
+// ============================================================================
+// moveMonsterPassivelyTowards — Monsters.c:1515
+// ============================================================================
+
+/**
+ * Context for moveMonsterPassivelyTowards.
+ */
+export interface MoveMonsterPassivelyContext extends MoveMonsterContext {
+    // MoveMonsterContext already has everything needed:
+    // monsterAvoids, cellFlags, HAS_PLAYER, moveMonster (via calling moveMonster function),
+    // coordinatesAreInMap, nbDirs, NO_DIRECTION, diagonalBlocked
+}
+
+/**
+ * Moves a monster passively toward targetLoc — attempts primary diagonal,
+ * then falls back to axis-aligned and alternative diagonal directions.
+ * If willingToAttackPlayer is false, skips cells with HAS_PLAYER flag.
+ * Returns true if the monster performed a turn-consuming action.
+ *
+ * Ported from moveMonsterPassivelyTowards() in Monsters.c.
+ */
+export function moveMonsterPassivelyTowards(
+    monst: Creature,
+    targetLoc: Pos,
+    willingToAttackPlayer: boolean,
+    ctx: MoveMonsterContext,
+): boolean {
+    const x = monst.loc.x;
+    const y = monst.loc.y;
+
+    const dx = Math.sign(targetLoc.x - x);
+    const dy = Math.sign(targetLoc.y - y);
+
+    if (dx === 0 && dy === 0) {
+        return false; // already at destination
+    }
+
+    const newX = x + dx;
+    const newY = y + dy;
+
+    if (!ctx.coordinatesAreInMap(newX, newY)) {
+        return false;
+    }
+
+    // If tracking scent we skip the axial pre-move randomization
+    const isTracking = monst.creatureState === CreatureState.TrackingScent;
+
+    if (!isTracking && dx !== 0 && dy !== 0) {
+        const absDX = Math.abs(targetLoc.x - x);
+        const absDY = Math.abs(targetLoc.y - y);
+        if (absDX > absDY && ctx.rng.randRange(0, absDX) > absDY) {
+            if (
+                !ctx.monsterAvoids(monst, { x: newX, y }) &&
+                (willingToAttackPlayer || !(ctx.cellFlags({ x: newX, y }) & ctx.HAS_PLAYER)) &&
+                moveMonster(monst, dx, 0, ctx)
+            ) {
+                return true;
+            }
+        } else if (absDX < absDY && ctx.rng.randRange(0, absDY) > absDX) {
+            if (
+                !ctx.monsterAvoids(monst, { x, y: newY }) &&
+                (willingToAttackPlayer || !(ctx.cellFlags({ x, y: newY }) & ctx.HAS_PLAYER)) &&
+                moveMonster(monst, 0, dy, ctx)
+            ) {
+                return true;
+            }
+        }
+    }
+
+    // Try the primary (possibly diagonal) direction
+    if (
+        !ctx.monsterAvoids(monst, { x: newX, y: newY }) &&
+        (willingToAttackPlayer || !(ctx.cellFlags({ x: newX, y: newY }) & ctx.HAS_PLAYER)) &&
+        moveMonster(monst, dx, dy, ctx)
+    ) {
+        return true;
+    }
+
+    // If cardinally adjacent to destination and cardinal, give up
+    const absDX = Math.abs(targetLoc.x - x);
+    const absDY = Math.abs(targetLoc.y - y);
+    if (absDX <= 1 && absDY <= 1 && (dx === 0 || dy === 0)) {
+        return false;
+    }
+
+    // Try alternatives
+    if (absDX < absDY) {
+        if (
+            !(ctx.monsterAvoids(monst, { x, y: newY }) || (!willingToAttackPlayer && (ctx.cellFlags({ x, y: newY }) & ctx.HAS_PLAYER)) || !moveMonster(monst, 0, dy, ctx))
+        ) {
+            return true;
+        }
+        if (
+            !(ctx.monsterAvoids(monst, { x: newX, y }) || (!willingToAttackPlayer && (ctx.cellFlags({ x: newX, y }) & ctx.HAS_PLAYER)) || !moveMonster(monst, dx, 0, ctx))
+        ) {
+            return true;
+        }
+        if (
+            !(ctx.monsterAvoids(monst, { x: x - 1, y: newY }) || (!willingToAttackPlayer && (ctx.cellFlags({ x: x - 1, y: newY }) & ctx.HAS_PLAYER)) || !moveMonster(monst, -1, dy, ctx))
+        ) {
+            return true;
+        }
+        if (
+            !(ctx.monsterAvoids(monst, { x: x + 1, y: newY }) || (!willingToAttackPlayer && (ctx.cellFlags({ x: x + 1, y: newY }) & ctx.HAS_PLAYER)) || !moveMonster(monst, 1, dy, ctx))
+        ) {
+            return true;
+        }
+    } else {
+        if (
+            !(ctx.monsterAvoids(monst, { x: newX, y }) || (!willingToAttackPlayer && (ctx.cellFlags({ x: newX, y }) & ctx.HAS_PLAYER)) || !moveMonster(monst, dx, 0, ctx))
+        ) {
+            return true;
+        }
+        if (
+            !(ctx.monsterAvoids(monst, { x, y: newY }) || (!willingToAttackPlayer && (ctx.cellFlags({ x, y: newY }) & ctx.HAS_PLAYER)) || !moveMonster(monst, 0, dy, ctx))
+        ) {
+            return true;
+        }
+        if (
+            !(ctx.monsterAvoids(monst, { x: newX, y: y - 1 }) || (!willingToAttackPlayer && (ctx.cellFlags({ x: newX, y: y - 1 }) & ctx.HAS_PLAYER)) || !moveMonster(monst, dx, -1, ctx))
+        ) {
+            return true;
+        }
+        if (
+            !(ctx.monsterAvoids(monst, { x: newX, y: y + 1 }) || (!willingToAttackPlayer && (ctx.cellFlags({ x: newX, y: y + 1 }) & ctx.HAS_PLAYER)) || !moveMonster(monst, dx, 1, ctx))
+        ) {
+            return true;
         }
     }
 

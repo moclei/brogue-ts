@@ -187,6 +187,628 @@ export function monsterSummons(
 }
 
 // ============================================================================
+// Helper function stubs — monstUseMagic, monsterBlinkToPreferenceMap,
+//   monsterBlinkToSafety, updateMonsterCorpseAbsorption
+// These require deep magic / blink systems not yet ported.
+// ============================================================================
+
+/**
+ * Stub: returns false — full magic casting not yet ported.
+ */
+export function monstUseMagicStub(_monst: Creature): boolean {
+    return false;
+}
+
+/**
+ * Stub: returns false — full blink-to-map not yet ported.
+ */
+export function monsterBlinkToPreferenceMapStub(
+    _monst: Creature,
+    _preferenceMap: number[][],
+    _blinkUphill: boolean,
+): boolean {
+    return false;
+}
+
+/**
+ * Stub: returns false — full blink-to-safety not yet ported.
+ */
+export function monsterBlinkToSafetyStub(_monst: Creature): boolean {
+    return false;
+}
+
+/**
+ * Stub: returns false — full corpse absorption not yet ported.
+ */
+export function updateMonsterCorpseAbsorptionStub(_monst: Creature): boolean {
+    return false;
+}
+
+// ============================================================================
+// isValidWanderDestination — Monsters.c:1197
+// ============================================================================
+
+/**
+ * Context interface for isValidWanderDestination.
+ */
+export interface WanderContext {
+    waypointCount: number;
+    waypointDistanceMap(index: number): number[][] | null;
+    nextStep(map: number[][], loc: Pos, monst: Creature | null, includeMonsters: boolean): number;
+    NO_DIRECTION: number;
+}
+
+/**
+ * Returns true if wpIndex is a valid wander destination for this monster.
+ * The waypoint must be reachable and not already visited.
+ *
+ * Ported from isValidWanderDestination() in Monsters.c.
+ */
+export function isValidWanderDestination(
+    monst: Creature,
+    wpIndex: number,
+    ctx: WanderContext,
+): boolean {
+    if (wpIndex < 0 || wpIndex >= ctx.waypointCount) {
+        return false;
+    }
+    if (monst.waypointAlreadyVisited[wpIndex]) {
+        return false;
+    }
+    const distMap = ctx.waypointDistanceMap(wpIndex);
+    if (!distMap) {
+        return false;
+    }
+    if (distMap[monst.loc.x][monst.loc.y] < 0) {
+        return false;
+    }
+    if (ctx.nextStep(distMap, monst.loc, monst, false) === ctx.NO_DIRECTION) {
+        return false;
+    }
+    return true;
+}
+
+// ============================================================================
+// wanderToward — Monsters.c:1699
+// ============================================================================
+
+/**
+ * Context for wanderToward.
+ */
+export interface WanderTowardContext {
+    DCOLS: number;
+    DROWS: number;
+    waypointCount: number;
+    waypointDistanceMap(index: number): number[][] | null;
+    closestWaypointIndexTo(loc: Pos): number;
+}
+
+/**
+ * Sets the monster's target waypoint to the closest one near the given destination.
+ *
+ * Ported from wanderToward() in Monsters.c.
+ */
+export function wanderToward(
+    monst: Creature,
+    destination: Pos,
+    ctx: WanderTowardContext,
+): void {
+    if (
+        destination.x < 0 ||
+        destination.x >= ctx.DCOLS ||
+        destination.y < 0 ||
+        destination.y >= ctx.DROWS
+    ) {
+        return;
+    }
+    const waypointIndex = ctx.closestWaypointIndexTo(destination);
+    if (waypointIndex !== -1) {
+        monst.waypointAlreadyVisited[waypointIndex] = false;
+        monst.targetWaypointIndex = waypointIndex;
+    }
+}
+
+// ============================================================================
+// traversiblePathBetween — Monsters.c:1994
+// ============================================================================
+
+/**
+ * Context for traversiblePathBetween.
+ */
+export interface TraversiblePathContext {
+    monsterAvoids(monst: Creature, loc: Pos): boolean;
+    DCOLS: number;
+    DROWS: number;
+}
+
+/**
+ * Returns true if a monster can traverse the path from its current location
+ * to (x2, y2) using line-of-sight stepping without hitting avoided terrain.
+ *
+ * This port uses a simplified line-of-sight traversal (Bresenham-style)
+ * rather than the full bolt-path algorithm from the C source.
+ *
+ * Ported from traversiblePathBetween() in Monsters.c.
+ */
+export function traversiblePathBetween(
+    monst: Creature,
+    x2: number,
+    y2: number,
+    ctx: TraversiblePathContext,
+): boolean {
+    const x1 = monst.loc.x;
+    const y1 = monst.loc.y;
+
+    const dx = Math.abs(x2 - x1);
+    const dy = Math.abs(y2 - y1);
+    const sx = x1 < x2 ? 1 : -1;
+    const sy = y1 < y2 ? 1 : -1;
+
+    let cx = x1;
+    let cy = y1;
+    let err = dx - dy;
+
+    // Walk the Bresenham line; skip origin; return true when we reach target
+    for (let step = 0; step < dx + dy + 2; step++) {
+        if (cx === x2 && cy === y2) {
+            return true;
+        }
+        if (ctx.monsterAvoids(monst, { x: cx, y: cy }) && !(cx === x1 && cy === y1)) {
+            return false;
+        }
+        const e2 = 2 * err;
+        if (e2 > -dy) {
+            err -= dy;
+            cx += sx;
+        }
+        if (e2 < dx) {
+            err += dx;
+            cy += sy;
+        }
+    }
+
+    return true;
+}
+
+// ============================================================================
+// pathTowardCreature — Monsters.c:2089
+// ============================================================================
+
+/**
+ * Context for pathTowardCreature.
+ */
+export interface PathTowardCreatureContext {
+    traversiblePathBetween(monst: Creature, x: number, y: number): boolean;
+    distanceBetween(loc1: Pos, loc2: Pos): number;
+    moveMonsterPassivelyTowards(monst: Creature, target: Pos, willingToAttackPlayer: boolean): boolean;
+    monsterBlinkToPreferenceMap(monst: Creature, map: number[][], blinkUphill: boolean): boolean;
+    nextStep(map: number[][], loc: Pos, monst: Creature | null, includeMonsters: boolean): number;
+    randValidDirectionFrom(monst: Creature, x: number, y: number, allowDiag: boolean): number;
+    nbDirs: readonly [number, number][];
+    NO_DIRECTION: number;
+    MONST_CAST_SPELLS_SLOWLY: number;
+    monstersAreEnemies(m1: Creature, m2: Creature): boolean;
+    allocGrid(): number[][];
+    calculateDistances(grid: number[][], x: number, y: number, flags: number, monst: Creature, twoPass: boolean, checkTargetPassability: boolean): void;
+    MB_GIVEN_UP_ON_SCENT: number;
+}
+
+/**
+ * Moves a monster toward a target creature using either direct passive movement
+ * (if a traversible path exists) or the target's distance map.
+ *
+ * Ported from pathTowardCreature() in Monsters.c.
+ */
+export function pathTowardCreature(
+    monst: Creature,
+    target: Creature,
+    ctx: PathTowardCreatureContext,
+): void {
+    if (ctx.traversiblePathBetween(monst, target.loc.x, target.loc.y)) {
+        if (ctx.distanceBetween(monst.loc, target.loc) <= 2) {
+            monst.bookkeepingFlags &= ~ctx.MB_GIVEN_UP_ON_SCENT;
+        }
+        ctx.moveMonsterPassivelyTowards(monst, target.loc, monst.creatureState !== CreatureState.Ally);
+        return;
+    }
+
+    // Ensure target has a distance map
+    if (!target.mapToMe) {
+        target.mapToMe = ctx.allocGrid();
+        ctx.calculateDistances(target.mapToMe, target.loc.x, target.loc.y, 0, monst, true, false);
+    }
+
+    // Recalculate if map is stale
+    if ((target.mapToMe as number[][])[target.loc.x][target.loc.y] > 3) {
+        ctx.calculateDistances(target.mapToMe as number[][], target.loc.x, target.loc.y, 0, monst, true, false);
+    }
+
+    // Blink toward target if far or hostile
+    if (
+        ctx.distanceBetween(monst.loc, target.loc) > 10 ||
+        ctx.monstersAreEnemies(monst, target)
+    ) {
+        if (ctx.monsterBlinkToPreferenceMap(monst, target.mapToMe as number[][], false)) {
+            monst.ticksUntilTurn = monst.attackSpeed *
+                ((monst.info.flags & ctx.MONST_CAST_SPELLS_SLOWLY) ? 2 : 1);
+            return;
+        }
+    }
+
+    // Follow the distance map
+    let dir = ctx.nextStep(target.mapToMe as number[][], monst.loc, monst, true);
+    if (dir === ctx.NO_DIRECTION) {
+        dir = ctx.randValidDirectionFrom(monst, monst.loc.x, monst.loc.y, true);
+    }
+    if (dir === ctx.NO_DIRECTION) {
+        return; // blocked
+    }
+    const targetLoc: Pos = {
+        x: monst.loc.x + ctx.nbDirs[dir][0],
+        y: monst.loc.y + ctx.nbDirs[dir][1],
+    };
+    ctx.moveMonsterPassivelyTowards(monst, targetLoc, monst.creatureState !== CreatureState.Ally);
+}
+
+// ============================================================================
+// isLocalScentMaximum — Monsters.c:2817
+// ============================================================================
+
+/**
+ * Context for isLocalScentMaximum.
+ */
+export interface LocalScentContext {
+    scentMap: number[][];
+    cellHasTerrainFlag(loc: Pos, flags: number): boolean;
+    diagonalBlocked(x1: number, y1: number, x2: number, y2: number, isPlayer: boolean): boolean;
+    coordinatesAreInMap(x: number, y: number): boolean;
+    nbDirs: readonly [number, number][];
+    DIRECTION_COUNT: number;
+}
+
+/**
+ * Returns true if the scent at loc is >= the scent in every accessible adjacent cell.
+ * Used to detect when a monster is stuck at a local scent peak.
+ *
+ * Ported from isLocalScentMaximum() in Monsters.c.
+ */
+export function isLocalScentMaximum(loc: Pos, ctx: LocalScentContext): boolean {
+    const baselineScent = ctx.scentMap[loc.x][loc.y];
+    for (let dir = 0; dir < ctx.DIRECTION_COUNT; dir++) {
+        const newLoc: Pos = {
+            x: loc.x + ctx.nbDirs[dir][0],
+            y: loc.y + ctx.nbDirs[dir][1],
+        };
+        if (
+            ctx.coordinatesAreInMap(newLoc.x, newLoc.y) &&
+            ctx.scentMap[newLoc.x][newLoc.y] > baselineScent &&
+            !ctx.cellHasTerrainFlag(newLoc, TerrainFlag.T_OBSTRUCTS_PASSABILITY) &&
+            !ctx.diagonalBlocked(loc.x, loc.y, newLoc.x, newLoc.y, false)
+        ) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// ============================================================================
+// scentDirection — Monsters.c:2833
+// ============================================================================
+
+/**
+ * Context for scentDirection.
+ */
+export interface ScentDirectionContext {
+    scentMap: number[][];
+    coordinatesAreInMap(x: number, y: number): boolean;
+    cellHasTerrainFlag(loc: Pos, flags: number): boolean;
+    cellFlags(loc: Pos): number;
+    diagonalBlocked(x1: number, y1: number, x2: number, y2: number, isPlayer: boolean): boolean;
+    monsterAvoids(monst: Creature, loc: Pos): boolean;
+    monsterAtLoc(loc: Pos): Creature | null;
+    canPass(mover: Creature, blocker: Creature): boolean;
+    nbDirs: readonly [number, number][];
+    NO_DIRECTION: number;
+    DIRECTION_COUNT: number;
+    HAS_MONSTER: number;
+    HAS_PLAYER: number;
+}
+
+/**
+ * Returns the direction index toward the strongest adjacent scent cell,
+ * or NO_DIRECTION if no higher-scent adjacent cell is reachable.
+ * On first failure, diffuses scent through cardinal neighbors and retries once.
+ *
+ * Ported from scentDirection() in Monsters.c.
+ */
+export function scentDirection(monst: Creature, ctx: ScentDirectionContext): number {
+    const x = monst.loc.x;
+    const y = monst.loc.y;
+
+    let canTryAgain = true;
+
+    for (;;) {
+        let bestDirection = ctx.NO_DIRECTION;
+        let bestNearbyScent = 0;
+
+        for (let dir = 0; dir < ctx.DIRECTION_COUNT; dir++) {
+            const newX = x + ctx.nbDirs[dir][0];
+            const newY = y + ctx.nbDirs[dir][1];
+            const otherMonst = ctx.monsterAtLoc({ x: newX, y: newY });
+            if (
+                ctx.coordinatesAreInMap(newX, newY) &&
+                ctx.scentMap[newX][newY] > bestNearbyScent &&
+                (!(ctx.cellFlags({ x: newX, y: newY }) & ctx.HAS_MONSTER) ||
+                    (otherMonst !== null && ctx.canPass(monst, otherMonst))) &&
+                !ctx.cellHasTerrainFlag({ x: newX, y: newY }, TerrainFlag.T_OBSTRUCTS_PASSABILITY) &&
+                !ctx.diagonalBlocked(x, y, newX, newY, false) &&
+                !ctx.monsterAvoids(monst, { x: newX, y: newY })
+            ) {
+                bestNearbyScent = ctx.scentMap[newX][newY];
+                bestDirection = dir;
+            }
+        }
+
+        if (bestDirection >= 0 && bestNearbyScent > ctx.scentMap[x][y]) {
+            return bestDirection;
+        }
+
+        if (canTryAgain) {
+            // Diffuse scent through cardinal neighbors to resolve diagonal kinks
+            canTryAgain = false;
+            for (let dir = 0; dir < 4; dir++) {
+                const newX = x + ctx.nbDirs[dir][0];
+                const newY = y + ctx.nbDirs[dir][1];
+                for (let dir2 = 0; dir2 < 4; dir2++) {
+                    const newestX = newX + ctx.nbDirs[dir2][0];
+                    const newestY = newY + ctx.nbDirs[dir2][1];
+                    if (ctx.coordinatesAreInMap(newX, newY) && ctx.coordinatesAreInMap(newestX, newestY)) {
+                        ctx.scentMap[newX][newY] = Math.max(
+                            ctx.scentMap[newX][newY],
+                            ctx.scentMap[newestX][newestY] - 1,
+                        );
+                    }
+                }
+            }
+        } else {
+            return ctx.NO_DIRECTION;
+        }
+    }
+}
+
+// ============================================================================
+// monsterMillAbout — Monsters.c:3019
+// ============================================================================
+
+/**
+ * Context for monsterMillAbout.
+ */
+export interface MonsterMillAboutContext {
+    rng: {
+        randPercent(pct: number): boolean;
+    };
+    randValidDirectionFrom(monst: Creature, x: number, y: number, allowDiag: boolean): number;
+    moveMonsterPassivelyTowards(monst: Creature, target: Pos, willingToAttackPlayer: boolean): boolean;
+    nbDirs: readonly [number, number][];
+    NO_DIRECTION: number;
+}
+
+/**
+ * Randomly moves the monster one step with a given chance (movementChance%).
+ *
+ * Ported from monsterMillAbout() in Monsters.c.
+ */
+export function monsterMillAbout(
+    monst: Creature,
+    movementChance: number,
+    ctx: MonsterMillAboutContext,
+): void {
+    if (ctx.rng.randPercent(movementChance)) {
+        const dir = ctx.randValidDirectionFrom(monst, monst.loc.x, monst.loc.y, true);
+        if (dir !== ctx.NO_DIRECTION) {
+            const targetLoc: Pos = {
+                x: monst.loc.x + ctx.nbDirs[dir][0],
+                y: monst.loc.y + ctx.nbDirs[dir][1],
+            };
+            ctx.moveMonsterPassivelyTowards(monst, targetLoc, false);
+        }
+    }
+}
+
+// ============================================================================
+// moveAlly — Monsters.c:3040
+// ============================================================================
+
+/**
+ * Context for moveAlly.
+ */
+export interface MoveAllyContext {
+    player: Creature;
+    monsters: Creature[];
+    rng: {
+        randPercent(pct: number): boolean;
+    };
+
+    // Terrain
+    cellHasTerrainFlag(loc: Pos, flags: number): boolean;
+    T_HARMFUL_TERRAIN: number;
+    T_IS_FIRE: number;
+    T_CAUSES_DAMAGE: number;
+    T_CAUSES_PARALYSIS: number;
+    T_CAUSES_CONFUSION: number;
+    MONST_INANIMATE: number;
+    MONST_INVULNERABLE: number;
+    MONST_CAST_SPELLS_SLOWLY: number;
+    MONST_ALWAYS_USE_ABILITY: number;
+    MONST_ALWAYS_HUNTING: number;
+
+    // Safety map
+    mapToSafeTerrain: number[][] | null;
+    updatedMapToSafeTerrainThisTurn: boolean;
+    updateSafeTerrainMap(): void;
+
+    // Movement
+    monsterWillAttackTarget(monst: Creature, target: Creature): boolean;
+    traversiblePathBetween(monst: Creature, x: number, y: number): boolean;
+    moveMonster(monst: Creature, dx: number, dy: number): boolean;
+    moveMonsterPassivelyTowards(monst: Creature, target: Pos, willingToAttackPlayer: boolean): boolean;
+    monsterBlinkToPreferenceMap(monst: Creature, map: number[][], blinkUphill: boolean): boolean;
+    monsterBlinkToSafety(monst: Creature): boolean;
+    monstUseMagic(monst: Creature): boolean;
+    monsterSummons(monst: Creature, alwaysUse: boolean): boolean;
+    nextStep(map: number[][], loc: Pos, monst: Creature | null, includeMonsters: boolean): number;
+    randValidDirectionFrom(monst: Creature, x: number, y: number, allowDiag: boolean): number;
+    pathTowardCreature(monst: Creature, target: Creature): void;
+    nbDirs: readonly [number, number][];
+    NO_DIRECTION: number;
+    DCOLS: number;
+    DROWS: number;
+    allyFlees(monst: Creature, closestMonster: Creature | null): boolean;
+
+    // Leash/rest state
+    justRested: boolean;
+    justSearched: boolean;
+    MB_SEIZED: number;
+    MB_FOLLOWER: number;
+    MB_SUBMERGED: number;
+    STATUS_INVISIBLE: number;
+    STATUS_IMMUNE_TO_FIRE: number;
+
+    allySafetyMap: number[][];
+    distanceBetween(loc1: Pos, loc2: Pos): number;
+}
+
+/**
+ * Handles the given allied monster's turn under normal circumstances.
+ *
+ * Ported from moveAlly() in Monsters.c.
+ */
+export function moveAlly(monst: Creature, ctx: MoveAllyContext): void {
+    const x = monst.loc.x;
+    const y = monst.loc.y;
+
+    if (!monst.leader) {
+        monst.leader = ctx.player;
+        monst.bookkeepingFlags |= ctx.MB_FOLLOWER;
+    }
+
+    // Escape harmful terrain first
+    const inHarmfulTerrain =
+        ctx.cellHasTerrainFlag(
+            { x, y },
+            ctx.T_HARMFUL_TERRAIN & ~(ctx.T_IS_FIRE | ctx.T_CAUSES_DAMAGE | ctx.T_CAUSES_PARALYSIS | ctx.T_CAUSES_CONFUSION),
+        ) ||
+        (ctx.cellHasTerrainFlag({ x, y }, ctx.T_IS_FIRE) && !(monst.status[StatusEffect.ImmuneToFire])) ||
+        (ctx.cellHasTerrainFlag({ x, y }, ctx.T_CAUSES_DAMAGE | ctx.T_CAUSES_PARALYSIS | ctx.T_CAUSES_CONFUSION) &&
+            !(monst.info.flags & (ctx.MONST_INANIMATE | ctx.MONST_INVULNERABLE)));
+
+    if (inHarmfulTerrain) {
+        if (!ctx.updatedMapToSafeTerrainThisTurn) {
+            ctx.updateSafeTerrainMap();
+        }
+
+        if (ctx.mapToSafeTerrain && ctx.monsterBlinkToPreferenceMap(monst, ctx.mapToSafeTerrain, false)) {
+            monst.ticksUntilTurn = monst.attackSpeed *
+                ((monst.info.flags & ctx.MONST_CAST_SPELLS_SLOWLY) ? 2 : 1);
+            return;
+        }
+
+        if (ctx.mapToSafeTerrain) {
+            const dir = ctx.nextStep(ctx.mapToSafeTerrain, { x, y }, monst, true);
+            if (dir !== ctx.NO_DIRECTION) {
+                const targetLoc: Pos = {
+                    x: x + ctx.nbDirs[dir][0],
+                    y: y + ctx.nbDirs[dir][1],
+                };
+                if (ctx.moveMonsterPassivelyTowards(monst, targetLoc, false)) {
+                    return;
+                }
+            }
+        }
+    }
+
+    // Find nearest enemy
+    let closestMonster: Creature | null = null;
+    let shortestDistance = Math.max(ctx.DROWS, ctx.DCOLS);
+
+    for (const target of ctx.monsters) {
+        if (
+            target !== monst &&
+            (!(target.bookkeepingFlags & ctx.MB_SUBMERGED) || (monst.bookkeepingFlags & ctx.MB_SUBMERGED)) &&
+            ctx.monsterWillAttackTarget(monst, target) &&
+            ctx.distanceBetween({ x, y }, target.loc) < shortestDistance &&
+            ctx.traversiblePathBetween(monst, target.loc.x, target.loc.y) &&
+            !ctx.cellHasTerrainFlag(target.loc, TerrainFlag.T_OBSTRUCTS_PASSABILITY) &&
+            (!target.status[ctx.STATUS_INVISIBLE] || ctx.rng.randPercent(33))
+        ) {
+            shortestDistance = ctx.distanceBetween({ x, y }, target.loc);
+            closestMonster = target;
+        }
+    }
+
+    // Weak allies flee if in presence of enemies
+    if (ctx.allyFlees(monst, closestMonster)) {
+        if (
+            (monst.info.flags & ctx.MONST_ALWAYS_USE_ABILITY || ctx.rng.randPercent(30)) &&
+            ctx.monsterBlinkToSafety(monst)
+        ) {
+            return;
+        }
+        if (ctx.monsterSummons(monst, !!(monst.info.flags & ctx.MONST_ALWAYS_USE_ABILITY))) {
+            return;
+        }
+        const dir = ctx.nextStep(ctx.allySafetyMap, monst.loc, monst, true);
+        let targetLoc: Pos = monst.loc;
+        if (dir !== ctx.NO_DIRECTION) {
+            targetLoc = {
+                x: x + ctx.nbDirs[dir][0],
+                y: y + ctx.nbDirs[dir][1],
+            };
+        }
+        if (
+            dir === ctx.NO_DIRECTION ||
+            (ctx.allySafetyMap[targetLoc.x][targetLoc.y] >= ctx.allySafetyMap[x][y]) ||
+            (!ctx.moveMonster(monst, ctx.nbDirs[dir][0], ctx.nbDirs[dir][1]) &&
+                !ctx.moveMonsterPassivelyTowards(monst, targetLoc, true))
+        ) {
+            // can't flee; fall through to normal ally logic below
+        } else {
+            return;
+        }
+    }
+
+    // Magic users sometimes cast spells
+    if (ctx.monstUseMagic(monst)) {
+        monst.ticksUntilTurn = monst.attackSpeed *
+            ((monst.info.flags & ctx.MONST_CAST_SPELLS_SLOWLY) ? 2 : 1);
+        return;
+    }
+
+    // Determine leash length
+    let leashLength: number;
+    if (monst.bookkeepingFlags & ctx.MB_SEIZED) {
+        leashLength = Math.max(ctx.DCOLS, ctx.DROWS);
+    } else if (ctx.justRested || ctx.justSearched) {
+        leashLength = 10;
+    } else {
+        leashLength = 4;
+    }
+
+    // Attack or pursue nearest enemy within leash
+    if (closestMonster && ctx.distanceBetween(monst.loc, closestMonster.loc) <= leashLength) {
+        ctx.pathTowardCreature(monst, closestMonster);
+        return;
+    }
+
+    // Return to leader
+    if (monst.leader) {
+        if (ctx.distanceBetween(monst.loc, monst.leader.loc) > 1) {
+            ctx.pathTowardCreature(monst, monst.leader);
+        }
+    }
+}
+
+// ============================================================================
 // monstersTurn — the main monster AI loop
 // ============================================================================
 

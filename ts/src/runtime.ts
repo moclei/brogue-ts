@@ -67,6 +67,7 @@ import {
     FeatType,
     ArmorEnchant,
     BoltType,
+    BoltEffect,
     ALL_ITEMS,
 } from "./types/enums.js";
 import {
@@ -359,7 +360,7 @@ import type { LevelContext } from "./game/game-level.js";
 import { RNG_COSMETIC } from "./game/game-init.js";
 
 // -- Safety maps import -------------------------------------------------------
-import { updateSafetyMap as updateSafetyMapFn, updateClairvoyance as updateClairvoyanceFn } from "./time/safety-maps.js";
+import { updateSafetyMap as updateSafetyMapFn, updateSafeTerrainMap as updateSafeTerrainMapFn, updateClairvoyance as updateClairvoyanceFn } from "./time/safety-maps.js";
 import type { SafetyMapsContext } from "./time/safety-maps.js";
 
 // -- Creature effects import (burnItem) ---------------------------------------
@@ -420,10 +421,36 @@ import { vomit as vomitFn } from "./movement/player-movement.js";
 import { search as searchFn } from "./movement/item-helpers.js";
 import { flashMonster as flashMonsterFn, addPoison as addPoisonFn } from "./combat/combat-damage.js";
 import { exposeTileToFire as exposeTileToFireFn } from "./time/environment.js";
-import { monsterAvoids as monsterAvoidsFn } from "./monsters/monster-state.js";
+import { monsterAvoids as monsterAvoidsFn, updateMonsterState as updateMonsterStateFn, chooseNewWanderDestination as chooseNewWanderDestinationFn } from "./monsters/monster-state.js";
 import type { MonsterStateContext } from "./monsters/monster-state.js";
 import { recordKeystroke as recordKeystrokeFn, cancelKeystroke as cancelKeystrokeFn, recordMouseClick as recordMouseClickFn } from "./recordings/recording-events.js";
 import { printHighScores as printHighScoresFn } from "./io/io-screens.js";
+
+// -- Phase 3 monster AI imports -----------------------------------------------
+import {
+    monstersTurn as monstersTurnFn,
+    monstUseMagicStub,
+    monsterBlinkToPreferenceMapStub,
+    monsterBlinkToSafetyStub,
+    updateMonsterCorpseAbsorptionStub,
+    isValidWanderDestination as isValidWanderDestinationFn,
+    wanderToward as wanderTowardFn,
+    traversiblePathBetween as traversiblePathBetweenFn,
+    pathTowardCreature as pathTowardCreatureFn,
+    isLocalScentMaximum as isLocalScentMaximumFn,
+    scentDirection as scentDirectionFn,
+    monsterMillAbout as monsterMillAboutFn,
+    moveAlly as moveAllyFn,
+    monsterSummons as monsterSummonsFn,
+} from "./monsters/monster-actions.js";
+import type { MonstersTurnContext } from "./monsters/monster-actions.js";
+import {
+    moveMonster as moveMonsterFn,
+    moveMonsterPassivelyTowards as moveMonsterPassivelyTowardsFn,
+    randValidDirectionFrom as randValidDirectionFromFn,
+    canPass as canPassFn,
+} from "./monsters/monster-movement.js";
+import type { MoveMonsterContext } from "./monsters/monster-movement.js";
 
 // -- Menu imports (for type reference) ----------------------------------------
 import type { MenuContext, MenuRogueState, FileEntry, RogueRun } from "./menus/main-menu.js";
@@ -1087,6 +1114,13 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             monsterCanSubmergeNow: (m) => monsterCanSubmergeNowFn(m, cellHasTMFlagAt, cellHasTerrainFlagAt),
             isPosInMap: (loc) => coordinatesAreInMap(loc.x, loc.y),
         } as MonsterStateContext);
+    }
+
+    // -- diagonalBlocked wrapper ----------------------------------------------
+    // The context interfaces use (x1, y1, x2, y2, isPlayer: boolean) signature,
+    // but the actual function takes a getTerrainFlags callback.
+    function diagonalBlockedWrapped(x1: number, y1: number, x2: number, y2: number, _isPlayer: boolean): boolean {
+        return diagonalBlockedFn(x1, y1, x2, y2, (loc: Pos) => terrainFlagsAt(loc));
     }
 
     // -- FOV wrapper ----------------------------------------------------------
@@ -4709,8 +4743,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             monstersFall() { monstersFallFn(buildCreatureEffectsContext()); },
             updateFloorItems() { updateFloorItemsImpl(); },
             monstersTurn(monst) {
-                // Simplified: tick the monster forward (full AI deferred)
-                monst.ticksUntilTurn = monst.movementSpeed || 100;
+                monstersTurnFn(monst, buildMonstersTurnContext());
             },
             keyOnTileAt: (loc: Pos) => itemAtLocFn(loc, floorItems),
             removeCreature(list, monst) {
@@ -6379,164 +6412,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 return "aeiouAEIOU".includes(word[0] ?? "");
             },
             monstersTurn(monst) {
-                // Simplified monster AI — real monstersTurn needs MonstersTurnContext
-                // with ~30 unported methods. This provides basic visible behavior:
-                //   - Sleeping monsters wake when player is nearby & visible
-                //   - Hunting/tracking monsters move toward player via scent
-                //   - Wandering monsters move randomly occasionally
-
-                // Skip dead/dying monsters (mirrors C code's early return in monstersTurn)
-                if (
-                    (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DYING) ||
-                    (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_HAS_DIED) ||
-                    monst.currentHP <= 0
-                ) {
-                    monst.ticksUntilTurn = monst.movementSpeed || 100;
-                    return;
-                }
-
-                const mx = monst.loc.x;
-                const my = monst.loc.y;
-                const dist = Math.abs(player.loc.x - mx) + Math.abs(player.loc.y - my);
-                const inFOV = !!(pmap[mx]?.[my]?.flags & TileFlag.IN_FIELD_OF_VIEW);
-
-                // Sleeping: wake up if player is nearby and in FOV
-                if (monst.creatureState === CreatureState.Sleeping) {
-                    if (dist <= 12 && inFOV) {
-                        monst.creatureState = CreatureState.TrackingScent;
-                    }
-                    monst.ticksUntilTurn = monst.movementSpeed || 100;
-                    return;
-                }
-
-                // Tracking/Hunting: follow scent toward player
-                if (monst.creatureState === CreatureState.TrackingScent) {
-                    const sm = scentMap ?? [];
-                    const myScent = sm[mx]?.[my] ?? 0;
-                    let bestDir = -1;
-                    let bestScent = 0;
-                    for (let dir = 0; dir < 8; dir++) {
-                        const nx = mx + nbDirs[dir][0];
-                        const ny = my + nbDirs[dir][1];
-                        if (!coordinatesAreInMap(nx, ny)) continue;
-                        const cellScent = sm[nx]?.[ny] ?? 0;
-                        if (
-                            cellScent > bestScent &&
-                            !(pmap[nx][ny].flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER)) &&
-                            !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY) &&
-                            !monsterAvoidsWrapped(monst, { x: nx, y: ny })
-                        ) {
-                            bestScent = cellScent;
-                            bestDir = dir;
-                        }
-                    }
-
-                    if (bestDir >= 0 && bestScent > myScent) {
-                        const newX = mx + nbDirs[bestDir][0];
-                        const newY = my + nbDirs[bestDir][1];
-                        pmap[mx][my].flags &= ~TileFlag.HAS_MONSTER;
-                        monst.loc.x = newX;
-                        monst.loc.y = newY;
-                        pmap[newX][newY].flags |= TileFlag.HAS_MONSTER;
-                        monst.turnsSpentStationary = 0;
-                    } else if (dist <= 1) {
-                        // Adjacent to player — attack!
-                        // Surface submerged monsters before attacking (C: moveMonster, Monsters.c:3863)
-                        if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_SUBMERGED) {
-                            monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_SUBMERGED;
-                            refreshDungeonCellRuntime(monst.loc);
-                        }
-                        attackFn(monst, player, false, buildAttackContext());
-                    } else {
-                        // No scent — fall back to direct approach
-                        const dx = Math.sign(player.loc.x - mx);
-                        const dy = Math.sign(player.loc.y - my);
-                        const nx = mx + dx;
-                        const ny = my + dy;
-                        if (
-                            coordinatesAreInMap(nx, ny) &&
-                            !(pmap[nx][ny].flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER)) &&
-                            !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY) &&
-                            !monsterAvoidsWrapped(monst, { x: nx, y: ny })
-                        ) {
-                            pmap[mx][my].flags &= ~TileFlag.HAS_MONSTER;
-                            monst.loc.x = nx;
-                            monst.loc.y = ny;
-                            pmap[nx][ny].flags |= TileFlag.HAS_MONSTER;
-                            monst.turnsSpentStationary = 0;
-                        }
-                    }
-                    monst.ticksUntilTurn = monst.movementSpeed || 100;
-                    return;
-                }
-
-                // Fleeing: move away from the player (inverse of tracking scent)
-                // This handles monkeys after stealing (PermFleeing + Fleeing state)
-                // and other flee scenarios.
-                if (monst.creatureState === CreatureState.Fleeing) {
-                    let bestDir = -1;
-                    let bestDist = dist;
-                    for (let dir = 0; dir < 8; dir++) {
-                        const nx = mx + nbDirs[dir][0];
-                        const ny = my + nbDirs[dir][1];
-                        if (!coordinatesAreInMap(nx, ny)) continue;
-                        const newDist = Math.abs(player.loc.x - nx) + Math.abs(player.loc.y - ny);
-                        if (
-                            newDist > bestDist &&
-                            !(pmap[nx][ny].flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER)) &&
-                            !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY) &&
-                            !monsterAvoidsWrapped(monst, { x: nx, y: ny })
-                        ) {
-                            bestDist = newDist;
-                            bestDir = dir;
-                        }
-                    }
-                    if (bestDir >= 0) {
-                        const nx = mx + nbDirs[bestDir][0];
-                        const ny = my + nbDirs[bestDir][1];
-                        pmap[mx][my].flags &= ~TileFlag.HAS_MONSTER;
-                        monst.loc.x = nx;
-                        monst.loc.y = ny;
-                        pmap[nx][ny].flags |= TileFlag.HAS_MONSTER;
-                        monst.turnsSpentStationary = 0;
-                    } else if (dist <= 1) {
-                        // Cornered — attack the player as a last resort
-                        if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_SUBMERGED) {
-                            monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_SUBMERGED;
-                            refreshDungeonCellRuntime(monst.loc);
-                        }
-                        attackFn(monst, player, false, buildAttackContext());
-                    }
-                    monst.ticksUntilTurn = monst.movementSpeed || 100;
-                    return;
-                }
-
-                // Wandering: random movement occasionally
-                if (monst.creatureState === CreatureState.Wandering) {
-                    if (randRange(0, 3) === 0) {
-                        const dir = randRange(0, 7);
-                        const nx = mx + nbDirs[dir][0];
-                        const ny = my + nbDirs[dir][1];
-                        if (
-                            coordinatesAreInMap(nx, ny) &&
-                            !(pmap[nx][ny].flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER)) &&
-                            !cellHasTerrainFlagAt({ x: nx, y: ny }, TerrainFlag.T_OBSTRUCTS_PASSABILITY) &&
-                            !monsterAvoidsWrapped(monst, { x: nx, y: ny })
-                        ) {
-                            pmap[mx][my].flags &= ~TileFlag.HAS_MONSTER;
-                            monst.loc.x = nx;
-                            monst.loc.y = ny;
-                            pmap[nx][ny].flags |= TileFlag.HAS_MONSTER;
-                            monst.turnsSpentStationary = 0;
-                        }
-                    }
-                    // Check if player came into view — start tracking
-                    if (dist <= 12 && inFOV) {
-                        monst.creatureState = CreatureState.TrackingScent;
-                    }
-                }
-
-                monst.ticksUntilTurn = monst.movementSpeed || 100;
+                monstersTurnFn(monst, buildMonstersTurnContext());
             },
             decrementMonsterStatus(monst) {
                 // Decrement all positive status counters
@@ -6826,6 +6702,576 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             rand_percent: randPercent,
             max: Math.max,
             min: Math.min,
+        };
+    }
+
+    // =========================================================================
+    // buildMonstersTurnContext — Phase 3 monster AI wiring
+    // =========================================================================
+
+    /**
+     * Build a MoveMonsterContext for the full moveMonster / moveMonsterPassivelyTowards.
+     */
+    function buildMoveMonsterContext(): MoveMonsterContext {
+        return {
+            player,
+            monsters,
+            rng: { randRange, randPercent },
+            coordinatesAreInMap,
+            cellHasTerrainFlag: cellHasTerrainFlagAt,
+            cellHasTMFlag: cellHasTMFlagAt,
+            cellFlags: (loc: Pos) => pmap[loc.x]?.[loc.y]?.flags ?? 0,
+            setCellFlag(loc: Pos, flag: number) { if (coordinatesAreInMap(loc.x, loc.y)) pmap[loc.x][loc.y].flags |= flag; },
+            clearCellFlag(loc: Pos, flag: number) { if (coordinatesAreInMap(loc.x, loc.y)) pmap[loc.x][loc.y].flags &= ~flag; },
+            discoveredTerrainFlagsAtLoc: discoveredTerrainFlagsAtLocFn,
+            passableArcCount: (x: number, y: number) => passableArcCount(pmap, x, y),
+            liquidLayerIsEmpty: (loc: Pos) => {
+                const cell = pmap[loc.x]?.[loc.y];
+                if (!cell) return true;
+                return cell.layers[1] === 0; // LIQUID layer 1 = nothing
+            },
+            playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+            monsterAtLoc: monsterAtLocFn,
+            refreshDungeonCell(loc: Pos) {
+                const { glyph, foreColor, backColor } = getCellAppearance(loc);
+                plotCharWithColor(glyph, { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) }, foreColor, backColor, displayBuffer);
+            },
+            discover(x: number, y: number) { if (coordinatesAreInMap(x, y)) pmap[x][y].flags |= TileFlag.DISCOVERED; },
+            applyInstantTileEffectsToCreature(monst: Creature) { applyInstantTileEffectsFn(monst, buildCreatureEffectsContext()); },
+            updateVision(refreshDisplay: boolean) { updateVisionFn(refreshDisplay); },
+            pickUpItemAt: pickUpItemAtImpl,
+            shuffleList(list: number[]) {
+                for (let i = list.length - 1; i > 0; i--) {
+                    const j = randRange(0, i);
+                    [list[i], list[j]] = [list[j], list[i]];
+                }
+            },
+            monsterAvoids: monsterAvoidsWrapped,
+            HAS_MONSTER: TileFlag.HAS_MONSTER,
+            HAS_PLAYER: TileFlag.HAS_PLAYER,
+            HAS_ITEM: TileFlag.HAS_ITEM,
+            HAS_STAIRS: TileFlag.HAS_STAIRS,
+            DCOLS,
+            DROWS,
+
+            // MoveMonsterContext extensions
+            vomit(monst: Creature) {
+                vomitFn(monst, {
+                    player,
+                    dungeonFeatureCatalog,
+                    spawnDungeonFeature: spawnDungeonFeatureFromObject,
+                    canDirectlySeeMonster: (m: Creature) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+                    monsterName: (m: Creature, article: boolean) => {
+                        const prefix = article ? (m === player ? "" : "the ") : "";
+                        return `${prefix}${m.info.monsterName}`;
+                    },
+                    combatMessage: (msg: string, color: Color | null) => msgOps.combatMessage(msg, color),
+                    automationActive: rogue.automationActive,
+                });
+            },
+            randValidDirectionFrom(monst: Creature, x: number, y: number, respectAvoidance: boolean) {
+                return randValidDirectionFromFn(monst, x, y, respectAvoidance, {
+                    coordinatesAreInMap,
+                    cellHasTerrainFlag: cellHasTerrainFlagAt,
+                    cellFlags: (loc: Pos) => pmap[loc.x]?.[loc.y]?.flags ?? 0,
+                    diagonalBlocked: diagonalBlockedWrapped,
+                    monsterAvoids: monsterAvoidsWrapped,
+                    nbDirs,
+                    HAS_PLAYER: TileFlag.HAS_PLAYER,
+                    NO_DIRECTION: -1,
+                    rng: { randRange },
+                });
+            },
+            nbDirs,
+            diagonalBlocked: diagonalBlockedWrapped,
+            handleWhipAttacks(monst: Creature, dir: number, _hitList: null) { return handleWhipAttacksFn(monst, dir, { value: false }, buildWeaponAttackContext()); },
+            handleSpearAttacks(monst: Creature, dir: number, _hitList: null) { return handleSpearAttacksFn(monst, dir, { value: false }, buildWeaponAttackContext()); },
+            monsterSwarmDirection(_monst: Creature, _target: Creature) { return -1; },
+            buildHitList(_hitList: (Creature | null)[], monst: Creature, target: Creature, allAdj: boolean) {
+                // buildHitListFn signature: (attacker, defender, sweep, ctx) - returns a new array
+                // We don't populate the passed-in array; the context just builds and discards
+                buildHitListFn(monst, target, allAdj, buildAttackContext());
+            },
+            attack(attacker: Creature, defender: Creature, lungeAttack: boolean) { attackFn(attacker, defender, lungeAttack, buildAttackContext()); },
+            getQualifyingPathLocNear(target: Pos) { return { ...target }; },
+            surfaceLayerAt(loc: Pos) { return pmap[loc.x]?.[loc.y]?.layers[2] ?? 0; },
+            clearSurfaceLayer(loc: Pos) { if (pmap[loc.x]?.[loc.y]) pmap[loc.x][loc.y].layers[2] = 0; },
+            surfaceLayerHasFlag(loc: Pos, flags: number) { return !!(terrainFlagsAt(loc) & flags); },
+            gameHasEnded: false,
+            NO_DIRECTION: -1,
+            forbiddenFlagsForMonster: (info: Creature["info"]) => forbiddenFlagsForMonsterFn(info),
+            abortAttack(hitList: (Creature | null)[]) { return abortAttackFn(hitList, buildWeaponAttackContext()); },
+            playerRecoversFromAttacking(anyHit: boolean) { playerRecoversFromAttackingFn(anyHit, buildTurnProcessingContext()); },
+        } as unknown as MoveMonsterContext;
+    }
+
+    /**
+     * Build the full MonstersTurnContext for monstersTurn.
+     * Wires all monster AI subsystems via DI.
+     */
+    function buildMonstersTurnContext(): MonstersTurnContext {
+        const mmCtx = buildMoveMonsterContext();
+
+        // Shared helper: closestWaypointIndex for a monster
+        function closestWaypointIndex(monst: Creature): number {
+            const halfDcols = Math.floor(DCOLS / 2);
+            let closestDist = halfDcols;
+            let closestIndex = -1;
+            for (let i = 0; i < rogue.wpCount; i++) {
+                const distMap = rogue.wpDistance[i];
+                if (!distMap) continue;
+                if (monst.waypointAlreadyVisited[i]) continue;
+                if (distMap[monst.loc.x]?.[monst.loc.y] < 0) continue;
+                const d = distMap[monst.loc.x]?.[monst.loc.y] ?? halfDcols;
+                if (d < closestDist) {
+                    closestDist = d;
+                    closestIndex = i;
+                }
+            }
+            return closestIndex;
+        }
+
+        function closestWaypointIndexTo(loc: Pos): number {
+            const halfDcols = Math.floor(DCOLS / 2);
+            let closestDist = halfDcols;
+            let closestIndex = -1;
+            for (let i = 0; i < rogue.wpCount; i++) {
+                const distMap = rogue.wpDistance[i];
+                if (!distMap) continue;
+                const d = distMap[loc.x]?.[loc.y] ?? halfDcols;
+                if (d >= 0 && d < closestDist) {
+                    closestDist = d;
+                    closestIndex = i;
+                }
+            }
+            return closestIndex;
+        }
+
+        function buildMonsterStateCtxForTurn(): MonsterStateContext {
+            return {
+                player,
+                monsters,
+                rng: { randRange, randPercent },
+                queryCtx: buildMonsterQueryContext(),
+                cellHasTerrainFlag: cellHasTerrainFlagAt,
+                cellHasTMFlag: cellHasTMFlagAt,
+                terrainFlags: terrainFlagsAt,
+                cellFlags: (loc: Pos) => pmap[loc.x]?.[loc.y]?.flags ?? 0,
+                isPosInMap: (loc: Pos) => coordinatesAreInMap(loc.x, loc.y),
+                downLoc: rogue.downLoc,
+                upLoc: rogue.upLoc,
+                monsterAtLoc: monsterAtLocFn,
+                waypointCount: rogue.wpCount,
+                maxWaypointCount: 40,
+                closestWaypointIndex,
+                closestWaypointIndexTo,
+                burnedTerrainFlagsAtLoc: burnedTerrainFlagsAtLocFn,
+                discoveredTerrainFlagsAtLoc: discoveredTerrainFlagsAtLocFn,
+                passableArcCount: (x: number, y: number) => passableArcCount(pmap, x, y),
+                awareOfTarget(_observer: Creature, target: Creature) {
+                    if (!scentMap) return false;
+                    const scent = scentMap[target.loc.x]?.[target.loc.y] ?? 0;
+                    const dist = scentDistance(
+                        target.loc.x, target.loc.y,
+                        player.loc.x, player.loc.y,
+                    );
+                    return scent >= rogue.scentTurnNumber - dist;
+                },
+                openPathBetween(_loc1: Pos, loc2: Pos) {
+                    // Simplified: check if the destination isn't wall-blocked
+                    return !cellHasTerrainFlagAt(loc2, TerrainFlag.T_OBSTRUCTS_PASSABILITY);
+                },
+                traversiblePathBetween(monst: Creature, x: number, y: number) {
+                    return traversiblePathBetweenFn(monst, x, y, {
+                        monsterAvoids: monsterAvoidsWrapped,
+                        DCOLS,
+                        DROWS,
+                    });
+                },
+                inFieldOfView(loc: Pos) { return !!(pmap[loc.x]?.[loc.y]?.flags & TileFlag.IN_FIELD_OF_VIEW); },
+                heal(monst, percent, _panacea) { healFn(monst, percent, false, buildCombatDamageContext()); },
+                inflictDamage(attacker, defender, damage) { return inflictDamageImpl(attacker, defender, damage, null, false); },
+                killCreature(monst, quiet) { killCreatureImpl(monst, quiet); },
+                extinguishFireOnCreature(monst) { extinguishFireOnCreatureFn(monst, buildCreatureEffectsContext()); },
+                makeMonsterDropItem: makeMonsterDropItemImpl,
+                refreshDungeonCell(loc: Pos) {
+                    const { glyph, foreColor, backColor } = getCellAppearance(loc);
+                    plotCharWithColor(glyph, { windowX: mapToWindowX(loc.x), windowY: mapToWindowY(loc.y) }, foreColor, backColor, displayBuffer);
+                },
+                message: msgOps.message,
+                messageWithColor: (text: string, flags: number) => msgOps.messageWithColor(text, Colors.white, flags),
+                combatMessage: (text: string) => msgOps.combatMessage(text, null),
+                playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+                playerHasRespirationArmor: () => !!(rogue.armor && (rogue.armor.flags & ItemFlag.ITEM_RUNIC) && rogue.armor.enchant2 === ArmorEnchant.Respiration),
+                mapToShore: rogue.mapToShore,
+                PRESSURE_PLATE_DEPRESSED: TileFlag.PRESSURE_PLATE_DEPRESSED,
+                HAS_MONSTER: TileFlag.HAS_MONSTER,
+                HAS_PLAYER: TileFlag.HAS_PLAYER,
+                HAS_STAIRS: TileFlag.HAS_STAIRS,
+                IN_FIELD_OF_VIEW: TileFlag.IN_FIELD_OF_VIEW,
+                monsterCanSubmergeNow: (m) => monsterCanSubmergeNowFn(m, cellHasTMFlagAt, cellHasTerrainFlagAt),
+                DCOLS,
+                DROWS,
+            };
+        }
+
+        return {
+            player,
+            monsters,
+            rng: { randRange, randPercent },
+
+            // Map access
+            cellHasTerrainFlag: cellHasTerrainFlagAt,
+            cellHasTMFlag: cellHasTMFlagAt,
+            cellFlags: (loc: Pos) => pmap[loc.x]?.[loc.y]?.flags ?? 0,
+            inFieldOfView: (loc: Pos) => !!(pmap[loc.x]?.[loc.y]?.flags & TileFlag.IN_FIELD_OF_VIEW),
+
+            // Monster state
+            updateMonsterState(monst: Creature) {
+                updateMonsterStateFn(monst, buildMonsterStateCtxForTurn());
+            },
+
+            // Monster movement
+            moveMonster(monst: Creature, dx: number, dy: number) {
+                return moveMonsterFn(monst, dx, dy, mmCtx);
+            },
+            moveMonsterPassivelyTowards(monst: Creature, target: Pos, willingToAttackPlayer: boolean) {
+                return moveMonsterPassivelyTowardsFn(monst, target, willingToAttackPlayer, mmCtx);
+            },
+            monsterAvoids: monsterAvoidsWrapped,
+
+            // Magic/abilities — stubbed
+            monstUseMagic: monstUseMagicStub,
+            monsterHasBoltEffect(monst: Creature, effectType: number) {
+                for (const boltType of monst.info.bolts) {
+                    if (boltType === 0) break;
+                    if (boltCatalog[boltType]?.boltEffect === effectType) {
+                        return boltType;
+                    }
+                }
+                return 0; // BoltType.None
+            },
+            monsterBlinkToPreferenceMap: monsterBlinkToPreferenceMapStub,
+            monsterBlinkToSafety: monsterBlinkToSafetyStub,
+            monsterSummons(monst: Creature, alwaysUse: boolean) {
+                return monsterSummonsFn(monst, alwaysUse, {
+                    player,
+                    monsters,
+                    rng: { randRange },
+                    adjacentLevelAllyCount: 0,
+                    deepestLevel: gameConst.deepestLevel,
+                    depthLevel: rogue.depthLevel,
+                    summonMinions(_monst: Creature) { /* stub — full spawnMinions needs SpawnContext */ },
+                });
+            },
+            monsterCanShootWebs(monst: Creature) {
+                for (const boltType of monst.info.bolts) {
+                    if (boltType === 0) break;
+                    const bolt = boltCatalog[boltType];
+                    if (bolt?.pathDF && (tileCatalog[dungeonFeatureCatalog[bolt.pathDF]?.tile ?? 0]?.flags & TerrainFlag.T_ENTANGLES)) {
+                        return true;
+                    }
+                }
+                return false;
+            },
+
+            // Corpse absorption — stubbed
+            updateMonsterCorpseAbsorption: updateMonsterCorpseAbsorptionStub,
+
+            // Dungeon features — context expects (x, y, dfType: number, isVolatile: boolean, ignoreBlocking: boolean)
+            spawnDungeonFeature(x: number, y: number, dfType: number, _isVolatile: boolean, _ignoreBlocking: boolean) {
+                spawnDungeonFeatureRuntime(x, y, dfType, 0, false);
+            },
+
+            // Tile effects
+            applyInstantTileEffectsToCreature(monst: Creature) {
+                applyInstantTileEffectsFn(monst, buildCreatureEffectsContext());
+            },
+
+            // Items
+            makeMonsterDropItem: makeMonsterDropItemImpl,
+
+            // Pathfinding
+            scentDirection(monst: Creature) {
+                return scentDirectionFn(monst, {
+                    scentMap: scentMap ?? allocGrid(),
+                    coordinatesAreInMap,
+                    cellHasTerrainFlag: cellHasTerrainFlagAt,
+                    cellFlags: (loc: Pos) => pmap[loc.x]?.[loc.y]?.flags ?? 0,
+                    diagonalBlocked: diagonalBlockedWrapped,
+                    monsterAvoids: monsterAvoidsWrapped,
+                    monsterAtLoc: monsterAtLocFn,
+                    canPass(mover: Creature, blocker: Creature) {
+                        return canPassFn(mover, blocker, player, cellHasTerrainFlagAt);
+                    },
+                    nbDirs,
+                    NO_DIRECTION: -1,
+                    DIRECTION_COUNT: 8,
+                    HAS_MONSTER: TileFlag.HAS_MONSTER,
+                    HAS_PLAYER: TileFlag.HAS_PLAYER,
+                });
+            },
+            isLocalScentMaximum(loc: Pos) {
+                return isLocalScentMaximumFn(loc, {
+                    scentMap: scentMap ?? allocGrid(),
+                    cellHasTerrainFlag: cellHasTerrainFlagAt,
+                    diagonalBlocked: diagonalBlockedWrapped,
+                    coordinatesAreInMap,
+                    nbDirs,
+                    DIRECTION_COUNT: 8,
+                });
+            },
+            pathTowardCreature(monst: Creature, target: Creature) {
+                pathTowardCreatureFn(monst, target, {
+                    traversiblePathBetween(m: Creature, x: number, y: number) {
+                        return traversiblePathBetweenFn(m, x, y, { monsterAvoids: monsterAvoidsWrapped, DCOLS, DROWS });
+                    },
+                    distanceBetween,
+                    moveMonsterPassivelyTowards(m: Creature, loc: Pos, wtp: boolean) {
+                        return moveMonsterPassivelyTowardsFn(m, loc, wtp, mmCtx);
+                    },
+                    monsterBlinkToPreferenceMap: monsterBlinkToPreferenceMapStub,
+                    nextStep(map: number[][], loc: Pos, m: Creature | null, inc: boolean) {
+                        return nextStepFn(map, loc, m, inc, buildTravelExploreContext());
+                    },
+                    randValidDirectionFrom(m: Creature, x: number, y: number, ad: boolean) {
+                        return randValidDirectionFromFn(m, x, y, ad, {
+                            coordinatesAreInMap,
+                            cellHasTerrainFlag: cellHasTerrainFlagAt,
+                            cellFlags: (loc: Pos) => pmap[loc.x]?.[loc.y]?.flags ?? 0,
+                            diagonalBlocked: diagonalBlockedWrapped,
+                            monsterAvoids: monsterAvoidsWrapped,
+                            nbDirs,
+                            HAS_PLAYER: TileFlag.HAS_PLAYER,
+                            NO_DIRECTION: -1,
+                            rng: { randRange },
+                        });
+                    },
+                    nbDirs,
+                    NO_DIRECTION: -1,
+                    MONST_CAST_SPELLS_SLOWLY: MonsterBehaviorFlag.MONST_CAST_SPELLS_SLOWLY,
+                    monstersAreEnemies(m1: Creature, m2: Creature) {
+                        return monstersAreEnemiesFn(m1, m2, player, cellHasTerrainFlagAt);
+                    },
+                    allocGrid,
+                    calculateDistances(grid: number[][], x: number, y: number, flags: number, m: Creature, twoPass: boolean, checkTarget: boolean) {
+                        calculateDistancesFn(grid, x, y, flags, m, twoPass, checkTarget, buildCalcDistCtx());
+                    },
+                    MB_GIVEN_UP_ON_SCENT: MonsterBookkeepingFlag.MB_GIVEN_UP_ON_SCENT,
+                });
+            },
+            nextStep(map: number[][], loc: Pos, monst: Creature | null, includeMonsters: boolean) {
+                return nextStepFn(map, loc, monst, includeMonsters, buildTravelExploreContext());
+            },
+            getSafetyMap(_monst: Creature) {
+                if (!rogue.updatedSafetyMapThisTurn) {
+                    updateSafetyMapFn(buildSafetyMapsContext());
+                }
+                return safetyMap ?? allocGrid();
+            },
+            traversiblePathBetween(monst: Creature, x: number, y: number) {
+                return traversiblePathBetweenFn(monst, x, y, { monsterAvoids: monsterAvoidsWrapped, DCOLS, DROWS });
+            },
+            monsterWillAttackTarget: (monst: Creature, target: Creature) =>
+                monsterWillAttackTargetFn(monst, target, player, cellHasTerrainFlagAt),
+
+            // Wandering
+            chooseNewWanderDestination(monst: Creature) {
+                chooseNewWanderDestinationFn(monst, buildMonsterStateCtxForTurn());
+            },
+            isValidWanderDestination(monst: Creature, waypointIndex: number) {
+                return isValidWanderDestinationFn(monst, waypointIndex, {
+                    waypointCount: rogue.wpCount,
+                    waypointDistanceMap: (i: number) => rogue.wpDistance[i] ?? null,
+                    nextStep: (map: number[][], loc: Pos, m: Creature | null, inc: boolean) =>
+                        nextStepFn(map, loc, m, inc, buildTravelExploreContext()),
+                    NO_DIRECTION: -1,
+                });
+            },
+            waypointDistanceMap(waypointIndex: number) {
+                return rogue.wpDistance[waypointIndex] ?? allocGrid();
+            },
+            wanderToward(monst: Creature, loc: Pos) {
+                wanderTowardFn(monst, loc, {
+                    DCOLS,
+                    DROWS,
+                    waypointCount: rogue.wpCount,
+                    waypointDistanceMap: (i: number) => rogue.wpDistance[i] ?? null,
+                    closestWaypointIndexTo,
+                });
+            },
+            randValidDirectionFrom(monst: Creature, x: number, y: number, allowDiag: boolean) {
+                return randValidDirectionFromFn(monst, x, y, allowDiag, {
+                    coordinatesAreInMap,
+                    cellHasTerrainFlag: cellHasTerrainFlagAt,
+                    cellFlags: (loc: Pos) => pmap[loc.x]?.[loc.y]?.flags ?? 0,
+                    diagonalBlocked: diagonalBlockedWrapped,
+                    monsterAvoids: monsterAvoidsWrapped,
+                    nbDirs,
+                    HAS_PLAYER: TileFlag.HAS_PLAYER,
+                    NO_DIRECTION: -1,
+                    rng: { randRange },
+                });
+            },
+            monsterMillAbout(monst: Creature, chance: number) {
+                monsterMillAboutFn(monst, chance, {
+                    rng: { randPercent },
+                    randValidDirectionFrom(m: Creature, x: number, y: number, ad: boolean) {
+                        return randValidDirectionFromFn(m, x, y, ad, {
+                            coordinatesAreInMap,
+                            cellHasTerrainFlag: cellHasTerrainFlagAt,
+                            cellFlags: (loc: Pos) => pmap[loc.x]?.[loc.y]?.flags ?? 0,
+                            diagonalBlocked: diagonalBlockedWrapped,
+                            monsterAvoids: monsterAvoidsWrapped,
+                            nbDirs,
+                            HAS_PLAYER: TileFlag.HAS_PLAYER,
+                            NO_DIRECTION: -1,
+                            rng: { randRange },
+                        });
+                    },
+                    moveMonsterPassivelyTowards(m: Creature, loc: Pos, wtp: boolean) {
+                        return moveMonsterPassivelyTowardsFn(m, loc, wtp, mmCtx);
+                    },
+                    nbDirs,
+                    NO_DIRECTION: -1,
+                });
+            },
+            moveAlly(monst: Creature) {
+                moveAllyFn(monst, {
+                    player,
+                    monsters,
+                    rng: { randPercent },
+                    cellHasTerrainFlag: cellHasTerrainFlagAt,
+                    T_HARMFUL_TERRAIN,
+                    T_IS_FIRE: TerrainFlag.T_IS_FIRE,
+                    T_CAUSES_DAMAGE: TerrainFlag.T_CAUSES_DAMAGE,
+                    T_CAUSES_PARALYSIS: TerrainFlag.T_CAUSES_PARALYSIS,
+                    T_CAUSES_CONFUSION: TerrainFlag.T_CAUSES_CONFUSION,
+                    MONST_INANIMATE: MonsterBehaviorFlag.MONST_INANIMATE,
+                    MONST_INVULNERABLE: MonsterBehaviorFlag.MONST_INVULNERABLE,
+                    MONST_CAST_SPELLS_SLOWLY: MonsterBehaviorFlag.MONST_CAST_SPELLS_SLOWLY,
+                    MONST_ALWAYS_USE_ABILITY: MonsterBehaviorFlag.MONST_ALWAYS_USE_ABILITY,
+                    MONST_ALWAYS_HUNTING: MonsterBehaviorFlag.MONST_ALWAYS_HUNTING,
+                    mapToSafeTerrain: rogue.mapToSafeTerrain,
+                    get updatedMapToSafeTerrainThisTurn() { return rogue.updatedMapToSafeTerrainThisTurn; },
+                    updateSafeTerrainMap() { updateSafeTerrainMapFn(buildSafetyMapsContext()); },
+                    monsterWillAttackTarget: (m: Creature, t: Creature) =>
+                        monsterWillAttackTargetFn(m, t, player, cellHasTerrainFlagAt),
+                    traversiblePathBetween(m: Creature, x: number, y: number) {
+                        return traversiblePathBetweenFn(m, x, y, { monsterAvoids: monsterAvoidsWrapped, DCOLS, DROWS });
+                    },
+                    moveMonster(m: Creature, dx: number, dy: number) { return moveMonsterFn(m, dx, dy, mmCtx); },
+                    moveMonsterPassivelyTowards(m: Creature, loc: Pos, wtp: boolean) {
+                        return moveMonsterPassivelyTowardsFn(m, loc, wtp, mmCtx);
+                    },
+                    monsterBlinkToPreferenceMap: monsterBlinkToPreferenceMapStub,
+                    monsterBlinkToSafety: monsterBlinkToSafetyStub,
+                    monstUseMagic: monstUseMagicStub,
+                    monsterSummons(m: Creature, alwaysUse: boolean) {
+                        return monsterSummonsFn(m, alwaysUse, {
+                            player,
+                            monsters,
+                            rng: { randRange },
+                            adjacentLevelAllyCount: 0,
+                            deepestLevel: gameConst.deepestLevel,
+                            depthLevel: rogue.depthLevel,
+                            summonMinions(_m: Creature) {},
+                        });
+                    },
+                    nextStep(map: number[][], loc: Pos, m: Creature | null, inc: boolean) {
+                        return nextStepFn(map, loc, m, inc, buildTravelExploreContext());
+                    },
+                    randValidDirectionFrom(m: Creature, x: number, y: number, ad: boolean) {
+                        return randValidDirectionFromFn(m, x, y, ad, {
+                            coordinatesAreInMap,
+                            cellHasTerrainFlag: cellHasTerrainFlagAt,
+                            cellFlags: (loc: Pos) => pmap[loc.x]?.[loc.y]?.flags ?? 0,
+                            diagonalBlocked: diagonalBlockedWrapped,
+                            monsterAvoids: monsterAvoidsWrapped,
+                            nbDirs,
+                            HAS_PLAYER: TileFlag.HAS_PLAYER,
+                            NO_DIRECTION: -1,
+                            rng: { randRange },
+                        });
+                    },
+                    pathTowardCreature(m: Creature, t: Creature) {
+                        // Delegate to the full pathTowardCreature via context
+                        pathTowardCreatureFn(m, t, {
+                            traversiblePathBetween(mm: Creature, x: number, y: number) {
+                                return traversiblePathBetweenFn(mm, x, y, { monsterAvoids: monsterAvoidsWrapped, DCOLS, DROWS });
+                            },
+                            distanceBetween,
+                            moveMonsterPassivelyTowards(mm: Creature, loc: Pos, wtp: boolean) {
+                                return moveMonsterPassivelyTowardsFn(mm, loc, wtp, mmCtx);
+                            },
+                            monsterBlinkToPreferenceMap: monsterBlinkToPreferenceMapStub,
+                            nextStep(map2: number[][], loc2: Pos, mm: Creature | null, inc: boolean) {
+                                return nextStepFn(map2, loc2, mm, inc, buildTravelExploreContext());
+                            },
+                            randValidDirectionFrom(mm: Creature, x: number, y: number, ad: boolean) {
+                                return randValidDirectionFromFn(mm, x, y, ad, {
+                                    coordinatesAreInMap,
+                                    cellHasTerrainFlag: cellHasTerrainFlagAt,
+                                    cellFlags: (loc: Pos) => pmap[loc.x]?.[loc.y]?.flags ?? 0,
+                                    diagonalBlocked: diagonalBlockedWrapped,
+                                    monsterAvoids: monsterAvoidsWrapped,
+                                    nbDirs,
+                                    HAS_PLAYER: TileFlag.HAS_PLAYER,
+                                    NO_DIRECTION: -1,
+                                    rng: { randRange },
+                                });
+                            },
+                            nbDirs,
+                            NO_DIRECTION: -1,
+                            MONST_CAST_SPELLS_SLOWLY: MonsterBehaviorFlag.MONST_CAST_SPELLS_SLOWLY,
+                            monstersAreEnemies(m1: Creature, m2: Creature) {
+                                return monstersAreEnemiesFn(m1, m2, player, cellHasTerrainFlagAt);
+                            },
+                            allocGrid,
+                            calculateDistances(grid: number[][], x: number, y: number, flags: number, mm: Creature, twoPass: boolean, checkTarget: boolean) {
+                                calculateDistancesFn(grid, x, y, flags, mm, twoPass, checkTarget, buildCalcDistCtx());
+                            },
+                            MB_GIVEN_UP_ON_SCENT: MonsterBookkeepingFlag.MB_GIVEN_UP_ON_SCENT,
+                        });
+                    },
+                    nbDirs,
+                    NO_DIRECTION: -1,
+                    DCOLS,
+                    DROWS,
+                    allyFlees(_monst: Creature, _closestMonster: Creature | null) {
+                        return false; // stub — full allyFlees logic deferred
+                    },
+                    justRested: rogue.justRested,
+                    justSearched: rogue.justSearched,
+                    MB_SEIZED: MonsterBookkeepingFlag.MB_SEIZED,
+                    MB_FOLLOWER: MonsterBookkeepingFlag.MB_FOLLOWER,
+                    MB_SUBMERGED: MonsterBookkeepingFlag.MB_SUBMERGED,
+                    STATUS_INVISIBLE: StatusEffect.Invisible,
+                    STATUS_IMMUNE_TO_FIRE: StatusEffect.ImmuneToFire,
+                    allySafetyMap: allySafetyMap ?? allocGrid(),
+                    distanceBetween,
+                });
+            },
+
+            // Direction data
+            nbDirs,
+            NO_DIRECTION: -1,
+
+            // Map dimensions
+            DCOLS,
+            DROWS,
+
+            // Misc
+            diagonalBlocked: diagonalBlockedWrapped,
+            mapToSafeTerrain: rogue.mapToSafeTerrain,
+            updateSafeTerrainMap() { updateSafeTerrainMapFn(buildSafetyMapsContext()); },
+            scentMap: scentMap ?? allocGrid(),
+
+            // Flags
+            IN_FIELD_OF_VIEW: TileFlag.IN_FIELD_OF_VIEW,
+            MB_GIVEN_UP_ON_SCENT: MonsterBookkeepingFlag.MB_GIVEN_UP_ON_SCENT,
+            MONST_CAST_SPELLS_SLOWLY: MonsterBehaviorFlag.MONST_CAST_SPELLS_SLOWLY,
+            BE_BLINKING: BoltEffect.Blinking,
         };
     }
 
