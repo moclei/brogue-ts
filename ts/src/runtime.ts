@@ -364,7 +364,7 @@ import { updateSafetyMap as updateSafetyMapFn, updateSafeTerrainMap as updateSaf
 import type { SafetyMapsContext } from "./time/safety-maps.js";
 
 // -- Creature effects import (burnItem) ---------------------------------------
-import { burnItem as burnItemFn } from "./time/creature-effects.js";
+import { burnItem as burnItemFn, demoteVisibility as demoteVisibilityFn, currentStealthRange as currentStealthRangeFn, handleHealthAlerts as handleHealthAlertsFn } from "./time/creature-effects.js";
 
 // -- Appearance imports -------------------------------------------------------
 import { bakeTerrainColors } from "./io/io-appearance.js";
@@ -3153,8 +3153,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             calculateDistances: calculateDistancesWrapped,
             pathingDistance: pathingDistanceWrapped,
             currentStealthRange() {
-                // Simplified stealth range calculation
-                return 14 + rogue.stealthBonus;
+                return currentStealthRangeFn(buildCreatureEffectsContext());
             },
 
             getQualifyingLocNear(target, _hallwaysAllowed, _forbidCellFlags, forbidTerrainFlags, forbidMapFlags, _deterministic, _allowFlood) {
@@ -4975,7 +4974,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             createFlare(x, y, flareType) { createFlareFn(x, y, flareType, rogue as any, lightCatalogData); },
             animateFlares(flares, _count) {
                 animateFlaresFn(flares, buildLightingContext(), {
-                    demoteVisibility: () => { /* simplified — full demoteVisibility needs FOV system */ },
+                    demoteVisibility: () => { demoteVisibilityFn(buildCreatureEffectsContext()); },
                     updateFieldOfViewDisplay: (_updateDancing, _refreshDisplay) => { displayLevelFn(); commitDraws(); },
                     pauseAnimation: (ms) => browserConsole.pauseForMilliseconds(ms, { interruptForMouseMove: false }),
                 });
@@ -6575,7 +6574,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
             RNGCheck() { /* stub — recordings */ },
             animateFlares(flares, _count) {
                 animateFlaresFn(flares, buildLightingContext(), {
-                    demoteVisibility: () => { /* simplified */ },
+                    demoteVisibility: () => { demoteVisibilityFn(buildCreatureEffectsContext()); },
                     updateFieldOfViewDisplay: (_updateDancing, _refreshDisplay) => { displayLevelFn(); commitDraws(); },
                     pauseAnimation: (ms) => browserConsole.pauseForMilliseconds(ms, { interruptForMouseMove: false }),
                 });
@@ -6648,7 +6647,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 playerFallsFn(buildCreatureEffectsContext());
             },
             handleHealthAlerts() {
-                // Stub — handleHealthAlerts uses complex UI interactions
+                handleHealthAlertsFn(buildCreatureEffectsContext());
             },
             updateScent() {
                 // Real implementation: spread scent from player's position using FOV
@@ -6679,7 +6678,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                 freeGrid(scentGrid);
             },
             currentStealthRange() {
-                return 0; // simplified
+                return currentStealthRangeFn(buildCreatureEffectsContext());
             },
 
             // -- Movement / search -------------------------------------------

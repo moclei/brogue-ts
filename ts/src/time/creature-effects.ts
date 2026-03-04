@@ -446,6 +446,70 @@ export function currentStealthRange(
 }
 
 // =============================================================================
+// flashCreatureAlert / handleHealthAlerts — from Time.c:867 / 883
+// =============================================================================
+
+function flashCreatureAlert(
+    monst: Creature,
+    msg: string,
+    foreColor: Color,
+    backColor: Color,
+    ctx: CreatureEffectsContext,
+): void {
+    let y: number;
+    if (monst.loc.y > ctx.DROWS / 2) {
+        y = ctx.mapToWindowY(monst.loc.y - 2);
+    } else {
+        y = ctx.mapToWindowY(monst.loc.y + 2);
+    }
+    const msgLen = ctx.strLenWithoutEscapes(msg);
+    let x = ctx.mapToWindowX(monst.loc.x - Math.floor(msgLen / 2));
+    if (x > ctx.COLS - msgLen) {
+        x = ctx.COLS - msgLen;
+    }
+    ctx.flashMessage(msg, x, y, ctx.rogue.playbackMode ? 100 : 1000, foreColor, backColor);
+    ctx.rogue.disturbed = true;
+    ctx.rogue.autoPlayingLevel = false;
+}
+
+export function handleHealthAlerts(ctx: CreatureEffectsContext): void {
+    const healthThresholds = [5, 10, 25, 40];
+    const poisonThresholds = [100, 90, 50];
+
+    ctx.assureCosmeticRNG();
+
+    const currentPercent = Math.floor(ctx.player.currentHP * 100 / ctx.player.info.maxHP);
+    const previousPercent = Math.floor(ctx.player.previousHealthPoints * 100 / ctx.player.info.maxHP);
+
+    if (currentPercent < previousPercent && !ctx.rogue.gameHasEnded) {
+        for (const threshold of healthThresholds) {
+            if (currentPercent < threshold && previousPercent >= threshold) {
+                flashCreatureAlert(ctx.player, ` <${threshold}% health `, ctx.badMessageColor, ctx.darkRed, ctx);
+                break;
+            }
+        }
+    }
+
+    if (!ctx.rogue.gameHasEnded) {
+        const poisonPercent = ctx.player.currentHP > 0
+            ? Math.floor(ctx.player.status[StatusEffect.Poisoned] * ctx.player.poisonAmount * 100 / ctx.player.currentHP)
+            : 0;
+        if (poisonPercent > ctx.rogue.previousPoisonPercent) {
+            for (const threshold of poisonThresholds) {
+                if (poisonPercent > threshold && ctx.rogue.previousPoisonPercent <= threshold) {
+                    const msg = poisonPercent < 100 ? ` >${threshold}% poisoned ` : ` Fatally poisoned `;
+                    flashCreatureAlert(ctx.player, msg, ctx.yellow, ctx.darkGreen, ctx);
+                    break;
+                }
+            }
+        }
+        ctx.rogue.previousPoisonPercent = poisonPercent;
+    }
+
+    ctx.restoreRNG();
+}
+
+// =============================================================================
 // checkNutrition — from Time.c:804
 // =============================================================================
 
