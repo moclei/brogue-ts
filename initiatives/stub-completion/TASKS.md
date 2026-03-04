@@ -1,33 +1,33 @@
 # Stub Completion — Tasks
 
-## Phase 1: Quick Wiring Wins
+## Phase 1: Quick Wiring Wins ✅
 
-- [ ] Wire `updateLighting()` — call `updateLightingFn(buildLightingContext())` in cost-map FOV context (runtime.ts ~4271)
-- [ ] Wire `monstersAreEnemies()` in `buildTurnProcessingContext` — call real `monstersAreEnemiesFn` (runtime.ts ~5981)
-- [ ] Wire `monsterIsInClass()` in `buildTurnProcessingContext` — call real `monsterIsInClassFn` (runtime.ts ~5985)
-- [ ] Wire `monsterName()` in `buildTurnProcessingContext` — use `monsterNameFn` instead of `"monster"` (runtime.ts ~5977)
-- [ ] Implement `storeMemories(x, y)` — copy `tmap[x][y]` appearance to `pmap[x][y].rememberedAppearance` and set `rememberedTerrain` (runtime.ts ~6341)
-- [ ] Verify: 0 compilation errors, all tests passing
+- [x] Wire `updateLighting()` — call `updateLightingFn(buildLightingContext())` in cost-map FOV context (runtime.ts ~4289)
+- [x] Wire `monstersAreEnemies()` in `buildTurnProcessingContext` — call real `monstersAreEnemiesFn` (runtime.ts ~6371)
+- [x] Wire `monsterIsInClass()` in `buildTurnProcessingContext` — call real `monsterIsInClass` (runtime.ts ~6375)
+- [x] Wire `monsterName()` in `buildTurnProcessingContext` — real article/name logic (runtime.ts ~6360)
+- [x] Implement `storeMemories(x, y)` — copy `tmap[x][y]` appearance to `pmap[x][y].rememberedAppearance` and set `rememberedTerrain` (runtime.ts ~6731)
+- [x] Verify: 0 compilation errors, all 2,264 tests passing
 
-## Phase 2: Item Apply
+## Phase 2: Item Apply ✅
 
-- [ ] Update `Bolt` interface in `types/types.ts` — change `foreColor`/`backColor` to `Color | null`
-- [ ] Port bolt catalog — create `ts/src/globals/bolt-catalog.ts` with 29 entries from `GlobalsBrogue.c`
-- [ ] Export bolt catalog from `ts/src/globals/index.ts`
-- [ ] Port missing effect functions (implement inline in runtime.ts or `item-effects.ts`):
-  - [ ] `haste(target, duration)` — set `STATUS_HASTED` on creature
-  - [ ] `makePlayerTelepathic(duration)` — set `STATUS_TELEPATHIC` on player
-  - [ ] `imbueInvisibility(target, duration)` — set `STATUS_INVISIBLE` on creature
-  - [ ] `aggravateMonsters(range, x, y, color)` — wake monsters within radius
-  - [ ] `rechargeItems(category)` — recharge all pack items of category
-  - [ ] `negationBlast(source, radius)` — negate monsters + strip item charges in FOV
-  - [ ] `discordBlast(source, radius)` — set Discordant on monsters in FOV within radius
-  - [ ] `crystalize(radius)` — turn walls to force-field within radius
-  - [ ] `summonGuardian(charm)` — spawn guardian creature near player (stub if needed)
-- [ ] Build `buildItemHandlerContext()` in runtime.ts — full DI context wiring all fields
-- [ ] Wire `chooseTarget()` — simplified auto-target (nearest visible enemy in FOV)
-- [ ] Replace stub `apply()` in `buildInputContext()` to call `applyFn(theItem, buildItemHandlerContext())`
-- [ ] Verify: 0 compilation errors, all tests passing
+- [x] Update `Bolt` interface in `types/types.ts` — change `foreColor`/`backColor` to `Color | null`
+- [x] Port bolt catalog — create `ts/src/globals/bolt-catalog.ts` with 30 entries from `GlobalsBrogue.c`
+- [x] Export bolt catalog from `ts/src/globals/index.ts`
+- [x] Port missing effect functions (implemented inline in `buildItemHandlerContext()`):
+  - [x] `haste(target, duration)` — set `STATUS_HASTED` on creature
+  - [x] `makePlayerTelepathic(duration)` — set `STATUS_TELEPATHIC` on player
+  - [x] `imbueInvisibility(target, duration)` — set `STATUS_INVISIBLE` on creature
+  - [x] `aggravateMonsters(range, x, y, color)` — wake monsters within radius
+  - [x] `rechargeItems(category)` — recharge all pack items of category
+  - [x] `negationBlast(source, radius)` — negate monsters + strip item charges in FOV
+  - [x] `discordBlast(source, radius)` — set Discordant on monsters in FOV within radius
+  - [x] `crystalize(radius)` — turn walls to force-field within radius
+  - [x] `summonGuardian(charm)` — stubbed (returns without effect for now)
+- [x] Build `buildItemHandlerContext()` in runtime.ts — full DI context wiring all fields (~360 lines)
+- [x] Wire `chooseTarget()` — simplified auto-target (nearest visible enemy in FOV)
+- [x] Replace stub `apply()` in `buildInputContext()` to call `applyFn(theItem, buildItemHandlerContext())`
+- [x] Verify: 0 compilation errors, all 2,264 tests passing
 - [ ] Smoke test: drink a potion, read a scroll, eat food, zap a wand — all produce effects
 
 ## Phase 3: Full Monster AI
