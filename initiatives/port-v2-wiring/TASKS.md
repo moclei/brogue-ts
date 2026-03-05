@@ -9,12 +9,12 @@
 - [x] Verify `core.ts` is under 600 lines — 319 lines; `game-constants.ts` extracted at 71 lines
 
 ## Phase 2: turn.ts (turn processing)
-- [ ] Write integration test FIRST: full `playerTurnEnded()` with 3 monsters, one dying mid-turn — verify no soonestTurn warnings, monsters removed cleanly
-- [ ] Implement `buildTurnProcessingContext()` — wire all fields from `time/turn-processing.ts`
-- [ ] Implement `buildMonstersTurnContext()` — wire monster AI context
-- [ ] Verify integration test passes
-- [ ] Enumerate any stubs from `monsters/monster-actions.ts` as `test.skip` items
-- [ ] Verify `turn.ts` is under 600 lines
+- [x] Write integration test FIRST: full `playerTurnEnded()` with 3 monsters, one dying mid-turn — verify no soonestTurn warnings, monsters removed cleanly
+- [x] Implement `buildTurnProcessingContext()` — wire all fields from `time/turn-processing.ts`
+- [x] Implement `buildMonstersTurnContext()` — wire monster AI context (stubs; real AI in monsters.ts)
+- [x] Verify integration test passes — 6 passing, 5 skipped stubs
+- [x] Enumerate any stubs from `monsters/monster-actions.ts` as `test.skip` items — 5 stubs recorded
+- [x] Verify `turn.ts` is under 600 lines — 392 lines
 
 ## Phase 3: combat.ts (combat + damage)
 - [ ] Write integration test FIRST: player attacks monster, monster dies, drops item, removed from monster list
