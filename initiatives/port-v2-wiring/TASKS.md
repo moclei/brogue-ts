@@ -31,19 +31,19 @@
 - [x] Verify `monsters.ts` is under 600 lines — 264 lines
 
 ## Phase 5: items.ts (item handling)
-- [ ] Write integration test FIRST: player drinks a potion, effect applies, turn advances
-- [ ] Implement `buildItemHandlerContext()` — wire all item use functions
-- [ ] Implement `buildItemHelperContext()` — wire key use, item helper ops
-- [ ] Verify integration test passes
-- [ ] Verify `items.ts` is under 600 lines
+- [x] Write integration test FIRST: player drinks a potion, effect applies, turn advances
+- [x] Implement `buildItemHandlerContext()` — wire all item use functions
+- [x] Implement `buildItemHelperContext()` — wire key use, item helper ops
+- [x] Verify integration test passes — 7 passing, 11 skipped stubs
+- [x] Verify `items.ts` is under 600 lines — 378 lines
 
 ## Phase 6: movement.ts (player movement + travel)
-- [ ] Write integration test FIRST: player moves one step, tick advances, FOV updates
-- [ ] Implement `buildMovementContext()` — wire player movement, weapon attacks
-- [ ] Implement `buildTravelContext()` — wire travel/explore, path display
-- [ ] Implement `buildTargetingContext()` — wire targeting system
-- [ ] Verify integration tests pass
-- [ ] Verify `movement.ts` is under 600 lines
+- [x] Write integration test FIRST: player moves one step, tick advances, FOV updates
+- [x] Implement `buildMovementContext()` — wire player movement, weapon attacks
+- [x] Implement `buildTravelContext()` — wire travel/explore, path display
+- [x] Implement `buildCostMapFovContext()` — wire cost map / FOV context (renamed from buildTargetingContext)
+- [x] Verify integration tests pass — 11 passing, 12 skipped stubs
+- [x] Verify `movement.ts` is under 600 lines — 574 lines
 
 ## Phase 7: ui.ts (display context)
 - [ ] Implement `buildDisplayContext()` — wire level display, cell rendering (stub display calls for now)
