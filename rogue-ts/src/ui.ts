@@ -24,36 +24,42 @@ import { getGameState } from "./core.js";
 import { itemName as itemNameFn } from "./items/item-naming.js";
 import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
 import { numberOfItemsInPack as numberOfItemsInPackFn } from "./items/item-inventory.js";
+import { apply as applyFn } from "./items/item-handlers.js";
+import { buildItemHandlerContext } from "./items.js";
 import { wandTable, staffTable, ringTable, charmTable } from "./globals/item-catalog.js";
 import { mapToWindowX, mapToWindowY } from "./globals/tables.js";
 import { white, gray, black } from "./globals/colors.js";
-import { EventType, DisplayGlyph } from "./types/enums.js";
-import { COLS, ROWS } from "./types/constants.js";
+import { EventType } from "./types/enums.js";
 import type { ItemTable } from "./types/types.js";
 import type {
-    MessageState, ScreenDisplayBuffer, CellDisplayBuffer, SavedDisplayBuffer,
+    MessageState, ScreenDisplayBuffer, SavedDisplayBuffer,
     RogueEvent, BrogueButton, Item, Color, Pos, WindowPos, PauseBehavior,
 } from "./types/types.js";
+// IO layer — pure functions that don't need the dungeon appearance system
+import {
+    plotCharWithColor as plotCharWithColorFn,
+    plotCharToBuffer as plotCharToBufferFn,
+    saveDisplayBuffer as saveDisplayBufferFn,
+    restoreDisplayBuffer as restoreDisplayBufferFn,
+    overlayDisplayBuffer as overlayDisplayBufferFn,
+    clearDisplayBuffer as clearDisplayBufferFn,
+    createScreenDisplayBuffer as createScreenDisplayBufferFn,
+    locIsInWindow as locIsInWindowFn,
+} from "./io/display.js";
+import {
+    applyColorAverage as applyColorAverageFn,
+    bakeColor as bakeColorFn,
+    separateColors as separateColorsFn,
+} from "./io/color.js";
+import {
+    encodeMessageColor as encodeMessageColorFn,
+    decodeMessageColor as decodeMessageColorFn,
+} from "./io/color.js";
+import { strLenWithoutEscapes as strLenWithoutEscapesFn } from "./io/text.js";
 
 // =============================================================================
 // Private helpers
 // =============================================================================
-
-function makeBlankBuffer(): ScreenDisplayBuffer {
-    const cells: CellDisplayBuffer[][] = new Array(COLS);
-    for (let i = 0; i < COLS; i++) {
-        cells[i] = new Array(ROWS);
-        for (let j = 0; j < ROWS; j++) {
-            cells[i][j] = {
-                character: 32 as DisplayGlyph,
-                foreColorComponents: [0, 0, 0],
-                backColorComponents: [0, 0, 0],
-                opacity: 0,
-            };
-        }
-    }
-    return { cells };
-}
 
 function fakeEvent(): RogueEvent {
     return {
@@ -205,23 +211,25 @@ export interface ButtonContext {
 /**
  * Build a DisplayContext backed by the current game state.
  *
- * All display callbacks are stubbed — they will be wired to real canvas/
- * terminal rendering in port-v2-platform.
+ * Pure display-buffer operations are wired to io/display.ts.
+ * refreshDungeonCell, refreshSideBar, and updateFlavorText require the
+ * dungeon appearance system and remain stubbed until Phase 7.
  */
 export function buildDisplayContext(): DisplayContext {
     const { rogue, displayBuffer } = getGameState();
     return {
         rogue,
         displayBuffer,
-        refreshDungeonCell: () => {},                         // stub — port-v2-platform
-        refreshSideBar: () => {},                             // stub — port-v2-platform
-        plotCharWithColor: () => {},                          // stub — port-v2-platform
-        overlayDisplayBuffer: () => {},                       // stub — port-v2-platform
-        saveDisplayBuffer: () => ({ savedScreen: displayBuffer }),
-        restoreDisplayBuffer: () => {},                       // stub — port-v2-platform
-        clearDisplayBuffer: () => {},                         // stub — port-v2-platform
-        createScreenDisplayBuffer: makeBlankBuffer,
-        updateFlavorText: () => {},                           // stub — port-v2-platform
+        refreshDungeonCell: () => {},                         // stub — needs appearance system
+        refreshSideBar: () => {},                             // stub — needs appearance system
+        plotCharWithColor: (ch, pos, fg, bg) =>
+            { plotCharWithColorFn(ch, pos, fg, bg, displayBuffer); },
+        overlayDisplayBuffer: (dbuf) => overlayDisplayBufferFn(displayBuffer, dbuf),
+        saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
+        restoreDisplayBuffer: (saved) => restoreDisplayBufferFn(displayBuffer, saved),
+        clearDisplayBuffer: clearDisplayBufferFn,
+        createScreenDisplayBuffer: createScreenDisplayBufferFn,
+        updateFlavorText: () => {},                           // stub — needs appearance system
     };
 }
 
@@ -232,8 +240,10 @@ export function buildDisplayContext(): DisplayContext {
 /**
  * Build a MessageContext backed by the current game state.
  *
- * The messageState and rogue state are real; all rendering callbacks are
- * stubbed and will be wired in port-v2-platform.
+ * Pure display-buffer operations are wired to io/display.ts.
+ * refreshDungeonCell, refreshSideBar, updateFlavorText, flashTemporaryAlert,
+ * waitForAcknowledgment, and nextBrogueEvent require either the dungeon
+ * appearance system or the async event bridge and remain stubbed until Phase 7.
  */
 export function buildMessageContext(): MessageContext {
     const { rogue, messageState, displayBuffer } = getGameState();
@@ -241,17 +251,18 @@ export function buildMessageContext(): MessageContext {
         rogue,
         messageState,
         displayBuffer,
-        plotCharWithColor: () => {},                          // stub — port-v2-platform
-        overlayDisplayBuffer: () => {},                       // stub — port-v2-platform
-        saveDisplayBuffer: () => ({ savedScreen: displayBuffer }),
-        restoreDisplayBuffer: () => {},                       // stub — port-v2-platform
-        refreshSideBar: () => {},                             // stub — port-v2-platform
-        refreshDungeonCell: () => {},                         // stub — port-v2-platform
-        waitForAcknowledgment: () => {},                      // stub — port-v2-platform
-        pauseBrogue: async () => false,                       // stub — port-v2-platform
-        nextBrogueEvent: async () => fakeEvent(),             // stub — port-v2-platform
-        flashTemporaryAlert: () => {},                        // stub — port-v2-platform
-        updateFlavorText: () => {},                           // stub — port-v2-platform
+        plotCharWithColor: (ch, pos, fg, bg) =>
+            { plotCharWithColorFn(ch, pos, fg, bg, displayBuffer); },
+        overlayDisplayBuffer: (dbuf) => overlayDisplayBufferFn(displayBuffer, dbuf),
+        saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
+        restoreDisplayBuffer: (saved) => restoreDisplayBufferFn(displayBuffer, saved),
+        refreshSideBar: () => {},                             // stub — needs appearance system
+        refreshDungeonCell: () => {},                         // stub — needs appearance system
+        waitForAcknowledgment: () => {},                      // stub — sync/async bridge (Phase 7)
+        pauseBrogue: async () => false,                       // stub — sync/async bridge (Phase 7)
+        nextBrogueEvent: async () => fakeEvent(),             // stub — sync/async bridge (Phase 7)
+        flashTemporaryAlert: () => {},                        // stub — needs appearance system
+        updateFlavorText: () => {},                           // stub — needs appearance system
         stripShiftFromMovementKeystroke: (k) => k,
     };
 }
@@ -263,8 +274,10 @@ export function buildMessageContext(): MessageContext {
 /**
  * Build an InventoryContext backed by the current game state.
  *
- * item naming and polarity queries are wired to real implementations.
- * Display, button loop, and item action callbacks are stubbed.
+ * Item naming, polarity, apply action, and display-buffer operations are
+ * wired to real implementations.  Button loop, message, equip/unequip/drop/
+ * throw/relabel/call dialogs remain stubbed until the button and dialog
+ * systems are fully wired in Phase 7.
  */
 export function buildInventoryContext(): InventoryContext {
     const { rogue, packItems, displayBuffer, mutablePotionTable, mutableScrollTable, gameConst } = getGameState();
@@ -288,23 +301,23 @@ export function buildInventoryContext(): InventoryContext {
         itemMagicPolarity: (item) => itemMagicPolarityFn(item),
         numberOfItemsInPack: () =>
             numberOfItemsInPackFn(packItems),
-        message: () => {},                                    // stub — port-v2-platform
-        confirmMessages: () => {},                            // stub — port-v2-platform
-        buttonInputLoop: async () => ({ chosenButton: -1, event: fakeEvent() }), // stub
-        overlayDisplayBuffer: () => {},                       // stub — port-v2-platform
-        saveDisplayBuffer: () => ({ savedScreen: displayBuffer }),
-        restoreDisplayBuffer: () => {},                       // stub — port-v2-platform
-        clearDisplayBuffer: () => {},                         // stub — port-v2-platform
-        createScreenDisplayBuffer: makeBlankBuffer,
+        message: () => {},                                    // stub — needs message context wiring
+        confirmMessages: () => {},                            // stub — needs message context wiring
+        buttonInputLoop: async () => ({ chosenButton: -1, event: fakeEvent() }), // stub — Phase 7
+        overlayDisplayBuffer: (dbuf) => overlayDisplayBufferFn(displayBuffer, dbuf),
+        saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
+        restoreDisplayBuffer: (saved) => restoreDisplayBufferFn(displayBuffer, saved),
+        clearDisplayBuffer: clearDisplayBufferFn,
+        createScreenDisplayBuffer: createScreenDisplayBufferFn,
         mapToWindowX,
         mapToWindowY,
-        apply: () => {},                                      // stub — port-v2-platform
-        equip: () => {},                                      // stub — port-v2-platform
-        unequip: () => {},                                    // stub — port-v2-platform
-        drop: () => {},                                       // stub — port-v2-platform
-        throwCommand: () => {},                               // stub — port-v2-platform
-        relabel: () => {},                                    // stub — port-v2-platform
-        call: () => {},                                       // stub — port-v2-platform
+        apply: (item) => { applyFn(item, buildItemHandlerContext()); },
+        equip: async () => {},                                // stub — dialog not yet ported
+        unequip: async () => {},                              // stub — dialog not yet ported
+        drop: async () => {},                                 // stub — dialog not yet ported
+        throwCommand: async () => {},                         // stub — dialog not yet ported
+        relabel: async () => {},                              // stub — dialog not yet ported
+        call: async () => {},                                 // stub — dialog not yet ported
         white,
         gray,
         black,
@@ -322,8 +335,9 @@ export function buildInventoryContext(): InventoryContext {
  * (returning Promise<RogueEvent> / Promise<boolean>).  This is the async
  * bridge contract required by the browser platform.
  *
- * All rendering and color callbacks are stubbed; they will be wired in
- * port-v2-platform.
+ * Color, text, and display-buffer operations are wired to real io/ functions.
+ * The async event bridge (nextBrogueEvent, pauseBrogue, pauseAnimation) remains
+ * stubbed until Phase 7 when the browser platform is fully wired.
  */
 export function buildButtonContext(): ButtonContext {
     const { rogue, displayBuffer } = getGameState();
@@ -332,25 +346,23 @@ export function buildButtonContext(): ButtonContext {
             playbackMode: rogue.playbackMode,
             playbackPaused: rogue.playbackPaused,
         },
-        // -- Color stubs (wired in port-v2-platform) --------------------------
-        applyColorAverage: () => {},                          // stub
-        bakeColor: () => {},                                  // stub
-        separateColors: () => {},                             // stub
-        strLenWithoutEscapes: (s) => s.length,               // minimal stub
-        decodeMessageColor: (_msg, i) => ({
-            color: { red: 100, green: 100, blue: 100, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false },
-            nextIndex: i + 4,
-        }),                                                   // stub
-        encodeMessageColor: () => "",                         // stub
-        // -- Rendering stubs (wired in port-v2-platform) ----------------------
-        plotCharToBuffer: () => {},                           // stub
-        locIsInWindow: () => false,                           // stub
-        createScreenDisplayBuffer: makeBlankBuffer,
-        clearDisplayBuffer: () => {},                         // stub
-        overlayDisplayBuffer: () => {},                       // stub
-        saveDisplayBuffer: () => ({ savedScreen: displayBuffer }),
-        restoreDisplayBuffer: () => {},                       // stub
+        // -- Color / text ops wired to io/color.ts and io/text.ts -------------
+        applyColorAverage: applyColorAverageFn,
+        bakeColor: bakeColorFn,
+        separateColors: separateColorsFn,
+        strLenWithoutEscapes: strLenWithoutEscapesFn,
+        decodeMessageColor: decodeMessageColorFn,
+        encodeMessageColor: encodeMessageColorFn,
+        // -- Rendering ops wired to io/display.ts -----------------------------
+        plotCharToBuffer: plotCharToBufferFn,
+        locIsInWindow: locIsInWindowFn,
+        createScreenDisplayBuffer: createScreenDisplayBufferFn,
+        clearDisplayBuffer: clearDisplayBufferFn,
+        overlayDisplayBuffer: (dbuf) => overlayDisplayBufferFn(displayBuffer, dbuf),
+        saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
+        restoreDisplayBuffer: (saved) => restoreDisplayBufferFn(displayBuffer, saved),
         // -- Async bridge: these MUST return Promises -------------------------
+        // Real event dispatch wired in Phase 7 when browser platform is connected.
         nextBrogueEvent: async () => fakeEvent(),
         pauseBrogue: async () => false,
         pauseAnimation: async () => false,

@@ -24,6 +24,8 @@ import { travel } from "./movement/travel-explore.js";
 import { windowToMapX, windowToMapY, coordinatesAreInMap } from "./globals/tables.js";
 import { EventType } from "./types/enums.js";
 import type { RogueEvent } from "./types/types.js";
+import { buildInputContext } from "./io/input-context.js";
+import { executeKeystroke } from "./io/input-dispatch.js";
 
 // =============================================================================
 // Module-level state
@@ -148,11 +150,12 @@ function handleHover(_windowX: number, _windowY: number): void {
 }
 
 /**
- * Keystroke: dispatch to the input handler.
- * Stubbed — port-v2-platform Phase 4: wire to io/input-keystrokes.ts.
+ * Keystroke: dispatch to the appropriate game action via executeKeystroke.
+ * Wired in port-v2-platform Phase 4.
  */
-async function handleKeystroke(_event: RogueEvent): Promise<void> {
-    // stub — port-v2-platform Phase 4
+async function handleKeystroke(event: RogueEvent): Promise<void> {
+    const ctx = buildInputContext();
+    await executeKeystroke(ctx, event.param1, event.controlKey, event.shiftKey);
 }
 
 // =============================================================================

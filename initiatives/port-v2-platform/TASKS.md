@@ -28,14 +28,20 @@
 - [x] Verify all IO files compile and are under 600 lines — 0 IO errors; all under 600
 
 ## Phase 4: Input Dispatch
-- [ ] Port `io/input-keystrokes.ts` from `ts/src/io/io-input.ts` (keyboard handling only, async)
-- [ ] Port `io/input-mouse.ts` from `ts/src/io/io-input.ts` (mouse handling only, async)
-- [ ] Verify: no synchronous event polling spin loops remain
-- [ ] Wire keystroke dispatch to domain context actions (move, apply, inventory, etc.)
+Note: source is 1,875 lines; 4-file split required by 600-line hard constraint.
+- [x] Port `io/input-keystrokes.ts` — shared interfaces + event infrastructure (pauseBrogue, nextBrogueEvent, waiters) — 440 lines
+- [x] Port `io/input-dispatch.ts` — confirm, getInputTextString, executeKeystroke — 502 lines
+- [x] Port `io/input-mouse.ts` — executeMouseClick (simplified), executeEvent, initializeMenuButtons, actionMenu — 359 lines
+- [x] Port `io/input-cursor.ts` — mainInputLoop (cursor/path mode) — 369 lines
+- [x] Verify: no synchronous event polling spin loops remain — all functions use nextKeyOrMouseEvent via nextBrogueEvent; no spin loops
+- [x] Wire keystroke dispatch to domain context actions (move, apply, inventory, etc.)
 
 ## Phase 5: ui.ts Wiring Completion
-- [ ] Return to `ui.ts` from port-v2-wiring and replace any IO stubs with real IO function calls
-- [ ] Verify all `buildDisplayContext()`, `buildInventoryContext()`, `buildButtonContext()` are wired
+- [x] Return to `ui.ts` from port-v2-wiring and replace any IO stubs with real IO function calls
+- [x] Verify all `buildDisplayContext()`, `buildInventoryContext()`, `buildButtonContext()` are wired
+  Note: display buffer ops, color/text ops, and apply action are wired to real io/ functions.
+  refreshDungeonCell, refreshSideBar, displayLevel, updateFlavorText, flashTemporaryAlert remain stubbed
+  (need dungeon appearance system). nextBrogueEvent/pauseBrogue event bridge remains stubbed (Phase 7).
 
 ## Phase 6: Menus
 - [ ] Port `menus/main-menu.ts` from `ts/src/menus/main-menu.ts` (split if >600 lines)
