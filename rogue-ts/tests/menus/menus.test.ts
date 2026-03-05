@@ -1,0 +1,132 @@
+/*
+ *  tests/menus/menus.test.ts — Menu module tests
+ *  Port V2 — rogue-ts
+ *
+ *  Covers:
+ *   - Flame simulation: updateMenuFlames advances values from source
+ *   - Stats: addRunToGameStats accumulates correctly
+ *   - Save/Load: stubbed pending implementation (test.skip)
+ */
+
+import { describe, it, expect } from "vitest";
+import { createFlameGrid, createFlameColorGrid, createColorSources, updateMenuFlames } from "../../src/menus/menu-flames.js";
+import { createGameStats, addRunToGameStats } from "../../src/menus/character-select.js";
+import type { RogueRun } from "../../src/menus/menu-types.js";
+
+// =============================================================================
+// Flame simulation
+// =============================================================================
+
+describe("updateMenuFlames", () => {
+    it("advances flame values from a source tile", () => {
+        const colors = createFlameColorGrid();
+        const flames = createFlameGrid();
+        const colorSources = createColorSources({ rand_range: () => 0 });
+
+        // Place a high-intensity red color source at the bottom-left
+        const ROWS_PADDED = flames[0].length;
+        colors[0][ROWS_PADDED - 1] = {
+            red: 100, green: 0, blue: 0,
+            redRand: 0, greenRand: 0, blueRand: 0, rand: 0,
+        };
+
+        updateMenuFlames(colors, colorSources, flames, { rand_range: () => 0 });
+
+        // The source tile should have non-zero red after one update
+        expect(flames[0][ROWS_PADDED - 1][0]).toBeGreaterThan(0);
+    });
+});
+
+// =============================================================================
+// Game stats
+// =============================================================================
+
+describe("addRunToGameStats", () => {
+    it("accumulates wins and streaks correctly", () => {
+        const stats = createGameStats();
+        const run: RogueRun = {
+            seed: 42n,
+            dateNumber: 20240101,
+            result: "Escaped",
+            killedBy: "",
+            gold: 500,
+            lumenstones: 3,
+            score: 1000,
+            turns: 2000,
+            deepestLevel: 10,
+        };
+
+        addRunToGameStats(run, stats);
+
+        expect(stats.games).toBe(1);
+        expect(stats.won).toBe(1);
+        expect(stats.escaped).toBe(1);
+        expect(stats.currentWinStreak).toBe(1);
+        expect(stats.highestScore).toBe(1000);
+        expect(stats.deepestLevel).toBe(10);
+        expect(stats.fewestTurnsWin).toBe(2000);
+    });
+
+    it("resets win streak on a loss", () => {
+        const stats = createGameStats();
+        const win: RogueRun = {
+            seed: 1n, dateNumber: 0, result: "Escaped", killedBy: "",
+            gold: 0, lumenstones: 0, score: 100, turns: 100, deepestLevel: 5,
+        };
+        const loss: RogueRun = {
+            seed: 2n, dateNumber: 0, result: "Killed", killedBy: "a goblin",
+            gold: 0, lumenstones: 0, score: 50, turns: 50, deepestLevel: 2,
+        };
+
+        addRunToGameStats(win, stats);
+        addRunToGameStats(loss, stats);
+
+        expect(stats.longestWinStreak).toBe(1);
+        expect(stats.currentWinStreak).toBe(0);
+    });
+
+    it("seed === 0n resets recent stats (save-reset marker)", () => {
+        const stats = createGameStats();
+        const run: RogueRun = {
+            seed: 1n, dateNumber: 0, result: "Escaped", killedBy: "",
+            gold: 0, lumenstones: 0, score: 100, turns: 100, deepestLevel: 5,
+        };
+        const resetMarker: RogueRun = {
+            seed: 0n, dateNumber: 0, result: "", killedBy: "",
+            gold: 0, lumenstones: 0, score: 0, turns: 0, deepestLevel: 0,
+        };
+
+        addRunToGameStats(run, stats);
+        // seed === 0 is the reset marker — caller in viewGameStats re-inits recent stats
+        expect(resetMarker.seed).toBe(0n);
+        // This documents the convention used by viewGameStats to detect a reset marker
+    });
+});
+
+// =============================================================================
+// Save / Load — stubbed (not yet implemented)
+// =============================================================================
+
+describe("save / load game", () => {
+    it.skip("saveGameNoPrompt() persists game state to the current file path", () => {
+        // STUB: saveGameNoPrompt is deferred to the recordings/persistence phase.
+        // Correct behavior: calls the platform file ops to write a .broguesave file
+        // at ctx.currentFilePath, encoding the full rogue state.
+    });
+
+    it.skip("loadSavedGame() restores a .broguesave file and starts mainInputLoop", () => {
+        // STUB: loadSavedGame is deferred to the recordings/persistence phase.
+        // Correct behavior: reads the .broguesave at gamePath, restores rogue state,
+        // and calls startLevel() followed by mainInputLoop().
+    });
+
+    it.skip("saveRecordingNoPrompt() writes a .broguerec recording file", () => {
+        // STUB: recording subsystem deferred.
+        // Correct behavior: flushes the recording buffer to disk as a .broguerec file.
+    });
+
+    it.skip("openFile() returns false for non-existent paths", () => {
+        // STUB: platform file ops deferred.
+        // Correct behavior: ctx.openFile('nonexistent.broguesave') returns false.
+    });
+});

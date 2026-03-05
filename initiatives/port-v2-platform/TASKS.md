@@ -44,10 +44,10 @@ Note: source is 1,875 lines; 4-file split required by 600-line hard constraint.
   (need dungeon appearance system). nextBrogueEvent/pauseBrogue event bridge remains stubbed (Phase 7).
 
 ## Phase 6: Menus
-- [ ] Port `menus/main-menu.ts` from `ts/src/menus/main-menu.ts` (split if >600 lines)
-- [ ] Port `menus/character-select.ts` (split from main-menu if needed)
-- [ ] Port `menus/wizard.ts` from `ts/src/menus/wizard.ts` (if under 600 lines; split if not)
-- [ ] Stub save/load with `test.skip` entries
+- [x] Port `menus/main-menu.ts` from `ts/src/menus/main-menu.ts` — split into 5 files (menu-types, menu-flames, menu-buttons, character-select, main-menu); all under 600 lines
+- [x] Port `menus/character-select.ts` (split from main-menu: game variant/mode dialogs, file chooser, game stats)
+- [x] Port `menus/wizard.ts` from `ts/src/menus/wizard.ts` — split into wizard.ts + wizard-items.ts; wizard functions made async (buttonInputLoop, confirm, getInputTextString are async in new port)
+- [x] Stub save/load with `test.skip` entries — 4 stubs in `tests/menus/menus.test.ts`; 4 active tests passing
 
 ## Phase 7: Entry Point + Integration
 - [ ] Write `rogue-ts/src/bootstrap.ts` — browser entry point, mounts canvas, starts `mainGameLoop()`
