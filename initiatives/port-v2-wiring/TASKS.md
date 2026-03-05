@@ -62,4 +62,4 @@
 - [x] All integration tests passing (not just unit tests) — 1538 passing, 69 skipped, 0 failing
 - [x] Zero unpaired stubs — all stubs have corresponding test.skip entries
 - [x] All domain files under 600 lines — core.ts 356, turn.ts 392, combat.ts 259, monsters.ts 264, items.ts 378, movement.ts 574, ui.ts 358
-- [ ] `rogue-ts/src/` committed: "feat: port-v2 wiring layer — domain context builders complete"
+- [x] `rogue-ts/src/` committed: "feat: port-v2 wiring layer — domain context builders complete" — commit 991ccb0
