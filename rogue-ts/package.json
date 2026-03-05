@@ -1,0 +1,17 @@
+{
+  "name": "rogue-ts",
+  "version": "0.0.1",
+  "description": "TypeScript port of Brogue: Community Edition (V2)",
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

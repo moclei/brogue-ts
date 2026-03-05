@@ -1,0 +1,168 @@
+/*
+ *  mutation-catalog.ts — mutationCatalog, ported from Globals.c
+ *  brogue-ts
+ */
+
+import type { Mutation } from "../types/types.js";
+import { DungeonFeatureType, LightType } from "../types/enums.js";
+import { MonsterBehaviorFlag, MonsterAbilityFlag } from "../types/flags.js";
+import * as C from "./colors.js";
+
+/**
+ * Mutation catalog. Each entry defines how a monster mutation affects
+ * its stats, abilities, and behavior.
+ */
+export const mutationCatalog: readonly Mutation[] = [
+    // explosive
+    {
+        title: "explosive",
+        textColor: C.orange,
+        healthFactor: 50,
+        moveSpeedFactor: 100,
+        attackSpeedFactor: 100,
+        defenseFactor: 50,
+        damageFactor: 100,
+        DFChance: 0,
+        DFType: DungeonFeatureType.DF_MUTATION_EXPLOSION,
+        light: LightType.EXPLOSIVE_BLOAT_LIGHT,
+        monsterFlags: 0,
+        monsterAbilityFlags: MonsterAbilityFlag.MA_DF_ON_DEATH,
+        forbiddenFlags: MonsterBehaviorFlag.MONST_SUBMERGES,
+        forbiddenAbilityFlags: 0,
+        description: "A rare mutation will cause $HIMHER to explode violently when $HESHE dies.",
+        canBeNegated: true,
+    },
+    // infested
+    {
+        title: "infested",
+        textColor: C.lichenColor,
+        healthFactor: 50,
+        moveSpeedFactor: 100,
+        attackSpeedFactor: 100,
+        defenseFactor: 50,
+        damageFactor: 100,
+        DFChance: 0,
+        DFType: DungeonFeatureType.DF_MUTATION_LICHEN,
+        light: LightType.NO_LIGHT,
+        monsterFlags: 0,
+        monsterAbilityFlags: MonsterAbilityFlag.MA_DF_ON_DEATH,
+        forbiddenFlags: 0,
+        forbiddenAbilityFlags: 0,
+        description: "$HESHE has been infested by deadly lichen spores; poisonous fungus will spread from $HISHER corpse when $HESHE dies.",
+        canBeNegated: true,
+    },
+    // agile
+    {
+        title: "agile",
+        textColor: C.lightBlue,
+        healthFactor: 100,
+        moveSpeedFactor: 50,
+        attackSpeedFactor: 100,
+        defenseFactor: 150,
+        damageFactor: 100,
+        DFChance: -1,
+        DFType: 0,
+        light: LightType.NO_LIGHT,
+        monsterFlags: MonsterBehaviorFlag.MONST_FLEES_NEAR_DEATH,
+        monsterAbilityFlags: 0,
+        forbiddenFlags: MonsterBehaviorFlag.MONST_FLEES_NEAR_DEATH,
+        forbiddenAbilityFlags: 0,
+        description: "A rare mutation greatly enhances $HISHER mobility.",
+        canBeNegated: false,
+    },
+    // juggernaut
+    {
+        title: "juggernaut",
+        textColor: C.brown,
+        healthFactor: 300,
+        moveSpeedFactor: 200,
+        attackSpeedFactor: 200,
+        defenseFactor: 75,
+        damageFactor: 200,
+        DFChance: -1,
+        DFType: 0,
+        light: LightType.NO_LIGHT,
+        monsterFlags: 0,
+        monsterAbilityFlags: MonsterAbilityFlag.MA_ATTACKS_STAGGER,
+        forbiddenFlags: MonsterBehaviorFlag.MONST_MAINTAINS_DISTANCE,
+        forbiddenAbilityFlags: 0,
+        description: "A rare mutation has hardened $HISHER flesh, increasing $HISHER health and power but compromising $HISHER speed.",
+        canBeNegated: false,
+    },
+    // grappling
+    {
+        title: "grappling",
+        textColor: C.tanColor,
+        healthFactor: 150,
+        moveSpeedFactor: 100,
+        attackSpeedFactor: 100,
+        defenseFactor: 50,
+        damageFactor: 100,
+        DFChance: -1,
+        DFType: 0,
+        light: LightType.NO_LIGHT,
+        monsterFlags: 0,
+        monsterAbilityFlags: MonsterAbilityFlag.MA_SEIZES,
+        forbiddenFlags: MonsterBehaviorFlag.MONST_MAINTAINS_DISTANCE,
+        forbiddenAbilityFlags: MonsterAbilityFlag.MA_SEIZES,
+        description: "A rare mutation has caused suckered tentacles to sprout from $HISHER frame, increasing $HISHER health and allowing $HIMHER to grapple with $HISHER prey.",
+        canBeNegated: true,
+    },
+    // vampiric
+    {
+        title: "vampiric",
+        textColor: C.red,
+        healthFactor: 100,
+        moveSpeedFactor: 100,
+        attackSpeedFactor: 100,
+        defenseFactor: 100,
+        damageFactor: 100,
+        DFChance: -1,
+        DFType: 0,
+        light: LightType.NO_LIGHT,
+        monsterFlags: 0,
+        monsterAbilityFlags: MonsterAbilityFlag.MA_TRANSFERENCE,
+        forbiddenFlags: MonsterBehaviorFlag.MONST_MAINTAINS_DISTANCE,
+        forbiddenAbilityFlags: MonsterAbilityFlag.MA_TRANSFERENCE,
+        description: "A rare mutation allows $HIMHER to heal $HIMSELFHERSELF with every attack.",
+        canBeNegated: true,
+    },
+    // toxic
+    {
+        title: "toxic",
+        textColor: C.green,
+        healthFactor: 100,
+        moveSpeedFactor: 100,
+        attackSpeedFactor: 200,
+        defenseFactor: 100,
+        damageFactor: 20,
+        DFChance: -1,
+        DFType: 0,
+        light: LightType.NO_LIGHT,
+        monsterFlags: 0,
+        monsterAbilityFlags: MonsterAbilityFlag.MA_CAUSES_WEAKNESS | MonsterAbilityFlag.MA_POISONS,
+        forbiddenFlags: MonsterBehaviorFlag.MONST_MAINTAINS_DISTANCE,
+        forbiddenAbilityFlags: MonsterAbilityFlag.MA_CAUSES_WEAKNESS | MonsterAbilityFlag.MA_POISONS,
+        description: "A rare mutation causes $HIMHER to poison $HISHER victims and sap their strength with every attack.",
+        canBeNegated: true,
+    },
+    // reflective
+    {
+        title: "reflective",
+        textColor: C.darkTurquoise,
+        healthFactor: 100,
+        moveSpeedFactor: 100,
+        attackSpeedFactor: 100,
+        defenseFactor: 100,
+        damageFactor: 100,
+        DFChance: -1,
+        DFType: 0,
+        light: LightType.NO_LIGHT,
+        monsterFlags: MonsterBehaviorFlag.MONST_REFLECT_50,
+        monsterAbilityFlags: 0,
+        forbiddenFlags: MonsterBehaviorFlag.MONST_REFLECT_50 | MonsterBehaviorFlag.MONST_ALWAYS_USE_ABILITY,
+        forbiddenAbilityFlags: 0,
+        description: "A rare mutation has coated $HISHER flesh with reflective scales.",
+        canBeNegated: true,
+    },
+];
