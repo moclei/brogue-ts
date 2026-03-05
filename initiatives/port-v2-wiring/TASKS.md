@@ -17,18 +17,18 @@
 - [x] Verify `turn.ts` is under 600 lines — 392 lines
 
 ## Phase 3: combat.ts (combat + damage)
-- [ ] Write integration test FIRST: player attacks monster, monster dies, drops item, removed from monster list
-- [ ] Implement `buildCombatDamageContext()` — wire inflictDamage, killCreature, etc.
-- [ ] Implement `buildCombatAttackContext()` — wire player/monster attack resolution
-- [ ] Verify integration test passes
-- [ ] Verify `combat.ts` is under 600 lines
+- [x] Write integration test FIRST: player attacks monster, monster dies, drops item, removed from monster list
+- [x] Implement `buildCombatDamageContext()` — wire inflictDamage, killCreature, etc.
+- [x] Implement `buildCombatAttackContext()` — wire player/monster attack resolution
+- [x] Verify integration test passes — 7 passing, 11 skipped stubs
+- [x] Verify `combat.ts` is under 600 lines — 259 lines
 
 ## Phase 4: monsters.ts (monster spawning + state)
-- [ ] Write integration test FIRST: spawn a horde, verify monsters have valid movementSpeed and ticksUntilTurn > 0
-- [ ] Implement `buildMonsterSpawningContext()` — wire horde spawning
-- [ ] Implement `buildMonsterStateContext()` — wire state transitions, ally management
-- [ ] Verify integration tests pass
-- [ ] Verify `monsters.ts` is under 600 lines
+- [x] Write integration test FIRST: spawn a horde, verify monsters have valid movementSpeed and ticksUntilTurn > 0
+- [x] Implement `buildMonsterSpawningContext()` — wire horde spawning
+- [x] Implement `buildMonsterStateContext()` — wire state transitions, ally management
+- [x] Verify integration tests pass — 8 passing, 9 skipped stubs
+- [x] Verify `monsters.ts` is under 600 lines — 264 lines
 
 ## Phase 5: items.ts (item handling)
 - [ ] Write integration test FIRST: player drinks a potion, effect applies, turn advances

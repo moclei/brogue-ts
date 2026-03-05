@@ -18,6 +18,7 @@ import { MonsterType, StatusEffect, CreatureState, TileType } from "../types/enu
 import {
     MonsterBehaviorFlag,
     MonsterBookkeepingFlag,
+    TileFlag,
     TerrainFlag,
     TerrainMechFlag,
     HordeFlag,
@@ -316,9 +317,9 @@ export function spawnMinions(
                     { x: leader.loc.x, y: leader.loc.y },
                     summoned,
                     T_DIVIDES_LEVEL & forbiddenTerrainFlags,
-                    0x2 | 0x10, // HAS_PLAYER | HAS_STAIRS
+                    0,
                     forbiddenTerrainFlags,
-                    0x4, // HAS_MONSTER
+                    TileFlag.HAS_MONSTER,
                     false,
                 );
             } while (
@@ -339,7 +340,7 @@ export function spawnMinions(
                 monst.bookkeepingFlags |= MonsterBookkeepingFlag.MB_SUBMERGED;
             }
 
-            ctx.setCellFlag(monst.loc, 0x4); // HAS_MONSTER
+            ctx.setCellFlag(monst.loc, TileFlag.HAS_MONSTER);
             monst.bookkeepingFlags |= (MonsterBookkeepingFlag.MB_FOLLOWER | MonsterBookkeepingFlag.MB_JUST_SUMMONED);
             monst.leader = leader;
             monst.creatureState = leader.creatureState;
@@ -503,7 +504,7 @@ export function spawnHorde(
         ctx.killCreature(preexisting, true);
     }
 
-    ctx.setCellFlag(loc, 0x4); // HAS_MONSTER
+    ctx.setCellFlag(loc, TileFlag.HAS_MONSTER);
     if (ctx.playerCanSeeOrSense(loc.x, loc.y)) {
         ctx.refreshDungeonCell(loc);
     }
