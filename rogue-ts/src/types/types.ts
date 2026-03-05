@@ -678,6 +678,20 @@ export interface ArchivedMessage {
     flags: number;
 }
 
+/** Mutable state for the message archive system. */
+export interface MessageState {
+    /** Ring buffer of archived messages. */
+    archive: ArchivedMessage[];
+    /** Next write slot in the ring buffer. */
+    archivePosition: number;
+    /** Currently displayed message strings (index 0 = most recent). */
+    displayedMessage: string[];
+    /** Lines from current turn shown without dimming. */
+    messagesUnconfirmed: number;
+    /** Buffered combat text (flushed before the next message). */
+    combatText: string;
+}
+
 // ===== Pause Behavior =====
 
 export interface PauseBehavior {

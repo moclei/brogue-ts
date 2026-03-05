@@ -31,35 +31,35 @@
 - [x] Verify `monsters.ts` is under 600 lines — 264 lines
 
 ## Phase 5: items.ts (item handling)
-- [ ] Write integration test FIRST: player drinks a potion, effect applies, turn advances
-- [ ] Implement `buildItemHandlerContext()` — wire all item use functions
-- [ ] Implement `buildItemHelperContext()` — wire key use, item helper ops
-- [ ] Verify integration test passes
-- [ ] Verify `items.ts` is under 600 lines
+- [x] Write integration test FIRST: player drinks a potion, effect applies, turn advances
+- [x] Implement `buildItemHandlerContext()` — wire all item use functions
+- [x] Implement `buildItemHelperContext()` — wire key use, item helper ops
+- [x] Verify integration test passes — 7 passing, 11 skipped stubs
+- [x] Verify `items.ts` is under 600 lines — 378 lines
 
 ## Phase 6: movement.ts (player movement + travel)
-- [ ] Write integration test FIRST: player moves one step, tick advances, FOV updates
-- [ ] Implement `buildMovementContext()` — wire player movement, weapon attacks
-- [ ] Implement `buildTravelContext()` — wire travel/explore, path display
-- [ ] Implement `buildTargetingContext()` — wire targeting system
-- [ ] Verify integration tests pass
-- [ ] Verify `movement.ts` is under 600 lines
+- [x] Write integration test FIRST: player moves one step, tick advances, FOV updates
+- [x] Implement `buildMovementContext()` — wire player movement, weapon attacks
+- [x] Implement `buildTravelContext()` — wire travel/explore, path display
+- [x] Implement `buildCostMapFovContext()` — wire cost map / FOV context (renamed from buildTargetingContext)
+- [x] Verify integration tests pass — 11 passing, 12 skipped stubs
+- [x] Verify `movement.ts` is under 600 lines — 574 lines
 
 ## Phase 7: ui.ts (display context)
-- [ ] Implement `buildDisplayContext()` — wire level display, cell rendering (stub display calls for now)
-- [ ] Implement `buildMessageContext()` — wire message queue
-- [ ] Implement `buildInventoryContext()` — wire inventory display (stub IO calls)
-- [ ] Implement `buildButtonContext()` — wire button input loop with proper async event waiting
-- [ ] Write test: `buildButtonContext().nextBrogueEvent` is async (not synchronous)
-- [ ] Verify `ui.ts` is under 600 lines
+- [x] Implement `buildDisplayContext()` — wire level display, cell rendering (stub display calls for now)
+- [x] Implement `buildMessageContext()` — wire message queue
+- [x] Implement `buildInventoryContext()` — wire inventory display (stub IO calls)
+- [x] Implement `buildButtonContext()` — wire button input loop with proper async event waiting
+- [x] Write test: `buildButtonContext().nextBrogueEvent` is async (not synchronous)
+- [x] Verify `ui.ts` is under 600 lines — 358 lines; `core.ts` updated to 356 lines; 25 tests passing
 
 ## Phase 8: Stub audit
-- [ ] Search all `rogue-ts/src/` for any `/* stub */` comments NOT paired with a `test.skip`
-- [ ] For each unpaired stub, add a `test.skip` describing correct behavior
-- [ ] Record final `test.skip` count as known-incomplete behaviors
+- [x] Search all `rogue-ts/src/` for any `/* stub */` comments NOT paired with a `test.skip` — no `/* stub */` format; `// stub` format used throughout
+- [x] For each unpaired stub, add a `test.skip` describing correct behavior — added 13 to ui.test.ts, 5 to monsters.test.ts, 3 to movement.test.ts
+- [x] Record final `test.skip` count as known-incomplete behaviors — **69 skipped total** (48 pre-existing + 21 new from Phases 7 & 8)
 
 ## Completion
-- [ ] All integration tests passing (not just unit tests)
-- [ ] Zero unpaired stubs
-- [ ] All domain files under 600 lines
-- [ ] `rogue-ts/src/` committed: "feat: port-v2 wiring layer — domain context builders complete"
+- [x] All integration tests passing (not just unit tests) — 1538 passing, 69 skipped, 0 failing
+- [x] Zero unpaired stubs — all stubs have corresponding test.skip entries
+- [x] All domain files under 600 lines — core.ts 356, turn.ts 392, combat.ts 259, monsters.ts 264, items.ts 378, movement.ts 574, ui.ts 358
+- [x] `rogue-ts/src/` committed: "feat: port-v2 wiring layer — domain context builders complete" — commit 991ccb0

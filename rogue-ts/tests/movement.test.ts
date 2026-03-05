@@ -1,0 +1,298 @@
+/*
+ *  movement.test.ts — Integration tests for the movement wiring layer
+ *  Port V2 — rogue-ts
+ *
+ *  These tests exercise playerMoves() through the real buildMovementContext()
+ *  context builder, verifying player position updates and turn advancement
+ *  without requiring a full platform.
+ */
+
+import { describe, it, expect, beforeEach } from "vitest";
+import { initGameState, getGameState } from "../src/core.js";
+import {
+    buildMovementContext,
+    buildTravelContext,
+    buildCostMapFovContext,
+} from "../src/movement.js";
+import { playerMoves } from "../src/movement/player-movement.js";
+import { populateCreatureCostMap } from "../src/movement/cost-maps-fov.js";
+import { buildTurnProcessingContext } from "../src/turn.js";
+import { monsterCatalog } from "../src/globals/monster-catalog.js";
+import { MonsterType, Direction, StatusEffect, TileType } from "../src/types/enums.js";
+import { TileFlag } from "../src/types/flags.js";
+import type { Creature } from "../src/types/types.js";
+
+// =============================================================================
+// Test helpers
+// =============================================================================
+
+function setupPlayer(): Creature {
+    const { player, rogue, pmap } = getGameState();
+    const cat = monsterCatalog[MonsterType.MK_YOU];
+    Object.assign(player, {
+        info: { ...cat, damage: { ...cat.damage }, foreColor: { ...cat.foreColor }, bolts: [...cat.bolts] },
+        currentHP: cat.maxHP,
+        movementSpeed: 100,
+        attackSpeed: 100,
+        ticksUntilTurn: 100,
+    });
+    player.loc = { x: 5, y: 5 };
+    player.status[StatusEffect.Nutrition] = 2150;
+    rogue.ticksTillUpdateEnvironment = 100;
+    rogue.strength = 12;
+
+    // Place player on a floor cell and mark surrounding cells passable + discovered
+    for (let dx = -1; dx <= 2; dx++) {
+        for (let dy = -1; dy <= 2; dy++) {
+            const cell = pmap[5 + dx]?.[5 + dy];
+            if (cell) {
+                cell.layers[0] = TileType.FLOOR;
+                cell.layers[1] = TileType.NOTHING;
+                cell.layers[2] = TileType.NOTHING;
+                cell.layers[3] = TileType.NOTHING;
+                // populateCreatureCostMap treats undiscovered cells as PDS_OBSTRUCTION
+                cell.flags |= TileFlag.DISCOVERED;
+            }
+        }
+    }
+
+    // Mark player's cell with HAS_PLAYER
+    pmap[5][5].flags |= TileFlag.HAS_PLAYER;
+
+    return player;
+}
+
+// =============================================================================
+// Tests
+// =============================================================================
+
+beforeEach(() => {
+    initGameState();
+});
+
+// ---------------------------------------------------------------------------
+// buildMovementContext — basic player movement
+// ---------------------------------------------------------------------------
+
+describe("playerMoves — basic movement via buildMovementContext", () => {
+    it("player moves right one cell: loc.x advances by 1", () => {
+        const player = setupPlayer();
+        const ctx = buildMovementContext();
+
+        const moved = playerMoves(Direction.Right, ctx);
+
+        expect(moved).toBe(true);
+        expect(player.loc.x).toBe(6);
+        expect(player.loc.y).toBe(5);
+    });
+
+    it("player moves down one cell: loc.y advances by 1", () => {
+        const player = setupPlayer();
+        const ctx = buildMovementContext();
+
+        const moved = playerMoves(Direction.Down, ctx);
+
+        expect(moved).toBe(true);
+        expect(player.loc.x).toBe(5);
+        expect(player.loc.y).toBe(6);
+    });
+
+    it("pmap HAS_PLAYER flag updates: old cell cleared, new cell set", () => {
+        setupPlayer();
+        const { pmap } = getGameState();
+        const ctx = buildMovementContext();
+
+        playerMoves(Direction.Right, ctx);
+
+        expect(pmap[5][5].flags & TileFlag.HAS_PLAYER).toBe(0);
+        expect(pmap[6][5].flags & TileFlag.HAS_PLAYER).not.toBe(0);
+    });
+
+    it("playerTurnEnded is called: ticksUntilTurn drains to 0 after movement", () => {
+        const player = setupPlayer();
+        const ctx = buildMovementContext();
+
+        playerMoves(Direction.Right, ctx);
+
+        // playerTurnEnded drains the player's ticks (soonestTurn=100 subtracted
+        // from ticksUntilTurn=100), leaving 0. Replenishment happens at the
+        // START of the next playerTurnEnded call when ticksUntilTurn === 0.
+        expect(player.ticksUntilTurn).toBe(0);
+    });
+
+    it("game continues running after movement (gameHasEnded stays false)", () => {
+        setupPlayer();
+        const { rogue } = getGameState();
+        const ctx = buildMovementContext();
+
+        playerMoves(Direction.Right, ctx);
+
+        expect(rogue.gameHasEnded).toBe(false);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// buildMovementContext — context integrity
+// ---------------------------------------------------------------------------
+
+describe("buildMovementContext — context has correct references", () => {
+    it("context player is the shared game state player", () => {
+        setupPlayer();
+        const { player } = getGameState();
+        const ctx = buildMovementContext();
+
+        expect(ctx.player).toBe(player);
+    });
+
+    it("context pmap is the shared game state pmap", () => {
+        setupPlayer();
+        const { pmap } = getGameState();
+        const ctx = buildMovementContext();
+
+        expect(ctx.pmap).toBe(pmap);
+    });
+
+    it("coordinatesAreInMap returns true for valid coordinates", () => {
+        setupPlayer();
+        const ctx = buildMovementContext();
+
+        expect(ctx.coordinatesAreInMap(5, 5)).toBe(true);
+        expect(ctx.coordinatesAreInMap(0, 0)).toBe(true);
+        expect(ctx.coordinatesAreInMap(-1, 0)).toBe(false);
+        expect(ctx.coordinatesAreInMap(200, 200)).toBe(false);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// buildTravelContext — smoke test
+// ---------------------------------------------------------------------------
+
+describe("buildTravelContext — context builds without errors", () => {
+    it("buildTravelContext returns a context with player and pmap", () => {
+        setupPlayer();
+        const { player, pmap } = getGameState();
+        const ctx = buildTravelContext();
+
+        expect(ctx.player).toBe(player);
+        expect(ctx.pmap).toBe(pmap);
+    });
+
+    it("posEq works correctly in travel context", () => {
+        setupPlayer();
+        const ctx = buildTravelContext();
+
+        expect(ctx.posEq({ x: 3, y: 4 }, { x: 3, y: 4 })).toBe(true);
+        expect(ctx.posEq({ x: 3, y: 4 }, { x: 3, y: 5 })).toBe(false);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// buildCostMapFovContext — cost map generation
+// ---------------------------------------------------------------------------
+
+describe("buildCostMapFovContext — populateCreatureCostMap", () => {
+    it("populateCreatureCostMap assigns non-zero costs to floor cells", () => {
+        const player = setupPlayer();
+        const ctx = buildCostMapFovContext();
+
+        const costMap: number[][] = Array.from({ length: 80 }, () => new Array(34).fill(0));
+        populateCreatureCostMap(costMap, player, ctx);
+
+        // Floor cells should have a cost > 0 (not PDS_OBSTRUCTION / PDS_FORBIDDEN)
+        expect(costMap[5][5]).toBeGreaterThan(0);
+        expect(costMap[5][5]).toBeLessThan(30000);
+    });
+});
+
+// =============================================================================
+// Stub audit: known-incomplete behaviours in buildMovementContext
+// =============================================================================
+
+it.skip("stub: recordKeystroke() is a no-op (should record player input for replay)", () => {
+    // buildMovementContext().recordKeystroke() does nothing.
+    // Real implementation should call the recording system to store the directional
+    // keystroke for playback/seed-verification.
+});
+
+it.skip("stub: confirm() always returns true (should prompt player for y/n)", () => {
+    // buildMovementContext().confirm() returns true unconditionally.
+    // Real implementation should display a yes/no prompt and wait for keypress.
+    // Affects lava/chasm/fire/trap safety checks in playerMoves.
+});
+
+it.skip("stub: pickUpItemAt() is a no-op (should pick up items from floor cell)", () => {
+    // buildMovementContext().pickUpItemAt() does nothing.
+    // Real implementation should transfer the item from floorItems to packItems
+    // and display an inventory message.
+});
+
+it.skip("stub: checkForMissingKeys() is a no-op (should warn about missing keys)", () => {
+    // buildMovementContext().checkForMissingKeys() does nothing.
+    // Real implementation should check if the cell was a key-locked area and
+    // the player no longer has the required key.
+});
+
+it.skip("stub: promoteTile() is a no-op (should change terrain type on interaction)", () => {
+    // buildMovementContext().promoteTile() does nothing.
+    // Real implementation should call the architect's tile promotion logic,
+    // e.g. opening a door or triggering a pressure plate.
+});
+
+it.skip("stub: useStairs() is a no-op (should transition to adjacent level)", () => {
+    // buildMovementContext().useStairs() does nothing.
+    // Real implementation should call startLevel() for level transitions,
+    // or victory() if at the top with the Amulet.
+});
+
+it.skip("stub: refreshDungeonCell() is a no-op (should redraw a cell on screen)", () => {
+    // buildMovementContext().refreshDungeonCell() does nothing.
+    // Real implementation should trigger a cell redraw via the platform renderer.
+});
+
+it.skip("stub: spawnDungeonFeature() is a no-op (should spawn tile effect at location)", () => {
+    // buildMovementContext().spawnDungeonFeature() does nothing.
+    // Real implementation should call the architect's dungeon feature spawner
+    // (used by vomit, terrain promotions, etc.).
+});
+
+it.skip("stub: getQualifyingPathLocNear() returns target as-is (should pathfind)", () => {
+    // buildMovementContext().getQualifyingPathLocNear() returns the target unchanged.
+    // Real implementation should search for a nearby passable cell matching the
+    // given blocking/forbidden flag constraints.
+});
+
+it.skip("stub: nextBrogueEvent() is a no-op in travel context (should wait for input)", () => {
+    // buildTravelContext().nextBrogueEvent() does nothing.
+    // Real implementation should await a platform event (key/mouse) before returning.
+    // This is the async bridge for travel confirmation dialogs.
+});
+
+it.skip("stub: pauseAnimation() returns false in travel context (should animate steps)", () => {
+    // buildTravelContext().pauseAnimation() returns false immediately.
+    // Real implementation should delay rendering by the given frame count and
+    // return true if interrupted by a keypress.
+});
+
+it.skip("stub: hilitePath()/clearCursorPath() are no-ops (should draw path on map)", () => {
+    // buildTravelContext().hilitePath() and clearCursorPath() do nothing.
+    // Real implementation should highlight/un-highlight the travel route on the
+    // dungeon map display.
+});
+
+it.skip("stub: buildMovementContext().getImpactLoc returns target as-is (should trace bolt path)", () => {
+    // buildMovementContext().getImpactLoc(origin, target) returns target unchanged.
+    // Real implementation should trace the bolt trajectory through the dungeon,
+    // stopping at the first wall or blocking creature hit.
+});
+
+it.skip("stub: buildCostMapFovContext().canPass returns false (should query monster traversal rules)", () => {
+    // buildCostMapFovContext().canPass(monster, blocker) returns false always.
+    // Real implementation should check if the monster type can pass through
+    // or over the blocker creature (e.g. incorporeal, same team).
+});
+
+it.skip("stub: buildCostMapFovContext().itemName writes 'item' (should name the actual item)", () => {
+    // buildCostMapFovContext().itemName(item, buf) writes 'item' to buf[0].
+    // Real implementation should call the full item naming pipeline and write
+    // the formatted name so the cursor tooltip shows the correct item name.
+});
