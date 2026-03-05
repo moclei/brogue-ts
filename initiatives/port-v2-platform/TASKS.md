@@ -17,14 +17,15 @@
 - [x] Verify `platform.ts` is under 600 lines — 173 lines
 
 ## Phase 3: IO Display Layer
-- [ ] Port `io/display.ts` from `ts/src/io/io-display.ts` + `io-appearance.ts` (adapt context imports)
-- [ ] Port `io/effects.ts` from `ts/src/io/io-effects.ts`
-- [ ] Port `io/messages.ts` from `ts/src/io/io-messages.ts` (split if >600 lines)
-- [ ] Port `io/sidebar.ts` from `ts/src/io/io-sidebar.ts` (split if >600 lines)
-- [ ] Port `io/inventory.ts` from `ts/src/io/io-inventory.ts`
-- [ ] Port `io/targeting.ts` from `ts/src/io/io-targeting.ts`
-- [ ] Port `io/color.ts` from `ts/src/io/io-color.ts`
-- [ ] Verify all IO files compile and are under 600 lines
+- [x] Port `io/display.ts` from `ts/src/io/io-display.ts` + `io-appearance.ts` (combined, 483 lines)
+- [x] Port `io/effects.ts` + `io/effects-alerts.ts` from `ts/src/io/io-effects.ts` (split at 518+190 lines)
+- [x] Port `io/messages-state.ts` + `io/messages.ts` from `ts/src/io/io-messages.ts` (split at 319+582 lines)
+- [x] Port `io/sidebar-player.ts` + `io/sidebar-monsters.ts` from `ts/src/io/io-sidebar.ts` (split at 468+600 lines)
+- [x] Port `io/inventory.ts` + `io/inventory-display.ts` from `ts/src/io/io-inventory.ts` (split at 325+399 lines)
+- [x] Port `io/targeting.ts` from `ts/src/io/io-targeting.ts` (350 lines)
+- [x] Port `io/color.ts` from `ts/src/io/io-color.ts` (496 lines)
+- [x] Port `io/text.ts` from `ts/src/io/io-text.ts` (340 lines) — needed by messages/sidebar
+- [x] Verify all IO files compile and are under 600 lines — 0 IO errors; all under 600
 
 ## Phase 4: Input Dispatch
 - [ ] Port `io/input-keystrokes.ts` from `ts/src/io/io-input.ts` (keyboard handling only, async)
