@@ -589,23 +589,20 @@ export function playerTurnEnded(
         while (ctx.player.ticksUntilTurn > 0) {
             let soonestTurn = 10000;
             for (const monst of ctx.monsters) {
+                // Skip dying/dead monsters — they have no more ticks to advance
+                if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DYING) continue;
                 soonestTurn = ctx.min(soonestTurn, monst.ticksUntilTurn);
             }
             soonestTurn = ctx.min(soonestTurn, ctx.player.ticksUntilTurn);
             soonestTurn = ctx.min(soonestTurn, ctx.rogue.ticksTillUpdateEnvironment);
 
-            // Safety: prevent infinite loop if soonestTurn is somehow zero
-            // (e.g. from a monster with movementSpeed=0 or corrupt tick state).
             if (soonestTurn <= 0) {
-                console.warn("[BrogueCE] soonestTurn was", soonestTurn,
-                    "— forcing to 1 to prevent infinite loop.",
-                    "player.ticks:", ctx.player.ticksUntilTurn,
-                    "envTicks:", ctx.rogue.ticksTillUpdateEnvironment,
-                    "monsterCount:", ctx.monsters.length);
                 soonestTurn = 1;
             }
 
             for (const monst of ctx.monsters) {
+                // Don't tick dying monsters — they're removed by removeDeadMonsters after the loop
+                if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DYING) continue;
                 monst.ticksUntilTurn -= soonestTurn;
             }
             ctx.rogue.ticksTillUpdateEnvironment -= soonestTurn;
@@ -664,6 +661,7 @@ export function playerTurnEnded(
             // Give each monster its turn
             for (const monst of [...ctx.monsters]) {
                 if (ctx.rogue.gameHasEnded) break;
+                if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DYING) continue;
 
                 if (monst.ticksUntilTurn <= 0) {
                     if (monst.currentHP > monst.info.maxHP) {

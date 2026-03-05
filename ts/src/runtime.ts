@@ -8319,7 +8319,7 @@ export function createRuntime(browserConsole: AsyncBrogueConsole): GameRuntime {
                                     hilitePatchFn(hoverPath, hoverSteps, true, buildTargetingContext());
                                     hoverSteps = 0;
                                 }
-                                await inputCtx.travel({ x: mapX, y: mapY }, event.controlKey);
+                                await inputCtx.travel({ x: mapX, y: mapY }, true);
                             } else if (
                                 mapX >= 0 && mapX < DCOLS &&
                                 event.param2 >= 0 && event.param2 < MESSAGE_LINES
