@@ -46,20 +46,20 @@
 - [x] Verify `movement.ts` is under 600 lines — 574 lines
 
 ## Phase 7: ui.ts (display context)
-- [ ] Implement `buildDisplayContext()` — wire level display, cell rendering (stub display calls for now)
-- [ ] Implement `buildMessageContext()` — wire message queue
-- [ ] Implement `buildInventoryContext()` — wire inventory display (stub IO calls)
-- [ ] Implement `buildButtonContext()` — wire button input loop with proper async event waiting
-- [ ] Write test: `buildButtonContext().nextBrogueEvent` is async (not synchronous)
-- [ ] Verify `ui.ts` is under 600 lines
+- [x] Implement `buildDisplayContext()` — wire level display, cell rendering (stub display calls for now)
+- [x] Implement `buildMessageContext()` — wire message queue
+- [x] Implement `buildInventoryContext()` — wire inventory display (stub IO calls)
+- [x] Implement `buildButtonContext()` — wire button input loop with proper async event waiting
+- [x] Write test: `buildButtonContext().nextBrogueEvent` is async (not synchronous)
+- [x] Verify `ui.ts` is under 600 lines — 358 lines; `core.ts` updated to 356 lines; 25 tests passing
 
 ## Phase 8: Stub audit
-- [ ] Search all `rogue-ts/src/` for any `/* stub */` comments NOT paired with a `test.skip`
-- [ ] For each unpaired stub, add a `test.skip` describing correct behavior
-- [ ] Record final `test.skip` count as known-incomplete behaviors
+- [x] Search all `rogue-ts/src/` for any `/* stub */` comments NOT paired with a `test.skip` — no `/* stub */` format; `// stub` format used throughout
+- [x] For each unpaired stub, add a `test.skip` describing correct behavior — added 13 to ui.test.ts, 5 to monsters.test.ts, 3 to movement.test.ts
+- [x] Record final `test.skip` count as known-incomplete behaviors — **69 skipped total** (48 pre-existing + 21 new from Phases 7 & 8)
 
 ## Completion
-- [ ] All integration tests passing (not just unit tests)
-- [ ] Zero unpaired stubs
-- [ ] All domain files under 600 lines
+- [x] All integration tests passing (not just unit tests) — 1538 passing, 69 skipped, 0 failing
+- [x] Zero unpaired stubs — all stubs have corresponding test.skip entries
+- [x] All domain files under 600 lines — core.ts 356, turn.ts 392, combat.ts 259, monsters.ts 264, items.ts 378, movement.ts 574, ui.ts 358
 - [ ] `rogue-ts/src/` committed: "feat: port-v2 wiring layer — domain context builders complete"

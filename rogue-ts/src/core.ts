@@ -16,13 +16,14 @@ import { createCreature } from "./monsters/monster-creation.js";
 import { monsterCatalog as monsterCatalogData } from "./globals/monster-catalog.js";
 import { scrollTable, potionTable } from "./globals/item-catalog.js";
 import { BROGUE_GAME_CONSTANTS } from "./game/game-constants.js";
-import { DCOLS, DROWS, NUMBER_TERRAIN_LAYERS, ROWS } from "./types/constants.js";
+import { COLS, DCOLS, DROWS, MESSAGE_ARCHIVE_ENTRIES, MESSAGE_LINES, NUMBER_TERRAIN_LAYERS, ROWS } from "./types/constants.js";
 import { TileType, GameMode, NGCommand, DisplayGlyph, GameVariant } from "./types/enums.js";
 import { INVALID_POS } from "./types/types.js";
 import { MonsterBookkeepingFlag } from "./types/flags.js";
 import type {
     Creature, PlayerCharacter, Pcell, Tcell, Item, LevelData,
     GameConstants, LightSource, CreatureType, ItemTable,
+    CellDisplayBuffer, ScreenDisplayBuffer, MessageState, ArchivedMessage,
 } from "./types/types.js";
 
 // =============================================================================
@@ -189,6 +190,36 @@ function createTmap(): Tcell[][] {
     return map;
 }
 
+function createMessageState(): MessageState {
+    const archive: ArchivedMessage[] = new Array(MESSAGE_ARCHIVE_ENTRIES);
+    for (let i = 0; i < MESSAGE_ARCHIVE_ENTRIES; i++) {
+        archive[i] = { message: "", count: 0, turn: 0, flags: 0 };
+    }
+    return {
+        archive,
+        archivePosition: 0,
+        displayedMessage: new Array(MESSAGE_LINES).fill(""),
+        messagesUnconfirmed: 0,
+        combatText: "",
+    };
+}
+
+function createDisplayBuffer(): ScreenDisplayBuffer {
+    const cells: CellDisplayBuffer[][] = new Array(COLS);
+    for (let i = 0; i < COLS; i++) {
+        cells[i] = new Array(ROWS);
+        for (let j = 0; j < ROWS; j++) {
+            cells[i][j] = {
+                character: 32 as DisplayGlyph,
+                foreColorComponents: [0, 0, 0],
+                backColorComponents: [0, 0, 0],
+                opacity: 0,
+            };
+        }
+    }
+    return { cells };
+}
+
 // =============================================================================
 // Shared mutable state
 // =============================================================================
@@ -208,6 +239,8 @@ let gameVariant: GameVariant = GameVariant.Brogue;
 let monsterCatalog: CreatureType[] = monsterCatalogData.map(m => ({ ...m }));
 let mutableScrollTable: ItemTable[] = scrollTable.map(t => ({ ...t }));
 let mutablePotionTable: ItemTable[] = potionTable.map(t => ({ ...t }));
+let messageState: MessageState = createMessageState();
+let displayBuffer: ScreenDisplayBuffer = createDisplayBuffer();
 
 /** Pending death info set by gameOver(); consumed by the async death screen in platform.ts. */
 let pendingDeathMessage: string | null = null;
@@ -239,6 +272,8 @@ export function initGameState(): void {
     monsterCatalog = monsterCatalogData.map(m => ({ ...m }));
     mutableScrollTable = scrollTable.map(t => ({ ...t }));
     mutablePotionTable = potionTable.map(t => ({ ...t }));
+    messageState = createMessageState();
+    displayBuffer = createDisplayBuffer();
     pendingDeathMessage = null;
 }
 
@@ -296,6 +331,8 @@ export function getGameState() {
         monsterCatalog,
         mutableScrollTable,
         mutablePotionTable,
+        messageState,
+        displayBuffer,
     };
 }
 

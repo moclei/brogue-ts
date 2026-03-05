@@ -258,3 +258,33 @@ it.skip("stub: buildMonsterStateContext().extinguishFireOnCreature is a no-op (s
     // Real implementation clears burning status and updates miner's light if player.
     // Required for decrementMonsterStatus() burning cleanup.
 });
+
+it.skip("stub: buildMonsterStateContext().cellHasGas returns false (should detect gas terrain)", () => {
+    // buildMonsterStateContext().cellHasGas(loc) returns false unconditionally.
+    // Real implementation should check the dungeon cell for gas volume > 0,
+    // affecting monster avoidance behaviour in monster-ai.
+});
+
+it.skip("stub: buildMonsterStateContext().closestWaypointIndexTo returns -1 (needs waypoint maps)", () => {
+    // buildMonsterStateContext().closestWaypointIndexTo() returns -1 always.
+    // Real implementation requires rogue.wpDistance maps populated by
+    // the waypoint system for monster pathfinding.
+});
+
+it.skip("stub: buildMonsterStateContext().burnedTerrainFlagsAtLoc returns 0 (needs terrain history)", () => {
+    // buildMonsterStateContext().burnedTerrainFlagsAtLoc(loc) returns 0.
+    // Real implementation should inspect the burned terrain record at loc
+    // to decide if a monster avoids fire-scarred cells.
+});
+
+it.skip("stub: buildMonsterStateContext().discoveredTerrainFlagsAtLoc returns 0 (needs terrain history)", () => {
+    // buildMonsterStateContext().discoveredTerrainFlagsAtLoc(loc) returns 0.
+    // Real implementation should return the terrain flags seen at loc during
+    // the current generation for secret-door hunting AI.
+});
+
+it.skip("stub: buildMonsterStateContext().openPathBetween returns false (needs FOV/LOS check)", () => {
+    // buildMonsterStateContext().openPathBetween(a, b) returns false.
+    // Real implementation should check line-of-sight using the dungeon map
+    // to determine whether the monster has an unobstructed path to its target.
+});

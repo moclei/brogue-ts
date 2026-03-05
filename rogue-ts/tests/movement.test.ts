@@ -278,3 +278,21 @@ it.skip("stub: hilitePath()/clearCursorPath() are no-ops (should draw path on ma
     // Real implementation should highlight/un-highlight the travel route on the
     // dungeon map display.
 });
+
+it.skip("stub: buildMovementContext().getImpactLoc returns target as-is (should trace bolt path)", () => {
+    // buildMovementContext().getImpactLoc(origin, target) returns target unchanged.
+    // Real implementation should trace the bolt trajectory through the dungeon,
+    // stopping at the first wall or blocking creature hit.
+});
+
+it.skip("stub: buildCostMapFovContext().canPass returns false (should query monster traversal rules)", () => {
+    // buildCostMapFovContext().canPass(monster, blocker) returns false always.
+    // Real implementation should check if the monster type can pass through
+    // or over the blocker creature (e.g. incorporeal, same team).
+});
+
+it.skip("stub: buildCostMapFovContext().itemName writes 'item' (should name the actual item)", () => {
+    // buildCostMapFovContext().itemName(item, buf) writes 'item' to buf[0].
+    // Real implementation should call the full item naming pipeline and write
+    // the formatted name so the cursor tooltip shows the correct item name.
+});
