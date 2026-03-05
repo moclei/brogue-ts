@@ -32,7 +32,8 @@ import {
     removeItemFromArray,
     numberOfMatchingPackItems as numberOfMatchingPackItemsFn,
 } from "./items/item-inventory.js";
-import { itemMagicPolarity as itemMagicPolarityFn, enchantMagnitude } from "./items/item-usage.js";
+import { enchantMagnitude } from "./items/item-usage.js";
+import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
 import { initializeItem } from "./items/item-generation.js";
 import { heal as healFn } from "./combat/combat-damage.js";
 import { distanceBetween } from "./monsters/monster-state.js";
@@ -64,7 +65,7 @@ import { INVALID_POS } from "./types/types.js";
 import { KEYBOARD_LABELS } from "./types/constants.js";
 import type { ItemHandlerContext } from "./items/item-handlers.js";
 import type { ItemHelperContext } from "./movement/item-helpers.js";
-import type { ItemTable, Creature, Pos, Item } from "./types/types.js";
+import type { ItemTable, Creature, Pos } from "./types/types.js";
 
 // =============================================================================
 // Private helpers
@@ -174,8 +175,8 @@ export function buildItemHandlerContext(): ItemHandlerContext {
 
         // ── Inventory / item management ─────────────────────────────────────
         promptForItemOfType: () => null,     // stub — needs UI
-        numberOfMatchingPackItems: (cat, req, forbidden, err) =>
-            numberOfMatchingPackItemsFn(cat, req, forbidden, err, packItems),
+        numberOfMatchingPackItems: (cat, req, forbidden, _err) =>
+            numberOfMatchingPackItemsFn(packItems, cat, req, forbidden),
         removeItemFromChain(item, chain) { removeItemFromArray(item, chain); },
         deleteItem(item) {
             const idx = floorItems.indexOf(item);
@@ -186,7 +187,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         updateRingBonuses: () => {},         // stub — wired in port-v2-platform
         equipItem: () => {},                 // stub — wired in port-v2-platform
         recalculateEquipmentBonuses: () => {},
-        itemMagicPolarity: (item) => itemMagicPolarityFn(item, rogue.strength),
+        itemMagicPolarity: (item) => itemMagicPolarityFn(item),
 
         // ── Recording stubs (wired in port-v2-platform) ─────────────────────
         recordKeystroke: () => {},

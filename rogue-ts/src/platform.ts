@@ -23,9 +23,11 @@ import { buildTravelContext } from "./movement.js";
 import { travel } from "./movement/travel-explore.js";
 import { windowToMapX, windowToMapY, coordinatesAreInMap } from "./globals/tables.js";
 import { EventType } from "./types/enums.js";
-import type { RogueEvent } from "./types/types.js";
+import type { RogueEvent, ScreenDisplayBuffer } from "./types/types.js";
+import { COLS, ROWS } from "./types/constants.js";
 import { buildInputContext } from "./io/input-context.js";
 import { executeKeystroke } from "./io/input-dispatch.js";
+import { createScreenDisplayBuffer } from "./io/display.js";
 
 // =============================================================================
 // Module-level state
@@ -41,6 +43,17 @@ export interface PlatformConsole {
 
 let _console: PlatformConsole | null = null;
 
+/** Optional plotChar from the browser console (absent in test mocks). */
+type PlotCharFn = (
+    inputChar: number, x: number, y: number,
+    fr: number, fg: number, fb: number,
+    br: number, bg: number, bb: number,
+) => void;
+let _plotChar: PlotCharFn | null = null;
+
+/** Previous frame buffer for dirty-cell detection in commitDraws(). */
+let _prevBuffer: ScreenDisplayBuffer = createScreenDisplayBuffer();
+
 // =============================================================================
 // initPlatform — call once from bootstrap
 // =============================================================================
@@ -48,9 +61,16 @@ let _console: PlatformConsole | null = null;
 /**
  * Initialize the platform module with a browser console.
  * Must be called before waitForEvent() or mainGameLoop().
+ *
+ * If the console has a `plotChar` method (browser renderer), it will be
+ * used by commitDraws() to flush the display buffer to the screen.
+ * Test mocks that only implement waitForEvent() work fine — commitDraws()
+ * becomes a no-op in that case.
  */
-export function initPlatform(browserConsole: PlatformConsole): void {
+export function initPlatform(browserConsole: PlatformConsole & { plotChar?: PlotCharFn }): void {
     _console = browserConsole;
+    _plotChar = browserConsole.plotChar ?? null;
+    _prevBuffer = createScreenDisplayBuffer();
 }
 
 // =============================================================================
@@ -65,6 +85,58 @@ export function waitForEvent(): Promise<RogueEvent> {
     if (!_console) throw new Error("Platform not initialized — call initPlatform() first");
     return _console.waitForEvent();
 }
+
+// =============================================================================
+// commitDraws — flush display buffer to canvas
+// =============================================================================
+
+/**
+ * Walk every cell in the display buffer and render changed cells to the
+ * browser console via plotChar.
+ *
+ * Colors are stored in 0–100 (Brogue convention) and passed as 0–100 to
+ * plotChar; the browser renderer converts them to 0–255 internally.
+ *
+ * No-op if the platform was initialized without a plotChar (test mocks).
+ */
+export function commitDraws(): void {
+    if (!_plotChar) return;
+    const { displayBuffer } = getGameState();
+    for (let x = 0; x < COLS; x++) {
+        for (let y = 0; y < ROWS; y++) {
+            const cell = displayBuffer.cells[x][y];
+            const prev = _prevBuffer.cells[x][y];
+
+            if (
+                cell.character !== prev.character ||
+                cell.foreColorComponents[0] !== prev.foreColorComponents[0] ||
+                cell.foreColorComponents[1] !== prev.foreColorComponents[1] ||
+                cell.foreColorComponents[2] !== prev.foreColorComponents[2] ||
+                cell.backColorComponents[0] !== prev.backColorComponents[0] ||
+                cell.backColorComponents[1] !== prev.backColorComponents[1] ||
+                cell.backColorComponents[2] !== prev.backColorComponents[2]
+            ) {
+                _plotChar(
+                    cell.character, x, y,
+                    cell.foreColorComponents[0], cell.foreColorComponents[1], cell.foreColorComponents[2],
+                    cell.backColorComponents[0], cell.backColorComponents[1], cell.backColorComponents[2],
+                );
+
+                prev.character = cell.character;
+                prev.foreColorComponents[0] = cell.foreColorComponents[0];
+                prev.foreColorComponents[1] = cell.foreColorComponents[1];
+                prev.foreColorComponents[2] = cell.foreColorComponents[2];
+                prev.backColorComponents[0] = cell.backColorComponents[0];
+                prev.backColorComponents[1] = cell.backColorComponents[1];
+                prev.backColorComponents[2] = cell.backColorComponents[2];
+            }
+        }
+    }
+}
+
+// =============================================================================
+// Event access
+// =============================================================================
 
 /**
  * Non-blocking event peek (playback only).

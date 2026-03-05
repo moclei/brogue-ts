@@ -180,7 +180,7 @@ export function buildMonsterStateContext(): MonsterStateContext {
     const queryCtx: MonsterQueryContext = {
         player,
         cellHasTerrainFlag,
-        cellHasGas: (loc) => false,     // stub
+        cellHasGas: (_loc) => false,     // stub
         playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
         playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
         playbackOmniscience: rogue.playbackOmniscience,

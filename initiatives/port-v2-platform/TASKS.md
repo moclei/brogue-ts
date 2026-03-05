@@ -50,16 +50,19 @@ Note: source is 1,875 lines; 4-file split required by 600-line hard constraint.
 - [x] Stub save/load with `test.skip` entries — 4 stubs in `tests/menus/menus.test.ts`; 4 active tests passing
 
 ## Phase 7: Entry Point + Integration
-- [ ] Write `rogue-ts/src/bootstrap.ts` — browser entry point, mounts canvas, starts `mainGameLoop()`
-- [ ] Write `rogue-ts/src/index.ts` — module exports
-- [ ] Build and load in browser — game should reach the main menu
-- [ ] Start new game — level should generate and render
+- [x] Write `rogue-ts/src/lifecycle.ts` — buildGameInitContext, buildLevelContext, buildCleanupContext wiring; public initializeRogue/startLevel/freeEverything
+- [x] Write `rogue-ts/src/menus.ts` — buildMenuContext() wiring nextBrogueEvent→waitForEvent, pauseBrogue→setTimeout, all display/button/text ops, game lifecycle
+- [x] Write `rogue-ts/src/bootstrap.ts` — browser entry point, mounts canvas, calls initPlatform + mainBrogueJunction
+- [x] Write `rogue-ts/src/index.ts` — module exports
+- [x] Add `vite`, `vite.config.ts`, `index.html` to rogue-ts — `npm run build:web` produces dist/ bundle (92 modules, 599 kB)
+- [x] Fix pre-existing type errors in `movement.ts`, `items.ts`, `monsters.ts` — 0 TypeScript errors
+- [ ] Start new game in browser — level should generate and render
 - [ ] Walk around, pick up an item, fight a monster, use a scroll — no crashes
 - [ ] Record any new bugs found in a new `playtest-v2/` initiative (do not fix inline)
 
 ## Completion
 - [ ] Game is playable end-to-end in browser
-- [ ] No synchronous event polling spin loops
-- [ ] All files under 600 lines
+- [x] No synchronous event polling spin loops
+- [x] All files under 600 lines
 - [ ] All stubs have paired `test.skip` entries
 - [ ] Committed: "feat: port-v2 platform — browser IO and game loop complete"

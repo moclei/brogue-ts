@@ -73,14 +73,17 @@ import { randRange, randPercent } from "./math/rng.js";
 import { TileFlag, TerrainFlag, TerrainMechFlag } from "./types/flags.js";
 import { ItemCategory, CreatureState, DungeonLayer } from "./types/enums.js";
 import {
-    ASCEND_KEY, DESCEND_KEY, RETURN_KEY, INVALID_POS,
+    ASCEND_KEY, DESCEND_KEY, RETURN_KEY,
     DCOLS, DROWS,
 } from "./types/constants.js";
+import { INVALID_POS } from "./types/types.js";
+import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
+import type { CalculateDistancesContext } from "./dijkstra/dijkstra.js";
 import type { PlayerMoveContext } from "./movement/player-movement.js";
 import type { TravelExploreContext } from "./movement/travel-explore.js";
 import type { CostMapFovContext } from "./movement/cost-maps-fov.js";
 import type { WeaponAttackContext, BoltInfo } from "./movement/weapon-attacks.js";
-import type { Creature, Pos, Item, RogueEvent } from "./types/types.js";
+import type { Creature, Pos, RogueEvent } from "./types/types.js";
 
 // =============================================================================
 // Private helpers
@@ -129,11 +132,17 @@ function buildWeaponAttackContext(): WeaponAttackContext {
             diagonalBlockedFn(x1, y1, x2, y2, (pos) => terrainFlagsFn(pmap, pos)),
         monsterAtLoc,
         canSeeMonster,
-        monsterIsHidden: (m, observer) => monsterIsHiddenFn(m, observer),
+        monsterIsHidden: (m, observer) => monsterIsHiddenFn(m, observer, {
+            player, cellHasTerrainFlag,
+            cellHasGas: () => false,
+            playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+            playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+            playbackOmniscience: false,
+        }),
         monsterWillAttackTarget: (a, d) =>
             monsterWillAttackTargetFn(a, d, player, cellHasTerrainFlag),
-        monsterIsInClass: (m, cls) => monsterIsInClassFn(m, cls),
-        monstersAreEnemies: (a, b) => monstersAreEnemiesFn(a, b, player),
+        monsterIsInClass: (m, cls) => monsterIsInClassFn(m, monsterClassCatalog[cls]),
+        monstersAreEnemies: (a, b) => monstersAreEnemiesFn(a, b, player, cellHasTerrainFlag),
         monsterName: buildMonsterNameHelper(player),
         distanceBetween: (a, b) => distanceBetween(a, b),
 
@@ -219,12 +228,13 @@ export function buildMovementContext(): PlayerMoveContext {
         monsterAtLoc,
         canSeeMonster,
         monsterRevealed: (m) => monsterRevealedFn(m, player),
-        monstersAreEnemies: (a, b) => monstersAreEnemiesFn(a, b, player),
+        monstersAreEnemies: (a, b) => monstersAreEnemiesFn(a, b, player, cellHasTerrainFlag),
         monsterWillAttackTarget: (a, d) =>
             monsterWillAttackTargetFn(a, d, player, cellHasTerrainFlag),
         monsterName: buildMonsterNameHelper(player),
         monsterAvoids: (m, pos) => monsterAvoidsFn(m, pos, monsterStateCtx),
-        monsterShouldFall: (m) => monsterShouldFallFn(m, monsterStateCtx),
+        monsterShouldFall: (m) => monsterShouldFallFn(m,
+            { cellHasTerrainFlag } as unknown as import("./time/creature-effects.js").CreatureEffectsContext),
         forbiddenFlagsForMonster: (info) => forbiddenFlagsForMonsterFn(info),
         distanceBetween: (a, b) => distanceBetween(a, b),
         allMonsters: () => monsters,
@@ -240,8 +250,10 @@ export function buildMovementContext(): PlayerMoveContext {
             handleSpearAttacksFn(monst, dir, aborted, buildWeaponAttackContext()),
         buildFlailHitList: (x1, y1, x2, y2, hitList) =>
             buildFlailHitListFn(x1, y1, x2, y2, hitList, buildWeaponAttackContext()),
-        buildHitList: (hitList, attacker, defender, allAdj) =>
-            buildHitListFn(hitList, attacker, defender, allAdj, attackCtx),
+        buildHitList: (hitList, attacker, defender, allAdj) => {
+            const result = buildHitListFn(attacker, defender, allAdj, attackCtx);
+            for (let i = 0; i < result.length; i++) hitList[i] = result[i];
+        },
         abortAttack: (hitList) => abortAttackFn(hitList, buildWeaponAttackContext()),
         attack: (attacker, defender, lunge) =>
             attackFn(attacker, defender, lunge, attackCtx),
@@ -386,9 +398,9 @@ export function buildTravelContext(): TravelExploreContext {
         // ── Creature helpers ──────────────────────────────────────────────────
         monsterAtLoc,
         canSeeMonster,
-        canPass: (m, blocker) => !!(blocker.info?.flags & 0), // stub — wired in port-v2-platform
+        canPass: (_m, blocker) => !!(blocker.info?.flags & 0), // stub — wired in port-v2-platform
         monstersAreTeammates: (a, b) => a.leader === b || b.leader === a,
-        monstersAreEnemies: (a, b) => monstersAreEnemiesFn(a, b, player),
+        monstersAreEnemies: (a, b) => monstersAreEnemiesFn(a, b, player, cellHasTerrainFlag),
         monsterDamageAdjustmentAmount: (m) =>
             Number(monsterDamageAdjustmentAmountFn(m, player)),
 
@@ -399,7 +411,15 @@ export function buildTravelContext(): TravelExploreContext {
         allocGrid: () => allocGrid(),
         freeGrid: (grid) => freeGrid(grid),
         calculateDistances: (distMap, destX, destY, blockFlags, traveler, secretDoors, eightWays) =>
-            calculateDistances(distMap, destX, destY, blockFlags, traveler, secretDoors, eightWays, pmap),
+            calculateDistances(distMap, destX, destY, blockFlags, traveler, secretDoors, eightWays, {
+                cellHasTerrainFlag: (pos, flags) => cellHasTerrainFlagFn(pmap, pos, flags),
+                cellHasTMFlag: (pos, flags) => cellHasTMFlagFn(pmap, pos, flags),
+                monsterAtLoc: monsterAtLoc,
+                monsterAvoids: () => false,
+                discoveredTerrainFlagsAtLoc: () => 0,
+                isPlayer: (m: Creature) => m === player,
+                getCellFlags: (x: number, y: number) => pmap[x][y].flags,
+            } satisfies CalculateDistancesContext),
         dijkstraScan: (distMap, costMap, allowDiag) =>
             dijkstraScan(distMap, costMap, allowDiag),
         populateCreatureCostMap: (costMap, monst) =>
@@ -419,7 +439,7 @@ export function buildTravelContext(): TravelExploreContext {
         // ── Item helpers ──────────────────────────────────────────────────────
         itemAtLoc: (loc) => itemAtLocFn(loc, floorItems),
         numberOfMatchingPackItems: (cat, req, forbidden, _isBlessed) =>
-            numberOfMatchingPackItemsFn(cat, req, forbidden, false, packItems),
+            numberOfMatchingPackItemsFn(packItems, cat, req, forbidden),
 
         // ── UI stubs (wired in port-v2-platform) ─────────────────────────────
         message: () => {},
@@ -512,7 +532,10 @@ export function buildCostMapFovContext(): CostMapFovContext {
         cellHasTMFlag,
         terrainFlags: (pos) => terrainFlagsFn(pmap, pos),
         terrainMechFlags: (pos) => terrainMechFlagsFn(pmap, pos),
-        discoveredTerrainFlagsAtLoc: (pos) => discoveredTerrainFlagsAtLocFn(pmap, pos),
+        discoveredTerrainFlagsAtLoc: (pos) => discoveredTerrainFlagsAtLocFn(
+            pmap, pos, tileCatalog,
+            (tileType) => tileCatalog[tileCatalog[tileType]?.discoverType ?? 0]?.flags ?? 0,
+        ),
         monsterAvoids: (m, pos) => monsterAvoidsFn(m, pos, monsterStateCtx),
         canPass: (_m, _blocker) => false,   // stub
         distanceBetween: (a, b) => distanceBetween(a, b),
