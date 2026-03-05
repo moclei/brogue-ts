@@ -1,20 +1,20 @@
 # Port V2 — Platform — Tasks
 
 ## Phase 1: Browser Platform
-- [ ] Copy `ts/src/platform/browser-renderer.ts` → `rogue-ts/src/platform/` (adjust imports)
-- [ ] Copy `ts/src/platform/glyph-map.ts` → `rogue-ts/src/platform/` (adjust imports)
-- [ ] Copy `ts/src/platform/null-platform.ts` → `rogue-ts/src/platform/`
-- [ ] Verify platform files compile
+- [x] Copy `ts/src/platform/browser-renderer.ts` → `rogue-ts/src/platform/` (adjust imports)
+- [x] Copy `ts/src/platform/glyph-map.ts` → `rogue-ts/src/platform/` (adjust imports)
+- [x] Copy `ts/src/platform/null-platform.ts` → `rogue-ts/src/platform/`
+- [x] Verify platform files compile — added `"DOM"` to tsconfig lib; 0 platform errors
 
 ## Phase 2: platform.ts — Async Bridge + Main Loop
-- [ ] Implement `waitForEvent()` — async wrapper over browser event queue
-- [ ] Implement `peekEvent()` — non-blocking queue check (playback only)
-- [ ] Implement `processEvent(event)` — dispatches keystroke/mouse to input context
-- [ ] Implement `mainGameLoop()` — `while (!gameHasEnded) { await processEvent(await waitForEvent()); }`
-- [ ] Wire left-click directly to `movement.travel(cell, true)` — no intermediate loop
-- [ ] Wire right-click to inventory display via async `buildButtonContext().nextBrogueEvent`
-- [ ] Write test: left-click dispatches travel without confirmation dialog
-- [ ] Verify `platform.ts` is under 600 lines
+- [x] Implement `waitForEvent()` — async wrapper over browser event queue
+- [x] Implement `peekEvent()` — non-blocking queue check (playback only)
+- [x] Implement `processEvent(event)` — dispatches keystroke/mouse to input context
+- [x] Implement `mainGameLoop()` — `while (!gameHasEnded) { await processEvent(await waitForEvent()); }`
+- [x] Wire left-click directly to `movement.travel(cell, true)` — no intermediate loop
+- [x] Wire right-click stub (Phase 5 will wire to inventory)
+- [x] Write test: left-click dispatches travel without confirmation dialog — 5 tests passing
+- [x] Verify `platform.ts` is under 600 lines — 173 lines
 
 ## Phase 3: IO Display Layer
 - [ ] Port `io/display.ts` from `ts/src/io/io-display.ts` + `io-appearance.ts` (adapt context imports)
