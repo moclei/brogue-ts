@@ -42,8 +42,13 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
   - Best-covered file so far (71% IMPLEMENTED). Single MISSING: evacuateCreatures (creature displacement before DF spawning)
   - NEEDS-VERIFICATION backlog: top-level orchestration (digDungeon, buildAMachine, addMachines, runAutogenerators, placeStairs, initializeLevel, setUpWaypoints) has no direct tests
 
-- [ ] `Movement.c` (~52 functions) → `docs/audit/gaps-Movement.md`
+- [x] `Movement.c` (~52 functions) → `docs/audit/gaps-Movement.md`
   - TS counterparts live in: `rogue-ts/src/movement/`
+  - Result: 45 IMPLEMENTED, 0 STUBBED-TRACKED, 0 STUBBED-UNTRACKED, 3 MISSING, 3 NEEDS-VERIFICATION, 0 OUT-OF-SCOPE
+  - c-inventory.md missed 44 public functions (multi-line signatures); supplemented with grep
+  - Best-covered file in audit (88% IMPLEMENTED). Zero game-logic gaps.
+  - 3 MISSING are dijkstra algorithmic internals absorbed into dijkstraScan — not gameplay gaps
+  - Stale test.skip in movement.test.ts:241 (useStairs now IMPLEMENTED) — cleanup needed in synthesis
 
 - [ ] `Time.c` (~50 functions) → `docs/audit/gaps-Time.md`
   - TS counterparts live in: `rogue-ts/src/time/`
