@@ -1,0 +1,615 @@
+# TypeScript Function Inventory
+
+Exported functions in `rogue-ts/src/` that have C-source annotations.
+Format: file:line | C annotation | function name
+
+## Functions with C: annotations
+
+- rogue-ts/src//globals/tables.ts:96: * C: `posNeighborInDirection` in GlobalsBase.h (inline)
+- rogue-ts/src//io/inventory.ts:166: * C: `displayMagicCharForItem` (static) in Items.c
+- rogue-ts/src//io/inventory.ts:183: * C: `rectangularShading` in IO.c
+- rogue-ts/src//io/inventory.ts:228: * C: `printTextBox` in IO.c
+- rogue-ts/src//io/effects-alerts.ts:30: * C: `displayCenteredAlert` in IO.c
+- rogue-ts/src//io/effects-alerts.ts:48: * C: `flashMessage` in IO.c
+- rogue-ts/src//io/effects-alerts.ts:131: * C: `flashTemporaryAlert` in IO.c
+- rogue-ts/src//io/effects-alerts.ts:156: * C: `displayMonsterFlashes` in IO.c
+- rogue-ts/src//io/messages.ts:61: * C: `updateMessageDisplay` in IO.c
+- rogue-ts/src//io/messages.ts:112: * C: `displayRecentMessages` in IO.c
+- rogue-ts/src//io/messages.ts:136: * C: `deleteMessages` in IO.c
+- rogue-ts/src//io/messages.ts:148: * C: `confirmMessages` in IO.c
+- rogue-ts/src//io/messages.ts:158: * C: `clearMessageArchive` in IO.c
+- rogue-ts/src//io/messages.ts:173: * C: `displayMoreSign` in IO.c
+- rogue-ts/src//io/messages.ts:198: * C: `displayMoreSignWithoutWaitingForAcknowledgment` in IO.c
+- rogue-ts/src//io/messages.ts:218: * C: `message` in IO.c
+- rogue-ts/src//io/messages.ts:250: * C: `messageWithColor` in IO.c
+- rogue-ts/src//io/messages.ts:261: * C: `flavorMessage` in IO.c
+- rogue-ts/src//io/messages.ts:294: * C: `temporaryMessage` in IO.c
+- rogue-ts/src//io/messages.ts:339: * C: `combatMessage` in Combat.c
+- rogue-ts/src//io/messages.ts:364: * C: `displayCombatText` in Combat.c
+- rogue-ts/src//io/messages.ts:398: * C: `drawMessageArchive` (static) in IO.c
+- rogue-ts/src//io/messages.ts:436: * C: `animateMessageArchive` (static) in IO.c
+- rogue-ts/src//io/messages.ts:471: * C: `scrollMessageArchive` (static) in IO.c
+- rogue-ts/src//io/messages.ts:559: * C: `displayMessageArchive` in IO.c
+- rogue-ts/src//io/targeting.ts:57:     * C: `nextStep` in Movement.c / IO.c
+- rogue-ts/src//io/targeting.ts:88:     * C: `getCellAppearance` in IO.c
+- rogue-ts/src//io/targeting.ts:95:     * C: `hiliteCell` in IO.c
+- rogue-ts/src//io/targeting.ts:103:     * C: `plotCharWithColor` in IO.c
+- rogue-ts/src//io/targeting.ts:119: * C: `getPlayerPathOnMap` in IO.c
+- rogue-ts/src//io/targeting.ts:150: * C: `reversePath` in IO.c
+- rogue-ts/src//io/targeting.ts:167: * C: `hilitePath` in IO.c
+- rogue-ts/src//io/targeting.ts:196: * C: `clearCursorPath` in IO.c
+- rogue-ts/src//io/targeting.ts:218: * C: `hideCursor` in IO.c
+- rogue-ts/src//io/targeting.ts:233: * C: `showCursor` in IO.c
+- rogue-ts/src//io/targeting.ts:254: * C: `getClosestValidLocationOnMap` in IO.c (static)
+- rogue-ts/src//io/targeting.ts:292: * C: `processSnapMap` in IO.c (static)
+- rogue-ts/src//io/targeting.ts:333: * C: `hiliteCell` in IO.c
+- rogue-ts/src//io/text.ts:32: * C: `strLenWithoutEscapes` in Combat.c
+- rogue-ts/src//io/text.ts:56: * C: `upperCase` in IO.c — the C version takes a char pointer; we return a new string.
+- rogue-ts/src//io/text.ts:81: * C: `breakUpLongWordsIn` (static) in IO.c
+- rogue-ts/src//io/text.ts:126: * C: `wrapText` in IO.c
+- rogue-ts/src//io/text.ts:175: * C: `printString` in IO.c
+- rogue-ts/src//io/text.ts:209: * C: `printStringWithWrapping` in IO.c
+- rogue-ts/src//io/text.ts:268: * C: `splitLines` (static) in IO.c
+- rogue-ts/src//io/text.ts:312: * C: `capitalizeAndPunctuateSentences` (static) in IO.c
+- rogue-ts/src//io/buttons.ts:83: * C: `initializeButton` in Buttons.c
+- rogue-ts/src//io/buttons.ts:116: * C: `setButtonText` in Buttons.c
+- rogue-ts/src//io/buttons.ts:146: * C: `drawButton` in Buttons.c
+- rogue-ts/src//io/buttons.ts:243: * C: `drawButtonsInState` in Buttons.c
+- rogue-ts/src//io/buttons.ts:267: * C: `initializeButtonState` in Buttons.c
+- rogue-ts/src//io/buttons.ts:308: * C: `processButtonInput` in Buttons.c
+- rogue-ts/src//io/buttons.ts:420: * C: `buttonInputLoop` in Buttons.c
+- rogue-ts/src//io/display.ts:65: * C: `clearDisplayBuffer` in IO.c
+- rogue-ts/src//io/display.ts:85: * C: `copyDisplayBuffer` in IO.c
+- rogue-ts/src//io/display.ts:107: * C: `saveDisplayBuffer` in IO.c
+- rogue-ts/src//io/display.ts:118: * C: `restoreDisplayBuffer` in IO.c
+- rogue-ts/src//io/display.ts:140: * C: `overlayDisplayBuffer` in IO.c
+- rogue-ts/src//io/display.ts:182: * C: `plotCharToBuffer` in IO.c
+- rogue-ts/src//io/display.ts:208:/** Check if a window position is within the terminal bounds. C: `locIsInWindow` in Rogue.h */
+- rogue-ts/src//io/display.ts:213:/** Convert dungeon (map) coordinates to window coordinates. C: `mapToWindow` in Rogue.h */
+- rogue-ts/src//io/display.ts:221:/** Convert window coordinates to dungeon (map) coordinates. C: `windowToMap` in Rogue.h */
+- rogue-ts/src//io/display.ts:229:/** C: `mapToWindowX` macro. */
+- rogue-ts/src//io/display.ts:234:/** C: `mapToWindowY` macro. */
+- rogue-ts/src//io/display.ts:239:/** C: `windowToMapX` macro. */
+- rogue-ts/src//io/display.ts:244:/** C: `windowToMapY` macro. */
+- rogue-ts/src//io/display.ts:256: * C: `glyphIsWallish` (static) in IO.c
+- rogue-ts/src//io/display.ts:287: * C: `bakeTerrainColors` (static) in IO.c
+- rogue-ts/src//io/display.ts:331: * C: `plotCharWithColor` in IO.c
+- rogue-ts/src//io/display.ts:395: * C: `highlightScreenCell` in IO.c
+- rogue-ts/src//io/display.ts:424: * C: `blackOutScreen` in IO.c
+- rogue-ts/src//io/display.ts:444: * C: `colorOverDungeon` in IO.c
+- rogue-ts/src//io/display.ts:467: * C: `randomAnimateMonster` (static) in IO.c
+- rogue-ts/src//io/inventory-display.ts:50: * C: `displayInventory` in Items.c (~360 lines)
+- rogue-ts/src//io/messages-state.ts:32:/** A single entry in the message archive ring buffer. C: `archivedMessage` */
+- rogue-ts/src//io/messages-state.ts:130: * C: `getArchivedMessage` (static) in IO.c
+- rogue-ts/src//io/messages-state.ts:141: * C: `formatCountedMessage` (static) in IO.c
+- rogue-ts/src//io/messages-state.ts:162: * C: `foldMessages` (static) in IO.c
+- rogue-ts/src//io/messages-state.ts:227: * C: `formatRecentMessages` in IO.c
+- rogue-ts/src//io/color.ts:47: * C: `applyColorMultiplier` in IO.c
+- rogue-ts/src//io/color.ts:63: * C: `applyColorAverage` in IO.c
+- rogue-ts/src//io/color.ts:80: * C: `applyColorAugment` in IO.c
+- rogue-ts/src//io/color.ts:95: * C: `applyColorScalar` in IO.c
+- rogue-ts/src//io/color.ts:110: * C: `applyColorBounds` in IO.c
+- rogue-ts/src//io/color.ts:126: * C: `desaturate` in IO.c
+- rogue-ts/src//io/color.ts:146: * C: `randomizeColor` in IO.c (depends on `randomizeByPercent`)
+- rogue-ts/src//io/color.ts:154:/** C: `randomizeByPercent` (static helper in IO.c). */
+- rogue-ts/src//io/color.ts:165: * C: `swapColors` in IO.c
+- rogue-ts/src//io/color.ts:181: * C: `bakeColor` in IO.c
+- rogue-ts/src//io/color.ts:198: * C: `normColor` in IO.c
+- rogue-ts/src//io/color.ts:225: * C: `COLOR_DIFF` macro in Rogue.h
+- rogue-ts/src//io/color.ts:241: * C: `separateColors` in IO.c
+- rogue-ts/src//io/color.ts:279: * C: `storeColorComponents` in IO.c
+- rogue-ts/src//io/color.ts:294: * C: `colorFromComponents` in IO.c
+- rogue-ts/src//io/color.ts:316: * C: `adjustedLightValue` (static) in IO.c
+- rogue-ts/src//io/color.ts:334: * C: `colorMultiplierFromDungeonLight` in IO.c
+- rogue-ts/src//io/color.ts:370: * C: `encodeMessageColor` in IO.c
+- rogue-ts/src//io/color.ts:392: * C: `decodeMessageColor` in IO.c
+- rogue-ts/src//io/color.ts:431: * C: `blendAppearances` (static) in IO.c
+- rogue-ts/src//io/color.ts:476: * C: `messageColorFromVictim` in IO.c
+- rogue-ts/src//io/sidebar-player.ts:38:/** Entity types that can appear in the sidebar. C: `enum entityDisplayTypes` */
+- rogue-ts/src//io/sidebar-player.ts:155: * C: `smoothHiliteGradient` in Buttons.c
+- rogue-ts/src//io/sidebar-player.ts:170: * C: `creatureHealthChangePercent` (static) in IO.c
+- rogue-ts/src//io/sidebar-player.ts:191: * C: `printProgressBar` in IO.c
+- rogue-ts/src//io/sidebar-player.ts:276: * C: `printItemInfo` in IO.c
+- rogue-ts/src//io/sidebar-player.ts:362: * C: `printTerrainInfo` in IO.c
+- rogue-ts/src//io/sidebar-player.ts:432: * C: `printFloorItemDetails` in IO.c
+- rogue-ts/src//io/sidebar-player.ts:443: * C: `printCarriedItemDetails` in IO.c
+- rogue-ts/src//io/sidebar-player.ts:464: * C: `describeHallucinatedItem` in IO.c
+- rogue-ts/src//io/sidebar-monsters.ts:55:/** Render sidebar info for a single creature. Returns y after last line printed. C: `printMonsterInfo` */
+- rogue-ts/src//io/sidebar-monsters.ts:487: * C: `refreshSideBar`
+- rogue-ts/src//io/sidebar-monsters.ts:596:/** Display a detailed text panel for a monster. C: `printMonsterDetails` */
+- rogue-ts/src//io/effects.ts:80:     * C: `pauseBrogue` in IO.c
+- rogue-ts/src//io/effects.ts:87:     * C: `pauseAnimation` in IO.c
+- rogue-ts/src//io/effects.ts:94:     * C: `commitDraws` in IO.c
+- rogue-ts/src//io/effects.ts:121: * C: `blendAppearances` in IO.c (static)
+- rogue-ts/src//io/effects.ts:167: * C: `irisFadeBetweenBuffers` in IO.c
+- rogue-ts/src//io/effects.ts:237: * C: `colorBlendCell` in IO.c
+- rogue-ts/src//io/effects.ts:259: * C: `flashForeground` in IO.c
+- rogue-ts/src//io/effects.ts:312: * C: `flashCell` in IO.c
+- rogue-ts/src//io/effects.ts:336: * C: `colorFlash` in IO.c
+- rogue-ts/src//io/effects.ts:409: * C: `funkyFade` in IO.c
+- rogue-ts/src//menus/menu-flames.ts:96: * C: `antiAlias` in MainMenu.c
+- rogue-ts/src//menus/menu-flames.ts:126: * C: `initializeMenuFlames` in MainMenu.c
+- rogue-ts/src//menus/menu-flames.ts:186: * C: `updateMenuFlames` in MainMenu.c
+- rogue-ts/src//menus/menu-flames.ts:252: * C: `drawMenuFlames` in MainMenu.c
+- rogue-ts/src//menus/wizard.ts:201: * C: `unflag` in RogueMain.c
+- rogue-ts/src//menus/wizard.ts:219: * C: `initializeCreateItemButton` in Wizard.c
+- rogue-ts/src//menus/wizard.ts:238: * C: `dialogSelectEntryFromList` in Wizard.c
+- rogue-ts/src//menus/wizard.ts:292: * C: `dialogCreateMonsterChooseMutation` in Wizard.c
+- rogue-ts/src//menus/wizard.ts:328: * C: `dialogCreateMonster` in Wizard.c
+- rogue-ts/src//menus/wizard.ts:452: * C: `dialogCreateItemOrMonster` in Wizard.c
+- rogue-ts/src//menus/character-select.ts:40: * C: `chooseGameVariant` in MainMenu.c
+- rogue-ts/src//menus/character-select.ts:83: * C: `chooseGameMode` in MainMenu.c
+- rogue-ts/src//menus/character-select.ts:129: * C: `dialogAlert` in MainMenu.c
+- rogue-ts/src//menus/character-select.ts:157: * C: `quitImmediately` in MainMenu.c
+- rogue-ts/src//menus/character-select.ts:179: * C: `dialogChooseFile` in MainMenu.c
+- rogue-ts/src//menus/character-select.ts:349: * C: `addRuntoGameStats` in MainMenu.c
+- rogue-ts/src//menus/character-select.ts:391: * C: `viewGameStats` in MainMenu.c
+- rogue-ts/src//menus/main-menu.ts:44: * C: `initializeMainMenuButtons` in MainMenu.c
+- rogue-ts/src//menus/main-menu.ts:69: * C: `initializeMainMenu` in MainMenu.c
+- rogue-ts/src//menus/main-menu.ts:90: * C: `initializeFlyoutMenu` in MainMenu.c
+- rogue-ts/src//menus/main-menu.ts:128: * C: `isFlyoutActive` in MainMenu.c
+- rogue-ts/src//menus/main-menu.ts:141: * C: `getNextGameButtonPos` in MainMenu.c
+- rogue-ts/src//menus/main-menu.ts:163: * C: `redrawMainMenuButtons` in MainMenu.c
+- rogue-ts/src//menus/main-menu.ts:190: * C: `titleMenu` in MainMenu.c
+- rogue-ts/src//menus/main-menu.ts:309: * C: `mainBrogueJunction` in MainMenu.c
+- rogue-ts/src//menus/menu-buttons.ts:28: * C: `initializeMainMenuButton` in MainMenu.c
+- rogue-ts/src//menus/menu-buttons.ts:57: * C: `stackButtons` in MainMenu.c
+- rogue-ts/src//menus/menu-buttons.ts:91: * C: `initializeMenu` in MainMenu.c
+- rogue-ts/src//menus/wizard-items.ts:37: * C: `dialogCreateItemChooseVorpalEnemy` in Wizard.c
+- rogue-ts/src//menus/wizard-items.ts:57: * C: `dialogCreateItemChooseRunic` in Wizard.c
+- rogue-ts/src//menus/wizard-items.ts:142: * C: `dialogCreateItemChooseKind` in Wizard.c
+- rogue-ts/src//menus/wizard-items.ts:170: * C: `dialogCreateItemChooseEnchantmentLevel` in Wizard.c
+- rogue-ts/src//menus/wizard-items.ts:248: * C: `dialogCreateItem` in Wizard.c
+
+## Stub patterns (no-op implementations)
+
+- rogue-ts/src//items.ts:169:        message: () => {},
+- rogue-ts/src//items.ts:170:        messageWithColor: () => {},
+- rogue-ts/src//items.ts:171:        confirmMessages: () => {},
+- rogue-ts/src//items.ts:173:        temporaryMessage: () => {},
+- rogue-ts/src//items.ts:174:        printString: () => {},
+- rogue-ts/src//items.ts:177:        promptForItemOfType: () => null,     // stub — needs UI
+- rogue-ts/src//items.ts:185:        updateIdentifiableItem: () => {},
+- rogue-ts/src//items.ts:186:        updateEncumbrance: () => {},         // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:187:        updateRingBonuses: () => {},         // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:188:        equipItem: () => {},                 // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:189:        recalculateEquipmentBonuses: () => {},
+- rogue-ts/src//items.ts:193:        recordKeystroke: () => {},
+- rogue-ts/src//items.ts:194:        recordKeystrokeSequence: () => {},
+- rogue-ts/src//items.ts:195:        recordMouseClick: () => {},
+- rogue-ts/src//items.ts:199:        haste: () => {},                     // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:200:        teleport: () => {},                  // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:201:        exposeCreatureToFire: () => {},      // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:202:        extinguishFireOnCreature: () => {},  // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:203:        makePlayerTelepathic: () => {},      // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:204:        imbueInvisibility: () => {},         // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:205:        wakeUp: () => {},                    // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:206:        fadeInMonster: () => {},             // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:207:        flashMonster: () => {},              // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:208:        aggravateMonsters: () => {},         // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:216:        summonGuardian: () => {},            // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:219:        spawnDungeonFeature: () => {},       // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:222:        discover: () => {},                  // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:223:        refreshDungeonCell: () => {},        // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:224:        crystalize: () => {},                // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:225:        rechargeItems: () => {},             // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:226:        negationBlast: () => {},             // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:227:        discordBlast: () => {},              // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:230:        colorFlash: () => {},                // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:231:        createFlare: () => {},               // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:232:        displayLevel: () => {},              // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:235:        updateMinersLightRadius: () => {},   // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:236:        updateVision: () => {},              // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:237:        updateClairvoyance: () => {},        // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:238:        updatePlayerRegenerationDelay: () => {}, // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:242:        staffBlinkDistance: () => 0,         // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:243:        playerCancelsBlinking: () => true,   // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:354:            buf[0] = "something strange";  // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:366:        promoteTile: () => {},              // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:368:        messageWithColor: () => {},         // stub — wired in port-v2-platform
+- rogue-ts/src//items.ts:375:        discover: () => {},                 // stub — wired in port-v2-platform
+- rogue-ts/src//menus.ts:223:            // stub — no persistent score file in browser mode
+- rogue-ts/src//menus.ts:234:        message: () => {},   // stub — full message system is in io/messages.ts
+- rogue-ts/src//menus.ts:247:        initializeLaunchArguments: () => {},
+- rogue-ts/src//menus.ts:250:        flushBufferToFile: () => {},
+- rogue-ts/src//menus.ts:251:        saveGameNoPrompt: () => {},
+- rogue-ts/src//menus.ts:252:        saveRecordingNoPrompt: () => "",
+- rogue-ts/src//menus.ts:253:        getAvailableFilePath: () => "",
+- rogue-ts/src//menus.ts:256:        executeEvent: () => {},
+- rogue-ts/src//menus.ts:257:        displayAnnotation: () => {},
+- rogue-ts/src//menus.ts:258:        pausePlayback: () => {},
+- rogue-ts/src//menus.ts:261:        listFiles: () => [],
+- rogue-ts/src//menus.ts:262:        loadRunHistory: () => [],
+- rogue-ts/src//menus.ts:263:        saveResetRun: () => {},
+- rogue-ts/src//menus.ts:264:        openFile: () => false,
+- rogue-ts/src//monsters.ts:115:        buildMachine: () => {},         // stub — wired in port-v2-platform
+- rogue-ts/src//monsters.ts:126:        refreshDungeonCell: () => {},   // stub — wired in port-v2-platform
+- rogue-ts/src//monsters.ts:141:        drawManacles: () => {},         // stub — wired in port-v2-platform
+- rogue-ts/src//monsters.ts:149:        randomMatchingLocation: () => null,
+- rogue-ts/src//monsters.ts:150:        passableArcCount: () => 0,
+- rogue-ts/src//monsters.ts:183:        cellHasGas: (_loc) => false,     // stub
+- rogue-ts/src//monsters.ts:210:        closestWaypointIndex: () => -1,         // stub
+- rogue-ts/src//monsters.ts:211:        closestWaypointIndexTo: () => -1,       // stub
+- rogue-ts/src//monsters.ts:214:        burnedTerrainFlagsAtLoc: () => 0,       // stub
+- rogue-ts/src//monsters.ts:215:        discoveredTerrainFlagsAtLoc: () => 0,   // stub
+- rogue-ts/src//monsters.ts:216:        passableArcCount: () => 0,              // stub
+- rogue-ts/src//monsters.ts:219:        awareOfTarget: () => false,             // stub
+- rogue-ts/src//monsters.ts:220:        openPathBetween: () => false,           // stub
+- rogue-ts/src//monsters.ts:221:        traversiblePathBetween: () => false,    // stub
+- rogue-ts/src//monsters.ts:230:        extinguishFireOnCreature: () => {},     // stub — wired in port-v2-platform
+- rogue-ts/src//monsters.ts:239:        refreshDungeonCell: () => {},
+- rogue-ts/src//monsters.ts:240:        message: () => {},
+- rogue-ts/src//monsters.ts:241:        messageWithColor: () => {},
+- rogue-ts/src//monsters.ts:242:        combatMessage: () => {},
+- rogue-ts/src//monsters.ts:246:        playerHasRespirationArmor: () => false,
+- rogue-ts/src//lifecycle.ts:148:        monsterAvoids: () => false,
+- rogue-ts/src//lifecycle.ts:149:        discoveredTerrainFlagsAtLoc: () => 0,
+- rogue-ts/src//lifecycle.ts:223:                message: () => {},
+- rogue-ts/src//lifecycle.ts:224:                updateRingBonuses: () => {},
+- rogue-ts/src//lifecycle.ts:225:                updateEncumbrance: () => {},
+- rogue-ts/src//lifecycle.ts:238:        initRecording: () => {},
+- rogue-ts/src//lifecycle.ts:250:        message: () => {}, messageWithColor: () => {}, flavorMessage: () => {},
+- rogue-ts/src//lifecycle.ts:251:        encodeMessageColor: () => {},
+- rogue-ts/src//lifecycle.ts:321:        spawnHorde: () => null,
+- rogue-ts/src//lifecycle.ts:326:        killCreature: () => {},
+- rogue-ts/src//lifecycle.ts:353:                deleteItem: () => {}, placeItemAt: () => {}, removeItemFromArray: () => {},
+- rogue-ts/src//lifecycle.ts:354:                itemIsHeavyWeapon: () => false, itemIsPositivelyEnchanted: () => false,
+- rogue-ts/src//lifecycle.ts:394:        currentStealthRange: () => 14, // stub — stealth system not yet wired
+- rogue-ts/src//lifecycle.ts:453:        shuffleTerrainColors: () => {},
+- rogue-ts/src//lifecycle.ts:467:        restoreMonster: () => {},
+- rogue-ts/src//lifecycle.ts:468:        restoreItems: () => {},
+- rogue-ts/src//lifecycle.ts:469:        updateMonsterState: () => {},
+- rogue-ts/src//lifecycle.ts:475:        updateVision: () => {},
+- rogue-ts/src//lifecycle.ts:478:        updateRingBonuses: () => {},
+- rogue-ts/src//lifecycle.ts:479:        displayLevel: () => {},
+- rogue-ts/src//lifecycle.ts:480:        refreshSideBar: () => {},
+- rogue-ts/src//lifecycle.ts:481:        messageWithColor: () => {},
+- rogue-ts/src//lifecycle.ts:482:        RNGCheck: () => {},
+- rogue-ts/src//lifecycle.ts:483:        flushBufferToFile: () => {},
+- rogue-ts/src//lifecycle.ts:485:        hideCursor: () => {},
+- rogue-ts/src//lifecycle.ts:506:        deleteItem: () => {},
+- rogue-ts/src//io/input-context.ts:129:        encodeMessageColor: () => "",
+- rogue-ts/src//io/input-context.ts:131:        printString: () => {},
+- rogue-ts/src//io/input-context.ts:132:        plotCharWithColor: () => {},
+- rogue-ts/src//io/input-context.ts:135:        message: () => {},
+- rogue-ts/src//io/input-context.ts:136:        messageWithColor: () => {},
+- rogue-ts/src//io/input-context.ts:137:        temporaryMessage: () => {},
+- rogue-ts/src//io/input-context.ts:138:        confirmMessages: () => {},
+- rogue-ts/src//io/input-context.ts:139:        updateMessageDisplay: () => {},
+- rogue-ts/src//io/input-context.ts:142:        commitDraws: () => {},
+- rogue-ts/src//io/input-context.ts:144:        restoreDisplayBuffer: () => {},
+- rogue-ts/src//io/input-context.ts:145:        overlayDisplayBuffer: () => {},
+- rogue-ts/src//io/input-context.ts:146:        clearDisplayBuffer: () => {},
+- rogue-ts/src//io/input-context.ts:156:        initializeButtonState: () => {},
+- rogue-ts/src//io/input-context.ts:161:        rectangularShading: () => {},
+- rogue-ts/src//io/input-context.ts:169:        pauseForMilliseconds: () => false,
+- rogue-ts/src//io/input-context.ts:170:        locIsInWindow: () => false,
+- rogue-ts/src//io/input-context.ts:173:        displayLevel: () => {},
+- rogue-ts/src//io/input-context.ts:174:        refreshSideBar: () => {},
+- rogue-ts/src//io/input-context.ts:176:        displayMessageArchive: () => {},
+- rogue-ts/src//io/input-context.ts:177:        printHelpScreen: () => {},
+- rogue-ts/src//io/input-context.ts:178:        displayFeatsScreen: () => {},
+- rogue-ts/src//io/input-context.ts:179:        printDiscoveriesScreen: () => {},
+- rogue-ts/src//io/input-context.ts:180:        flashTemporaryAlert: () => {},
+- rogue-ts/src//io/input-context.ts:181:        displayMonsterFlashes: () => {},
+- rogue-ts/src//io/input-context.ts:188:        autoRest: () => {},                         // stub — no MiscHelpersContext yet
+- rogue-ts/src//io/input-context.ts:189:        manualSearch: () => {},                     // stub — no MiscHelpersContext yet
+- rogue-ts/src//io/input-context.ts:196:        equip: async () => {},                      // stub — equip dialog not yet ported
+- rogue-ts/src//io/input-context.ts:197:        unequip: async () => {},                    // stub — unequip dialog not yet ported
+- rogue-ts/src//io/input-context.ts:198:        drop: async () => {},                       // stub — drop dialog not yet ported
+- rogue-ts/src//io/input-context.ts:199:        throwCommand: async () => {},               // stub — throw dialog not yet ported
+- rogue-ts/src//io/input-context.ts:200:        relabel: async () => {},                    // stub — relabel dialog not yet ported
+- rogue-ts/src//io/input-context.ts:201:        call: async () => {},                       // stub — call dialog not yet ported
+- rogue-ts/src//io/input-context.ts:202:        swapLastEquipment: () => {},                // stub — not yet ported
+- rogue-ts/src//io/input-context.ts:203:        enableEasyMode: () => {},                   // stub — LifecycleContext not wired
+- rogue-ts/src//io/input-context.ts:204:        saveGame: () => {},                         // stub — save system not yet ported
+- rogue-ts/src//io/input-context.ts:205:        gameOver: () => {},                         // stub — LifecycleContext not wired
+- rogue-ts/src//io/input-context.ts:206:        printSeed: () => {},                        // stub — not yet ported
+- rogue-ts/src//io/input-context.ts:207:        showCursor: () => {},                       // stub — cursor display (Phase 5)
+- rogue-ts/src//io/input-context.ts:208:        hideCursor: () => {},                       // stub — cursor display (Phase 5)
+- rogue-ts/src//io/input-context.ts:209:        exploreKey: async () => {},                 // stub — explore display hooks (Phase 5)
+- rogue-ts/src//io/input-context.ts:210:        autoPlayLevel: async () => {},              // stub — display hooks (Phase 5)
+- rogue-ts/src//io/input-context.ts:211:        takeScreenshot: () => false,                // stub — screenshot not yet ported
+- rogue-ts/src//io/input-context.ts:212:        dialogCreateItemOrMonster: () => {},        // stub — debug only
+- rogue-ts/src//io/input-context.ts:222:        playerCanSeeOrSense: () => false,           // stub — Phase 5
+- rogue-ts/src//io/input-context.ts:224:        printMonsterDetails: () => {},
+- rogue-ts/src//io/input-context.ts:225:        printFloorItemDetails: () => {},
+- rogue-ts/src//io/input-context.ts:226:        printLocationDescription: () => {},
+- rogue-ts/src//io/input-context.ts:229:        moveCursor: () => false,
+- rogue-ts/src//io/input-context.ts:230:        nextTargetAfter: () => false,
+- rogue-ts/src//io/input-context.ts:231:        hilitePath: () => {},
+- rogue-ts/src//io/input-context.ts:232:        clearCursorPath: () => {},
+- rogue-ts/src//io/input-context.ts:233:        hiliteCell: () => {},
+- rogue-ts/src//io/input-context.ts:234:        refreshDungeonCell: () => {},
+- rogue-ts/src//io/input-context.ts:237:        allocGrid: () => [],
+- rogue-ts/src//io/input-context.ts:238:        freeGrid: () => {},
+- rogue-ts/src//io/input-context.ts:239:        fillGrid: () => {},
+- rogue-ts/src//io/input-context.ts:240:        dijkstraScan: () => {},
+- rogue-ts/src//io/input-context.ts:241:        populateCreatureCostMap: () => {},
+- rogue-ts/src//io/input-context.ts:242:        getPlayerPathOnMap: () => 0,
+- rogue-ts/src//io/input-context.ts:243:        processSnapMap: () => {},
+- rogue-ts/src//io/input-context.ts:245:        diagonalBlocked: () => false,
+- rogue-ts/src//io/input-context.ts:247:        terrainFlags: () => 0,
+- rogue-ts/src//io/input-context.ts:248:        terrainMechFlags: () => 0,
+- rogue-ts/src//io/input-context.ts:251:        recordKeystroke: () => {},
+- rogue-ts/src//io/input-context.ts:253:        executePlaybackInput: () => false,
+- rogue-ts/src//io/input-context.ts:256:        characterForbiddenInFilename: () => false,
+- rogue-ts/src//io/input-context.ts:260:        displayGrid: () => {},
+- rogue-ts/src//io/input-context.ts:261:        displayLoops: () => {},
+- rogue-ts/src//io/input-context.ts:262:        displayChokeMap: () => {},
+- rogue-ts/src//io/input-context.ts:263:        displayMachines: () => {},
+- rogue-ts/src//io/input-context.ts:264:        displayWaypoints: () => {},
+- rogue-ts/src//platform.ts:250:    // stub — port-v2-platform Phase 5
+- rogue-ts/src//platform.ts:258:    // stub — port-v2-platform Phase 3
+- rogue-ts/src//movement.ts:137:            cellHasGas: () => false,
+- rogue-ts/src//movement.ts:149:        itemName: () => "item",             // stub — real name in port-v2-platform
+- rogue-ts/src//movement.ts:155:        getImpactLoc: (_origin, target) => ({ ...target }),  // stub
+- rogue-ts/src//movement.ts:156:        zap: () => {},                       // stub — wired in port-v2-platform
+- rogue-ts/src//movement.ts:158:        confirm: () => true,                 // stub — wired in port-v2-platform
+- rogue-ts/src//movement.ts:161:        plotForegroundChar: () => {},         // stub — wired in port-v2-platform
+- rogue-ts/src//movement.ts:162:        pauseAnimation: () => {},             // stub — wired in port-v2-platform
+- rogue-ts/src//movement.ts:163:        refreshDungeonCell: () => {},         // stub — wired in port-v2-platform
+- rogue-ts/src//movement.ts:265:        moveMonster(monst, dx, dy) {  // stub — entranced movement, wired in port-v2-platform
+- rogue-ts/src//movement.ts:275:        getQualifyingPathLocNear: (target) => ({ ...target }),  // stub — wired in port-v2-platform
+- rogue-ts/src//movement.ts:290:        useKeyAt: () => {},              // stub — wired in port-v2-platform
+- rogue-ts/src//movement.ts:291:        pickUpItemAt: () => {},          // stub — wired in port-v2-platform
+- rogue-ts/src//movement.ts:292:        checkForMissingKeys: () => {},   // stub — wired in port-v2-platform
+- rogue-ts/src//movement.ts:301:        promoteTile: () => {},
+- rogue-ts/src//movement.ts:302:        refreshDungeonCell: () => {},
+- rogue-ts/src//movement.ts:310:        spawnDungeonFeature: () => {},
+- rogue-ts/src//movement.ts:314:        useStairs: () => {},
+- rogue-ts/src//movement.ts:321:        recordKeystroke: () => {},       // stub — wired in port-v2-platform
+- rogue-ts/src//movement.ts:322:        cancelKeystroke: () => {},       // stub — wired in port-v2-platform
+- rogue-ts/src//movement.ts:323:        confirm: () => true,             // stub — wired in port-v2-platform
+- rogue-ts/src//movement.ts:326:        message: () => {},
+- rogue-ts/src//movement.ts:327:        messageWithColor: () => {},
+- rogue-ts/src//movement.ts:328:        combatMessage: () => {},
+- rogue-ts/src//movement.ts:336:        vomit: () => {},                 // stub — spawnDungeonFeature is stub
+- rogue-ts/src//movement.ts:401:        canPass: (_m, blocker) => !!(blocker.info?.flags & 0), // stub — wired in port-v2-platform
+- rogue-ts/src//movement.ts:418:                monsterAvoids: () => false,
+- rogue-ts/src//movement.ts:419:                discoveredTerrainFlagsAtLoc: () => 0,
+- rogue-ts/src//movement.ts:445:        message: () => {},
+- rogue-ts/src//movement.ts:446:        messageWithColor: () => {},
+- rogue-ts/src//movement.ts:447:        confirmMessages: () => {},
+- rogue-ts/src//movement.ts:448:        hiliteCell: () => {},
+- rogue-ts/src//movement.ts:449:        refreshDungeonCell: () => {},
+- rogue-ts/src//movement.ts:450:        refreshSideBar: () => {},
+- rogue-ts/src//movement.ts:451:        updateFlavorText: () => {},
+- rogue-ts/src//movement.ts:452:        clearCursorPath: () => {},
+- rogue-ts/src//movement.ts:453:        hilitePath: () => {},
+- rogue-ts/src//movement.ts:454:        getPlayerPathOnMap: () => 0,
+- rogue-ts/src//movement.ts:455:        commitDraws: () => {},
+- rogue-ts/src//movement.ts:457:        recordMouseClick: () => {},
+- rogue-ts/src//movement.ts:462:        updatePlayerUnderwaterness: () => {},
+- rogue-ts/src//movement.ts:463:        updateVision: () => {},
+- rogue-ts/src//movement.ts:464:        nextBrogueEvent: (_event: RogueEvent) => {},   // stub — wired in port-v2-platform
+- rogue-ts/src//movement.ts:465:        executeMouseClick: () => {},
+- rogue-ts/src//movement.ts:466:        printString: () => {},
+- rogue-ts/src//movement.ts:476:        startLevel: () => {},
+- rogue-ts/src//movement.ts:477:        victory: () => {},
+- rogue-ts/src//movement.ts:540:        canPass: (_m, _blocker) => false,   // stub
+- rogue-ts/src//movement.ts:551:        itemName: (_item, buf) => { buf[0] = "item"; },  // stub
+- rogue-ts/src//movement.ts:554:        messageWithColor: () => {},
+- rogue-ts/src//movement.ts:555:        refreshDungeonCell: () => {},
+- rogue-ts/src//movement.ts:561:        storeMemories: () => {},             // stub — wired in port-v2-platform
+- rogue-ts/src//movement.ts:573:        assureCosmeticRNG: () => {},
+- rogue-ts/src//movement.ts:574:        restoreRNG: () => {},
+- rogue-ts/src//combat.ts:85:        spawnDungeonFeature: () => {},
+- rogue-ts/src//combat.ts:86:        refreshSideBar: () => {},
+- rogue-ts/src//combat.ts:87:        combatMessage: () => {},
+- rogue-ts/src//combat.ts:88:        messageWithColor: () => {},
+- rogue-ts/src//combat.ts:89:        message: () => {},
+- rogue-ts/src//combat.ts:90:        refreshDungeonCell: () => {},
+- rogue-ts/src//combat.ts:91:        applyInstantTileEffectsToCreature: () => {},
+- rogue-ts/src//combat.ts:92:        fadeInMonster: () => {},
+- rogue-ts/src//combat.ts:129:        anyoneWantABite: () => false,
+- rogue-ts/src//combat.ts:130:        demoteMonsterFromLeadership: () => {},
+- rogue-ts/src//combat.ts:131:        checkForContinuedLeadership: () => {},
+- rogue-ts/src//combat.ts:134:        getMonsterDFMessage: () => "",
+- rogue-ts/src//combat.ts:140:        updateEncumbrance: () => {},
+- rogue-ts/src//combat.ts:141:        updateMinersLightRadius: () => {},
+- rogue-ts/src//combat.ts:142:        updateVision: () => {},
+- rogue-ts/src//combat.ts:217:        magicWeaponHit: () => {},
+- rogue-ts/src//combat.ts:218:        applyArmorRunicEffect: () => "",
+- rogue-ts/src//combat.ts:220:        splitMonster: () => {},
+- rogue-ts/src//combat.ts:223:        attackVerb: () => "hits",   // stub — needs attacker + monster text table
+- rogue-ts/src//combat.ts:228:        decrementWeaponAutoIDTimer: () => {},
+- rogue-ts/src//combat.ts:229:        rechargeItemsIncrementally: () => {},
+- rogue-ts/src//combat.ts:230:        equipItem: () => {},
+- rogue-ts/src//combat.ts:232:        checkForDisenchantment: () => {},
+- rogue-ts/src//combat.ts:233:        strengthCheck: () => {},
+- rogue-ts/src//combat.ts:237:        handlePaladinFeat: () => {},
+- rogue-ts/src//combat.ts:238:        setPureMageFeatFailed: () => {},
+- rogue-ts/src//combat.ts:239:        setDragonslayerFeatAchieved: () => {},
+- rogue-ts/src//combat.ts:256:        unAlly: () => {},   // stub — wired in monsters.ts
+- rogue-ts/src//ui.ts:223:        refreshDungeonCell: () => {},                         // stub — needs appearance system
+- rogue-ts/src//ui.ts:224:        refreshSideBar: () => {},                             // stub — needs appearance system
+- rogue-ts/src//ui.ts:232:        updateFlavorText: () => {},                           // stub — needs appearance system
+- rogue-ts/src//ui.ts:259:        refreshSideBar: () => {},                             // stub — needs appearance system
+- rogue-ts/src//ui.ts:260:        refreshDungeonCell: () => {},                         // stub — needs appearance system
+- rogue-ts/src//ui.ts:261:        waitForAcknowledgment: () => {},                      // stub — sync/async bridge (Phase 7)
+- rogue-ts/src//ui.ts:262:        pauseBrogue: async () => false,                       // stub — sync/async bridge (Phase 7)
+- rogue-ts/src//ui.ts:263:        nextBrogueEvent: async () => fakeEvent(),             // stub — sync/async bridge (Phase 7)
+- rogue-ts/src//ui.ts:264:        flashTemporaryAlert: () => {},                        // stub — needs appearance system
+- rogue-ts/src//ui.ts:265:        updateFlavorText: () => {},                           // stub — needs appearance system
+- rogue-ts/src//ui.ts:304:        message: () => {},                                    // stub — needs message context wiring
+- rogue-ts/src//ui.ts:305:        confirmMessages: () => {},                            // stub — needs message context wiring
+- rogue-ts/src//ui.ts:306:        buttonInputLoop: async () => ({ chosenButton: -1, event: fakeEvent() }), // stub — Phase 7
+- rogue-ts/src//ui.ts:315:        equip: async () => {},                                // stub — dialog not yet ported
+- rogue-ts/src//ui.ts:316:        unequip: async () => {},                              // stub — dialog not yet ported
+- rogue-ts/src//ui.ts:317:        drop: async () => {},                                 // stub — dialog not yet ported
+- rogue-ts/src//ui.ts:318:        throwCommand: async () => {},                         // stub — dialog not yet ported
+- rogue-ts/src//ui.ts:319:        relabel: async () => {},                              // stub — dialog not yet ported
+- rogue-ts/src//ui.ts:320:        call: async () => {},                                 // stub — dialog not yet ported
+- rogue-ts/src//turn.ts:69:        wakeUp: () => {},                           // stub — wired in combat.ts
+- rogue-ts/src//turn.ts:70:        spawnDungeonFeature: () => {},              // stub
+- rogue-ts/src//turn.ts:71:        refreshSideBar: () => {},                   // stub
+- rogue-ts/src//turn.ts:72:        combatMessage: () => {},                    // stub
+- rogue-ts/src//turn.ts:73:        messageWithColor: () => {},                 // stub
+- rogue-ts/src//turn.ts:83:        deleteItem: () => {},                       // stub
+- rogue-ts/src//turn.ts:84:        makeMonsterDropItem: () => {},              // stub
+- rogue-ts/src//turn.ts:85:        clearLastTarget: () => {},                  // stub
+- rogue-ts/src//turn.ts:86:        clearYendorWarden: () => {},                // stub
+- rogue-ts/src//turn.ts:87:        clearCellMonsterFlag: () => {},             // stub
+- rogue-ts/src//turn.ts:88:        prependCreature: () => {},                  // stub
+- rogue-ts/src//turn.ts:89:        applyInstantTileEffectsToCreature: () => {},// stub
+- rogue-ts/src//turn.ts:90:        fadeInMonster: () => {},                    // stub
+- rogue-ts/src//turn.ts:91:        refreshDungeonCell: () => {},               // stub
+- rogue-ts/src//turn.ts:92:        anyoneWantABite: () => false,               // stub
+- rogue-ts/src//turn.ts:93:        demoteMonsterFromLeadership: () => {},      // stub
+- rogue-ts/src//turn.ts:94:        checkForContinuedLeadership: () => {},      // stub
+- rogue-ts/src//turn.ts:95:        getMonsterDFMessage: () => "",              // stub
+- rogue-ts/src//turn.ts:96:        resolvePronounEscapes: (text) => text,      // stub
+- rogue-ts/src//turn.ts:97:        message: () => {},                          // stub
+- rogue-ts/src//turn.ts:98:        monsterCatalog: [],                         // stub — real catalog via core.ts
+- rogue-ts/src//turn.ts:99:        updateEncumbrance: () => {},                // stub
+- rogue-ts/src//turn.ts:100:        updateMinersLightRadius: () => {},          // stub
+- rogue-ts/src//turn.ts:101:        updateVision: () => {},                     // stub
+- rogue-ts/src//turn.ts:164:        discoveredTerrainFlagsAtLoc: () => 0,               // stub
+- rogue-ts/src//turn.ts:181:        monsterAvoids: () => false,                         // stub
+- rogue-ts/src//turn.ts:182:        monsterIsInClass: () => false,                      // stub
+- rogue-ts/src//turn.ts:199:        itemName(_, buf) { buf[0] = "item"; },              // stub
+- rogue-ts/src//turn.ts:200:        numberOfMatchingPackItems: () => 0,                 // stub
+- rogue-ts/src//turn.ts:206:        combatMessage: () => {},                            // stub
+- rogue-ts/src//turn.ts:207:        displayCombatText: () => {},                        // stub
+- rogue-ts/src//turn.ts:213:        message: () => {},
+- rogue-ts/src//turn.ts:214:        messageWithColor: () => {},
+- rogue-ts/src//turn.ts:215:        flavorMessage: () => {},
+- rogue-ts/src//turn.ts:216:        refreshDungeonCell: () => {},
+- rogue-ts/src//turn.ts:217:        displayLevel: () => {},
+- rogue-ts/src//turn.ts:218:        displayAnnotation: () => {},
+- rogue-ts/src//turn.ts:219:        refreshSideBar: () => {},
+- rogue-ts/src//turn.ts:222:        flashMessage: () => {},
+- rogue-ts/src//turn.ts:223:        recordKeystroke: () => {},
+- rogue-ts/src//turn.ts:224:        confirmMessages: () => {},
+- rogue-ts/src//turn.ts:225:        pauseAnimation: () => false,
+- rogue-ts/src//turn.ts:232:        updateEnvironment: () => {},
+- rogue-ts/src//turn.ts:233:        updateVision: () => {},
+- rogue-ts/src//turn.ts:234:        updateMapToShore: () => {},
+- rogue-ts/src//turn.ts:235:        updateSafetyMap: () => {},
+- rogue-ts/src//turn.ts:236:        refreshWaypoint: () => {},
+- rogue-ts/src//turn.ts:237:        analyzeMap: () => {},
+- rogue-ts/src//turn.ts:253:        shuffleTerrainColors: () => {},
+- rogue-ts/src//turn.ts:259:        RNGCheck: () => {},
+- rogue-ts/src//turn.ts:260:        animateFlares: () => {},
+- rogue-ts/src//turn.ts:263:        addScentToCell: () => {},
+- rogue-ts/src//turn.ts:264:        getFOVMask: () => {},
+- rogue-ts/src//turn.ts:268:        storeMemories: () => {},
+- rogue-ts/src//turn.ts:271:        rechargeItemsIncrementally: () => {},
+- rogue-ts/src//turn.ts:272:        processIncrementalAutoID: () => {},
+- rogue-ts/src//turn.ts:275:        applyInstantTileEffectsToCreature: () => {},
+- rogue-ts/src//turn.ts:276:        applyGradualTileEffectsToCreature: () => {},
+- rogue-ts/src//turn.ts:277:        monsterShouldFall: () => false,
+- rogue-ts/src//turn.ts:278:        monstersFall: () => {},
+- rogue-ts/src//turn.ts:279:        decrementPlayerStatus: () => {},
+- rogue-ts/src//turn.ts:280:        playerFalls: () => {},
+- rogue-ts/src//turn.ts:281:        handleHealthAlerts: () => {},
+- rogue-ts/src//turn.ts:282:        updateScent: () => {},
+- rogue-ts/src//turn.ts:283:        currentStealthRange: () => 0,
+- rogue-ts/src//turn.ts:286:        search: () => false,
+- rogue-ts/src//turn.ts:291:        spawnDungeonFeature: () => {},
+- rogue-ts/src//turn.ts:328:        updateMonsterState: () => {},
+- rogue-ts/src//turn.ts:329:        moveMonster: () => false,
+- rogue-ts/src//turn.ts:330:        moveMonsterPassivelyTowards: () => false,
+- rogue-ts/src//turn.ts:331:        monsterAvoids: () => false,
+- rogue-ts/src//turn.ts:332:        monstUseMagic: () => false,
+- rogue-ts/src//turn.ts:333:        monsterHasBoltEffect: () => 0,
+- rogue-ts/src//turn.ts:334:        monsterBlinkToPreferenceMap: () => false,
+- rogue-ts/src//turn.ts:335:        monsterBlinkToSafety: () => false,
+- rogue-ts/src//turn.ts:336:        monsterSummons: () => false,
+- rogue-ts/src//turn.ts:337:        monsterCanShootWebs: () => false,
+- rogue-ts/src//turn.ts:338:        updateMonsterCorpseAbsorption: () => false,
+- rogue-ts/src//turn.ts:339:        spawnDungeonFeature: () => {},
+- rogue-ts/src//turn.ts:340:        applyInstantTileEffectsToCreature: () => {},
+- rogue-ts/src//turn.ts:341:        makeMonsterDropItem: () => {},
+- rogue-ts/src//turn.ts:345:        isLocalScentMaximum: () => false,
+- rogue-ts/src//turn.ts:346:        pathTowardCreature: () => {},
+- rogue-ts/src//turn.ts:349:        traversiblePathBetween: () => false,
+- rogue-ts/src//turn.ts:350:        monsterWillAttackTarget: () => false,
+- rogue-ts/src//turn.ts:353:        chooseNewWanderDestination: () => {},
+- rogue-ts/src//turn.ts:354:        isValidWanderDestination: () => false,
+- rogue-ts/src//turn.ts:356:        wanderToward: () => {},
+- rogue-ts/src//turn.ts:358:        monsterMillAbout: () => {},
+- rogue-ts/src//turn.ts:359:        moveAlly: () => {},
+- rogue-ts/src//turn.ts:369:        diagonalBlocked: () => false,
+- rogue-ts/src//turn.ts:371:        updateSafeTerrainMap: () => {},
+
+## test.skip entries (tracked stubs)
+
+- rogue-ts/tests//movement.test.ts:211:it.skip("stub: recordKeystroke() is a no-op (should record player input for replay)", () => {
+- rogue-ts/tests//movement.test.ts:217:it.skip("stub: confirm() always returns true (should prompt player for y/n)", () => {
+- rogue-ts/tests//movement.test.ts:223:it.skip("stub: pickUpItemAt() is a no-op (should pick up items from floor cell)", () => {
+- rogue-ts/tests//movement.test.ts:229:it.skip("stub: checkForMissingKeys() is a no-op (should warn about missing keys)", () => {
+- rogue-ts/tests//movement.test.ts:235:it.skip("stub: promoteTile() is a no-op (should change terrain type on interaction)", () => {
+- rogue-ts/tests//movement.test.ts:241:it.skip("stub: useStairs() is a no-op (should transition to adjacent level)", () => {
+- rogue-ts/tests//movement.test.ts:247:it.skip("stub: refreshDungeonCell() is a no-op (should redraw a cell on screen)", () => {
+- rogue-ts/tests//movement.test.ts:252:it.skip("stub: spawnDungeonFeature() is a no-op (should spawn tile effect at location)", () => {
+- rogue-ts/tests//movement.test.ts:258:it.skip("stub: getQualifyingPathLocNear() returns target as-is (should pathfind)", () => {
+- rogue-ts/tests//movement.test.ts:264:it.skip("stub: nextBrogueEvent() is a no-op in travel context (should wait for input)", () => {
+- rogue-ts/tests//movement.test.ts:270:it.skip("stub: pauseAnimation() returns false in travel context (should animate steps)", () => {
+- rogue-ts/tests//movement.test.ts:276:it.skip("stub: hilitePath()/clearCursorPath() are no-ops (should draw path on map)", () => {
+- rogue-ts/tests//movement.test.ts:282:it.skip("stub: buildMovementContext().getImpactLoc returns target as-is (should trace bolt path)", () => {
+- rogue-ts/tests//movement.test.ts:288:it.skip("stub: buildCostMapFovContext().canPass returns false (should query monster traversal rules)", () => {
+- rogue-ts/tests//movement.test.ts:294:it.skip("stub: buildCostMapFovContext().itemName writes 'item' (should name the actual item)", () => {
+- rogue-ts/tests//turn.test.ts:166:it.skip("stub: updateMonsterState wires real monster state transitions", () => {
+- rogue-ts/tests//turn.test.ts:171:it.skip("stub: moveMonster wires real movement with collision detection", () => {
+- rogue-ts/tests//turn.test.ts:176:it.skip("stub: monstUseMagic wires bolt/spell AI", () => {
+- rogue-ts/tests//turn.test.ts:181:it.skip("stub: scentDirection wires scent-following pathfinding", () => {
+- rogue-ts/tests//turn.test.ts:186:it.skip("stub: pathTowardCreature wires Dijkstra pathfinding", () => {
+- rogue-ts/tests//items.test.ts:185:it.skip("stub: message() is a no-op (should queue a message for display)", () => {
+- rogue-ts/tests//items.test.ts:191:it.skip("stub: confirm() always returns true (should prompt player for y/n)", () => {
+- rogue-ts/tests//items.test.ts:197:it.skip("stub: promptForItemOfType() returns null (should open inventory chooser)", () => {
+- rogue-ts/tests//items.test.ts:203:it.skip("stub: spawnDungeonFeature() is a no-op (should spawn terrain/gas effects)", () => {
+- rogue-ts/tests//items.test.ts:209:it.skip("stub: haste() is a no-op (should apply movementSpeed bonus for N turns)", () => {
+- rogue-ts/tests//items.test.ts:214:it.skip("stub: teleport() is a no-op (should relocate creature to random valid cell)", () => {
+- rogue-ts/tests//items.test.ts:219:it.skip("stub: aggravateMonsters() is a no-op (should wake all monsters in range)", () => {
+- rogue-ts/tests//items.test.ts:224:it.skip("stub: crystalize() is a no-op (should create crystal terrain in radius)", () => {
+- rogue-ts/tests//items.test.ts:229:it.skip("stub: negationBlast() is a no-op (should strip magic from creatures/items in FOV)", () => {
+- rogue-ts/tests//items.test.ts:235:it.skip("stub: exposeCreatureToFire() is a no-op (should set Burning status on creature)", () => {
+- rogue-ts/tests//items.test.ts:241:it.skip("stub: updateEncumbrance() is a no-op (should recalculate speed penalties)", () => {
+- rogue-ts/tests//monsters.test.ts:208:it.skip("stub: buildMonsterSpawningContext().getQualifyingPathLocNear returns provided loc (stub, not real pathfinding)", () => {
+- rogue-ts/tests//monsters.test.ts:214:it.skip("stub: buildMonsterSpawningContext().randomMatchingLocation returns null (stub, not real random search)", () => {
+- rogue-ts/tests//monsters.test.ts:220:it.skip("stub: buildMonsterSpawningContext().passableArcCount returns 0 (stub, needs arc counting)", () => {
+- rogue-ts/tests//monsters.test.ts:226:it.skip("stub: buildMonsterSpawningContext().buildMachine is a no-op (stub, needs machine builder)", () => {
+- rogue-ts/tests//monsters.test.ts:232:it.skip("stub: buildMonsterSpawningContext().becomeAllyWith sets Ally state only (stub, needs full wiring)", () => {
+- rogue-ts/tests//monsters.test.ts:238:it.skip("stub: buildMonsterStateContext().closestWaypointIndex returns -1 (stub, needs waypoint distance maps)", () => {
+- rogue-ts/tests//monsters.test.ts:244:it.skip("stub: buildMonsterStateContext().awareOfTarget returns false (stub, needs scent map)", () => {
+- rogue-ts/tests//monsters.test.ts:250:it.skip("stub: buildMonsterStateContext().traversiblePathBetween returns false (stub, needs pathfinding)", () => {
+- rogue-ts/tests//monsters.test.ts:256:it.skip("stub: buildMonsterStateContext().extinguishFireOnCreature is a no-op (stub, needs CreatureEffectsContext)", () => {
+- rogue-ts/tests//monsters.test.ts:262:it.skip("stub: buildMonsterStateContext().cellHasGas returns false (should detect gas terrain)", () => {
+- rogue-ts/tests//monsters.test.ts:268:it.skip("stub: buildMonsterStateContext().closestWaypointIndexTo returns -1 (needs waypoint maps)", () => {
+- rogue-ts/tests//monsters.test.ts:274:it.skip("stub: buildMonsterStateContext().burnedTerrainFlagsAtLoc returns 0 (needs terrain history)", () => {
+- rogue-ts/tests//monsters.test.ts:280:it.skip("stub: buildMonsterStateContext().discoveredTerrainFlagsAtLoc returns 0 (needs terrain history)", () => {
+- rogue-ts/tests//monsters.test.ts:286:it.skip("stub: buildMonsterStateContext().openPathBetween returns false (needs FOV/LOS check)", () => {
+- rogue-ts/tests//combat.test.ts:228:it.skip("stub: anyoneWantABite wires real absorption check (CombatHelperContext)", () => {
+- rogue-ts/tests//combat.test.ts:234:it.skip("stub: demoteMonsterFromLeadership wires real leadership demotion", () => {
+- rogue-ts/tests//combat.test.ts:239:it.skip("stub: checkForContinuedLeadership wires real leadership continuation", () => {
+- rogue-ts/tests//combat.test.ts:244:it.skip("stub: getMonsterDFMessage returns empty string (should look up DF catalog)", () => {
+- rogue-ts/tests//combat.test.ts:250:it.skip("stub: resolvePronounEscapes is a passthrough (should substitute $HESHE etc.)", () => {
+- rogue-ts/tests//combat.test.ts:255:it.skip("stub: attackVerb returns 'hits' (should select verb from monster text table)", () => {
+- rogue-ts/tests//combat.test.ts:261:it.skip("stub: magicWeaponHit is a no-op (should apply weapon runic on-hit effects)", () => {
+- rogue-ts/tests//combat.test.ts:267:it.skip("stub: applyArmorRunicEffect returns '' (should apply armor runic on-hit effects)", () => {
+- rogue-ts/tests//combat.test.ts:272:it.skip("stub: specialHit is a no-op (should apply monster on-hit abilities)", () => {
+- rogue-ts/tests//combat.test.ts:278:it.skip("stub: unAlly is a no-op (should be wired in monsters.ts)", () => {
+- rogue-ts/tests//combat.test.ts:283:it.skip("stub: wakeUp sets TrackingScent only (should call full wakeUp with MonsterStateContext)", () => {
+- rogue-ts/tests//menus/menus.test.ts:8: *   - Save/Load: stubbed pending implementation (test.skip)
+- rogue-ts/tests//menus/menus.test.ts:111:    it.skip("saveGameNoPrompt() persists game state to the current file path", () => {
+- rogue-ts/tests//menus/menus.test.ts:117:    it.skip("loadSavedGame() restores a .broguesave file and starts mainInputLoop", () => {
+- rogue-ts/tests//menus/menus.test.ts:123:    it.skip("saveRecordingNoPrompt() writes a .broguerec recording file", () => {
+- rogue-ts/tests//menus/menus.test.ts:128:    it.skip("openFile() returns false for non-existent paths", () => {
+- rogue-ts/tests//ui.test.ts:271:it.skip("stub: refreshDungeonCell() is a no-op (should redraw one dungeon cell on screen)", () => {
+- rogue-ts/tests//ui.test.ts:277:it.skip("stub: refreshSideBar() is a no-op (should redraw the right-hand entity sidebar)", () => {
+- rogue-ts/tests//ui.test.ts:283:it.skip("stub: plotCharWithColor() is a no-op (should write a char+colors to screen buffer)", () => {
+- rogue-ts/tests//ui.test.ts:289:it.skip("stub: overlayDisplayBuffer() is a no-op (should merge an overlay onto screen)", () => {
+- rogue-ts/tests//ui.test.ts:295:it.skip("stub: clearDisplayBuffer() is a no-op (should blank all cells in a buffer)", () => {
+- rogue-ts/tests//ui.test.ts:301:it.skip("stub: updateFlavorText() is a no-op (should render flavor text at ROWS-2)", () => {
+- rogue-ts/tests//ui.test.ts:307:it.skip("stub: waitForAcknowledgment() is a no-op (should block until keypress)", () => {
+- rogue-ts/tests//ui.test.ts:313:it.skip("stub: flashTemporaryAlert() is a no-op (should show a brief overlay alert)", () => {
+- rogue-ts/tests//ui.test.ts:319:it.skip("stub: buildInventoryContext().message() is a no-op (should queue display message)", () => {
+- rogue-ts/tests//ui.test.ts:325:it.skip("stub: buildInventoryContext().confirmMessages() is a no-op (should mark messages confirmed)", () => {
+- rogue-ts/tests//ui.test.ts:331:it.skip("stub: buildInventoryContext() item actions are no-ops (should dispatch to handlers)", () => {
+- rogue-ts/tests//ui.test.ts:337:it.skip("stub: buildButtonContext().strLenWithoutEscapes() returns s.length (should skip escapes)", () => {
+- rogue-ts/tests//ui.test.ts:343:it.skip("stub: buildButtonContext() color ops are no-ops (should compute button gradients)", () => {
+
+---
+Generated Thu Mar  5 16:28:05 PST 2026
