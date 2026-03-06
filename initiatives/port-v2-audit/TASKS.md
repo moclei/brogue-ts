@@ -150,8 +150,11 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
   - Prediction correct: 100% OUT-OF-SCOPE — CLI seed-scanning tool (printf to stdout, --seed-catalog flag)
   - No gameplay logic; no TS equivalents; no fix work needed
 
-- [ ] `Globals.c` / `GlobalsBase.c` / `Utilities.c` → `docs/audit/gaps-Globals.md`
-  - Likely DATA-ONLY; global variable initialization
+- [x] `Globals.c` / `GlobalsBase.c` / `Utilities.c` → `docs/audit/gaps-Globals.md`
+  - Globals.c: 1819 lines of DATA-ONLY catalog data + 2 IMPLEMENTED functions (terrainFlags, terrainMechFlags) at end of file
+  - GlobalsBase.c: 100% DATA-ONLY (global state struct initializations); no functions
+  - Utilities.c: 2 OUT-OF-SCOPE C string helpers (endswith, append) superseded by native JS
+  - Untracked wiring stubs for terrainFlags/terrainMechFlags in io/input-context.ts:247–248 — needs test.skip in Phase 3
 
 ---
 
