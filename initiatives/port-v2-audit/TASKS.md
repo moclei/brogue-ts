@@ -115,9 +115,14 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
   - No MISSING or STUBBED-UNTRACKED — wizard mode is fully ported, testing gap only
   - dialogCreateItemOrMonster wiring type mismatch: ctx type declares (): void vs async (): Promise<void>
 
-- [ ] `Grid.c` (~18 functions) → `docs/audit/gaps-Grid.md`
+- [x] `Grid.c` (~18 functions) → `docs/audit/gaps-Grid.md`
   - TS counterparts live in: `rogue-ts/src/grid/`
   - Highest confidence; all have tests
+  - Result: 14 IMPLEMENTED, 1 STUBBED-TRACKED, 0 STUBBED-UNTRACKED, 4 MISSING, 0 NEEDS-VERIFICATION, 0 OUT-OF-SCOPE
+  - c-inventory.md missed 14 public functions (static-only capture); supplemented with grep
+  - Best primitive coverage in audit: grid.ts is complete with direct tests for all 11 public domain functions
+  - 4 MISSING: hiliteGrid (rendering utility), getTerrainGrid, getTMGrid, getPassableArcGrid (static helper for getQualifyingPathLocNear)
+  - getQualifyingPathLocNear STUBBED-TRACKED: stubs in movement.ts/lifecycle.ts/monsters.ts; tracked by test.skip at monsters.test.ts:208, movement.test.ts:258
 
 - [ ] `Math.c` (~17 functions) → `docs/audit/gaps-Math.md`
   - TS counterparts live in: `rogue-ts/src/math/`
