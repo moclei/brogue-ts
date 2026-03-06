@@ -108,8 +108,12 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
   - saveRecording MISSING from context builder despite being declared in interface and called at game-lifecycle.ts:378,596 — runtime crash risk
   - loadSavedGame MISSING but preemptive test.skip exists at menus.test.ts:117
 
-- [ ] `Wizard.c` (~10 functions) → `docs/audit/gaps-Wizard.md`
-  - TS counterparts live in: `rogue-ts/src/menus/wizard.ts`
+- [x] `Wizard.c` (~10 functions) → `docs/audit/gaps-Wizard.md`
+  - TS counterparts live in: `rogue-ts/src/menus/wizard.ts` and `rogue-ts/src/menus/wizard-items.ts`
+  - c-inventory.md missed 2 public functions; supplemented with grep (actual: 11 functions)
+  - All 10 game-logic functions are NEEDS-VERIFICATION; 1 OUT-OF-SCOPE (qsort comparator inlined as JS sort)
+  - No MISSING or STUBBED-UNTRACKED — wizard mode is fully ported, testing gap only
+  - dialogCreateItemOrMonster wiring type mismatch: ctx type declares (): void vs async (): Promise<void>
 
 - [ ] `Grid.c` (~18 functions) → `docs/audit/gaps-Grid.md`
   - TS counterparts live in: `rogue-ts/src/grid/`
