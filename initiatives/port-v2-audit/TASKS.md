@@ -58,8 +58,13 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
   - Untracked wiring stubs: autoRest and manualSearch in input-context.ts (need test.skip in turn.test.ts or movement.test.ts)
   - Duplicate export: updateYendorWardenTracking in both environment.ts and misc-helpers.ts — refactor artifact
 
-- [ ] `Combat.c` (~31 functions) → `docs/audit/gaps-Combat.md`
+- [x] `Combat.c` (~31 functions) → `docs/audit/gaps-Combat.md`
   - TS counterparts live in: `rogue-ts/src/combat/`
+  - Result: 30 IMPLEMENTED, 0 STUBBED, 0 MISSING, 2 NEEDS-VERIFICATION, 0 OUT-OF-SCOPE
+  - c-inventory.md missed 23 public functions (multi-line signatures); supplemented with grep
+  - Best-covered file in audit: 94% IMPLEMENTED. No domain-function gaps.
+  - 6 wiring stubs in combat.ts pending port-v2-platform (magicWeaponHit, applyArmorRunicEffect, specialHit, splitMonster, attackVerb, anyoneWantABite)
+  - 5 stale test.skip in combat.test.ts:228,255,261,267,272 — must be removed in synthesis cleanup
 
 - [ ] `Light.c` (~16 functions) → `docs/audit/gaps-Light.md`
   - TS counterparts live in: `rogue-ts/src/light/`
