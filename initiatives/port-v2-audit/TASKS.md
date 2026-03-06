@@ -28,8 +28,12 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
   - Result: 73 IMPLEMENTED, 11 STUBBED-TRACKED, 12 STUBBED-UNTRACKED, 28 MISSING, 5 NEEDS-VERIFICATION, 1 OUT-OF-SCOPE
   - c-inventory.md missed ~78 public functions (multi-line signatures); supplemented with grep
 
-- [ ] `Monsters.c` (~111 functions) → `docs/audit/gaps-Monsters.md`
+- [x] `Monsters.c` (~111 functions) → `docs/audit/gaps-Monsters.md`
   - TS counterparts live in: `rogue-ts/src/monsters/`
+  - Result: 43 IMPLEMENTED, 11 STUBBED-TRACKED, 7 STUBBED-UNTRACKED, 27 MISSING, 20 NEEDS-VERIFICATION, 6 OUT-OF-SCOPE
+  - c-inventory.md missed ~76 public functions (multi-line signatures); supplemented with grep
+  - Critical gap: entire spell/bolt-casting pipeline absent (monsterCastSpell, monstUseBolt, etc.)
+  - Critical gap: monsterDetails MISSING — sidebar monster description non-functional
 
 - [ ] `Architect.c` (~70 functions) → `docs/audit/gaps-Architect.md`
   - TS counterparts live in: `rogue-ts/src/architect/`
