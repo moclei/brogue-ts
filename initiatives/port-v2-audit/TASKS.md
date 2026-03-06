@@ -66,9 +66,14 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
   - 6 wiring stubs in combat.ts pending port-v2-platform (magicWeaponHit, applyArmorRunicEffect, specialHit, splitMonster, attackVerb, anyoneWantABite)
   - 5 stale test.skip in combat.test.ts:228,255,261,267,272 — must be removed in synthesis cleanup
 
-- [ ] `Light.c` (~16 functions) → `docs/audit/gaps-Light.md`
+- [x] `Light.c` (~16 functions) → `docs/audit/gaps-Light.md`
   - TS counterparts live in: `rogue-ts/src/light/`
   - Note: `colorMultiplierFromDungeonLight` is likely here — dependency of IO rendering
+  - Result: 9 IMPLEMENTED, 5 NEEDS-VERIFICATION, 1 OUT-OF-SCOPE, 0 MISSING
+  - c-inventory.md missed 10 public functions (multi-line signatures); supplemented with grep
+  - colorMultiplierFromDungeonLight is in IO.c (io/color.ts:336), not Light.c — TASKS.md note was speculative
+  - All 5 NEEDS-VERIFICATION have real implementations; gap is direct test coverage only
+  - updateLighting (the per-turn lighting tick) most important to add a direct test for
 
 - [ ] `RogueMain.c` (~22 functions) → `docs/audit/gaps-RogueMain.md`
   - TS counterparts live in: `rogue-ts/src/lifecycle.ts`, `rogue-ts/src/bootstrap.ts`
