@@ -146,8 +146,9 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
   - staffBlinkDistance context stub in items.ts:242 returns 0 instead of calling real function
   - 7 charm/ring functions wired but lack direct tests in power-tables.test.ts
 
-- [ ] `SeedCatalog.c` (~8 functions) → `docs/audit/gaps-SeedCatalog.md`
-  - Likely DATA-ONLY or OUT-OF-SCOPE
+- [x] `SeedCatalog.c` (~10 functions) → `docs/audit/gaps-SeedCatalog.md`
+  - Prediction correct: 100% OUT-OF-SCOPE — CLI seed-scanning tool (printf to stdout, --seed-catalog flag)
+  - No gameplay logic; no TS equivalents; no fix work needed
 
 - [ ] `Globals.c` / `GlobalsBase.c` / `Utilities.c` → `docs/audit/gaps-Globals.md`
   - Likely DATA-ONLY; global variable initialization
