@@ -16,9 +16,11 @@
 Files are ordered by risk: known-gap areas first, high-confidence areas last.
 Each task = one session. Read PLAN.md section "Cross-reference session" before starting.
 
-- [ ] `IO.c` (~119 functions) → `docs/audit/gaps-IO.md`
+- [x] `IO.c` (~119 functions) → `docs/audit/gaps-IO.md`
   - Known gaps: `getCellAppearance`, `refreshDungeonCell`, `displayLevel`, `colorMultiplierFromDungeonLight`
   - TS counterparts live in: `rogue-ts/src/io/display.ts`, `rogue-ts/src/io/color.ts`
+  - Result: 94 IMPLEMENTED, 2 STUBBED-TRACKED, 13 STUBBED-UNTRACKED, 5 MISSING, 4 NEEDS-VERIFICATION, 1 OUT-OF-SCOPE
+  - c-inventory.md missed ~92 public functions (multi-line signatures); supplemented with grep
 
 - [ ] `Items.c` (~134 functions) → `docs/audit/gaps-Items.md`
   - Many item callbacks are stubbed in `rogue-ts/src/items.ts`

@@ -8,8 +8,8 @@ TypeScript port (`rogue-ts/src/`). Produce a prioritized gap list that drives th
 ## Background
 
 The V2 port copied ~82 game-logic files from the V1 port rather than from C directly. V1 was
-"working, playable code" with correct game logic but an architectural problem (monolithic runtime.ts).
-However, V1 also had functions that were explicitly deferred and never implemented — most critically
+"somewhat working, somewhat playable code" with some correct game logic but an architectural problem (monolithic runtime.ts, missing "stubbed" functions).
+V1 also had functions that were explicitly deferred and never implemented — most critically
 `getCellAppearance` and `refreshDungeonCell` in the IO rendering layer. When V2 ported V1's IO layer,
 it ported the primitives but not the deferred functions. There may be other such gaps.
 
