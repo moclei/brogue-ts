@@ -22,9 +22,11 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
   - Result: 94 IMPLEMENTED, 2 STUBBED-TRACKED, 13 STUBBED-UNTRACKED, 5 MISSING, 4 NEEDS-VERIFICATION, 1 OUT-OF-SCOPE
   - c-inventory.md missed ~92 public functions (multi-line signatures); supplemented with grep
 
-- [ ] `Items.c` (~134 functions) → `docs/audit/gaps-Items.md`
+- [x] `Items.c` (~134 functions) → `docs/audit/gaps-Items.md`
   - Many item callbacks are stubbed in `rogue-ts/src/items.ts`
   - TS counterparts live in: `rogue-ts/src/items/`
+  - Result: 73 IMPLEMENTED, 11 STUBBED-TRACKED, 12 STUBBED-UNTRACKED, 28 MISSING, 5 NEEDS-VERIFICATION, 1 OUT-OF-SCOPE
+  - c-inventory.md missed ~78 public functions (multi-line signatures); supplemented with grep
 
 - [ ] `Monsters.c` (~111 functions) → `docs/audit/gaps-Monsters.md`
   - TS counterparts live in: `rogue-ts/src/monsters/`
