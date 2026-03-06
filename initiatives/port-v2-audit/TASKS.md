@@ -35,8 +35,12 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
   - Critical gap: entire spell/bolt-casting pipeline absent (monsterCastSpell, monstUseBolt, etc.)
   - Critical gap: monsterDetails MISSING — sidebar monster description non-functional
 
-- [ ] `Architect.c` (~70 functions) → `docs/audit/gaps-Architect.md`
+- [x] `Architect.c` (~70 functions) → `docs/audit/gaps-Architect.md`
   - TS counterparts live in: `rogue-ts/src/architect/`
+  - Result: 51 IMPLEMENTED, 0 STUBBED-TRACKED, 2 STUBBED-UNTRACKED, 1 MISSING, 18 NEEDS-VERIFICATION, 0 OUT-OF-SCOPE
+  - c-inventory.md missed 22 public functions (multi-line signatures); supplemented with grep
+  - Best-covered file so far (71% IMPLEMENTED). Single MISSING: evacuateCreatures (creature displacement before DF spawning)
+  - NEEDS-VERIFICATION backlog: top-level orchestration (digDungeon, buildAMachine, addMachines, runAutogenerators, placeStairs, initializeLevel, setUpWaypoints) has no direct tests
 
 - [ ] `Movement.c` (~52 functions) → `docs/audit/gaps-Movement.md`
   - TS counterparts live in: `rogue-ts/src/movement/`
