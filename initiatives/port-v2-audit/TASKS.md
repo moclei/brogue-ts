@@ -124,9 +124,12 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
   - 4 MISSING: hiliteGrid (rendering utility), getTerrainGrid, getTMGrid, getPassableArcGrid (static helper for getQualifyingPathLocNear)
   - getQualifyingPathLocNear STUBBED-TRACKED: stubs in movement.ts/lifecycle.ts/monsters.ts; tracked by test.skip at monsters.test.ts:208, movement.test.ts:258
 
-- [ ] `Math.c` (~17 functions) → `docs/audit/gaps-Math.md`
+- [x] `Math.c` (~17 functions) → `docs/audit/gaps-Math.md`
   - TS counterparts live in: `rogue-ts/src/math/`
   - Highest confidence; all have tests
+  - Result: 16 IMPLEMENTED (15 unique C functions; rand_range has a conditional-compile duplicate), 0 gaps
+  - c-inventory.md missed all 10 public functions (static-only capture); supplemented with grep
+  - Only file in audit with 100% IMPLEMENTED and zero gaps — rng.ts and fixpt.ts are complete with C cross-validated tests
 
 - [ ] `Dijkstra.c` (~7 functions) → `docs/audit/gaps-Dijkstra.md`
   - TS counterparts live in: `rogue-ts/src/dijkstra/`
