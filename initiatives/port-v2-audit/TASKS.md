@@ -131,9 +131,12 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
   - c-inventory.md missed all 10 public functions (static-only capture); supplemented with grep
   - Only file in audit with 100% IMPLEMENTED and zero gaps — rng.ts and fixpt.ts are complete with C cross-validated tests
 
-- [ ] `Dijkstra.c` (~7 functions) → `docs/audit/gaps-Dijkstra.md`
+- [x] `Dijkstra.c` (~8 functions) → `docs/audit/gaps-Dijkstra.md`
   - TS counterparts live in: `rogue-ts/src/dijkstra/`
   - Highest confidence; all have tests
+  - Result: 8 IMPLEMENTED, 0 gaps — second file in audit with 100% IMPLEMENTED
+  - c-inventory.md missed 3 public functions (static-only capture); supplemented with grep
+  - Wiring stub: dijkstraScan: () => {} in input-context.ts:240 — domain function is IMPLEMENTED; needs test.skip in Phase 3
 
 - [ ] `PowerTables.c` (~34 functions) → `docs/audit/gaps-PowerTables.md`
   - Likely DATA-ONLY; verify against `rogue-ts/src/globals/`
