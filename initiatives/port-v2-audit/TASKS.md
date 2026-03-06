@@ -2,10 +2,10 @@
 
 ## Phase 1: Generate inventories (one session)
 
-- [ ] Run the C inventory script from PLAN.md → `docs/audit/c-inventory.md`
-- [ ] Run the TS inventory script from PLAN.md → `docs/audit/ts-inventory.md`
-- [ ] Verify both files exist and are non-empty
-- [ ] Commit: `"chore: port-v2-audit — generate C and TS function inventories"`
+- [x] Run the C inventory script from PLAN.md → `docs/audit/c-inventory.md`
+- [x] Run the TS inventory script from PLAN.md → `docs/audit/ts-inventory.md`
+- [x] Verify both files exist and are non-empty
+- [x] Commit: `"chore: port-v2-audit — generate C and TS function inventories"`
 
 **Stop after committing. Do not begin Phase 2 in the same session.**
 
