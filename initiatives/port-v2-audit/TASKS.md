@@ -92,9 +92,13 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
   - 3 untracked wiring stubs affect menus at runtime: listFiles/loadRunHistory/saveResetRun all `() => []` / `() => {}`
   - Load Game, View Recording, Game Stats are platform-blocked (not porting gaps)
 
-- [ ] `Buttons.c` (~6 functions) → `docs/audit/gaps-Buttons.md`
+- [x] `Buttons.c` (~6 functions) → `docs/audit/gaps-Buttons.md`
   - TS counterparts live in: `rogue-ts/src/io/buttons.ts`
   - Largely ported; expected high coverage
+  - Result: 0 IMPLEMENTED, 0 STUBBED, 0 MISSING, 8 NEEDS-VERIFICATION, 0 OUT-OF-SCOPE
+  - c-inventory.md captured zero functions (all public, no statics); supplemented with grep
+  - smoothHiliteGradient relocated to sidebar-player.ts (correctly annotated)
+  - 3 untracked wiring stubs in input-context.ts and ui.ts need test.skip in Phase 3
 
 - [ ] `Recordings.c` (~46 functions) → `docs/audit/gaps-Recordings.md`
   - Browser port has no file system; most functions are legitimately OUT-OF-SCOPE
