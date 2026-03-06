@@ -100,9 +100,13 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
   - smoothHiliteGradient relocated to sidebar-player.ts (correctly annotated)
   - 3 untracked wiring stubs in input-context.ts and ui.ts need test.skip in Phase 3
 
-- [ ] `Recordings.c` (~46 functions) → `docs/audit/gaps-Recordings.md`
+- [x] `Recordings.c` (~46 functions) → `docs/audit/gaps-Recordings.md`
   - Browser port has no file system; most functions are legitimately OUT-OF-SCOPE
-  - Stubs must still be tracked with test.skip
+  - Result: 0 IMPLEMENTED, 3 STUBBED-TRACKED, 13 STUBBED-UNTRACKED, 2 MISSING, 0 NEEDS-VERIFICATION, 28 OUT-OF-SCOPE
+  - c-inventory.md missed all 24 public functions (static-only capture); supplemented with grep
+  - 61% OUT-OF-SCOPE (file I/O, playback pipeline, RNG verification — all deferred to persistence layer)
+  - saveRecording MISSING from context builder despite being declared in interface and called at game-lifecycle.ts:378,596 — runtime crash risk
+  - loadSavedGame MISSING but preemptive test.skip exists at menus.test.ts:117
 
 - [ ] `Wizard.c` (~10 functions) → `docs/audit/gaps-Wizard.md`
   - TS counterparts live in: `rogue-ts/src/menus/wizard.ts`
