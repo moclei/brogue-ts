@@ -75,8 +75,13 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
   - All 5 NEEDS-VERIFICATION have real implementations; gap is direct test coverage only
   - updateLighting (the per-turn lighting tick) most important to add a direct test for
 
-- [ ] `RogueMain.c` (~22 functions) → `docs/audit/gaps-RogueMain.md`
+- [x] `RogueMain.c` (~22 functions) → `docs/audit/gaps-RogueMain.md`
   - TS counterparts live in: `rogue-ts/src/lifecycle.ts`, `rogue-ts/src/bootstrap.ts`
+  - Result: 0 IMPLEMENTED, 0 MISSING, 20 NEEDS-VERIFICATION, 2 OUT-OF-SCOPE
+  - c-inventory.md missed 16 public functions (multi-line signatures); supplemented with grep
+  - Zero MISSING: every C function has a TS equivalent with real code — all gaps are test coverage
+  - `gameOver` is split: core.ts:289 (state, TESTED) + game-lifecycle.ts:201 (full sequence, UNTESTED)
+  - Untracked wiring stubs: enableEasyMode (input-context.ts:203), executeEvent (menus.ts:256) — need test.skip in Phase 3
 
 - [ ] `MainMenu.c` (~22 functions) → `docs/audit/gaps-MainMenu.md`
   - TS counterparts live in: `rogue-ts/src/menus/`
