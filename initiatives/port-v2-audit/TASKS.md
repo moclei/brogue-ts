@@ -107,6 +107,8 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
 - [ ] Write `docs/audit/summary.md` using the template in PLAN.md
 - [ ] Identify all STUBBED-UNTRACKED items — add corresponding `test.skip` entries to the
       relevant test files in `rogue-ts/tests/` (this is the one code change permitted in this initiative)
+- [ ] Identify all stale `test.skip` entries — remove entries where the function is now IMPLEMENTED
+      (known: `movement.test.ts:241` for `useStairs`; scan all gaps files' notes sections for others)
 - [ ] Commit: `"chore: port-v2-audit — synthesis complete, untracked stubs recorded"`
 - [ ] Update `PROJECT.md` to point to the follow-on fix initiative as the new active initiative
 
