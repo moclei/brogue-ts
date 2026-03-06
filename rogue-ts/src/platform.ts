@@ -54,6 +54,12 @@ let _plotChar: PlotCharFn | null = null;
 /** Previous frame buffer for dirty-cell detection in commitDraws(). */
 let _prevBuffer: ScreenDisplayBuffer = createScreenDisplayBuffer();
 
+/**
+ * Event captured by pauseAndCheckForEvent() when an input arrives before the
+ * timeout. Drained by the next waitForEvent() call.
+ */
+let _lookaheadEvent: RogueEvent | null = null;
+
 // =============================================================================
 // initPlatform — call once from bootstrap
 // =============================================================================
@@ -79,11 +85,42 @@ export function initPlatform(browserConsole: PlatformConsole & { plotChar?: Plot
 
 /**
  * Wait asynchronously for the next input event.
- * Resolves as soon as a key or mouse event arrives from the browser.
+ * If pauseAndCheckForEvent() buffered an event, that is returned first.
+ * Otherwise resolves as soon as a key or mouse event arrives from the browser.
  */
 export function waitForEvent(): Promise<RogueEvent> {
     if (!_console) throw new Error("Platform not initialized — call initPlatform() first");
+    if (_lookaheadEvent !== null) {
+        const ev = _lookaheadEvent;
+        _lookaheadEvent = null;
+        return Promise.resolve(ev);
+    }
     return _console.waitForEvent();
+}
+
+/**
+ * Sleep for up to `ms` milliseconds, but resolve early if a user input event
+ * arrives. Returns true if interrupted by input, false if the timeout elapsed.
+ *
+ * Any event captured during the race is stored in _lookaheadEvent so the next
+ * waitForEvent() call returns it. Even when the timeout wins, the event promise's
+ * .then() handler remains live and will buffer any event that arrives before the
+ * next waitForEvent() call.
+ */
+export async function pauseAndCheckForEvent(ms: number): Promise<boolean> {
+    if (!_console) throw new Error("Platform not initialized — call initPlatform() first");
+    if (_lookaheadEvent !== null) return true;
+
+    const timeoutP = new Promise<false>(resolve => setTimeout(() => resolve(false), ms));
+
+    // The .then() stores the event in _lookaheadEvent regardless of whether
+    // the timeout already won — the next waitForEvent() call will drain it.
+    const eventP = _console.waitForEvent().then(ev => {
+        _lookaheadEvent = ev;
+        return true as const;
+    });
+
+    return Promise.race([timeoutP, eventP]);
 }
 
 // =============================================================================

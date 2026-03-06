@@ -20,7 +20,7 @@
  */
 
 import { getGameState } from "./core.js";
-import { waitForEvent, commitDraws, mainGameLoop } from "./platform.js";
+import { waitForEvent, commitDraws, mainGameLoop, pauseAndCheckForEvent } from "./platform.js";
 import {
     initializeRogue, startLevel, freeEverything,
     getPreviousGameSeed,
@@ -204,9 +204,13 @@ export function buildMenuContext(): MenuContext {
             return waitForEvent();
         },
 
-        /** Async delay — flushes draws then resolves after ms milliseconds. */
-        pauseBrogue: async (milliseconds, _behavior) => {
+        /** Async delay — flushes draws, then sleeps up to ms milliseconds.
+         *  Returns true early if an input event arrives (mirrors C pauseBrogue). */
+        pauseBrogue: async (milliseconds, behavior) => {
             commitDraws();
+            if (behavior?.interruptForMouseMove) {
+                return pauseAndCheckForEvent(milliseconds);
+            }
             await new Promise<void>(resolve => setTimeout(resolve, milliseconds));
             return false;
         },
