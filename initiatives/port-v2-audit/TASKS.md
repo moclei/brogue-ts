@@ -83,9 +83,14 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
   - `gameOver` is split: core.ts:289 (state, TESTED) + game-lifecycle.ts:201 (full sequence, UNTESTED)
   - Untracked wiring stubs: enableEasyMode (input-context.ts:203), executeEvent (menus.ts:256) — need test.skip in Phase 3
 
-- [ ] `MainMenu.c` (~22 functions) → `docs/audit/gaps-MainMenu.md`
+- [x] `MainMenu.c` (~22 functions) → `docs/audit/gaps-MainMenu.md`
   - TS counterparts live in: `rogue-ts/src/menus/`
   - Largely ported in port-v2-platform; expected high coverage
+  - Result: 2 IMPLEMENTED, 20 NEEDS-VERIFICATION, 2 MISSING, 0 STUBBED, 0 OUT-OF-SCOPE
+  - c-inventory.md missed 4 public functions (multi-line/single-line signatures); supplemented with grep
+  - 2 MISSING are internal C static helpers absorbed inline into dialogChooseFile (not gameplay gaps)
+  - 3 untracked wiring stubs affect menus at runtime: listFiles/loadRunHistory/saveResetRun all `() => []` / `() => {}`
+  - Load Game, View Recording, Game Stats are platform-blocked (not porting gaps)
 
 - [ ] `Buttons.c` (~6 functions) → `docs/audit/gaps-Buttons.md`
   - TS counterparts live in: `rogue-ts/src/io/buttons.ts`
