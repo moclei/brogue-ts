@@ -138,8 +138,13 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
   - c-inventory.md missed 3 public functions (static-only capture); supplemented with grep
   - Wiring stub: dijkstraScan: () => {} in input-context.ts:240 — domain function is IMPLEMENTED; needs test.skip in Phase 3
 
-- [ ] `PowerTables.c` (~34 functions) → `docs/audit/gaps-PowerTables.md`
-  - Likely DATA-ONLY; verify against `rogue-ts/src/globals/`
+- [x] `PowerTables.c` (~34 functions) → `docs/audit/gaps-PowerTables.md`
+  - TASKS.md note "Likely DATA-ONLY" was incorrect — file is entirely computation functions
+  - Result: 12 IMPLEMENTED, 22 NEEDS-VERIFICATION, 0 gaps (no MISSING or STUBBED)
+  - c-inventory.md captured zero functions (all public); supplemented with two grep passes
+  - 15 domain functions tested but never imported in production code — items using them are unwired
+  - staffBlinkDistance context stub in items.ts:242 returns 0 instead of calling real function
+  - 7 charm/ring functions wired but lack direct tests in power-tables.test.ts
 
 - [ ] `SeedCatalog.c` (~8 functions) → `docs/audit/gaps-SeedCatalog.md`
   - Likely DATA-ONLY or OUT-OF-SCOPE
