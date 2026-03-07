@@ -60,14 +60,15 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 - [x] All 65 test files pass (1671 pass, 131 skip)
 - [x] Committed
 
-## Phase 2b: Spell effects — polymorph / aggravateMonsters / crystalize / summonGuardian
+## Phase 2b: Spell effects — polymorph / aggravateMonsters / crystalize / summonGuardian ✓
 
-- [ ] Implement `polymorph` (Items.c:3841)
-- [ ] Implement `aggravateMonsters` (Items.c:3358)
-- [ ] Implement `crystalize` (Items.c:4150)
-- [ ] Implement `summonGuardian` (Items.c:6651)
-- [ ] Wire into items context; add tests; remove test.skip entries
-- [ ] Commit; generate handoff
+- [x] Implement `polymorph` (Items.c:3841)
+- [x] Implement `aggravateMonsters` (Items.c:3358)
+- [x] Implement `crystalize` (Items.c:4150)
+- [x] Implement `summonGuardian` (Items.c:6651)
+- [x] Wire into items context; add tests; remove test.skip entries
+- [x] All 66 test files pass (1707 pass, 128 skip); 36 new tests in monster-spell-effects.test.ts
+- [x] Committed
 
 ## Phase 2c: Spell effects — disentangle + teleport
 

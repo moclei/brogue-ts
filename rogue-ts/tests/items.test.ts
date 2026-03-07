@@ -212,16 +212,6 @@ it.skip("stub: teleport() is a no-op (should relocate creature to random valid c
     // Real implementation should find a random passable cell and move the creature.
 });
 
-it.skip("stub: aggravateMonsters() is a no-op (should wake all monsters in range)", () => {
-    // buildItemHandlerContext().aggravateMonsters() does nothing.
-    // Real implementation should wake and alert every monster within the radius.
-});
-
-it.skip("stub: crystalize() is a no-op (should create crystal terrain in radius)", () => {
-    // buildItemHandlerContext().crystalize() does nothing.
-    // Real implementation should call the shattering scroll terrain effect.
-});
-
 
 it.skip("stub: exposeCreatureToFire() is a no-op (should set Burning status on creature)", () => {
     // buildItemHandlerContext().exposeCreatureToFire() does nothing.
@@ -244,13 +234,6 @@ it.skip("stub: playerCancelsBlinking() always returns true (should let player ab
     // items.ts:243 has a `() => true` stub.
     // Real implementation should run the blink targeting cursor loop and return
     // true only if the player presses Escape or an invalid target key.
-});
-
-it.skip("stub: summonGuardian() is a no-op (should spawn a guardian monster near the player)", () => {
-    // C: Items.c:6651 — summonGuardian()
-    // items.ts:216 has a `() => {}` stub.
-    // Real implementation should find a valid adjacent cell and spawn a guardian
-    // creature allied to the player.
 });
 
 

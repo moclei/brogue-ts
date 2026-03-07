@@ -163,3 +163,12 @@ export type { ZapContext, ZapRenderContext } from "./zap-context.js";
 // ── Spell effects (Phase 2a) ──
 export { slow, weaken } from "./item-effects.js";
 export type { SlowContext, WeakenContext } from "./item-effects.js";
+
+// ── Monster spell effects (Phase 2b) ──
+export { polymorph, aggravateMonsters, crystalize, summonGuardian } from "./monster-spell-effects.js";
+export type {
+    PolymorphContext,
+    AggravateContext,
+    CrystalizeContext,
+    SummonGuardianContext,
+} from "./monster-spell-effects.js";

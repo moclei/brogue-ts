@@ -159,7 +159,6 @@ export interface ZapContext {
     beckonMonster(monst: Creature, x: number, y: number): void;
 
     // ── Polymorph ──
-    /** STUB — Phase 2b */
     polymorph(monst: Creature): boolean;
 
     // ── Conjuration (BE_CONJURATION) ──

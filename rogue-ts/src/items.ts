@@ -35,7 +35,7 @@ import {
     removeItemFromArray,
     numberOfMatchingPackItems as numberOfMatchingPackItemsFn,
 } from "./items/item-inventory.js";
-import { enchantMagnitude } from "./items/item-usage.js";
+import { enchantMagnitude, netEnchant as netEnchantFn } from "./items/item-usage.js";
 import {
     itemMagicPolarity as itemMagicPolarityFn,
     initializeItem,
@@ -43,8 +43,9 @@ import {
 import {
     heal as healFn,
     killCreature as killCreatureFn,
+    inflictLethalDamage as inflictLethalDamageFn,
 } from "./combat/combat-damage.js";
-import { distanceBetween } from "./monsters/monster-state.js";
+import { distanceBetween, alertMonster as alertMonsterFn } from "./monsters/monster-state.js";
 import { spawnHorde as spawnHordeFn } from "./monsters/monster-spawning.js";
 import {
     monsterName as monsterNameFn,
@@ -74,6 +75,7 @@ import {
     charmShattering as charmShatteringFn,
     charmNegationRadius as charmNegationRadiusFn,
     charmRechargeDelay as charmRechargeDelayFn,
+    charmGuardianLifespan as charmGuardianLifespanFn,
     staffBlinkDistance as staffBlinkDistanceFn,
 } from "./power/power-tables.js";
 import { randRange, randPercent, randClump } from "./math/rng.js";
@@ -85,9 +87,17 @@ import {
     coordinatesAreInMap, mapToWindowX, mapToWindowY, nbDirs,
 } from "./globals/tables.js";
 import { playerTurnEnded as playerTurnEndedFn } from "./time/turn-processing.js";
+import { allocGrid, fillGrid } from "./grid/grid.js";
+import { freeCaptivesEmbeddedAt as freeCaptivesEmbeddedAtFn } from "./movement/ally-management.js";
+import { generateMonster as generateMonsterFn } from "./monsters/monster-creation.js";
+import {
+    aggravateMonsters as aggravateMonstersFn,
+    crystalize as crystalizeFn,
+    summonGuardian as summonGuardianFn,
+} from "./items/monster-spell-effects.js";
 import {
     itemMessageColor, advancementMessageColor, magicMapFlashColor,
-    darkBlue, gray, black,
+    darkBlue, gray, black, forceFieldColor,
 } from "./globals/colors.js";
 import { DungeonFeatureType, LightType, BoltType, CharmKind, StatusEffect } from "./types/enums.js";
 import { TileFlag, MessageFlag, HordeFlag, HORDE_MACHINE_ONLY } from "./types/flags.js";
@@ -295,7 +305,29 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         wakeUp: () => {},                    // stub — wired in port-v2-platform
         fadeInMonster: () => {},             // stub — wired in port-v2-platform
         flashMonster: () => {},              // stub — wired in port-v2-platform
-        aggravateMonsters: () => {},         // stub — wired in port-v2-platform
+        aggravateMonsters(range, x, y, color) {
+            aggravateMonstersFn(range, x, y, color, {
+                player,
+                monsters,
+                scentMap: allocGrid(),          // fresh grid — scent gradient is approximate
+                getPathDistances: (_gx, _gy) => {
+                    const g = allocGrid();
+                    fillGrid(g, 0);             // distance 0: all cells qualify; correct for full-map range
+                    return g;
+                },
+                refreshWaypoint: () => {},      // stub — wired in port-v2-platform
+                wakeUp: () => {},               // stub — wired in port-v2-platform
+                alertMonster: (m) => alertMonsterFn(m, player),
+                addScentToCell: () => {},       // stub — needs MapQueryContext with scentTurnNumber
+                setStealthRange: (r) => { rogue.stealthRange = r; },
+                currentStealthRange: () => 14,  // stub — wired in port-v2-platform
+                discover: () => {},             // stub — wired in port-v2-platform
+                discoverCell: () => {},         // stub — wired in port-v2-platform
+                colorFlash: () => {},           // stub — wired in port-v2-platform
+                playerCanSee: (px, py) => !!(pmap[px]?.[py]?.flags & TileFlag.VISIBLE),
+                message: () => {},              // stub — wired in port-v2-platform
+            });
+        },
         monsterAtLoc,
         monsterName: (monst, _includeArticle) =>
             monst === player ? "you" : monst.info.monsterName,
@@ -303,7 +335,25 @@ export function buildItemHandlerContext(): ItemHandlerContext {
             const spawnCtx = buildMonsterSpawningContext();
             return spawnHordeFn(hordeID, pos, forbiddenHordeFlags, requiredHordeFlags, spawnCtx);
         },
-        summonGuardian: () => {},            // stub — wired in port-v2-platform
+        summonGuardian(theItem) {
+            const spawnCtx = buildMonsterSpawningContext();
+            summonGuardianFn(theItem, {
+                player,
+                pmap,
+                generateMonster: (kind, itemPossible, mutationPossible) =>
+                    generateMonsterFn(kind, itemPossible, mutationPossible, spawnCtx.genCtx),
+                getQualifyingPathLocNear: (loc, _useDiags, _forbidTerrain, _forbidFlags,
+                    _adjTerrain, _adjFlags, _forbidLit) => ({ ...loc }),  // stub — wired in port-v2-platform
+                charmGuardianLifespan: (enchant) =>
+                    charmGuardianLifespanFn(
+                        enchant,
+                        charmEffectTable[CharmKind.Guardian].effectMagnitudeConstant,
+                        charmEffectTable[CharmKind.Guardian].effectMagnitudeMultiplier,
+                    ),
+                netEnchant: (item) => netEnchantFn(item, rogue.strength, player.weaknessAmount),
+                fadeInMonster: () => {},        // stub — wired in port-v2-platform
+            });
+        },
 
         // ── Dungeon feature / environment stubs ─────────────────────────────
         spawnDungeonFeature: () => {},       // stub — wired in port-v2-platform
@@ -311,7 +361,34 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         cellHasTerrainFlag,
         discover: () => {},                  // stub — wired in port-v2-platform
         refreshDungeonCell: () => {},        // stub — wired in port-v2-platform
-        crystalize: () => {},                // stub — wired in port-v2-platform
+        crystalize(radius) {
+            const combatCtx = buildCombatDamageContext();
+            const allyCtx = {
+                player, pmap,
+                demoteMonsterFromLeadership: () => {},  // stub
+                makeMonsterDropItem: () => {},           // stub
+                refreshDungeonCell: () => {},            // stub
+                monsterName: (m: Creature) => m.info.monsterName,
+                message: () => {},                       // stub
+                monsterAtLoc,
+                cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
+            };
+            crystalizeFn(radius, {
+                player,
+                pmap,
+                spawnDungeonFeature: () => {},  // stub — wired in port-v2-platform
+                monsterAtLoc,
+                inflictLethalDamage: (attacker, defender) =>
+                    inflictLethalDamageFn(attacker, defender, combatCtx),
+                killCreature: (monst, admin) => killCreatureFn(monst, admin, combatCtx),
+                freeCaptivesEmbeddedAt: (x, y) => freeCaptivesEmbeddedAtFn(x, y, allyCtx),
+                updateVision: () => {},         // stub — wired in port-v2-platform
+                colorFlash: () => {},           // stub — wired in port-v2-platform
+                displayLevel: () => {},         // stub — wired in port-v2-platform
+                refreshSideBar: () => {},       // stub — wired in port-v2-platform
+                forceFieldColor,
+            });
+        },
         rechargeItems(categories) {
             rechargeItemsFn(categories, {
                 packItems,
