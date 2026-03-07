@@ -171,21 +171,41 @@ Note: disentangle completed in Phase 2c; perimeterCoords completed in Phase 3b.
 - [x] movement.ts: 599 lines (under 600 limit)
 - [x] Committed
 
+## Phase 6: throwItem + hitMonsterWithProjectileWeapon
+
+Bolt system (Phase 1d) is complete — this dependency is now resolved.
+
+- [ ] Implement `hitMonsterWithProjectileWeapon` (Items.c:5999, ~80 lines) — new file
+      items/throw-item.ts; HitMonsterContext; projectile weapon combat math
+- [ ] Implement `throwItem` (Items.c:6080, ~197 lines) — same file; ThrowItemContext;
+      path computation via getLineCoordinates, hit detection, item effects on impact
+      (potions shatter, incendiary darts ignite, etc.), place or delete item after landing
+- [ ] Add tests; wire into items context; remove test.skip entries
+- [ ] Commit; generate handoff
+
+Note: `throwCommand` (the targeting wrapper, Items.c:6282) belongs to port-v2-platform —
+only the domain logic goes here.
+
+## Phase 7: Enchant-swap group
+
+Self-contained mechanic; no IO dependencies for core logic. All 4 functions call each other.
+
+- [ ] Implement `enchantLevelKnown` (Items.c:1142, ~10 lines) — pure predicate
+- [ ] Implement `effectiveEnchantLevel` (Items.c:1152, ~8 lines) — pure accessor
+- [ ] Implement `swapItemToEnchantLevel` (Items.c:1085, ~55 lines) — mutates item enchant;
+      message + refreshDungeonCell stubbed via context
+- [ ] Implement `swapItemEnchants` (Items.c:1160, ~30 lines) — machine-activation entry point;
+      scans pmap for TM_SWAP_ENCHANTS_ACTIVATION cells, swaps two locked items
+- [ ] Add tests; wire into items context; remove test.skip entries
+- [ ] Commit; generate handoff
+
 ---
 
 ## Deferred
 
 [from: port-v2-fix-rendering] Targeting UI: `hiliteTrajectory`, `moveCursor`,
-  `nextTargetAfter`, `chooseTarget` — IO/UI layer; belongs to port-v2-platform.
+  `nextTargetAfter`, `chooseTarget`, `playerCancelsBlinking` — IO/UI layer;
+  tracked in port-v2-platform TASKS.md Phase 8.
 
-[from: port-v2-fix-rendering] `throwItem` + `hitMonsterWithProjectileWeapon` — throw mechanic;
-  depends on bolt system (Phase 1d); schedule as follow-on after this initiative completes.
-
-[from: port-v2-fix-rendering] Enchant-swap group: `swapItemToEnchantLevel`, `swapItemEnchants`,
-  `enchantLevelKnown`, `effectiveEnchantLevel` — self-contained mechanic, not blocking core play.
-
-[from: port-v2-fix-rendering] `inscribeItem` — item relabeling dialog; UI-dependent;
-  belongs to port-v2-platform.
-
-[from: port-v2-fix-rendering] `itemDetails`, `itemCanBeCalled` — sidebar/menu display;
-  belongs to port-v2-platform.
+[from: port-v2-fix-rendering] `inscribeItem`, `itemCanBeCalled` — UI-dependent;
+  tracked in port-v2-platform TASKS.md Phase 8.

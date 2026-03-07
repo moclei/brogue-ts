@@ -60,6 +60,19 @@ Note: source is 1,875 lines; 4-file split required by 600-line hard constraint.
 - [ ] Walk around, pick up an item, fight a monster, use a scroll — no crashes
 - [ ] Record any new bugs found in a new `playtest-v2/` initiative (do not fix inline)
 
+## Phase 8: Targeting UI Domain Functions
+*Deferred from port-v2-domain-gaps. These require the IO targeting layer (Phase 3) as a base.*
+
+- [ ] Implement `moveCursor` (Items.c:5372) — move targeting reticle one step; wire into io/input-context.ts
+- [ ] Implement `nextTargetAfter` (Items.c:5281) — advance targeting cursor to next visible hostile
+- [ ] Implement `chooseTarget` (Items.c:5607) — full bolt targeting UI loop; returns confirmed target pos
+- [ ] Implement `hiliteTrajectory` (Items.c:~5550) — draw bolt path highlight on dungeon map
+- [ ] Implement `playerCancelsBlinking` (Items.c:6470) — blink targeting cursor loop; returns true on cancel
+- [ ] Implement `inscribeItem` (Items.c:1292) — player item-naming dialog; wire into inventory
+- [ ] Implement `itemCanBeCalled` (Items.c:1314) — predicate for showing "call" option in inventory menu
+- [ ] Remove test.skip entries for all of the above
+- [ ] All files under 600 lines; commit
+
 ## Completion
 - [ ] Game is playable end-to-end in browser
 - [x] No synchronous event polling spin loops

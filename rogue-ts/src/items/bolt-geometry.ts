@@ -11,8 +11,9 @@
 
 import type { Pos, Bolt } from "../types/types.js";
 import { FP_FACTOR } from "../math/fixpt.js";
-import { DCOLS, DROWS, MAX_BOLT_LENGTH } from "../types/constants.js";
+import { MAX_BOLT_LENGTH } from "../types/constants.js";
 import { coordinatesAreInMap } from "../globals/tables.js";
+import { perimeterCoords } from "../monsters/monster-blink-ai.js";
 
 // =============================================================================
 // Constants
@@ -272,11 +273,10 @@ export function reflectBolt(
         let newTarget: Pos;
 
         if (needRandomTarget) {
+            const kink = listOfCoordinates[kinkCell];
             do {
-                newTarget = {
-                    x: randRange(0, DCOLS - 1),
-                    y: randRange(0, DROWS - 1),
-                };
+                const offset = perimeterCoords(randRange(0, 39));
+                newTarget = { x: kink.x + offset.x, y: kink.y + offset.y };
                 failsafe--;
             } while (
                 failsafe > 0
