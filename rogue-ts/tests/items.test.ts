@@ -14,7 +14,7 @@ import { drinkPotion, apply } from "../src/items/item-handlers.js";
 import { buildTurnProcessingContext } from "../src/turn.js";
 import { playerTurnEnded as playerTurnEndedFn } from "../src/time/turn-processing.js";
 import { monsterCatalog } from "../src/globals/monster-catalog.js";
-import { MonsterType, PotionKind, ItemCategory, StatusEffect } from "../src/types/enums.js";
+import { MonsterType, PotionKind, ItemCategory, StatusEffect, DungeonLayer } from "../src/types/enums.js";
 import type { Creature, Item } from "../src/types/types.js";
 
 // =============================================================================
@@ -200,10 +200,31 @@ it.skip("stub: promptForItemOfType() returns null (should open inventory chooser
     // and wait for the player to pick one.
 });
 
-it.skip("stub: spawnDungeonFeature() is a no-op (should spawn terrain/gas effects)", () => {
-    // buildItemHandlerContext().spawnDungeonFeature() does nothing.
-    // Real implementation should call spawnDungeonFeature() from architect/
-    // which places DF tile effects at the given position.
+it("spawnDungeonFeature() places a gas tile on the pmap (architect spawner wired)", () => {
+    // spawnDungeonFeature is wired to architect/machines spawnDungeonFeature.
+    // Spawning a gas-layer feature increments pmap volume at the target cell.
+    setupPlayer();
+    const { pmap } = getGameState();
+    const ctx = buildItemHandlerContext();
+
+    const feat = {
+        tile: 48,               // some non-zero gas tile value
+        layer: DungeonLayer.Gas,
+        startProbability: 10,
+        probabilityDecrement: 0,
+        flags: 0,
+        description: "",
+        lightFlare: 0,
+        flashColor: null,
+        effectRadius: 0,
+        propagationTerrain: 0,
+        subsequentDF: 0,
+        messageDisplayed: false,
+    };
+
+    const before = pmap[5][5].volume;
+    ctx.spawnDungeonFeature(5, 5, feat, false, false);
+    expect(pmap[5][5].volume).toBe(before + 10);
 });
 
 

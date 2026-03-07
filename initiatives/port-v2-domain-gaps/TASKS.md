@@ -157,17 +157,19 @@ Note: disentangle completed in Phase 2c; perimeterCoords completed in Phase 3b.
 - [x] All 73 test files pass: 1862 pass, 123 skip
 - [x] Committed
 
-## Phase 5: spawnDungeonFeature + remaining smaller helpers
+## Phase 5: spawnDungeonFeature + remaining smaller helpers ✅
 
-- [ ] Locate `spawnDungeonFeature` in C source (Movement.c audit attributes it to Items.c
-      but it is absent from gaps-Items.md — investigate; likely Architect.c)
-- [ ] Implement `spawnDungeonFeature`; wire into movement.ts context (unblocks
-      vomit/useKeyAt/printLocationDescription stubs)
-- [ ] Implement smaller helpers: `describeMonsterClass` (Items.c:6890),
-      `lotteryDraw` (Items.c:6857), `keyMatchesLocation` (Items.c:3305),
-      `beckonMonster` (Items.c:4322), `monsterClassHasAcidicMonster` (Items.c:1869)
-- [ ] Add tests; wire; remove test.skip entries
-- [ ] Commit; generate handoff
+- [x] Locate `spawnDungeonFeature` — already implemented in `architect/machines.ts:979`
+- [x] Wire `spawnDungeonFeature` into movement.ts and items.ts contexts (unblocks
+      vomit wiring; gas-tile spawn test passes in both contexts)
+- [x] Wire `vomit` in movement.ts to real `vomitFn` with VomitContext
+- [x] Implement smaller helpers in `items/item-utils.ts`:
+      `lotteryDraw`, `describeMonsterClass`, `keyMatchesLocation`,
+      `monsterClassHasAcidicMonster`, `beckonMonster`
+- [x] 22 new tests in items/item-utils.test.ts; 2 new tests in movement.test.ts + items.test.ts
+- [x] All 74 test files pass: 1886 pass, 121 skip
+- [x] movement.ts: 599 lines (under 600 limit)
+- [x] Committed
 
 ---
 

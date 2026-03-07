@@ -117,6 +117,7 @@ import {
 } from "./types/flags.js";
 import { INVALID_POS } from "./types/types.js";
 import { KEYBOARD_LABELS } from "./types/constants.js";
+import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
 import type { ItemHandlerContext } from "./items/item-handlers.js";
 import type { ItemTable, Creature, Pos } from "./types/types.js";
 
@@ -417,8 +418,10 @@ export function buildItemHandlerContext(): ItemHandlerContext {
             });
         },
 
-        // ── Dungeon feature / environment stubs ─────────────────────────────
-        spawnDungeonFeature: () => {},       // stub — wired in port-v2-platform
+        // ── Dungeon feature / environment ───────────────────────────────────
+        spawnDungeonFeature(x, y, feature, refreshCell, abortIfBlocking) {
+            spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feature as never, refreshCell, abortIfBlocking);
+        },
         cellHasTMFlag,
         cellHasTerrainFlag,
         discover: () => {},                  // stub — wired in port-v2-platform

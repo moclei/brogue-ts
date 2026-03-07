@@ -18,7 +18,7 @@ import { playerMoves } from "../src/movement/player-movement.js";
 import { populateCreatureCostMap } from "../src/movement/cost-maps-fov.js";
 import { buildTurnProcessingContext } from "../src/turn.js";
 import { monsterCatalog } from "../src/globals/monster-catalog.js";
-import { MonsterType, Direction, StatusEffect, TileType } from "../src/types/enums.js";
+import { MonsterType, Direction, StatusEffect, TileType, DungeonLayer } from "../src/types/enums.js";
 import { TileFlag } from "../src/types/flags.js";
 import type { Creature } from "../src/types/types.js";
 
@@ -243,10 +243,30 @@ it.skip("stub: refreshDungeonCell() is a no-op (should redraw a cell on screen)"
     // Real implementation should trigger a cell redraw via the platform renderer.
 });
 
-it.skip("stub: spawnDungeonFeature() is a no-op (should spawn tile effect at location)", () => {
-    // buildMovementContext().spawnDungeonFeature() does nothing.
-    // Real implementation should call the architect's dungeon feature spawner
-    // (used by vomit, terrain promotions, etc.).
+it("spawnDungeonFeature() places a gas tile on the pmap (architect spawner wired)", () => {
+    // spawnDungeonFeature is wired to architect/machines spawnDungeonFeature.
+    // Spawning a gas-layer feature increments pmap volume at the target cell.
+    const { pmap } = getGameState();
+    const ctx = buildMovementContext();
+
+    const feat = {
+        tile: 48,                // some non-zero gas tile value
+        layer: DungeonLayer.Gas,
+        startProbability: 10,
+        probabilityDecrement: 0,
+        flags: 0,
+        description: "",
+        lightFlare: 0,
+        flashColor: null,
+        effectRadius: 0,
+        propagationTerrain: 0,
+        subsequentDF: 0,
+        messageDisplayed: false,
+    };
+
+    const before = pmap[5][5].volume;
+    ctx.spawnDungeonFeature(5, 5, feat as never, false, false);
+    expect(pmap[5][5].volume).toBe(before + 10);
 });
 
 it.skip("stub: getQualifyingPathLocNear() returns target as-is (should pathfind)", () => {

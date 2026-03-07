@@ -176,3 +176,13 @@ export type {
 // ── Teleport / disentangle (Phase 2c) ──
 export { disentangle, teleport } from "../monsters/monster-teleport.js";
 export type { DisentangleContext, TeleportContext } from "../monsters/monster-teleport.js";
+
+// ── Item utilities (Phase 5) ──
+export {
+    lotteryDraw,
+    describeMonsterClass,
+    keyMatchesLocation,
+    monsterClassHasAcidicMonster,
+    beckonMonster,
+} from "./item-utils.js";
+export type { BeckonMonsterContext } from "./item-utils.js";

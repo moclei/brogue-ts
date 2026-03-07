@@ -58,11 +58,12 @@ import {
     buildFlailHitList as buildFlailHitListFn,
     abortAttack as abortAttackFn,
 } from "./movement/weapon-attacks.js";
-import { randValidDirectionFrom as randValidDirectionFromFn, playerMoves as playerMovesFn } from "./movement/player-movement.js";
+import { randValidDirectionFrom as randValidDirectionFromFn, playerMoves as playerMovesFn, vomit as vomitFn } from "./movement/player-movement.js";
 import { populateCreatureCostMap as populateCreatureCostMapFn } from "./movement/cost-maps-fov.js";
 import { boltCatalog } from "./globals/bolt-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
+import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
 import { backgroundMessageColor, lightBlue, white, black } from "./globals/colors.js";
 import { itemAtLoc as itemAtLocFn, numberOfMatchingPackItems as numberOfMatchingPackItemsFn } from "./items/item-inventory.js";
 import { monsterDamageAdjustmentAmount as monsterDamageAdjustmentAmountFn } from "./combat/combat-math.js";
@@ -190,6 +191,9 @@ export function buildMovementContext(): PlayerMoveContext {
     const canSeeMonster = (m: Creature) =>
         !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE);
 
+    const spawnFeature = (x: number, y: number, feat: unknown, rc: boolean, ab: boolean) =>
+        spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, rc, ab);
+
     const monsterStateCtx = buildMonsterStateContext();
     const attackCtx = buildCombatAttackContext();
 
@@ -292,32 +296,23 @@ export function buildMovementContext(): PlayerMoveContext {
         checkForMissingKeys: () => {},   // stub — wired in port-v2-platform
 
         // ── Ally/captive ──────────────────────────────────────────────────────
-        freeCaptive(monst) {  // minimal: ally the creature and message
-            monst.creatureState = CreatureState.Ally;
-            monst.leader = player;
-        },
+        freeCaptive(monst) { monst.creatureState = CreatureState.Ally; monst.leader = player; },
 
         // ── Map manipulation (stubs — wired in port-v2-platform) ─────────────
         promoteTile: () => {},
         refreshDungeonCell: () => {},
         discoverCell(x, y) {
-            // Inline: mark the cell discovered (stub for visual effects)
             if (coordinatesAreInMap(x, y)) {
                 pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY;
                 pmap[x][y].flags |= TileFlag.DISCOVERED;
             }
         },
-        spawnDungeonFeature: () => {},
-        dungeonFeatureCatalog: dungeonFeatureCatalog as unknown as readonly never[],
-
-        // ── Stairs (stub — wired in port-v2-platform) ────────────────────────
-        useStairs: () => {},
+        spawnDungeonFeature: spawnFeature,
+        dungeonFeatureCatalog,
+        useStairs: () => {},                 // stub — wired in port-v2-platform
 
         // ── Game flow ────────────────────────────────────────────────────────
-        playerTurnEnded() {
-            const turnCtx = buildTurnProcessingContext();
-            playerTurnEndedFn(turnCtx);
-        },
+        playerTurnEnded: () => playerTurnEndedFn(buildTurnProcessingContext()),
         recordKeystroke: () => {},       // stub — wired in port-v2-platform
         cancelKeystroke: () => {},       // stub — wired in port-v2-platform
         confirm: () => true,             // stub — wired in port-v2-platform
@@ -328,14 +323,21 @@ export function buildMovementContext(): PlayerMoveContext {
         combatMessage: () => {},
         backgroundMessageColor,
 
-        // ── RNG ───────────────────────────────────────────────────────────────
         randPercent: (pct) => randPercent(pct),
         randRange: (lo, hi) => randRange(lo, hi),
 
-        // ── Vomit ────────────────────────────────────────────────────────────
-        vomit: () => {},                 // stub — spawnDungeonFeature is stub
-
-        // ── isDisturbed ───────────────────────────────────────────────────────
+        // ── Vomit / isDisturbed ───────────────────────────────────────────────
+        vomit(monst) {
+            vomitFn(monst, {
+                player,
+                dungeonFeatureCatalog,
+                spawnDungeonFeature: spawnFeature,
+                canDirectlySeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+                monsterName: buildMonsterNameHelper(player),
+                combatMessage: () => {},  // stub — wired in port-v2-platform
+                automationActive: rogue.automationActive,
+            });
+        },
         isDisturbed(x, y): boolean {
             for (let i = 0; i < 8; i++) {
                 const nx = x + nbDirs[i][0];
