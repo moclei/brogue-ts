@@ -74,6 +74,7 @@ import {
     charmShattering as charmShatteringFn,
     charmNegationRadius as charmNegationRadiusFn,
     charmRechargeDelay as charmRechargeDelayFn,
+    staffBlinkDistance as staffBlinkDistanceFn,
 } from "./power/power-tables.js";
 import { randRange, randPercent, randClump } from "./math/rng.js";
 import {
@@ -373,7 +374,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
 
         // ── Targeting stubs ─────────────────────────────────────────────────
         chooseTarget: () => ({ confirmed: false, target: { ...INVALID_POS } }),
-        staffBlinkDistance: () => 0,         // stub — wired in port-v2-platform
+        staffBlinkDistance: (enchant) => staffBlinkDistanceFn(enchant),
         playerCancelsBlinking: () => true,   // stub — wired in port-v2-platform
 
         // ── Turn management ─────────────────────────────────────────────────

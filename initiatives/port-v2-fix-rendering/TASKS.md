@@ -95,13 +95,25 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 - [x] Remove test.skip entries for monsterHasBoltEffect + monsterCanShootWebs (131 skips remain; net -1)
 - [x] Commit; generate handoff
 
-## Phase 5a: NEEDS-VERIFICATION — Monsters.c + PowerTables.c
+## Phase 5a: NEEDS-VERIFICATION — PowerTables.c wiring fixes
 
-- [ ] Review Monsters.c 20 NEEDS-VERIFICATION functions; fix or add test.skip for divergences
-- [ ] Review PowerTables.c 15 unwired functions; wire into item code or document why not
+- [x] Fix `staffBlinkDistance` context stub in items.ts (hardcoded `() => 0` → real fn)
+- [x] Wire remaining 14 unwired power-table functions — N/A: all staff/weapon/ring fns are tested
+      but their only call sites are inside the zap system (turn.ts `zap: () => {}`). No
+      actionable wiring work exists until the zap pipeline is ported.
+- [x] Add direct tests for 6 untested charm functions: charmHealing, charmShattering,
+      charmGuardianLifespan, charmNegationRadius, charmEffectDuration, charmRechargeDelay
+      (48 total tests in power-tables.test.ts; 131 test.skip entries remain)
+      Note: charmRechargeDelay has a likely bug (extra FP_FACTOR scaling) — flagged in PLAN.md
+- [x] Commit; generate handoff
+
+## Phase 5b: NEEDS-VERIFICATION — Monsters.c read-through
+
+- [ ] Read C source + TS port for each of the 20 NEEDS-VERIFICATION Monsters.c functions
+- [ ] For each: confirm match, fix divergence, or add test.skip with description
 - [ ] Commit; generate handoff
 
-## Phase 5b: NEEDS-VERIFICATION — RogueMain.c + remainder
+## Phase 5c: NEEDS-VERIFICATION — RogueMain.c + remainder
 
 - [ ] Review RogueMain.c 20 NEEDS-VERIFICATION functions
 - [ ] Review remaining entries (MainMenu.c, Architect.c, Buttons.c, etc.)

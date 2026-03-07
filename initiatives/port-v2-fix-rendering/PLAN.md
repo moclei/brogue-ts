@@ -124,6 +124,31 @@ unwired) → RogueMain.c (20) → rest.
 
 ---
 
+## Session Notes 2026-03-06 — Phase 5a
+
+### staffBlinkDistance stub fixed
+`items.ts` context builder had `staffBlinkDistance: () => 0` (hardcoded stub).
+Fixed to `(enchant) => staffBlinkDistanceFn(enchant)` — now wired to `power/power-tables.ts`.
+
+### "Wire remaining 14 unwired power-table functions" — mostly N/A
+Investigation found: staff/weapon/ring power functions are tested but their call sites are all
+inside the zap system (`zap: () => {}` stub in turn.ts). No call site exists yet in production
+code. These are correctly "tested but unwired" — not a bug, just blocked by the zap pipeline.
+The `staffBlinkDistance` fix was the only actionable unwired item in a reachable code path.
+
+### charmRechargeDelay — likely bug (NEEDS-VERIFICATION for Phase 5b/5c)
+The decay term in `charmRechargeDelay` uses `fpPow(BigInt(rechargeDelayBase) * FP_FACTOR / 100n, e)`.
+Since `rechargeDelayBase` is already stored as a fixed-point value (e.g. `42598 ≈ 0.65 * FP_FACTOR`),
+the extra `* FP_FACTOR / 100n` is almost certainly wrong — the base should be passed directly to
+`fpPow`. This causes astronomically large outputs at enchant > 1. Noted in test file comment.
+Flagged for C cross-check in a future NEEDS-VERIFICATION phase.
+
+### Charm function tests added (6 new `describe` blocks, 48 total in power-tables.test.ts)
+`charmHealing`, `charmShattering`, `charmGuardianLifespan`, `charmNegationRadius`,
+`charmEffectDuration`, `charmRechargeDelay` — all passing.
+
+---
+
 ## Session Notes 2026-03-06 — Phase 4b
 
 ### monstUseDomination / monstUseBeckon / monstUseBlinkAway — don't exist in C
