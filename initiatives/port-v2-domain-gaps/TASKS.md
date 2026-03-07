@@ -98,12 +98,22 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 - [x] All 68 test files pass (1743 pass, 127 skip)
 - [x] Committed
 
-## Phase 3b: Monster blink AI
+## Phase 3b: Monster blink AI ✓
 
-- [ ] Implement `monsterBlinkToPreferenceMap` (Monsters.c:2290)
-- [ ] Implement `monsterBlinkToSafety` (Monsters.c:2394) — replaces STUBBED-UNTRACKED stub
-- [ ] Wire both into turn.ts MonstersTurnContext; add tests; remove test.skip entries
-- [ ] Commit; generate handoff
+- [x] Implement `perimeterCoords` (Monsters.c:2260) — pure, co-located in monster-blink-ai.ts
+- [x] Implement `monsterBlinkToPreferenceMap` (Monsters.c:2290) — new file monsters/monster-blink-ai.ts;
+      MonsterBlinkContext interface; uses getImpactLoc with T_OBSTRUCTS_PASSABILITY cellBlocks + no
+      creatureBlocks; staffBlinkDistance(5*FP_FACTOR) for maxDistance
+- [x] Implement `monsterBlinkToSafety` (Monsters.c:2394) — same file; MonsterBlinkToSafetyContext
+      extends MonsterBlinkContext + GetSafetyMapContext; delegates to monsterBlinkToPreferenceMap
+- [x] Wire both into turn.ts buildMonstersTurnContext() — blinkCtx + blinkToSafetyCtx built before
+      boltAICtx; replace `() => false` stubs; zap/combatMessage still stubbed for port-v2-platform
+- [x] Export from monsters/index.ts: perimeterCoords, monsterBlinkToPreferenceMap, monsterBlinkToSafety +
+      MonsterBlinkContext, MonsterBlinkToSafetyContext types
+- [x] Remove 2 test.skip entries from monster-actions.test.ts
+- [x] 22 new tests in tests/monsters/monster-blink-ai.test.ts — all pass
+- [x] All 69 test files pass (1765 pass, 125 skip)
+- [x] Committed
 
 ## Phase 4a: Monster summoning — perimeterCoords + swarming + summonMinions
 

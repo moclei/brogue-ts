@@ -43,7 +43,7 @@ import {
 } from "./globals/colors.js";
 import { DCOLS, DROWS } from "./types/constants.js";
 import { TileFlag, MonsterBookkeepingFlag, MonsterBehaviorFlag, TerrainFlag } from "./types/flags.js";
-import { BoltEffect, CreatureState, DungeonLayer, GameMode } from "./types/enums.js";
+import { BoltEffect, BoltType, CreatureState, DungeonLayer, GameMode } from "./types/enums.js";
 import { openPathBetween as openPathBetweenFn } from "./items/bolt-geometry.js";
 import {
     monsterIsHidden as monsterIsHiddenFn,
@@ -64,6 +64,11 @@ import type { BoltAIContext } from "./monsters/monster-bolt-ai.js";
 import { monsterSummons as monsterSummonsFn } from "./monsters/monster-actions.js";
 import type { MonsterSummonsContext } from "./monsters/monster-actions.js";
 import { getSafetyMap as getSafetyMapFn } from "./monsters/monster-flee-ai.js";
+import {
+    monsterBlinkToPreferenceMap as monsterBlinkToPreferenceMapFn,
+    monsterBlinkToSafety as monsterBlinkToSafetyFn,
+} from "./monsters/monster-blink-ai.js";
+import type { MonsterBlinkContext, MonsterBlinkToSafetyContext } from "./monsters/monster-blink-ai.js";
 import type { TurnProcessingContext } from "./time/turn-processing.js";
 import type { MonstersTurnContext } from "./monsters/monster-actions.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
@@ -360,6 +365,43 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         summonMinions: () => {},     // stub — summonMinions not yet ported (see test.skip)
     };
 
+    // ── Blink AI context — wires monsterBlinkToPreferenceMap / monsterBlinkToSafety ─
+    const blinkCtx: MonsterBlinkContext = {
+        boltCatalog,
+        monsterHasBoltEffect: (monst, effectType) => monsterHasBoltEffectFn(monst, effectType, boltCatalog),
+        monsterAvoids: () => false,     // stub — wired in monsters.ts
+        canDirectlySeeMonster: (m) => canDirectlySeeMonsterFn(m, queryCtx),
+        monsterName: (m, includeArticle) => {
+            if (m === player) return "you";
+            const pfx = includeArticle
+                ? (m.creatureState === CreatureState.Ally ? "your " : "the ")
+                : "";
+            return `${pfx}${m.info.monsterName}`;
+        },
+        combatMessage: () => {},        // stub — wired in port-v2-platform
+        cellHasTerrainFlag: (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags),
+        zap: () => {},                  // stub — wired in port-v2-platform
+        BE_BLINKING: BoltEffect.Blinking,
+        BOLT_BLINKING: BoltType.BLINKING,
+        MONST_CAST_SPELLS_SLOWLY: MonsterBehaviorFlag.MONST_CAST_SPELLS_SLOWLY,
+    };
+
+    const blinkToSafetyCtx: MonsterBlinkToSafetyContext = {
+        ...blinkCtx,
+        allySafetyMap: allocGrid(),     // stub — real map wired in port-v2-platform
+        rogue: {
+            updatedAllySafetyMapThisTurn: rogue.updatedAllySafetyMapThisTurn,
+            updatedSafetyMapThisTurn: rogue.updatedSafetyMapThisTurn,
+        },
+        player,
+        safetyMap: localSafetyMap,
+        inFieldOfView: (loc) => !!(pmap[loc.x]?.[loc.y]?.flags & TileFlag.IN_FIELD_OF_VIEW),
+        allocGrid,
+        copyGrid,
+        updateSafetyMap: () => {},      // stub — SafetyMapsContext wired in port-v2-platform
+        updateAllySafetyMap: () => {},  // stub — SafetyMapsContext wired in port-v2-platform
+    };
+
     // ── Bolt AI context — wires monstUseMagic / monstUseBolt ────────────────
     const boltAICtx: BoltAIContext = {
         player,
@@ -418,8 +460,9 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         monsterAvoids: () => false,
         monstUseMagic: (monst) => monstUseMagicFn(monst, boltAICtx),
         monsterHasBoltEffect: (monst, effectType) => monsterHasBoltEffectFn(monst, effectType, boltCatalog),
-        monsterBlinkToPreferenceMap: () => false,
-        monsterBlinkToSafety: () => false,
+        monsterBlinkToPreferenceMap: (monst, map, blinkUphill) =>
+            monsterBlinkToPreferenceMapFn(monst, map, blinkUphill, blinkCtx),
+        monsterBlinkToSafety: (monst) => monsterBlinkToSafetyFn(monst, blinkToSafetyCtx),
         monsterSummons: (monst, alwaysUse) => monsterSummonsFn(monst, alwaysUse, summonsCtx),
         monsterCanShootWebs: (monst) => monsterCanShootWebsFn(monst, boltCatalog, tileCatalog, dungeonFeatureCatalog),
         updateMonsterCorpseAbsorption: () => false,

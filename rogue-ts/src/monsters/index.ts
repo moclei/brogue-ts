@@ -160,3 +160,14 @@ export {
 export type {
     BoltAIContext,
 } from "./monster-bolt-ai.js";
+
+export {
+    perimeterCoords,
+    monsterBlinkToPreferenceMap,
+    monsterBlinkToSafety,
+} from "./monster-blink-ai.js";
+
+export type {
+    MonsterBlinkContext,
+    MonsterBlinkToSafetyContext,
+} from "./monster-blink-ai.js";

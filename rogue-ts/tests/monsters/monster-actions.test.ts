@@ -578,19 +578,8 @@ it.skip("stub: summonMinions() is a no-op (should spawn horde minions around sum
     // requires calculateDistances + teleport — deferred.
 });
 
-it.skip("stub: monsterBlinkToPreferenceMap() is a no-op (should teleport monster toward highest-value preference cell)", () => {
-    // C: Monsters.c:2290 — monsterBlinkToPreferenceMap()
-    // monsters/monster-actions.ts:205 exports monsterBlinkToPreferenceMapStub as a no-op.
-    // Real implementation should read the preference map and blink the monster to
-    // the highest-scoring reachable cell within blink range.
-});
-
-it.skip("stub: monsterBlinkToSafety() is a no-op (should teleport monster to a safe cell when fleeing)", () => {
-    // C: Monsters.c:2394 — monsterBlinkToSafety()
-    // monsters/monster-actions.ts:216 exports monsterBlinkToSafetyStub as a no-op.
-    // Real implementation should compute a safety map and blink the monster to the
-    // highest-safety reachable cell, used when the monster is fleeing the player.
-});
+// monsterBlinkToPreferenceMap and monsterBlinkToSafety are implemented in
+// monsters/monster-blink-ai.ts — tests live in monster-blink-ai.test.ts.
 
 it.skip("stub: updateMonsterCorpseAbsorption() is a no-op (should advance corpse-absorption state for absorbing monsters)", () => {
     // C: Monsters.c:3250 — updateMonsterCorpseAbsorption()
