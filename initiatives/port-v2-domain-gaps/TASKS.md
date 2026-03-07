@@ -4,14 +4,17 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 
 ---
 
-## Phase 1a: Item lifecycle — deleteItem + bolt item mapping
+## Phase 1a: Item lifecycle — deleteItem + bolt item mapping ✓
 
-- [ ] Implement `deleteItem` (Items.c:7938) — new export in items/item-inventory.ts or
-      items/item-lifecycle.ts; wire into lifecycle.ts and turn.ts context stubs
-- [ ] Implement `boltEffectForItem` (Items.c:4337) + `boltForItem` (Items.c:4345) — new file
-      items/bolt-item-mapping.ts; wire into useStaffOrWand call site
-- [ ] Add tests for all three; remove relevant test.skip entries
-- [ ] Commit; generate handoff
+- [x] Implement `deleteItem` (Items.c:7938) — exported no-op from items/item-inventory.ts;
+      wired into lifecycle.ts buildCleanupContext and turn.ts buildMinimalCombatContext
+- [x] Implement `boltEffectForItem` (Items.c:4337) + `boltForItem` (Items.c:4345) — new file
+      items/bolt-item-mapping.ts; exported from items/index.ts; monster-details.ts updated to
+      import from here (private duplicates removed)
+- [x] Add tests: deleteItem in item-inventory.test.ts; boltForItem+boltEffectForItem in
+      tests/items/bolt-item-mapping.test.ts (9 new tests)
+- [x] No test.skip entries existed for these functions; all 61 test files pass (1607 pass, 131 skip)
+- [x] Committed
 
 ## Phase 1b: Bolt/zap system — read-through + plan
 

@@ -69,6 +69,7 @@ export {
     itemIsSwappable,
     checkForDisenchantment,
     canPickUpItem,
+    deleteItem,
 } from "./item-inventory.js";
 
 export {
@@ -137,3 +138,6 @@ export type {
     PlaceItemAtContext,
     DropItemContext,
 } from "./floor-items.js";
+
+// ── Bolt item mapping (Phase 1a) ──
+export { boltForItem, boltEffectForItem } from "./bolt-item-mapping.js";

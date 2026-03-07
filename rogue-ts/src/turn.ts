@@ -16,6 +16,7 @@
  */
 
 import { getGameState, gameOver } from "./core.js";
+import { deleteItem as deleteItemFn } from "./items/item-inventory.js";
 import {
     inflictDamage as inflictDamageFn,
     killCreature as killCreatureFn,
@@ -101,7 +102,7 @@ function buildMinimalCombatContext(
         },
         gameOver: (msg) => gameOver(msg),
         setCreaturesWillFlash: () => { rogue.creaturesWillFlashThisTurn = true; },
-        deleteItem: () => {},                       // stub
+        deleteItem: deleteItemFn,
         makeMonsterDropItem: () => {},              // stub
         clearLastTarget: () => {},                  // stub
         clearYendorWarden: () => {},                // stub

@@ -62,7 +62,7 @@ import { populateGenericCostMap } from "./movement/cost-maps-fov.js";
 import { populateItems } from "./items/item-population.js";
 import { populateMonsters } from "./monsters/monster-spawning.js";
 import { generateItem } from "./items/item-generation.js";
-import { addItemToPack, numberOfMatchingPackItems, itemAtLoc as itemAtLocFn } from "./items/item-inventory.js";
+import { addItemToPack, numberOfMatchingPackItems, itemAtLoc as itemAtLocFn, deleteItem as deleteItemFn } from "./items/item-inventory.js";
 import { identify, shuffleFlavors } from "./items/item-naming.js";
 import { equipItem, recalculateEquipmentBonuses } from "./items/item-usage.js";
 import type { EquipmentState, EquipContext } from "./items/item-usage.js";
@@ -526,7 +526,7 @@ export function buildCleanupContext(): CleanupContext {
         setChokeMap(map) { chokeMap = map; },
         setScentMap(map) { scentMap = map; },
         freeGrid,
-        deleteItem: () => {},
+        deleteItem: deleteItemFn,
         deleteAllFlares() { deleteAllFlares(rogue); },
     };
 }

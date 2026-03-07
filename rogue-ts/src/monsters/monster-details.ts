@@ -15,6 +15,7 @@
 import type { Creature, Item, Bolt, FloorTileType, ItemTable, Pos, Color, Mutation, MonsterWords, Fixpt } from "../types/types.js";
 import { BoltEffect } from "../types/enums.js";
 import { ItemCategory, WandKind, CharmKind, ScrollKind, StaffKind } from "../types/enums.js";
+import { boltForItem, boltEffectForItem } from "../items/bolt-item-mapping.js";
 import { CreatureState, StatusEffect } from "../types/enums.js";
 import {
     MonsterBehaviorFlag, MonsterAbilityFlag, MonsterBookkeepingFlag, ItemFlag, BoltFlag,
@@ -76,32 +77,6 @@ interface PackSummary {
 }
 
 // =============================================================================
-// boltIndexForItem / boltEffectForItem — Items.c:4337–4351
-// =============================================================================
-
-function boltIndexForItem(
-    theItem: Item,
-    staffTable: readonly ItemTable[],
-    wandTable: readonly ItemTable[],
-): number {
-    if (theItem.category & ItemCategory.STAFF) return staffTable[theItem.kind]?.power ?? 0;
-    if (theItem.category & ItemCategory.WAND) return wandTable[theItem.kind]?.power ?? 0;
-    return 0;
-}
-
-function boltEffectForItem(
-    theItem: Item,
-    boltCatalog: readonly Bolt[],
-    staffTable: readonly ItemTable[],
-    wandTable: readonly ItemTable[],
-): BoltEffect {
-    if (theItem.category & (ItemCategory.STAFF | ItemCategory.WAND)) {
-        return boltCatalog[boltIndexForItem(theItem, staffTable, wandTable)]?.boltEffect ?? BoltEffect.None;
-    }
-    return BoltEffect.None;
-}
-
-// =============================================================================
 // staffOrWandEffectOnMonsterDescription — Monsters.c:4373
 // =============================================================================
 
@@ -124,7 +99,7 @@ function staffOrWandEffectOnMonsterDescription(
     const theItemName = ctx.itemName(theItem, false, false);
     const letter = theItem.inventoryLetter;
     const effect = boltEffectForItem(theItem, ctx.boltCatalog, ctx.staffTable, ctx.wandTable);
-    const boltIdx = boltIndexForItem(theItem, ctx.staffTable, ctx.wandTable);
+    const boltIdx = boltForItem(theItem, ctx.staffTable, ctx.wandTable);
     const netEnch = BigInt(theItem.enchant1) * FP_FACTOR;
 
     switch (effect) {

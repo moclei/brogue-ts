@@ -349,3 +349,21 @@ export function canPickUpItem(theItem: Item, packItems: Item[]): boolean {
         || itemWillStackWithPack(theItem, packItems)
     );
 }
+
+// =============================================================================
+// deleteItem
+// =============================================================================
+
+/**
+ * Free an item. In C, this calls free(theItem).
+ * In TypeScript, GC handles memory — callers must remove the item from any
+ * arrays it belongs to (via removeItemFromArray) before calling this.
+ *
+ * C: deleteItem(item *theItem) — Items.c:7938
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function deleteItem(_item: Item): void {
+    // No-op: JavaScript GC handles memory cleanup automatically.
+    // The caller is responsible for removing the item from floorItems/packItems
+    // via removeItemFromArray before calling this.
+}

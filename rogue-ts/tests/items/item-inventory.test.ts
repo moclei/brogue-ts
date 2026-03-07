@@ -20,6 +20,7 @@ import {
     itemIsSwappable,
     checkForDisenchantment,
     canPickUpItem,
+    deleteItem,
 } from "../../src/items/item-inventory.js";
 import type { Item, Pos } from "../../src/types/types.js";
 import { ItemCategory, CAN_BE_SWAPPED, DisplayGlyph } from "../../src/types/enums.js";
@@ -542,6 +543,25 @@ describe("checkForDisenchantment", () => {
         });
         checkForDisenchantment(item, 6, 4);
         expect(item.flags & ItemFlag.ITEM_CURSED).toBeTruthy();
+    });
+});
+
+// =============================================================================
+// deleteItem
+// =============================================================================
+
+describe("deleteItem", () => {
+    it("is a no-op — does not throw", () => {
+        const item = makeItem({ category: ItemCategory.WEAPON });
+        expect(() => deleteItem(item)).not.toThrow();
+    });
+
+    it("does not affect arrays — caller is responsible for removal", () => {
+        const item = makeItem();
+        const arr = [item];
+        deleteItem(item);
+        // item still in array; deleteItem only handles the C free() equivalent
+        expect(arr).toContain(item);
     });
 });
 
