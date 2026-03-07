@@ -265,3 +265,18 @@ it.skip("stub: enableEasyMode() is a no-op in input context (should delegate to 
     // Domain function is IMPLEMENTED at game/game-lifecycle.ts:627 (untested).
     // Real wiring should call enableEasyMode() from game-lifecycle.ts via a LifecycleContext.
 });
+
+it.skip("stub: dropItem() not yet wired into CreatureEffectsContext (playerFalls is a stub in turn.ts)", () => {
+    // C: Items.c:7652 — dropItem()
+    // Domain function IMPLEMENTED: items/floor-items.ts — dropItem().
+    // Called from creature-effects.ts:1275 inside playerFalls().
+    // turn.ts:280 has `playerFalls: () => {}` stub — wire dropItem when playerFalls is unwired.
+    // DropItemContext (items/floor-items.ts) must be built in buildTurnProcessingContext().
+});
+
+it.skip("stub: placeItemAt() not yet wired into machineContext.itemOps (lifecycle.ts:362 is a no-op)", () => {
+    // C: Items.c:422 — placeItemAt()
+    // Domain function IMPLEMENTED: items/floor-items.ts — placeItemAt().
+    // lifecycle.ts:362 machineContext.itemOps.placeItemAt is `() => {}` — items in machines not placed.
+    // Wire via createItemOps() (item-ops.ts) or inline PlaceItemAtContext when machineContext is wired.
+});

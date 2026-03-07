@@ -129,6 +129,11 @@ export {
 
 export type { ItemHandlerContext } from "./item-handlers.js";
 
-// ── Floor item processing (Phase 3a) ──
-export { updateFloorItems } from "./floor-items.js";
-export type { UpdateFloorItemsContext } from "./floor-items.js";
+// ── Floor item processing (Phase 3a/3b) ──
+export { updateFloorItems, removeItemAt, placeItemAt, canDrop, dropItem } from "./floor-items.js";
+export type {
+    UpdateFloorItemsContext,
+    RemoveItemAtContext,
+    PlaceItemAtContext,
+    DropItemContext,
+} from "./floor-items.js";

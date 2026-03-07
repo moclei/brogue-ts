@@ -13,7 +13,7 @@
  *  License, or (at your option) any later version.
  */
 
-import type { Item, Pcell, Pos, LevelData, GameConstants, Color, FloorTileType } from "../types/types.js";
+import type { Item, Pcell, Pos, LevelData, GameConstants, Color, FloorTileType, DungeonFeature } from "../types/types.js";
 import {
     TerrainFlag, TerrainMechFlag, TileFlag, ItemFlag,
     ANY_KIND_OF_VISIBLE, T_MOVES_ITEMS,
@@ -21,6 +21,8 @@ import {
 import { ItemCategory } from "../types/enums.js";
 import { NUMBER_TERRAIN_LAYERS } from "../types/constants.js";
 import { distanceBetween } from "../monsters/monster-state.js";
+import { removeItemFromArray, addItemToArray } from "./item-inventory.js";
+import { initializeItem } from "./item-generation.js";
 
 // =============================================================================
 // Context
@@ -220,5 +222,188 @@ export function updateFloorItems(ctx: UpdateFloorItemsContext): void {
                 ctx.activateMachine(cellMachine);
             }
         }
+    }
+}
+
+// =============================================================================
+// removeItemAt — Items.c:823
+// =============================================================================
+
+export interface RemoveItemAtContext {
+    pmap: Pcell[][];
+    tileCatalog: readonly FloorTileType[];
+    cellHasTMFlag(loc: Pos, flags: number): boolean;
+    promoteTile(x: number, y: number, layer: number, isForced: boolean): void;
+}
+
+/**
+ * Clear the HAS_ITEM flag at loc and trigger TM_PROMOTES_ON_ITEM_PICKUP
+ * terrain promotions.
+ *
+ * Ported from Items.c:823 — removeItemAt().
+ */
+export function removeItemAt(loc: Pos, ctx: RemoveItemAtContext): void {
+    const { pmap, tileCatalog } = ctx;
+    pmap[loc.x][loc.y].flags &= ~TileFlag.HAS_ITEM;
+    if (ctx.cellHasTMFlag(loc, TerrainMechFlag.TM_PROMOTES_ON_ITEM_PICKUP)) {
+        for (let layer = 0; layer < NUMBER_TERRAIN_LAYERS; layer++) {
+            const tileType = pmap[loc.x][loc.y].layers[layer];
+            if (tileCatalog[tileType]?.mechFlags & TerrainMechFlag.TM_PROMOTES_ON_ITEM_PICKUP) {
+                ctx.promoteTile(loc.x, loc.y, layer, false);
+            }
+        }
+    }
+}
+
+// =============================================================================
+// placeItemAt — Items.c:422
+// =============================================================================
+
+export interface PlaceItemAtContext {
+    pmap: Pcell[][];
+    floorItems: Item[];
+    tileCatalog: readonly FloorTileType[];
+    dungeonFeatureCatalog: readonly DungeonFeature[];
+
+    itemMagicPolarity(item: Item): number;
+    cellHasTerrainFlag(loc: Pos, flags: number): boolean;
+    cellHasTMFlag(loc: Pos, flags: number): boolean;
+    playerCanSee(x: number, y: number): boolean;
+
+    // Pressure-plate side effects — stubs acceptable until platform wired
+    itemName(item: Item, buf: string[], includeDetails: boolean, includeArticle: boolean, maxLen: null): void;
+    message(msg: string, flags: number): void;
+    spawnDungeonFeature(x: number, y: number, feat: DungeonFeature, isVolatile: boolean, overrideProtection: boolean): void;
+    promoteTile(x: number, y: number, layer: number, isForced: boolean): void;
+    discover(x: number, y: number): void;
+    refreshDungeonCell(loc: Pos): void;
+
+    REQUIRE_ACKNOWLEDGMENT: number;
+}
+
+/**
+ * Place theItem on the dungeon floor at dest.
+ *
+ * Sets item.loc, adds to floorItems (guarding against double-placement),
+ * sets HAS_ITEM and ITEM_DETECTED pmap flags, and triggers pressure-plate
+ * DF traps if applicable.
+ *
+ * Note: the C random-location fallback when dest is invalid is not ported —
+ * all TS callers must supply a valid dest.
+ *
+ * Ported from Items.c:422 — placeItemAt().
+ */
+export function placeItemAt(theItem: Item, dest: Pos, ctx: PlaceItemAtContext): Item {
+    const { pmap, floorItems, tileCatalog, dungeonFeatureCatalog } = ctx;
+
+    theItem.loc = { ...dest };
+
+    // Guard against double-placement (would cause infinite loops in C linked list).
+    removeItemFromArray(theItem, floorItems);
+    addItemToArray(theItem, floorItems);
+
+    pmap[dest.x][dest.y].flags |= TileFlag.HAS_ITEM;
+    if ((theItem.flags & ItemFlag.ITEM_MAGIC_DETECTED) && ctx.itemMagicPolarity(theItem)) {
+        pmap[dest.x][dest.y].flags |= TileFlag.ITEM_DETECTED;
+    }
+
+    // Pressure-plate DF trap trigger
+    if (
+        ctx.cellHasTerrainFlag(dest, TerrainFlag.T_IS_DF_TRAP) &&
+        !ctx.cellHasTerrainFlag(dest, T_MOVES_ITEMS) &&
+        !(pmap[dest.x][dest.y].flags & TileFlag.PRESSURE_PLATE_DEPRESSED)
+    ) {
+        pmap[dest.x][dest.y].flags |= TileFlag.PRESSURE_PLATE_DEPRESSED;
+        if (ctx.playerCanSee(dest.x, dest.y)) {
+            if (ctx.cellHasTMFlag(dest, TerrainMechFlag.TM_IS_SECRET)) {
+                ctx.discover(dest.x, dest.y);
+                ctx.refreshDungeonCell(dest);
+            }
+            const buf: string[] = [""];
+            ctx.itemName(theItem, buf, false, false, null);
+            ctx.message(
+                `a pressure plate clicks underneath the ${buf[0]}!`,
+                ctx.REQUIRE_ACKNOWLEDGMENT,
+            );
+        }
+        for (let layer = 0; layer < NUMBER_TERRAIN_LAYERS; layer++) {
+            const tileType = pmap[dest.x][dest.y].layers[layer];
+            const tile = tileCatalog[tileType];
+            if (tile?.flags & TerrainFlag.T_IS_DF_TRAP) {
+                ctx.spawnDungeonFeature(
+                    dest.x, dest.y,
+                    dungeonFeatureCatalog[tile.fireType],
+                    true, false,
+                );
+                ctx.promoteTile(dest.x, dest.y, layer, false);
+            }
+        }
+    }
+
+    return theItem;
+}
+
+// =============================================================================
+// canDrop / dropItem — Items.c:7541, 7652
+// =============================================================================
+
+export interface DropItemContext extends PlaceItemAtContext {
+    packItems: Item[];
+    player: { loc: Pos };
+    rogue: { swappedIn: Item | null; swappedOut: Item | null };
+
+    itemAtLoc(loc: Pos): Item | null;
+    pickUpItemAt(loc: Pos): void;  // STUBBED-TRACKED in movement.ts
+}
+
+/**
+ * Returns true if the player can drop an item at their current location.
+ * Ported from Items.c:7541 — canDrop() (static).
+ */
+export function canDrop(ctx: { player: { loc: Pos }; cellHasTerrainFlag(loc: Pos, flags: number): boolean }): boolean {
+    return !ctx.cellHasTerrainFlag(ctx.player.loc, TerrainFlag.T_OBSTRUCTS_ITEMS);
+}
+
+/**
+ * Drop theItem from the player's pack onto the floor at the player's location.
+ *
+ * If theItem is a stack of more than one (non-weapon, non-gem), peels one copy
+ * off the top and places it. Otherwise moves the entire item to the floor.
+ * Clears swappedIn/swappedOut references when dropping the whole item.
+ *
+ * Returns the dropped item, or null if the terrain obstructs items.
+ *
+ * Ported from Items.c:7652 — dropItem().
+ */
+export function dropItem(theItem: Item, ctx: DropItemContext): Item | null {
+    if (ctx.cellHasTerrainFlag(ctx.player.loc, TerrainFlag.T_OBSTRUCTS_ITEMS)) {
+        return null;
+    }
+
+    const itemOnFloor = ctx.itemAtLoc(ctx.player.loc);
+
+    if (theItem.quantity > 1 && !(theItem.category & (ItemCategory.WEAPON | ItemCategory.GEM))) {
+        // Peel one item off the stack and drop it.
+        const itemFromTopOfStack = initializeItem();
+        Object.assign(itemFromTopOfStack, { ...theItem });
+        theItem.quantity--;
+        itemFromTopOfStack.quantity = 1;
+        if (itemOnFloor) {
+            itemOnFloor.inventoryLetter = theItem.inventoryLetter;
+            ctx.pickUpItemAt(ctx.player.loc);
+        }
+        return placeItemAt(itemFromTopOfStack, ctx.player.loc, ctx);
+    } else {
+        // Drop the entire item.
+        if (ctx.rogue.swappedIn === theItem || ctx.rogue.swappedOut === theItem) {
+            ctx.rogue.swappedIn = null;
+            ctx.rogue.swappedOut = null;
+        }
+        removeItemFromArray(theItem, ctx.packItems);
+        if (itemOnFloor) {
+            itemOnFloor.inventoryLetter = theItem.inventoryLetter;
+            ctx.pickUpItemAt(ctx.player.loc);
+        }
+        return placeItemAt(theItem, ctx.player.loc, ctx);
     }
 }

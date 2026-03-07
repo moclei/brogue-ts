@@ -472,7 +472,13 @@ export function buildLevelContext(): LevelContext {
                 chooseVorpalEnemy,
             });
         },
-        placeItemAt(item, loc) { item.loc = { ...loc }; floorItems.push(item); },
+        placeItemAt(item, loc) {
+            item.loc = { ...loc };
+            const idx = floorItems.indexOf(item);
+            if (idx >= 0) floorItems.splice(idx, 1);
+            floorItems.unshift(item);
+            pmap[loc.x][loc.y].flags |= TileFlag.HAS_ITEM;
+        },
         restoreMonster: () => {},
         restoreItems: () => {},
         updateMonsterState: () => {},

@@ -43,10 +43,12 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 
 ## Phase 3b: Item system — use/drop flow utilities
 
-- [ ] Implement `itemIsCarried` and item quantity utilities
-- [ ] Implement identify / use / drop flow functions
-- [ ] Remove test.skip entries for implemented functions
-- [ ] Commit; generate handoff
+- [x] Implement `itemIsCarried` and item quantity utilities — `itemIsCarried` already IMPLEMENTED
+- [x] Implement `removeItemAt`, `placeItemAt`, `canDrop`, `dropItem` — new exports in items/floor-items.ts
+- [x] Fix lifecycle.ts:475 `placeItemAt` bug — was not setting HAS_ITEM flag
+- [x] Add test.skip entries for un-wired `dropItem` and `placeItemAt` context slots (turn.test.ts)
+- [x] `identify` / `apply` already IMPLEMENTED; `drop` command remains STUBBED-TRACKED (ui.ts:317, needs full UI)
+- [x] Commit; generate handoff
 
 ## Phase 3c: Item system — core item effects
 
