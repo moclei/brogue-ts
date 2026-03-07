@@ -77,6 +77,10 @@ function initBrowserConsole(): ReturnType<typeof createBrowserConsole> {
         browserConsole.handleResize();
     });
 
+    // Give the canvas keyboard focus immediately so keystrokes work without
+    // requiring the user to click first.
+    canvas.focus();
+
     return browserConsole;
 }
 
