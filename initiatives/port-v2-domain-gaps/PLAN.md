@@ -45,8 +45,8 @@ C line numbers are. The C source is ground truth for correctness.
 - `monsterBlinkToSafety` requires `getSafetyMap`
 - `zap` requires `detonateBolt`, `boltEffectForItem`, `boltForItem`,
   `impermissibleKinkBetween`, `tunnelize`
-- `spawnDungeonFeature` source location needs investigation (Movement.c audit attributes it
-  to Items.c but it does not appear in gaps-Items.md — may be in Architect.c)
+- `spawnDungeonFeature` is IMPLEMENTED in `architect/machines.ts:979`; Phase 5 wires
+  the `() => {}` stubs in turn.ts/movement.ts/items.ts; test.skip entries track the gaps
 
 ---
 
@@ -95,8 +95,9 @@ Stubs needed: `teleport` (Phase 2c), `beckonMonster` (Phase 5), `slow` (Phase 2a
 
 ### detonateBolt dependencies (Phase 1d)
 
-- `spawnDungeonFeature` — MISSING (Phase 5); stub as no-op for now (only affects
-  BE_OBSTRUCTION and `targetDF` — not core combat path)
+- `spawnDungeonFeature` — already IMPLEMENTED in `architect/machines.ts:979`; inject
+  as a context dependency in DetonationContext/ZapContext (DI pattern). Phase 5 wires
+  the real implementation into the remaining `() => {}` stubs in turn.ts/movement.ts/items.ts.
 - `staffBladeCount` — need to verify if implemented
 - `generateMonster`, `getQualifyingPathLocNear`, `fadeInMonster` — for BE_CONJURATION
 - `disentangle` — MISSING (Phase 2c); needed for BE_BLINKING
