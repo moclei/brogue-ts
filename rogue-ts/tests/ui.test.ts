@@ -346,3 +346,83 @@ it.skip("stub: buildButtonContext() color ops are no-ops (should compute button 
     // Real implementations should use the io-color / io-display math so that
     // buttons render with correct gradient highlights and hover states.
 });
+
+// =============================================================================
+// Stub registry — IO.c domain stubs (Phase 3b, port-v2-audit)
+// =============================================================================
+
+it.skip("stub: displayLevel() is a no-op (should render the full dungeon level to screen)", () => {
+    // C: IO.c:910 — displayLevel()
+    // lifecycle.ts, items.ts, and input-context.ts all have `() => {}` stubs.
+    // Real implementation should iterate every dungeon cell and call
+    // refreshDungeonCell() to push the full level to the canvas.
+});
+
+it.skip("stub: shuffleTerrainColors() is a no-op (should animate terrain color variation)", () => {
+    // C: IO.c:966 — shuffleTerrainColors()
+    // lifecycle.ts and turn.ts have `() => {}` stubs.
+    // Real implementation should randomise the color offsets of animated terrain
+    // tiles (fire, water shimmer) each frame to produce visual animation.
+});
+
+it.skip("stub: printHelpScreen() is a no-op (should render the in-game help overlay)", () => {
+    // C: IO.c:4066 — printHelpScreen()
+    // io/input-context.ts:177 has a `() => {}` stub.
+    // Real implementation should display the keybinding reference screen when
+    // the player presses '?'.
+});
+
+it.skip("stub: displayFeatsScreen() is a no-op (should render the feats/achievements screen)", () => {
+    // C: IO.c:4188 — displayFeatsScreen()
+    // io/input-context.ts:178 has a `() => {}` stub.
+    // Real implementation should list all feats and their earned/unearned state
+    // in a full-screen overlay.
+});
+
+it.skip("stub: printDiscoveriesScreen() is a no-op (should render item discoveries screen)", () => {
+    // C: IO.c:4240 — printDiscoveriesScreen() (calls printDiscoveries at IO.c:4139)
+    // io/input-context.ts:179 has a `() => {}` stub.
+    // Real implementation should display all identified/unidentified item kinds
+    // grouped by category.
+});
+
+it.skip("stub: printSeed() is a no-op (should display the current dungeon seed)", () => {
+    // C: IO.c:4391 — printSeed()
+    // io/input-context.ts:206 has a `() => {}` stub with comment "not yet ported".
+    // Real implementation should render the numeric seed in an overlay so the
+    // player can record it for replay.
+});
+
+it.skip("stub: displayGrid() is a no-op (should render a debug grid overlay)", () => {
+    // C: IO.c:4339 — displayGrid()
+    // io/input-context.ts:260 has a `() => {}` stub.
+    // Real implementation should draw a visual debug grid over the dungeon map.
+});
+
+it.skip("stub: displayWaypoints() is a no-op (should render waypoint debug overlay)", () => {
+    // C: IO.c:2206 — displayWaypoints()
+    // io/input-context.ts:264 has a `() => {}` stub.
+    // Real implementation should draw all waypoint nodes on the dungeon map for
+    // debugging monster pathfinding.
+});
+
+it.skip("stub: displayMachines() is a no-op (should render machine region debug overlay)", () => {
+    // C: IO.c:2226 — displayMachines()
+    // io/input-context.ts:263 has a `() => {}` stub.
+    // Real implementation should colour-code dungeon cells by machine membership
+    // for debugging level generation.
+});
+
+it.skip("stub: displayChokeMap() is a no-op (should render choke-point debug overlay)", () => {
+    // C: IO.c:2264 — displayChokeMap()
+    // io/input-context.ts:262 has a `() => {}` stub.
+    // Real implementation should visualise the choke-point heat map used during
+    // level generation analysis.
+});
+
+it.skip("stub: displayLoops() is a no-op (should render loop detection debug overlay)", () => {
+    // C: IO.c:2289 — displayLoops()
+    // io/input-context.ts:261 has a `() => {}` stub.
+    // Real implementation should highlight dungeon cells that participate in
+    // loop structures detected by the architect.
+});

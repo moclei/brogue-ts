@@ -173,12 +173,12 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
 ### Phase 3b — High-impact domain stubs: IO.c + Items.c (one session)
 
 Covers the two files with the most STUBBED-UNTRACKED entries (~25 combined).
-- [ ] Re-read `docs/audit/gaps-IO.md` and `docs/audit/gaps-Items.md` — STUBBED-UNTRACKED rows only
-- [ ] For each entry: find the relevant test file in `rogue-ts/tests/`, add a `test.skip` entry
+- [x] Re-read `docs/audit/gaps-IO.md` and `docs/audit/gaps-Items.md` — STUBBED-UNTRACKED rows only
+- [x] For each entry: find the relevant test file in `rogue-ts/tests/`, add a `test.skip` entry
       documenting the stub name, C source reference, and expected behavior
-- [ ] Check off this task in TASKS.md
-- [ ] Commit: `"chore: port-v2-audit — Phase 3b test.skip entries for IO.c + Items.c stubs"`
-- [ ] Stop. Do not start Phase 3c in the same session.
+- [x] Check off this task in TASKS.md
+- [x] Commit: `"chore: port-v2-audit — Phase 3b test.skip entries for IO.c + Items.c stubs"`
+- [x] Stop. Do not start Phase 3c in the same session.
 
 ### Phase 3c — Remaining domain stubs: Monsters.c + Recordings.c + Architect.c + Time.c (one session)
 

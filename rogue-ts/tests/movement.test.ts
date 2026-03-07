@@ -296,3 +296,21 @@ it.skip("stub: buildCostMapFovContext().itemName writes 'item' (should name the 
     // Real implementation should call the full item naming pipeline and write
     // the formatted name so the cursor tooltip shows the correct item name.
 });
+
+// =============================================================================
+// Stub registry — IO.c movement-context domain stubs (Phase 3b, port-v2-audit)
+// =============================================================================
+
+it.skip("stub: plotForegroundChar() is a no-op (should render a foreground glyph for projectile animation)", () => {
+    // C: IO.c:1836 — plotForegroundChar()
+    // movement.ts:161 has a `() => {}` stub with comment "stub — wired in port-v2-platform".
+    // Real implementation should write a glyph with foreground color to the display
+    // buffer at the given position, used for spear and bolt projectile animations.
+});
+
+it.skip("stub: exploreKey() is a no-op (should execute one step of auto-explore)", () => {
+    // C: IO.c:2313 — exploreKey()
+    // io/input-context.ts:209 has an `async () => {}` stub with comment "explore display hooks (Phase 5)".
+    // Real implementation should advance the player one step toward the nearest
+    // unexplored cell and update the display, halting on danger or player input.
+});
