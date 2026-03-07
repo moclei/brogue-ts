@@ -130,3 +130,49 @@ describe("save / load game", () => {
         // Correct behavior: ctx.openFile('nonexistent.broguesave') returns false.
     });
 });
+
+// =============================================================================
+// Stub registry — Recordings.c domain stubs (Phase 3c, port-v2-audit)
+// =============================================================================
+
+it.skip("stub: flushBufferToFile() is a no-op (should write the recording buffer to disk)", () => {
+    // C: Recordings.c:223 — flushBufferToFile()
+    // menus.ts:250 and lifecycle.ts:483 have `() => {}` context stubs.
+    // Real implementation should flush the in-memory recording buffer to a
+    // .broguerec file at the current recording path.
+});
+
+it.skip("stub: initRecording() is a no-op (should initialize the recording state at game start)", () => {
+    // C: Recordings.c:465 — initRecording()
+    // lifecycle.ts:238 has a `() => {}` context stub; called once at game init.
+    // Real implementation should reset the recording buffer, checkpoint the RNG
+    // state, and prepare the file header for a new .broguerec recording.
+});
+
+it.skip("stub: pausePlayback() is a no-op (should pause the recording playback state machine)", () => {
+    // C: Recordings.c:813 — pausePlayback()
+    // menus.ts:258 has a `() => {}` context stub.
+    // Real implementation should suspend the playback state machine and display
+    // the pause overlay until the player chooses to resume.
+});
+
+it.skip("stub: getAvailableFilePath() always returns empty string (should find the next unused save/rec file path)", () => {
+    // C: Recordings.c:1109 — getAvailableFilePath()
+    // menus.ts:253 has a `() => ""` context stub.
+    // Real implementation should scan the save directory for existing .broguesave
+    // or .broguerec files and return the first available numbered path.
+});
+
+it.skip("stub: characterForbiddenInFilename() always returns false (should validate filename characters)", () => {
+    // C: Recordings.c:1122 — characterForbiddenInFilename()
+    // io/input-context.ts:256 has a `() => false` context stub.
+    // Real implementation should return true for characters that are illegal in
+    // filenames on the current platform (e.g. /, \\, :, *, ?, ", <, >, |).
+});
+
+it.skip("stub: saveGame() is a no-op (should save the current game state to a .broguesave file)", () => {
+    // C: Recordings.c:1181 — saveGame()
+    // io/input-context.ts:204 has a `() => {}` stub with comment "save system not yet ported".
+    // Real implementation should prompt for a filename if needed and write the full
+    // rogue game state to a .broguesave file via the platform's file operations.
+});

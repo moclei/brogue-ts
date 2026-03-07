@@ -187,3 +187,56 @@ it.skip("stub: pathTowardCreature wires Dijkstra pathfinding", () => {
     // buildMonstersTurnContext().pathTowardCreature is a no-op.
     // Real implementation needs monster mapToMe Dijkstra maps.
 });
+
+// =============================================================================
+// Stub registry — Monsters.c + Recordings.c + Time.c domain stubs (Phase 3c, port-v2-audit)
+// =============================================================================
+
+it.skip("stub: monsterCanShootWebs() always returns false (should check if monster has web-shooting ability)", () => {
+    // C: Monsters.c:1608 — monsterCanShootWebs()
+    // turn.ts:337 has a `() => false` context stub.
+    // Real implementation should return true if the monster has the MA_SHOOTS_WEBS
+    // ability flag and there are no webs between it and the target cell.
+});
+
+it.skip("stub: monsterHasBoltEffect() always returns 0 (should return the bolt type the monster can fire)", () => {
+    // C: Monsters.c:2079 — monsterHasBoltEffect()
+    // turn.ts:333 has a `() => 0` context stub.
+    // Real implementation should return a non-zero bolt enum value if the monster
+    // has a bolt in its bolt list and is eligible to fire it this turn.
+});
+
+it.skip("stub: displayAnnotation() is a no-op (should display recording annotation text during playback)", () => {
+    // C: Recordings.c:435 — displayAnnotation()
+    // turn.ts:218 has a `() => {}` context stub.
+    // Real implementation should read the next annotation string from the recording
+    // buffer and display it as a message on screen during playback mode.
+});
+
+it.skip("stub: RNGCheck() is a no-op (should verify RNG state matches recorded value during playback)", () => {
+    // C: Recordings.c:582 — RNGCheck()
+    // turn.ts:259 has a `() => {}` context stub.
+    // Real implementation should read the stored RNG seed from the recording buffer
+    // and compare it against the current RNG state, halting on out-of-sync mismatch.
+});
+
+it.skip("stub: recallEvent() returns a fake event (should replay recorded input events during playback)", () => {
+    // C: Recordings.c:340 — recallEvent()
+    // io/input-context.ts:252 has a fakeEvent stub returning a synthetic event object.
+    // Real implementation should decode the next event from the recording buffer
+    // and return it so the main input loop replays the original player input.
+});
+
+it.skip("stub: executePlaybackInput() always returns false (should execute one step of recording playback)", () => {
+    // C: Recordings.c:832 — executePlaybackInput()
+    // io/input-context.ts:253 has a `() => false` context stub.
+    // Real implementation should advance the playback state machine by one event
+    // and return true if the recording has been fully replayed.
+});
+
+it.skip("stub: updateScent() is a no-op (should propagate player scent trail each turn)", () => {
+    // C: Time.c:649 — updateScent()
+    // turn.ts:282 has a `() => {}` context stub; no domain function exists in time/.
+    // Real implementation should update the scentTurnNumber grid around the player
+    // so scent-following monsters can track movement history via the scent map.
+});

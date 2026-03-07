@@ -564,3 +564,28 @@ describe("monstersTurn", () => {
         expect(ctx.spawnDungeonFeature).toHaveBeenCalledWith(5, 5, 42, true, false);
     });
 });
+
+// =============================================================================
+// Stub registry — Monsters.c domain stubs (Phase 3c, port-v2-audit)
+// =============================================================================
+
+it.skip("stub: monsterBlinkToPreferenceMap() is a no-op (should teleport monster toward highest-value preference cell)", () => {
+    // C: Monsters.c:2290 — monsterBlinkToPreferenceMap()
+    // monsters/monster-actions.ts:205 exports monsterBlinkToPreferenceMapStub as a no-op.
+    // Real implementation should read the preference map and blink the monster to
+    // the highest-scoring reachable cell within blink range.
+});
+
+it.skip("stub: monsterBlinkToSafety() is a no-op (should teleport monster to a safe cell when fleeing)", () => {
+    // C: Monsters.c:2394 — monsterBlinkToSafety()
+    // monsters/monster-actions.ts:216 exports monsterBlinkToSafetyStub as a no-op.
+    // Real implementation should compute a safety map and blink the monster to the
+    // highest-safety reachable cell, used when the monster is fleeing the player.
+});
+
+it.skip("stub: updateMonsterCorpseAbsorption() is a no-op (should advance corpse-absorption state for absorbing monsters)", () => {
+    // C: Monsters.c:3250 — updateMonsterCorpseAbsorption()
+    // monsters/monster-actions.ts:223 exports updateMonsterCorpseAbsorptionStub as a no-op.
+    // Real implementation should increment the absorption counter, animate the
+    // absorption, and grant the absorbing monster the victim's abilities when done.
+});

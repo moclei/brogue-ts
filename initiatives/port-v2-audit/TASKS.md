@@ -183,12 +183,12 @@ Covers the two files with the most STUBBED-UNTRACKED entries (~25 combined).
 ### Phase 3c — Remaining domain stubs: Monsters.c + Recordings.c + Architect.c + Time.c (one session)
 
 Covers ~23 STUBBED-UNTRACKED entries across four files.
-- [ ] Re-read STUBBED-UNTRACKED rows from `gaps-Monsters.md`, `gaps-Recordings.md`,
+- [x] Re-read STUBBED-UNTRACKED rows from `gaps-Monsters.md`, `gaps-Recordings.md`,
       `gaps-Architect.md`, `gaps-Time.md`
-- [ ] For each entry: find the relevant test file, add a `test.skip` entry
-- [ ] Check off this task in TASKS.md
-- [ ] Commit: `"chore: port-v2-audit — Phase 3c test.skip entries for Monsters/Recordings/Architect/Time stubs"`
-- [ ] Stop. Do not start Phase 3d in the same session.
+- [x] For each entry: find the relevant test file, add a `test.skip` entry
+- [x] Check off this task in TASKS.md
+- [x] Commit: `"chore: port-v2-audit — Phase 3c test.skip entries for Monsters/Recordings/Architect/Time stubs"`
+- [x] Stop. Do not start Phase 3d in the same session.
 
 ### Phase 3d — Wiring stubs, stale cleanup, and PROJECT.md (one session)
 

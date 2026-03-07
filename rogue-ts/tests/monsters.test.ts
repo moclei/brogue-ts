@@ -288,3 +288,14 @@ it.skip("stub: buildMonsterStateContext().openPathBetween returns false (needs F
     // Real implementation should check line-of-sight using the dungeon map
     // to determine whether the monster has an unobstructed path to its target.
 });
+
+// =============================================================================
+// Stub registry — Monsters.c domain stubs (Phase 3c, port-v2-audit)
+// =============================================================================
+
+it.skip("stub: drawManacles() is a no-op (should draw manacle terrain decorations adjacent to a chained monster)", () => {
+    // C: Monsters.c:771 — drawManacles()
+    // monsters.ts:141 has a `() => {}` context stub.
+    // Real implementation should draw single-cell manacle terrain glyphs on the
+    // wall cells adjacent to a chained monster's starting location.
+});

@@ -575,3 +575,21 @@ describe("carveDungeon seed regression", () => {
         expect(cellCount).toBeGreaterThan(200);
     });
 });
+
+// =============================================================================
+// Stub registry — Architect.c domain stubs (Phase 3c, port-v2-audit)
+// =============================================================================
+
+it.skip("stub: restoreMonster() is a no-op (should restore monsters from a previously visited level)", () => {
+    // C: Architect.c:3501 — restoreMonster()
+    // architect/architect.ts:758 has an empty stub with a dependency comment.
+    // Real implementation should re-create each monster from the level's saved
+    // monster list and place it at its stored location on level re-entry.
+});
+
+it.skip("stub: restoreItems() is a no-op (should restore items dropped on a previously visited level)", () => {
+    // C: Architect.c:3573 — restoreItems()
+    // architect/architect.ts:770 has an empty stub with a dependency comment.
+    // Real implementation should re-create each item from the level's saved item
+    // list and place it at its stored floor location on level re-entry.
+});

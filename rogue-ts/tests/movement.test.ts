@@ -314,3 +314,14 @@ it.skip("stub: exploreKey() is a no-op (should execute one step of auto-explore)
     // Real implementation should advance the player one step toward the nearest
     // unexplored cell and update the display, halting on danger or player input.
 });
+
+// =============================================================================
+// Stub registry — Recordings.c domain stubs (Phase 3c, port-v2-audit)
+// =============================================================================
+
+it.skip("stub: cancelKeystroke() is a no-op (should remove the last recorded keystroke from the buffer)", () => {
+    // C: Recordings.c:147 — cancelKeystroke()
+    // movement.ts:322 has a `() => {}` context stub.
+    // Real implementation should pop the most recently appended keystroke from the
+    // recording buffer when the player cancels an action mid-sequence.
+});

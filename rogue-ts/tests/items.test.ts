@@ -332,3 +332,32 @@ it.skip("stub: imbueInvisibility() is a no-op (should grant temporary invisibili
     // Real implementation should set the invisible status flag and duration on
     // the player so monsters cannot detect them by sight.
 });
+
+// =============================================================================
+// Stub registry — Monsters.c domain stubs (Phase 3c, port-v2-audit)
+// =============================================================================
+
+it.skip("stub: fadeInMonster() is a no-op (should animate a monster appearing on screen)", () => {
+    // C: Monsters.c:904 — fadeInMonster()
+    // items.ts:206, combat.ts:92, and turn.ts:90 all have `() => {}` context stubs.
+    // Real implementation should render the monster with gradually increasing opacity
+    // over several frames so it visibly materializes rather than appearing instantly.
+});
+
+// =============================================================================
+// Stub registry — Recordings.c domain stubs (Phase 3c, port-v2-audit)
+// =============================================================================
+
+it.skip("stub: recordKeystrokeSequence() is a no-op (should record a multi-key input sequence for playback)", () => {
+    // C: Recordings.c:154 — recordKeystrokeSequence()
+    // items.ts:194 has a `() => {}` context stub.
+    // Real implementation should append each keystroke in the sequence to the
+    // recording buffer so the full input sequence can be replayed later.
+});
+
+it.skip("stub: recordMouseClick() is a no-op (should record a mouse click event for playback)", () => {
+    // C: Recordings.c:162 — recordMouseClick()
+    // items.ts:195 and movement.ts:457 have `() => {}` context stubs.
+    // Real implementation should append the mouse position and button state to the
+    // recording buffer so click events can be replayed during playback.
+});
