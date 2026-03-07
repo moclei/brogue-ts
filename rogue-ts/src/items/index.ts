@@ -159,3 +159,7 @@ export { updateBolt } from "./bolt-update.js";
 export { detonateBolt } from "./bolt-detonation.js";
 export { zap } from "./zap.js";
 export type { ZapContext, ZapRenderContext } from "./zap-context.js";
+
+// ── Spell effects (Phase 2a) ──
+export { slow, weaken } from "./item-effects.js";
+export type { SlowContext, WeakenContext } from "./item-effects.js";

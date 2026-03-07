@@ -439,6 +439,74 @@ export function updateIdentifiableItem(item: Item, ctx: UpdateIdentifiableItemCo
 }
 
 // =============================================================================
+// slow — Items.c:3905
+// =============================================================================
+
+export interface SlowContext {
+    player: Creature;
+    updateEncumbrance(): void;
+    message(msg: string, flags: number): void;
+}
+
+/**
+ * Apply slow status to a creature for the given number of turns.
+ * Clears haste, doubles movement/attack speed for non-player creatures,
+ * and calls updateEncumbrance + shows a message for the player.
+ *
+ * Ported from Items.c:3905 — slow().
+ */
+export function slow(monst: Creature, turns: number, ctx: SlowContext): void {
+    if (monst.info.flags & (MonsterBehaviorFlag.MONST_INANIMATE | MonsterBehaviorFlag.MONST_INVULNERABLE)) {
+        return;
+    }
+    monst.status[StatusEffect.Slowed] = monst.maxStatus[StatusEffect.Slowed] = turns;
+    monst.status[StatusEffect.Hasted] = 0;
+    if (monst === ctx.player) {
+        ctx.updateEncumbrance();
+        ctx.message("you feel yourself slow down.", 0);
+    } else {
+        monst.movementSpeed = monst.info.movementSpeed * 2;
+        monst.attackSpeed = monst.info.attackSpeed * 2;
+    }
+}
+
+// =============================================================================
+// weaken — Items.c:3827
+// =============================================================================
+
+export interface WeakenContext {
+    player: Creature;
+    rogue: { weapon: Item | null; armor: Item | null };
+    messageWithColor(msg: string, color: Color, flags: number): void;
+    badMessageColor: Color;
+    strengthCheck(item: Item | null, force: boolean): void;
+}
+
+/**
+ * Increment the creature's weakness amount (up to 10) and set/extend
+ * the weakness status duration. Shows a message and checks equipment
+ * encumbrance when applied to the player.
+ *
+ * Ported from Items.c:3827 — weaken().
+ */
+export function weaken(monst: Creature, maxDuration: number, ctx: WeakenContext): void {
+    if (monst.weaknessAmount < 10) {
+        monst.weaknessAmount++;
+    }
+    monst.status[StatusEffect.Weakened] = Math.max(monst.status[StatusEffect.Weakened], maxDuration);
+    monst.maxStatus[StatusEffect.Weakened] = Math.max(monst.maxStatus[StatusEffect.Weakened], maxDuration);
+    if (monst === ctx.player) {
+        ctx.messageWithColor(
+            "your muscles weaken as an enervating toxin fills your veins.",
+            ctx.badMessageColor,
+            0,
+        );
+        ctx.strengthCheck(ctx.rogue.weapon, true);
+        ctx.strengthCheck(ctx.rogue.armor, true);
+    }
+}
+
+// =============================================================================
 // updatePlayerRegenerationDelay — Items.c:7903
 // =============================================================================
 

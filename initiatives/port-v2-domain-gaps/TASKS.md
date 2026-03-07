@@ -46,14 +46,19 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 - [x] Exported from items/index.ts: updateBolt, detonateBolt, zap, ZapContext, ZapRenderContext
 - [x] Committed
 
-## Phase 2a: Spell effects — negate / weaken / slow
+## Phase 2a: Spell effects — negate / weaken / slow ✓
 
-- [ ] Implement `negate` (Items.c:3734) — distinguish from negateCreature already ported;
-      covers item-degradation path missing from current implementation
-- [ ] Implement `weaken` (Items.c:3827) — weakness status application
-- [ ] Implement `slow` (Items.c:3905) — slow status application
-- [ ] Wire into items context; add tests; remove test.skip entries
-- [ ] Commit; generate handoff
+- [x] `negate` (Items.c:3734) — already fully implemented as `negateCreature` in
+      monsters/monster-negate.ts; removed STUB Phase 2a comments from ZapContext
+- [x] Implement `slow` (Items.c:3905) — SlowContext + slow() in item-effects.ts;
+      exported from items/index.ts
+- [x] Implement `weaken` (Items.c:3827) — WeakenContext + weaken() in item-effects.ts;
+      exported from items/index.ts
+- [x] Removed STUB Phase 2a comments from zap-context.ts (slow, negate)
+- [x] 19 tests in tests/items/spell-effects.test.ts — all pass
+- [x] No test.skip entries existed for these functions
+- [x] All 65 test files pass (1671 pass, 131 skip)
+- [x] Committed
 
 ## Phase 2b: Spell effects — polymorph / aggravateMonsters / crystalize / summonGuardian
 

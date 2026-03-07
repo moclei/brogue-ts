@@ -113,13 +113,11 @@ export interface ZapContext {
 
     // ── Effects ──
     haste(monst: Creature, turns: number): void;
-    /** STUB — Phase 2a */
     slow(monst: Creature, duration: number): void;
     imbueInvisibility(monst: Creature, turns: number): boolean;
     /** Wraps wandDominate(monst.currentHP, monst.info.maxHP). */
     wandDominate(monst: Creature): number;
     becomeAllyWith(monst: Creature): void;
-    /** STUB — Phase 2a */
     negate(monst: Creature): boolean;
     empowerMonster(monst: Creature): void;
     addPoison(monst: Creature, turnsPerPoison: number, poisonAmount: number): void;
