@@ -207,7 +207,7 @@ Covers ~23 STUBBED-UNTRACKED entries across four files.
       - combat.test.ts:228,255,261,267,272 (5 entries) — removed
       - Scanned all gaps files' notes sections — no additional stale entries found
 - [x] Update `PROJECT.md` to point to `port-v2-fix-rendering` as the new active initiative
-- [ ] Commit: `"chore: port-v2-audit — Phase 3d wiring stubs recorded, stale skips removed, audit complete"`
+- [x] Commit: `"chore: port-v2-audit — Phase 3d wiring stubs recorded, stale skips removed, audit complete"`
 
 ---
 
