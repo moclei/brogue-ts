@@ -238,12 +238,6 @@ it.skip("stub: promoteTile() is a no-op (should change terrain type on interacti
     // e.g. opening a door or triggering a pressure plate.
 });
 
-it.skip("stub: useStairs() is a no-op (should transition to adjacent level)", () => {
-    // buildMovementContext().useStairs() does nothing.
-    // Real implementation should call startLevel() for level transitions,
-    // or victory() if at the top with the Amulet.
-});
-
 it.skip("stub: refreshDungeonCell() is a no-op (should redraw a cell on screen)", () => {
     // buildMovementContext().refreshDungeonCell() does nothing.
     // Real implementation should trigger a cell redraw via the platform renderer.
@@ -324,4 +318,32 @@ it.skip("stub: cancelKeystroke() is a no-op (should remove the last recorded key
     // movement.ts:322 has a `() => {}` context stub.
     // Real implementation should pop the most recently appended keystroke from the
     // recording buffer when the player cancels an action mid-sequence.
+});
+
+// =============================================================================
+// Stub registry — wiring stubs (Phase 3d, port-v2-audit)
+// =============================================================================
+
+it.skip("stub: dijkstraScan() is a no-op in input context (should delegate to dijkstra/dijkstraScan)", () => {
+    // C: Dijkstra.c:202 — dijkstraScan()
+    // io/input-context.ts:240 has a `() => {}` context stub.
+    // Domain function is IMPLEMENTED and tested in dijkstra.test.ts.
+    // Real wiring should call dijkstraScan() from dijkstra/dijkstra.ts; pathfinding is not
+    // needed in the keyboard input context, so this slot may remain a deliberate no-op.
+});
+
+it.skip("stub: terrainFlags() returns 0 in input context (should delegate to state/helpers terrainFlags)", () => {
+    // C: Globals.c:581 — terrainFlags()
+    // io/input-context.ts:247 has a `() => 0` context stub.
+    // Domain function is IMPLEMENTED at state/helpers.ts:36 and tested in movement/map-queries.test.ts.
+    // Real wiring should call terrainFlags() from state/helpers.ts to return the terrain flag bitmask
+    // for a given cell — used by movement collision and traversal checks.
+});
+
+it.skip("stub: terrainMechFlags() returns 0 in input context (should delegate to state/helpers terrainMechFlags)", () => {
+    // C: Globals.c:590 — terrainMechFlags()
+    // io/input-context.ts:248 has a `() => 0` context stub.
+    // Domain function is IMPLEMENTED at state/helpers.ts:51 and tested in movement/map-queries.test.ts.
+    // Real wiring should call terrainMechFlags() from state/helpers.ts to return the tile-mechanic
+    // flag bitmask for a given cell — used by movement interaction checks.
 });

@@ -192,17 +192,21 @@ Covers ~23 STUBBED-UNTRACKED entries across four files.
 
 ### Phase 3d — Wiring stubs, stale cleanup, and PROJECT.md (one session)
 
-- [ ] Add `test.skip` entries for all untracked wiring stubs identified in gaps files:
-      - Time.c notes: `autoRest`, `manualSearch` in input-context.ts
-      - RogueMain.c notes: `enableEasyMode` (input-context.ts:203), `executeEvent` (menus.ts:256)
-      - MainMenu.c notes: `listFiles`, `loadRunHistory`, `saveResetRun`
-      - Buttons.c notes: 3 wiring stubs in input-context.ts and ui.ts
-      - Globals.c notes: `terrainFlags`, `terrainMechFlags` in io/input-context.ts:247–248
-- [ ] Remove stale `test.skip` entries where function is now IMPLEMENTED:
-      - Known: `movement.test.ts:241` (useStairs)
-      - Known: `combat.test.ts:228,255,261,267,272` (5 entries — see gaps-Combat.md notes)
-      - Scan all gaps files' notes sections for any others flagged
-- [ ] Update `PROJECT.md` to point to the follow-on fix initiative as the new active initiative
+- [x] Add `test.skip` entries for all untracked wiring stubs identified in gaps files:
+      - Time.c notes: `autoRest`, `manualSearch` in input-context.ts → turn.test.ts
+      - RogueMain.c notes: `enableEasyMode` (input-context.ts:203) → turn.test.ts
+      - RogueMain.c notes: `executeEvent` (menus.ts:256) → menus/menus.test.ts
+      - MainMenu.c notes: `listFiles`, `loadRunHistory`, `saveResetRun` → menus/menus.test.ts
+      - Buttons.c notes: `initializeButtonState` (input-context.ts:156) → ui.test.ts
+      - Buttons.c notes: `buttonInputLoop` (input-context.ts:157) → ui.test.ts
+      - Buttons.c notes: `buttonInputLoop` (ui.ts:306) → ui.test.ts
+      - Globals.c notes: `terrainFlags`, `terrainMechFlags` (io/input-context.ts:247–248) → movement.test.ts
+      - Dijkstra.c notes: `dijkstraScan` (input-context.ts:240) → movement.test.ts
+- [x] Remove stale `test.skip` entries where function is now IMPLEMENTED:
+      - movement.test.ts:241 (useStairs) — removed
+      - combat.test.ts:228,255,261,267,272 (5 entries) — removed
+      - Scanned all gaps files' notes sections — no additional stale entries found
+- [x] Update `PROJECT.md` to point to `port-v2-fix-rendering` as the new active initiative
 - [ ] Commit: `"chore: port-v2-audit — Phase 3d wiring stubs recorded, stale skips removed, audit complete"`
 
 ---

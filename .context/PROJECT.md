@@ -20,14 +20,15 @@ Port V2 is underway. Full plan: `docs/PORT_V2.md`.
 3. Follow the session protocol described in `PLAN.md` exactly
 4. Work on one phase at a time; stop and commit when the phase is done
 
-**Current active initiative:** `port-v2-audit`
+**Current active initiative:** `port-v2-fix-rendering`
 
-**Why this initiative:** Before continuing implementation, we are auditing every C source function
-against the TS port. The V2 port copied game logic from V1 (which had known gaps in the IO rendering
-layer). The audit determines what is correctly implemented, what is stubbed, and what is missing
-entirely. Do not implement any fixes during this initiative — record findings only.
+**Why this initiative:** The `port-v2-audit` is complete. `docs/audit/summary.md` contains the full
+findings and defines the fix sequencing. The fix initiative begins with rendering blockers
+(`getCellAppearance`, `refreshDungeonCell`, `displayLevel` in io/display.ts), then a runtime crash
+fix (`saveRecording` wiring), then the item system (28 MISSING), then monster AI (27 MISSING).
 
-**After this initiative:** The audit's `docs/audit/summary.md` will define the next initiative.
+**Audit reference:** `docs/audit/summary.md` — full counts, prioritized gap list, and fix sequencing.
+**Previous initiative:** `port-v2-audit` (complete — all gap files in `docs/audit/`, all stubs tracked).
 
 First attempt (reference only, do not modify): `ts/`
 

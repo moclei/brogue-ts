@@ -176,3 +176,36 @@ it.skip("stub: saveGame() is a no-op (should save the current game state to a .b
     // Real implementation should prompt for a filename if needed and write the full
     // rogue game state to a .broguesave file via the platform's file operations.
 });
+
+// =============================================================================
+// Stub registry — wiring stubs (Phase 3d, port-v2-audit)
+// =============================================================================
+
+it.skip("stub: executeEvent() is a no-op in menus context (should execute one recorded input event during playback)", () => {
+    // C: RogueMain.c:45 — executeEvent()
+    // menus.ts:256 has a `() => {}` context stub.
+    // Domain function is IMPLEMENTED at io/input-dispatch.ts:485 and called from input-cursor.ts:353.
+    // Real wiring should call executeEvent() from io/input-dispatch.ts so playback mode
+    // advances through recorded events during menu interactions.
+});
+
+it.skip("stub: listFiles() returns [] in menus context (should list save/recording files from storage)", () => {
+    // C: MainMenu.c (dialogChooseFile) — listFiles is a platform dependency, not a C function.
+    // menus.ts:261 has a `() => []` context stub.
+    // Real wiring should return the list of available .broguesave or .broguerec files from
+    // the browser's persistent storage, so dialogChooseFile can show them for selection.
+});
+
+it.skip("stub: loadRunHistory() returns [] in menus context (should load game stats run history from storage)", () => {
+    // C: MainMenu.c (viewGameStats) — loadRunHistory is a platform dependency.
+    // menus.ts:262 has a `() => []` context stub.
+    // Real wiring should read the persisted run history array from storage, so viewGameStats
+    // shows accumulated game results rather than an empty stats screen.
+});
+
+it.skip("stub: saveResetRun() is a no-op in menus context (should persist a save-reset marker to run history)", () => {
+    // C: MainMenu.c — saveResetRun is a platform dependency.
+    // menus.ts:263 has a `() => {}` context stub.
+    // Real wiring should append a seed=0 reset marker entry to the persisted run history,
+    // so viewGameStats correctly splits recent-stats windows on save-reset boundaries.
+});

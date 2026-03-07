@@ -225,12 +225,6 @@ describe("full cycle — attack, die, remove from monster list", () => {
 // Stub audit: known-incomplete behaviours in buildCombatDamageContext
 // =============================================================================
 
-it.skip("stub: anyoneWantABite wires real absorption check (CombatHelperContext)", () => {
-    // buildCombatDamageContext().anyoneWantABite always returns false.
-    // Real implementation should call anyoneWantABite() from combat-helpers.ts
-    // with a properly built CombatHelperContext (needs clone, monsterAtLoc, etc.).
-});
-
 it.skip("stub: demoteMonsterFromLeadership wires real leadership demotion", () => {
     // buildCombatDamageContext().demoteMonsterFromLeadership is a no-op.
     // Real implementation should clear leader/follower links for the dying creature.
@@ -250,29 +244,6 @@ it.skip("stub: getMonsterDFMessage returns empty string (should look up DF catal
 it.skip("stub: resolvePronounEscapes is a passthrough (should substitute $HESHE etc.)", () => {
     // buildCombatDamageContext().resolvePronounEscapes returns the text unchanged.
     // Real implementation should substitute $HESHE, $HISHER, $HIMHER based on gender.
-});
-
-it.skip("stub: attackVerb returns 'hits' (should select verb from monster text table)", () => {
-    // buildCombatAttackContext().attackVerb returns 'hits' regardless of damage.
-    // Real implementation should call attackVerb(attacker, damagePercent, monsterTextTable, ctx)
-    // from combat-helpers.ts to pick the correct damage-tier verb.
-});
-
-it.skip("stub: magicWeaponHit is a no-op (should apply weapon runic on-hit effects)", () => {
-    // buildCombatAttackContext().magicWeaponHit does nothing.
-    // Real implementation should call magicWeaponHit() from combat-runics.ts
-    // with a full RunicContext, triggering enchant effects (paralysis, slowing, etc.).
-});
-
-it.skip("stub: applyArmorRunicEffect returns '' (should apply armor runic on-hit effects)", () => {
-    // buildCombatAttackContext().applyArmorRunicEffect does nothing.
-    // Real implementation should call applyArmorRunicEffect() from combat-runics.ts.
-});
-
-it.skip("stub: specialHit is a no-op (should apply monster on-hit abilities)", () => {
-    // buildCombatAttackContext().specialHit does nothing.
-    // Real implementation should call specialHit() from combat-runics.ts
-    // for monster abilities like poison, fire, weakness, item stealing, etc.
 });
 
 it.skip("stub: unAlly is a no-op (should be wired in monsters.ts)", () => {

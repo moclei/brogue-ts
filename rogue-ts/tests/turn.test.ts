@@ -240,3 +240,28 @@ it.skip("stub: updateScent() is a no-op (should propagate player scent trail eac
     // Real implementation should update the scentTurnNumber grid around the player
     // so scent-following monsters can track movement history via the scent map.
 });
+
+// =============================================================================
+// Stub registry — wiring stubs (Phase 3d, port-v2-audit)
+// =============================================================================
+
+it.skip("stub: autoRest() is a no-op in input context (should delegate to time/misc-helpers autoRest)", () => {
+    // C: Time.c:2087 — autoRest()
+    // io/input-context.ts:188 has a `() => {}` context stub with comment "no MiscHelpersContext yet".
+    // Domain function is IMPLEMENTED and tested in misc-helpers.test.ts:351.
+    // Real wiring should build a MiscHelpersContext and call autoRest() from time/misc-helpers.ts.
+});
+
+it.skip("stub: manualSearch() is a no-op in input context (should delegate to time/misc-helpers manualSearch)", () => {
+    // C: Time.c:2146 — manualSearch()
+    // io/input-context.ts:189 has a `() => {}` context stub with comment "no MiscHelpersContext yet".
+    // Domain function is IMPLEMENTED and tested in misc-helpers.test.ts:414.
+    // Real wiring should build a MiscHelpersContext and call manualSearch() from time/misc-helpers.ts.
+});
+
+it.skip("stub: enableEasyMode() is a no-op in input context (should delegate to game-lifecycle enableEasyMode)", () => {
+    // C: RogueMain.c:1384 — enableEasyMode()
+    // io/input-context.ts:203 has a `() => {}` context stub with comment "LifecycleContext not wired".
+    // Domain function is IMPLEMENTED at game/game-lifecycle.ts:627 (untested).
+    // Real wiring should call enableEasyMode() from game-lifecycle.ts via a LifecycleContext.
+});

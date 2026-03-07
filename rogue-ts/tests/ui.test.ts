@@ -340,6 +340,34 @@ it.skip("stub: buildButtonContext().strLenWithoutEscapes() returns s.length (sho
     // so that button widths are computed without counting escape chars.
 });
 
+// =============================================================================
+// Stub registry — Buttons.c wiring stubs (Phase 3d, port-v2-audit)
+// =============================================================================
+
+it.skip("stub: initializeButtonState() is a no-op in input context (should delegate to io/buttons initializeButtonState)", () => {
+    // C: Buttons.c:175 — initializeButtonState()
+    // io/input-context.ts:156 has a `() => {}` context stub.
+    // Domain function is IMPLEMENTED at io/buttons.ts:269.
+    // Real wiring should call initializeButtonState() from io/buttons.ts; silently
+    // skipping it means any input-context dialog state is never initialized.
+});
+
+it.skip("stub: buttonInputLoop() returns -1 in input context (should delegate to io/buttons buttonInputLoop)", () => {
+    // C: Buttons.c:323 — buttonInputLoop()
+    // io/input-context.ts:157 has an `async () => -1` context stub.
+    // Domain function is IMPLEMENTED at io/buttons.ts:422.
+    // Real wiring should call buttonInputLoop() from io/buttons.ts; the stub silently
+    // cancels all input-context button loops (chosenButton -1 = no selection).
+});
+
+it.skip("stub: buttonInputLoop() returns {chosenButton:-1} in ui/inventory context (should delegate to io/buttons buttonInputLoop)", () => {
+    // C: Buttons.c:323 — buttonInputLoop()
+    // ui.ts:306 has an `async () => ({ chosenButton: -1, event: fakeEvent() })` stub (comment: "stub — Phase 7").
+    // Domain function is IMPLEMENTED at io/buttons.ts:422.
+    // Real wiring should call buttonInputLoop() from io/buttons.ts; the stub silently
+    // cancels all inventory button loops (chosenButton -1 = no selection).
+});
+
 it.skip("stub: buildButtonContext() color ops are no-ops (should compute button gradients)", () => {
     // applyColorAverage(), bakeColor(), separateColors(), decodeMessageColor(),
     // encodeMessageColor() and plotCharToBuffer() are all no-ops or minimal stubs.
