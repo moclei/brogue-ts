@@ -171,3 +171,20 @@ export type {
     MonsterBlinkContext,
     MonsterBlinkToSafetyContext,
 } from "./monster-blink-ai.js";
+
+export {
+    creatureEligibleForSwarming,
+    monsterSwarmDirection,
+} from "./monster-swarm-ai.js";
+
+export type {
+    MonsterSwarmContext,
+} from "./monster-swarm-ai.js";
+
+export {
+    summonMinions,
+} from "./monster-summoning.js";
+
+export type {
+    SummonMinionsContext,
+} from "./monster-summoning.js";

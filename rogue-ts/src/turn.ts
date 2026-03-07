@@ -42,8 +42,8 @@ import {
     orange, green, red, yellow, darkRed, darkGreen, poisonColor,
 } from "./globals/colors.js";
 import { DCOLS, DROWS } from "./types/constants.js";
-import { TileFlag, MonsterBookkeepingFlag, MonsterBehaviorFlag, TerrainFlag } from "./types/flags.js";
-import { BoltEffect, BoltType, CreatureState, DungeonLayer, GameMode } from "./types/enums.js";
+import { TileFlag, MonsterBookkeepingFlag, MonsterBehaviorFlag, TerrainFlag, MonsterAbilityFlag } from "./types/flags.js";
+import { BoltEffect, BoltType, CreatureState, DungeonLayer, GameMode, LightType } from "./types/enums.js";
 import { openPathBetween as openPathBetweenFn } from "./items/bolt-geometry.js";
 import {
     monsterIsHidden as monsterIsHiddenFn,
@@ -63,6 +63,12 @@ import {
 import type { BoltAIContext } from "./monsters/monster-bolt-ai.js";
 import { monsterSummons as monsterSummonsFn } from "./monsters/monster-actions.js";
 import type { MonsterSummonsContext } from "./monsters/monster-actions.js";
+import { summonMinions as summonMinionsFn } from "./monsters/monster-summoning.js";
+import type { SummonMinionsContext } from "./monsters/monster-summoning.js";
+import { spawnMinions as spawnMinionsFn } from "./monsters/monster-spawning.js";
+import { buildMonsterSpawningContext } from "./monsters.js";
+import { hordeCatalog } from "./globals/horde-catalog.js";
+import { monsterText } from "./globals/monster-text.js";
 import { getSafetyMap as getSafetyMapFn } from "./monsters/monster-flee-ai.js";
 import {
     monsterBlinkToPreferenceMap as monsterBlinkToPreferenceMapFn,
@@ -354,6 +360,48 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         playbackOmniscience: rogue.playbackOmniscience,
     };
 
+    // ── Summon minions context — wires summonMinions ─────────────────────────
+    const summonMinionsCtx: SummonMinionsContext = {
+        hordeCatalog,
+        monsters,
+        player,
+        rng: { randRange, randPercent: (pct) => randPercent(pct) },
+        spawnMinions: (hordeID, leader) =>
+            spawnMinionsFn(hordeID, leader, true, false, buildMonsterSpawningContext()),
+        clearCellFlag: (loc, flag) => {
+            if (coordinatesAreInMap(loc.x, loc.y)) pmap[loc.x][loc.y].flags &= ~flag;
+        },
+        setCellFlag: (loc, flag) => {
+            if (coordinatesAreInMap(loc.x, loc.y)) pmap[loc.x][loc.y].flags |= flag;
+        },
+        removeCreature: (monst) => {
+            const idx = monsters.indexOf(monst);
+            if (idx !== -1) { monsters.splice(idx, 1); return true; }
+            return false;
+        },
+        prependCreature: (monst) => monsters.unshift(monst),
+        canSeeMonster: (m) => canSeeMonsterFn(m, queryCtx),
+        monsterName: (m, includeArticle) => {
+            if (m === player) return "you";
+            const pfx = includeArticle
+                ? (m.creatureState === CreatureState.Ally ? "your " : "the ")
+                : "";
+            return `${pfx}${m.info.monsterName}`;
+        },
+        getSummonMessage: (monsterId) => monsterText[monsterId]?.summonMessage ?? "",
+        message: () => {},                      // stub — wired in port-v2-platform
+        fadeInMonster: () => {},                // stub — wired in port-v2-platform
+        refreshDungeonCell: () => {},           // stub — wired in port-v2-platform
+        demoteMonsterFromLeadership: () => {},  // stub — wired in port-v2-platform
+        createFlare: () => {},                  // stub — wired in port-v2-platform
+        monstersAreTeammates: (a, b) => monstersAreTeammatesFn(a, b, player),
+        MA_ENTER_SUMMONS: MonsterAbilityFlag.MA_ENTER_SUMMONS,
+        MB_JUST_SUMMONED: MonsterBookkeepingFlag.MB_JUST_SUMMONED,
+        MB_LEADER: MonsterBookkeepingFlag.MB_LEADER,
+        HAS_MONSTER: TileFlag.HAS_MONSTER,
+        SUMMONING_FLASH_LIGHT: LightType.SUMMONING_FLASH_LIGHT,
+    };
+
     // ── Monster summons context — wires monsterSummons ───────────────────────
     const summonsCtx: MonsterSummonsContext = {
         player,
@@ -362,7 +410,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         adjacentLevelAllyCount: 0,   // adjacent levels not tracked in TS port
         deepestLevel: rogue.deepestLevel,
         depthLevel: rogue.depthLevel,
-        summonMinions: () => {},     // stub — summonMinions not yet ported (see test.skip)
+        summonMinions: (monst) => { summonMinionsFn(monst, summonMinionsCtx); },
     };
 
     // ── Blink AI context — wires monsterBlinkToPreferenceMap / monsterBlinkToSafety ─
