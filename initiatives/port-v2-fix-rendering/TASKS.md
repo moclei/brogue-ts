@@ -19,11 +19,11 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 
 ## Phase 1c: Implement refreshDungeonCell + displayLevel
 
-- [ ] Implement `refreshDungeonCell` in `rogue-ts/src/io/display.ts`
-- [ ] Remove `displayLevel` stub from `lifecycle.ts`; implement in `rogue-ts/src/io/display.ts`
-- [ ] Verify test.skip entries exist for any remaining gaps
+- [x] Implement `refreshDungeonCell` in `rogue-ts/src/io/cell-appearance.ts` (per PLAN split)
+- [x] Remove `displayLevel` stub from `lifecycle.ts`; implement via `displayLevelFn` from `io/cell-appearance.ts`
+- [x] Verify test.skip entries exist for any remaining gaps (items.ts + input-context.ts stubs tracked in ui.test.ts)
 - [ ] Smoke test: dungeon renders after "New Game" in browser
-- [ ] Commit; generate handoff
+- [x] Commit; generate handoff
 
 ## Phase 2: Runtime crash fix (saveRecording)
 
