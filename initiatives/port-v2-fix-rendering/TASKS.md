@@ -52,10 +52,12 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 
 ## Phase 3c: Item system — core item effects
 
-- [ ] Implement `applyTunnelEffect`, `teleport`, `negationBlast`
-- [ ] Implement `empowerMonster`, `magicChargeItem`
-- [ ] Remove test.skip entries for implemented functions
-- [ ] Commit; generate handoff
+- [x] Implement `negationBlast` — new `items/item-effects.ts` (and prerequisite `negateCreature` in `monsters/monster-negate.ts`)
+- [x] `empowerMonster` — already IMPLEMENTED (monsters/monster-state.ts:228); no work needed
+- [x] `applyTunnelEffect`, `magicChargeItem` — do not exist in C source; PLAN names were incorrect
+- [x] `teleport` — deferred: requires `getTerrainGrid`, `getTMGrid`, `disentangle` (all missing); stub remains with test.skip at items.test.ts:214
+- [x] Remove test.skip for negationBlast in items.test.ts (139 skips remain)
+- [x] Commit; generate handoff
 
 ## Phase 3d: Item system — remaining effects
 
