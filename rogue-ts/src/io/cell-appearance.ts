@@ -23,7 +23,7 @@ import {
     MonsterBehaviorFlag, MonsterBookkeepingFlag,
     TerrainMechFlag, TerrainFlag, ItemFlag, T_MOVES_ITEMS,
 } from "../types/flags.js";
-import { DCOLS, DROWS } from "../types/constants.js";
+import { DROWS } from "../types/constants.js";
 import {
     applyColorMultiplier, applyColorAverage, applyColorAugment,
     normColor, separateColors, randomizeColor, swapColors,

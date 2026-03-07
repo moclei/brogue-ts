@@ -27,11 +27,11 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 
 ## Phase 2: Runtime crash fix (saveRecording)
 
-- [ ] Locate `saveRecording` call sites in `game-lifecycle.ts` (lines 378, 596)
-- [ ] Add no-op `saveRecording: () => {}` stub to context builder in `lifecycle.ts`
-- [ ] Add `test.skip` tracking the stub
-- [ ] Verify game end no longer crashes
-- [ ] Commit; generate handoff
+- [x] Locate `saveRecording` call sites in `game-lifecycle.ts` (lines 378, 596)
+- [x] Add no-op `saveRecording: () => {}` stub to context builder in `lifecycle.ts`
+- [x] Add `test.skip` tracking the stub
+- [x] Verify game end no longer crashes (TypeScript clean; saveRecording is no-op in buildLifecycleContext)
+- [x] Commit; generate handoff
 
 ## Phase 3a: Item system — inventory + floor tick
 

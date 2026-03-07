@@ -453,3 +453,18 @@ it.skip("stub: displayLoops() is a no-op (should render loop detection debug ove
     // Real implementation should highlight dungeon cells that participate in
     // loop structures detected by the architect.
 });
+
+it.skip("stub: saveRecording() is a no-op (persistence layer not yet implemented)", () => {
+    // C: RogueMain.c — saveRecording() called from gameOver() and victory()
+    // lifecycle.ts:buildLifecycleContext() has saveRecording: (_f) => {} stub.
+    // Real implementation should serialise the recording buffer to a file or
+    // browser storage so the player can replay the run. Blocked on the
+    // persistence layer initiative.
+});
+
+it.skip("stub: saveRecordingNoPrompt() is a no-op (persistence layer not yet implemented)", () => {
+    // C: RogueMain.c — saveRecordingNoPrompt() called from gameOver() and victory() in server mode
+    // lifecycle.ts:buildLifecycleContext() has saveRecordingNoPrompt: (_f) => {} stub.
+    // Real implementation should silently save the recording without prompting
+    // the player. Blocked on the persistence layer initiative.
+});
