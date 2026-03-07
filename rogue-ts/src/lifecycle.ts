@@ -67,6 +67,11 @@ import type { MachineItem } from "./architect/machines.js";
 import { initializeGender, initializeStatus, generateMonster } from "./monsters/monster-creation.js";
 import { createMonsterOps, toggleMonsterDormancy } from "./monsters/monster-ops.js";
 import { blackOutScreen } from "./io/display.js";
+import {
+    getCellAppearance,
+    refreshDungeonCell as refreshDungeonCellFn,
+    displayLevel as displayLevelFn,
+} from "./io/cell-appearance.js";
 import { clearMessageArchive } from "./io/messages.js";
 import { deleteAllFlares } from "./light/flares.js";
 import { cellHasTerrainFlag as ctf, cellHasTMFlag as ctmf, terrainFlags as tf } from "./state/helpers.js";
@@ -289,10 +294,10 @@ export function buildGameInitContext(): GameInitContext {
 
 export function buildLevelContext(): LevelContext {
     const {
-        rogue, player, gameConst, pmap,
+        rogue, player, gameConst, pmap, tmap,
         monsters, dormantMonsters, floorItems, packItems,
         mutableScrollTable, mutablePotionTable, monsterItemsHopper,
-        monsterCatalog,
+        monsterCatalog, displayBuffer,
     } = getGameState();
 
     const fovCtx = makeFovCtx();
@@ -476,7 +481,15 @@ export function buildLevelContext(): LevelContext {
         discoverCell: (x, y) => { pmap[x][y].flags |= TileFlag.DISCOVERED; },
         updateMapToShore() { rogue.mapToShore = updateMapToShore(pmap); },
         updateRingBonuses: () => {},
-        displayLevel: () => {},
+        displayLevel() {
+            const getCellApp = (loc: { x: number; y: number }) => getCellAppearance(
+                loc, pmap, tmap, displayBuffer, rogue, player,
+                monsters, dormantMonsters, floorItems,
+                tileCatalog, dungeonFeatureCatalog, monsterCatalog,
+                terrainRandomValues, displayDetail, scentMap ?? [],
+            );
+            displayLevelFn(DCOLS, DROWS, (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer));
+        },
         refreshSideBar: () => {},
         messageWithColor: () => {},
         RNGCheck: () => {},

@@ -3,13 +3,13 @@
  *  Port V2 — rogue-ts
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { DCOLS, DROWS } from "../../src/types/constants.js";
 import { TileType, DisplayGlyph } from "../../src/types/enums.js";
 import { TileFlag } from "../../src/types/flags.js";
 import type { Pcell, Tcell, Creature, PlayerCharacter, ScreenDisplayBuffer } from "../../src/types/types.js";
 import { createScreenDisplayBuffer } from "../../src/io/display.js";
-import { getCellAppearance } from "../../src/io/cell-appearance.js";
+import { getCellAppearance, refreshDungeonCell, displayLevel } from "../../src/io/cell-appearance.js";
 import { tileCatalog } from "../../src/globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "../../src/globals/dungeon-feature-catalog.js";
 import { monsterCatalog } from "../../src/globals/monster-catalog.js";
@@ -149,8 +149,73 @@ describe("getCellAppearance", () => {
         expect(result.glyph).toBe(DisplayGlyph.G_FLOOR);
     });
 
-    it.skip("getCellAppearance round-trip: discovered + lit floor produces non-black colors", () => {
-        // Full round-trip requires tileCatalog + dungeonFeatureCatalog + monsterCatalog
-        // and a properly lit cell (tmap[x][y].light > 0). Tracked pending Phase 1c smoke test.
+    it("discovered + VISIBLE floor with light produces non-black background", () => {
+        const pmap = makePmap();
+        const tmap = makeTmap();
+        const displayBuffer = createScreenDisplayBuffer();
+        const rogue = makeRogue();
+        const player = { status: new Array(30).fill(0), loc: { x: 0, y: 0 } } as unknown as Creature;
+
+        // Mark cell as discovered and currently visible
+        pmap[5][5].flags = TileFlag.DISCOVERED | TileFlag.VISIBLE;
+        // Provide some light so the cell isn't pitch black
+        tmap[5][5].light = [50, 50, 50];
+
+        const result = getCellAppearance(
+            { x: 5, y: 5 },
+            pmap, tmap, displayBuffer, rogue, player,
+            [], [], [],
+            tileCatalog, dungeonFeatureCatalog, monsterCatalog,
+            makeTerrainRandomValues(), makeGrid(), makeGrid(),
+        );
+
+        // Fully visible lit floor should have some non-zero color component
+        const hasColor =
+            result.foreColor.red > 0 || result.foreColor.green > 0 || result.foreColor.blue > 0 ||
+            result.backColor.red > 0 || result.backColor.green > 0 || result.backColor.blue > 0;
+        expect(hasColor).toBe(true);
+    });
+});
+
+// =============================================================================
+// refreshDungeonCell
+// =============================================================================
+
+describe("refreshDungeonCell", () => {
+    it("writes getCellAppearance result to displayBuffer at the cell's window position", () => {
+        const displayBuffer = createScreenDisplayBuffer();
+        const mockAppearance = {
+            glyph: DisplayGlyph.G_FLOOR,
+            foreColor: { red: 60, green: 40, blue: 20, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false },
+            backColor: { red: 10, green: 8, blue: 5, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false },
+        };
+        const getCellAppFn = vi.fn(() => mockAppearance);
+
+        refreshDungeonCell({ x: 5, y: 5 }, getCellAppFn, displayBuffer);
+
+        expect(getCellAppFn).toHaveBeenCalledWith({ x: 5, y: 5 });
+        // Window position for (5,5): mapToWindowX(5)=5+20+1=26, mapToWindowY(5)=5+3=8
+        const cell = displayBuffer.cells[26][8];
+        expect(cell.character).toBe(DisplayGlyph.G_FLOOR);
+    });
+});
+
+// =============================================================================
+// displayLevel
+// =============================================================================
+
+describe("displayLevel", () => {
+    it("calls refreshCell exactly DCOLS×DROWS times", () => {
+        const refreshCell = vi.fn();
+        displayLevel(DCOLS, DROWS, refreshCell);
+        expect(refreshCell).toHaveBeenCalledTimes(DCOLS * DROWS);
+    });
+
+    it("calls refreshCell with every cell coordinate", () => {
+        const visited = new Set<string>();
+        displayLevel(3, 4, (loc) => visited.add(`${loc.x},${loc.y}`));
+        expect(visited.size).toBe(12);
+        expect(visited.has("0,0")).toBe(true);
+        expect(visited.has("2,3")).toBe(true);
     });
 });

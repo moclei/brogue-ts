@@ -379,11 +379,10 @@ it.skip("stub: buildButtonContext() color ops are no-ops (should compute button 
 // Stub registry — IO.c domain stubs (Phase 3b, port-v2-audit)
 // =============================================================================
 
-it.skip("stub: displayLevel() is a no-op (should render the full dungeon level to screen)", () => {
+it.skip("stub: displayLevel() is a no-op in items.ts and input-context.ts", () => {
     // C: IO.c:910 — displayLevel()
-    // lifecycle.ts, items.ts, and input-context.ts all have `() => {}` stubs.
-    // Real implementation should iterate every dungeon cell and call
-    // refreshDungeonCell() to push the full level to the canvas.
+    // lifecycle.ts: IMPLEMENTED (Phase 1c). items.ts and input-context.ts still
+    // have `() => {}` stubs — wired in port-v2-platform.
 });
 
 it.skip("stub: shuffleTerrainColors() is a no-op (should animate terrain color variation)", () => {

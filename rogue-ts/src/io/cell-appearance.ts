@@ -23,7 +23,7 @@ import {
     MonsterBehaviorFlag, MonsterBookkeepingFlag,
     TerrainMechFlag, TerrainFlag, ItemFlag, T_MOVES_ITEMS,
 } from "../types/flags.js";
-import { DROWS } from "../types/constants.js";
+import { DCOLS, DROWS } from "../types/constants.js";
 import {
     applyColorMultiplier, applyColorAverage, applyColorAugment,
     normColor, separateColors, randomizeColor, swapColors,
@@ -31,7 +31,7 @@ import {
 } from "./color.js";
 import {
     glyphIsWallish, bakeTerrainColors, mapToWindowX, mapToWindowY,
-    randomAnimateMonster,
+    mapToWindow, plotCharWithColor, randomAnimateMonster,
 } from "./display.js";
 import {
     black, white, basicLightColor, undiscoveredColor,
@@ -512,4 +512,46 @@ export function getCellAppearance(
     }
 
     return { glyph: cellChar, foreColor: cellForeColor, backColor: cellBackColor };
+}
+
+// =============================================================================
+// refreshDungeonCell
+// =============================================================================
+
+/**
+ * Recompute the appearance of one dungeon cell and write it to the display
+ * buffer. Faithful port of refreshDungeonCell() in IO.c.
+ *
+ * Takes a pre-built getCellAppearance closure so callers can share the same
+ * closure context without repeating all parameters.
+ */
+export function refreshDungeonCell(
+    loc: Pos,
+    getCellAppearanceFn: (loc: Pos) => { glyph: DisplayGlyph; foreColor: Color; backColor: Color },
+    displayBuffer: ScreenDisplayBuffer,
+): void {
+    const { glyph, foreColor, backColor } = getCellAppearanceFn(loc);
+    plotCharWithColor(glyph, mapToWindow(loc), foreColor, backColor, displayBuffer);
+}
+
+// =============================================================================
+// displayLevel
+// =============================================================================
+
+/**
+ * Refresh every dungeon cell. Faithful port of displayLevel() in IO.c.
+ *
+ * Iterates all dcols×drows cells (bottom row first, so wall-top smoothing in
+ * getCellAppearance sees the row below before the row above is drawn).
+ */
+export function displayLevel(
+    dcols: number,
+    drows: number,
+    refreshCell: (loc: Pos) => void,
+): void {
+    for (let i = 0; i < dcols; i++) {
+        for (let j = drows - 1; j >= 0; j--) {
+            refreshCell({ x: i, y: j });
+        }
+    }
 }
