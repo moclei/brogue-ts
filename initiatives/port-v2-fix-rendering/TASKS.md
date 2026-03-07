@@ -1,53 +1,100 @@
 # TASKS: port-v2-fix-rendering
 
-## Phase 1: Rendering blockers
+Each sub-phase is one session's work. Commit and generate a handoff prompt after each.
 
-- [ ] Read IO.c `getCellAppearance` and map inputs/outputs to TS types
+---
+
+## Phase 1a: Understand getCellAppearance
+
+- [ ] Read IO.c `getCellAppearance` — map all inputs, branches, and output fields to TS types
+- [ ] Read `docs/audit/gaps-IO.md` — confirm what is already in `io/display.ts` vs what is missing
+- [ ] Document findings as a `## Session Notes` in PLAN.md (inputs, output shape, lighting dependency question)
+- [ ] Commit notes; generate handoff
+
+## Phase 1b: Implement getCellAppearance
+
 - [ ] Implement `getCellAppearance` in `rogue-ts/src/io/display.ts`
+- [ ] Add unit test (or test.skip if lighting dependency blocks full test)
+- [ ] Commit; generate handoff
+
+## Phase 1c: Implement refreshDungeonCell + displayLevel
+
 - [ ] Implement `refreshDungeonCell` in `rogue-ts/src/io/display.ts`
 - [ ] Remove `displayLevel` stub from `lifecycle.ts`; implement in `rogue-ts/src/io/display.ts`
-- [ ] Add/update test.skip entries for any remaining gaps in Phase 1 functions
-- [ ] Verify dungeon renders after "New Game" (visual smoke test in browser)
-- [ ] Commit Phase 1
+- [ ] Verify test.skip entries exist for any remaining gaps
+- [ ] Smoke test: dungeon renders after "New Game" in browser
+- [ ] Commit; generate handoff
 
-## Phase 2: Runtime crash fix
+## Phase 2: Runtime crash fix (saveRecording)
 
 - [ ] Locate `saveRecording` call sites in `game-lifecycle.ts` (lines 378, 596)
-- [ ] Add no-op `saveRecording` stub to context builder in `lifecycle.ts`
-- [ ] Add `test.skip` entry tracking the stub
+- [ ] Add no-op `saveRecording: () => {}` stub to context builder in `lifecycle.ts`
+- [ ] Add `test.skip` tracking the stub
 - [ ] Verify game end no longer crashes
-- [ ] Commit Phase 2
+- [ ] Commit; generate handoff
 
-## Phase 3: Item system
+## Phase 3a: Item system — inventory + floor tick
 
-- [ ] Read `docs/audit/gaps-Items.md` — confirm full list of 28 MISSING + 12 STUBBED-UNTRACKED
+- [ ] Read `docs/audit/gaps-Items.md` — confirm full 28 MISSING + 12 STUBBED-UNTRACKED list
 - [ ] Implement `displayInventory`
 - [ ] Implement `updateFloorItems`
+- [ ] Remove test.skip entries for implemented functions
+- [ ] Commit; generate handoff
+
+## Phase 3b: Item system — use/drop flow utilities
+
 - [ ] Implement `itemIsCarried` and item quantity utilities
-- [ ] Implement identify / use / drop flow
-- [ ] Implement `applyTunnelEffect`, `teleport`, `negationBlast`, `empowerMonster`, `magicChargeItem`
-- [ ] Implement remaining potion / scroll / wand effect functions
+- [ ] Implement identify / use / drop flow functions
+- [ ] Remove test.skip entries for implemented functions
+- [ ] Commit; generate handoff
+
+## Phase 3c: Item system — core item effects
+
+- [ ] Implement `applyTunnelEffect`, `teleport`, `negationBlast`
+- [ ] Implement `empowerMonster`, `magicChargeItem`
+- [ ] Remove test.skip entries for implemented functions
+- [ ] Commit; generate handoff
+
+## Phase 3d: Item system — remaining effects
+
+- [ ] Implement remaining potion / scroll / wand effect functions (see gaps-Items.md)
 - [ ] Remove test.skip entries for all newly implemented functions
-- [ ] Commit Phase 3
+- [ ] Commit; generate handoff
 
-## Phase 4: Monster AI
+## Phase 4a: Monster AI — spell dispatch + bolt pipeline
 
-- [ ] Read `docs/audit/gaps-Monsters.md` — confirm full list of 27 MISSING functions
+- [ ] Read `docs/audit/gaps-Monsters.md` — confirm full 27 MISSING list
 - [ ] Implement `monsterCastSpell`
 - [ ] Implement `monstUseBolt`
+- [ ] Remove test.skip entries for implemented functions
+- [ ] Commit; generate handoff
+
+## Phase 4b: Monster AI — targeted abilities
+
 - [ ] Implement `monstUseDomination`, `monstUseBeckon`, `monstUseBlinkAway`
-- [ ] Implement summon / polymorph / fear / confusion AI functions
-- [ ] Implement `monsterDetails`
+- [ ] Implement `monsterDetails` (sidebar description)
+- [ ] Remove test.skip entries for implemented functions
+- [ ] Commit; generate handoff
+
+## Phase 4c: Monster AI — summon / polymorph / fear / confusion
+
+- [ ] Implement summon, polymorph, fear, confusion AI functions
 - [ ] Remove test.skip entries for all newly implemented functions
-- [ ] Commit Phase 4
+- [ ] Commit; generate handoff
 
-## Phase 5: NEEDS-VERIFICATION review
+## Phase 5a: NEEDS-VERIFICATION — Monsters.c + PowerTables.c
 
-- [ ] Review Monsters.c 20 NEEDS-VERIFICATION functions — fix or add test.skip for divergences
-- [ ] Review PowerTables.c 15 unwired functions — wire into item code or document why not
+- [ ] Review Monsters.c 20 NEEDS-VERIFICATION functions; fix or add test.skip for divergences
+- [ ] Review PowerTables.c 15 unwired functions; wire into item code or document why not
+- [ ] Commit; generate handoff
+
+## Phase 5b: NEEDS-VERIFICATION — RogueMain.c + remainder
+
 - [ ] Review RogueMain.c 20 NEEDS-VERIFICATION functions
-- [ ] Review remaining NEEDS-VERIFICATION entries (MainMenu.c, Architect.c, Buttons.c, etc.)
-- [ ] Commit Phase 5
+- [ ] Review remaining entries (MainMenu.c, Architect.c, Buttons.c, etc.)
+- [ ] Commit; generate handoff
+
+---
 
 ## Deferred
 

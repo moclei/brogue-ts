@@ -1,9 +1,28 @@
 # PLAN: port-v2-fix-rendering
 
+## Session Protocol
+
+**One sub-phase per session. No more.**
+
+1. Read BRIEF.md, PLAN.md, TASKS.md. Find the first unchecked task.
+2. Complete that task only. Do not continue into the next task.
+3. Commit. Update TASKS.md (check off completed tasks).
+4. Generate a handoff prompt and stop. Format:
+   ```
+   Continue port-v2-fix-rendering. Read: .context/PROJECT.md, initiatives/port-v2-fix-rendering/BRIEF.md, PLAN.md, TASKS.md
+   Resume at: [exact task name from TASKS.md]
+   Branch: feat/port-v2-fix-rendering
+   ```
+   Add a `## Session Notes [date]` to PLAN.md only if there are decisions worth preserving.
+
+Stop at 60% context. Do not start a new task to fill remaining context.
+
+---
+
 ## Approach
 
-Work phase-by-phase in fix-priority order. Each phase ends with a commit. Do not start the next
-phase until the current one is committed and TASKS.md is updated.
+Work phase-by-phase in fix-priority order. Each sub-phase ends with a commit. Do not start the
+next sub-phase until the current one is committed and TASKS.md is updated.
 
 The C source in `src/brogue/` is ground truth for all implementations. The audit gap files
 (`docs/audit/gaps-*.md`) are the reference for what is missing and what is already stubbed.
