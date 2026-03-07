@@ -118,7 +118,94 @@ unwired) → RogueMain.c (20) → rest.
 
 ## Open Questions
 
-- Does `getCellAppearance` require the lighting system to be fully functional first, or can it
-  fall back to unlit appearance? (Check IO.c implementation before starting Phase 1.)
+- ~~Does `getCellAppearance` require the lighting system to be fully functional first?~~ **RESOLVED:** `colorMultiplierFromDungeonLight` is already ported (io/color.ts). It reads `tmap[x][y].light[]`. If tmap is all-zeros the cell appears black — no blocker.
 - Are any of the 15 unwired PowerTables.c functions reachable from current item code paths,
   or are they all blocked by MISSING Items.c functions?
+
+---
+
+## Session Notes 2026-03-06 — Phase 1a
+
+### getCellAppearance: inputs, output, branches
+
+**Output** (matches existing context slot): `{ glyph: DisplayGlyph; foreColor: Color; backColor: Color }`
+
+**Standalone function parameters** (for `io/cell-appearance.ts`):
+```
+loc: Pos
+pmap: Pcell[][]
+displayBuffer: ScreenDisplayBuffer       // needed for wall-top check: cell below
+rogue: PlayerCharacter                   // playbackOmniscience, trueColorMode, inWater,
+                                         // stealthRange, scentTurnNumber,
+                                         // displayStealthRangeMode, cursorPathIntensity
+player: Creature                         // loc, info.displayChar/foreColor, status[]
+monsters: Creature[]                     // scan for monsterAtLoc
+dormantMonsters: Creature[]              // scan for dormantMonsterAtLoc
+floorItems: Item[]                       // scan for itemAtLoc
+tileCatalog: readonly FloorTileType[]
+dungeonFeatureCatalog: readonly DungeonFeature[]   // discoverType for secret tiles
+monsterCatalog: readonly CreatureType[]            // hallucination random monster
+terrainRandomValues: number[][][]        // bakeTerrainColors input
+displayDetail: number[][]                // DisplayDetailValue for trueColor/stealth mode
+scentMap: Grid                           // stealth range display
+```
+
+**Context slot** (already declared in effects.ts, targeting.ts, sidebar-player.ts, sidebar-monsters.ts):
+```ts
+getCellAppearance(loc: Pos): { glyph: DisplayGlyph; foreColor: Color; backColor: Color }
+```
+Wiring: standalone function wrapped in a closure capturing game state, injected via context builders.
+
+**All dependencies already ported ✓:**
+- Color ops: `applyColorMultiplier`, `applyColorAverage`, `applyColorAugment`, `normColor`,
+  `separateColors`, `randomizeColor`, `swapColors`, `colorFromComponents`, `storeColorComponents`,
+  `colorMultiplierFromDungeonLight` — all in io/color.ts
+- Display: `glyphIsWallish`, `bakeTerrainColors`, `mapToWindowX/Y`, `randomAnimateMonster` — io/display.ts
+- Items: `itemMagicPolarity`, `getItemCategoryGlyph`, `getHallucinatedItemCategory`, `itemAtLoc`
+- Monsters: `monsterRevealed`, `monsterIsHidden`, `monsterHiddenBySubmersion`, `canSeeMonster`
+  — exported from monsters/index.ts
+- Scent: `scentDistance` — time/turn-processing.ts
+- Color constants: all present in globals/colors.ts
+
+**Logic branches (in order):**
+1. **Stable memory path** — not visible/detected, monster not revealed → restore from `rememberedAppearance`; skip main loop
+2. **Tile appearance loop** — default to FLOOR; determine `maxLayer` (0, LIQUID+1, or full) based on discovered/magic-mapped; loop layers skipping GAS; track bestPriority for fore/back/char
+3. **Light multiplier** — `basicLightColor` (trueColor) or `colorMultiplierFromDungeonLight`
+4. **Gas augment** — GAS layer backColor blended at `min(90, 30+volume)` weight
+5. **Entity overlay** (in priority order):
+   - HAS_PLAYER → player glyph/color; `needDistinctness = true`
+   - Detected item (magic polarity, not visible) → G_AMULET/G_BAD_MAGIC/G_GOOD_MAGIC
+   - Visible monster (or immobile+discovered) and not hidden → monster glyph/color; hallucination substitution; invisible ally transparency; ally pink tint
+   - Monster revealed but not canSee → `'x'`/`'X'`, white; no light multiplier
+   - HAS_ITEM (visible or discovered+non-moving terrain) → item glyph/color; remember item in pmap
+   - Terrain only (visible or discovered) → clear pmap remembered item
+   - Undiscovered → **early return** `{ ' ', black, undiscoveredColor }`
+6. **Gas phantom silhouette** — invisible monster in gas cloud with gasAugment → show char in cellBackColor
+7. **Memory store** — if cell is becoming stable memory: store colors, apply light → restore (so this frame and future frames match)
+8. **Wall smoothing** — G_WALL/G_GRANITE + wallish cell below → G_WALL_TOP
+9. **Visibility tinting** (mutually exclusive, checked in order):
+   - Detected/revealed and not visible → no tint (leave as-is)
+   - CLAIRVOYANT_VISIBLE (not VISIBLE) → clairvoyanceColor multiplier
+   - TELEPATHIC_VISIBLE (not VISIBLE) → telepathyMultiplier
+   - MAGIC_MAPPED only (not DISCOVERED) → magicMapColor
+   - Not VISIBLE, not omniscience → memoryColor+memoryOverlay (or 80% black if inWater)
+   - Omniscience (playerCanSeeOrSense but not ANY_KIND_OF_VISIBLE) → omniscienceColor
+   - Fully visible → lightMultiplierColor; hallucination color randomization; deepWaterLightColor
+10. **Path highlight** — IS_IN_PATH: swap colors (TM_INVERT) or average with yellow
+11. **Stealth range** — IN_FIELD_OF_VIEW + scentDistance beyond 2×stealthRange → orange tint
+12. **True color / stealth detail** — playerCanSeeOrSense: DV_DARK → purple-dark tint; DV_LIT → light augment
+13. **separateColors** — if needDistinctness
+
+**Key TS adaptation notes:**
+- `playerCanSeeOrSense(x, y)` in C = `pmap[x][y].flags & ANY_KIND_OF_VISIBLE` — implement inline
+- `assureCosmeticRNG`/`restoreRNG` — TS has no RNG-switching mechanism; use `randRange` directly (acceptable for cosmetic ops)
+- `D_DISABLE_BACKGROUND_COLORS`, `D_SCENT_VISION` — debug macros always false; omit
+- `monsterAtLoc`/`dormantMonsterAtLoc`/`itemAtLoc` — inline array scans
+- `randomAnimateMonster` TS signature takes `(monsterFlags[], inanimate, invulnerable)` — call with monsterCatalog data
+
+### File split required
+`io/display.ts` is currently 484 lines. Adding getCellAppearance (~180 lines) + refreshDungeonCell + displayLevel would push it to ~674 lines — over the 600-line limit.
+
+**Split plan:**
+- New file `io/cell-appearance.ts` — `getCellAppearance`, `refreshDungeonCell`, `displayLevel`
+- `io/display.ts` — unchanged (buffer ops, coordinate helpers, primitive draw functions)

@@ -6,9 +6,9 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 
 ## Phase 1a: Understand getCellAppearance
 
-- [ ] Read IO.c `getCellAppearance` — map all inputs, branches, and output fields to TS types
-- [ ] Read `docs/audit/gaps-IO.md` — confirm what is already in `io/display.ts` vs what is missing
-- [ ] Document findings as a `## Session Notes` in PLAN.md (inputs, output shape, lighting dependency question)
+- [x] Read IO.c `getCellAppearance` — map all inputs, branches, and output fields to TS types
+- [x] Read `docs/audit/gaps-IO.md` — confirm what is already in `io/display.ts` vs what is missing
+- [x] Document findings as a `## Session Notes` in PLAN.md (inputs, output shape, lighting dependency question)
 - [ ] Commit notes; generate handoff
 
 ## Phase 1b: Implement getCellAppearance
