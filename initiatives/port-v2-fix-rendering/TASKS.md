@@ -35,11 +35,11 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 
 ## Phase 3a: Item system — inventory + floor tick
 
-- [ ] Read `docs/audit/gaps-Items.md` — confirm full 28 MISSING + 12 STUBBED-UNTRACKED list
-- [ ] Implement `displayInventory`
-- [ ] Implement `updateFloorItems`
-- [ ] Remove test.skip entries for implemented functions
-- [ ] Commit; generate handoff
+- [x] Read `docs/audit/gaps-Items.md` — confirm full 28 MISSING + 12 STUBBED-UNTRACKED list
+- [x] Implement `displayInventory` — already IMPLEMENTED at io/inventory-display.ts:52 per audit
+- [x] Implement `updateFloorItems` — new file `rogue-ts/src/items/floor-items.ts`; exported from items/index.ts
+- [x] Remove test.skip entries for implemented functions — N/A: updateFloorItems was MISSING (no prior test.skip); all 12 STUBBED-UNTRACKED entries already had test.skip in items.test.ts
+- [x] Commit; generate handoff
 
 ## Phase 3b: Item system — use/drop flow utilities
 
