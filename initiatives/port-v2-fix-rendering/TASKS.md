@@ -98,9 +98,10 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 ## Phase 5a: NEEDS-VERIFICATION — PowerTables.c wiring fixes
 
 - [x] Fix `staffBlinkDistance` context stub in items.ts (hardcoded `() => 0` → real fn)
-- [x] Wire remaining 14 unwired power-table functions — N/A: all staff/weapon/ring fns are tested
-      but their only call sites are inside the zap system (turn.ts `zap: () => {}`). No
-      actionable wiring work exists until the zap pipeline is ported.
+- [x] Wire remaining 14 unwired power-table functions — N/A at time of Phase 5a: all
+      staff/weapon/ring fns are tested but their only call sites are inside the zap system
+      (turn.ts `zap: () => {}`). Wiring is picked up by port-v2-domain-gaps Phase 1d
+      (zap context builder) — loop is closed there.
 - [x] Add direct tests for 6 untested charm functions: charmHealing, charmShattering,
       charmGuardianLifespan, charmNegationRadius, charmEffectDuration, charmRechargeDelay
       (48 total tests in power-tables.test.ts; 131 test.skip entries remain)
@@ -126,4 +127,4 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 [from: port-v2-audit] `loadSavedGame` — blocked on persistence layer; no filesystem in browser.
 [from: port-v2-audit] Recordings.c file I/O (28 OUT-OF-SCOPE) — deferred to persistence layer initiative.
 [from: port-v2-audit] SeedCatalog.c (10 OUT-OF-SCOPE) — CLI tool, no browser equivalent needed.
-[from: port-v2-fix-rendering Phase 5a] Zap pipeline (`zapItem` in Items.c; `zap: () => {}` stub in turn.ts) — 14 staff/weapon/ring power-table functions are tested but have no reachable call site until this is ported. Port when combat/item-use pipeline is in scope.
+[from: port-v2-fix-rendering Phase 5a] Zap pipeline (`zap` in Items.c; `zap: () => {}` stub in turn.ts) — 14 staff/weapon/ring power-table functions are tested but have no reachable call site until this is ported. Picked up by port-v2-domain-gaps Phases 1b–1d.
