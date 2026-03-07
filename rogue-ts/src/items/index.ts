@@ -141,3 +141,15 @@ export type {
 
 // ── Bolt item mapping (Phase 1a) ──
 export { boltForItem, boltEffectForItem } from "./bolt-item-mapping.js";
+
+// ── Bolt helpers (Phase 1c) ──
+export {
+    tunnelize,
+    negationWillAffectMonster,
+    projectileReflects,
+} from "./bolt-helpers.js";
+
+export type {
+    TunnelizeContext,
+    ProjectileReflectsContext,
+} from "./bolt-helpers.js";
