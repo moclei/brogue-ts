@@ -162,13 +162,13 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
 
 ### Phase 3a — Summary (one session)
 
-- [ ] Use grep to extract Summary Counts tables from all `docs/audit/gaps-*.md` files
+- [x] Use grep to extract Summary Counts tables from all `docs/audit/gaps-*.md` files
       (do NOT read each file in full — too large for one context window)
-- [ ] Aggregate counts per category across all 20 files
-- [ ] Write `docs/audit/summary.md` using the template in PLAN.md
-- [ ] Check off this task in TASKS.md
-- [ ] Commit: `"chore: port-v2-audit — Phase 3a synthesis summary complete"`
-- [ ] Stop. Do not start Phase 3b in the same session.
+- [x] Aggregate counts per category across all 20 files
+- [x] Write `docs/audit/summary.md` using the template in PLAN.md
+- [x] Check off this task in TASKS.md
+- [x] Commit: `"chore: port-v2-audit — Phase 3a synthesis summary complete"`
+- [x] Stop. Do not start Phase 3b in the same session.
 
 ### Phase 3b — High-impact domain stubs: IO.c + Items.c (one session)
 
