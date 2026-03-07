@@ -132,14 +132,30 @@ Note: disentangle completed in Phase 2c; perimeterCoords completed in Phase 3b.
 - [x] All 71 test files pass: 1806 pass, 124 skip
 - [x] Committed (5614065)
 
-## Phase 4b: Monster combat gaps
+## Phase 4b: Monster combat gaps ✓
 
-- [ ] Implement `cloneMonster` (Monsters.c:559) — wire into combat runic context
-- [ ] Implement `resurrectAlly` (Monsters.c:2889)
-- [ ] Implement `specifiedPathBetween` (Monsters.c:2014)
-- [ ] Implement `dormantMonsterAtLoc` (Monsters.c:2062)
-- [ ] Add tests; wire; remove test.skip entries
-- [ ] Commit; generate handoff
+- [x] Implement `specifiedPathBetween` (Monsters.c:2014) — new file monsters/monster-path-queries.ts;
+      uses getLineCoordinates from bolt-geometry.ts; SpecifiedPathContext with cellHasTerrainFlag +
+      cellHasPmapFlags
+- [x] Implement `dormantMonsterAtLoc` (Monsters.c:2062) — same file; DormantMonsterContext;
+      checks HAS_DORMANT_MONSTER flag before scanning dormant list
+- [x] Implement `becomeAllyWith` (Movement.c:513) — new file monsters/monster-lifecycle.ts;
+      BecomeAllyContext; full impl: demote leadership, drop item, recurse carriedMonster, set
+      ally state + MB_FOLLOWER, clear MB_CAPTIVE/MB_SEIZED; upgraded stub in
+      buildMonsterSpawningContext (simplified single-level demoteMonsterFromLeadership)
+- [x] Implement `cloneMonster` (Monsters.c:559) — same file; CloneMonsterContext; deep-copies
+      monst (info/status/arrays), clears transient fields, always prepends to monsters;
+      carriedMonster clone adds then removes; captive→becomeAllyWith; placeClone=true uses
+      getQualifyingPathLocNear; player clone adjusts stats; jellymancer feat check
+- [x] Implement `resurrectAlly` (Monsters.c:2889) — same file; ResurrectAllyContext; picks
+      highest-power ally from purgatory (ties broken by monsterID); moves to monsters, places
+      near loc, clears dying flags, resets burning/discordant, heals 100% panacea;
+      MA_ENTER_SUMMONS resets info from catalog + reinitializes status
+- [x] Wire becomeAllyWith into buildMonsterSpawningContext in monsters.ts; removed test.skip
+      from monsters.test.ts (stub: becomeAllyWith sets Ally state only)
+- [x] 21 tests in monster-path-queries.test.ts + 35 tests in monster-lifecycle.test.ts = 56 new
+- [x] All 73 test files pass: 1862 pass, 123 skip
+- [x] Committed
 
 ## Phase 5: spawnDungeonFeature + remaining smaller helpers
 

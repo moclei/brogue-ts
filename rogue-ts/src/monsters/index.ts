@@ -188,3 +188,25 @@ export {
 export type {
     SummonMinionsContext,
 } from "./monster-summoning.js";
+
+export {
+    specifiedPathBetween,
+    dormantMonsterAtLoc,
+} from "./monster-path-queries.js";
+
+export type {
+    SpecifiedPathContext,
+    DormantMonsterContext,
+} from "./monster-path-queries.js";
+
+export {
+    becomeAllyWith,
+    cloneMonster,
+    resurrectAlly,
+} from "./monster-lifecycle.js";
+
+export type {
+    BecomeAllyContext,
+    CloneMonsterContext,
+    ResurrectAllyContext,
+} from "./monster-lifecycle.js";

@@ -229,11 +229,6 @@ it.skip("stub: buildMonsterSpawningContext().buildMachine is a no-op (stub, need
     // Required for hordes with machine > 0 (machine-associated spawns).
 });
 
-it.skip("stub: buildMonsterSpawningContext().becomeAllyWith sets Ally state only (stub, needs full wiring)", () => {
-    // buildMonsterSpawningContext().becomeAllyWith only sets creatureState = Ally.
-    // Real implementation should also set bookkeepingFlags, update sightRadius, etc.
-    // Required for HORDE_ALLIED_WITH_PLAYER hordes.
-});
 
 it.skip("stub: buildMonsterStateContext().closestWaypointIndex returns -1 (stub, needs waypoint distance maps)", () => {
     // buildMonsterStateContext().closestWaypointIndex always returns -1.

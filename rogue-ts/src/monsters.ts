@@ -35,12 +35,13 @@ import { allocGrid, fillGrid } from "./grid/grid.js";
 import { randRange, randPercent } from "./math/rng.js";
 import { coordinatesAreInMap } from "./globals/tables.js";
 import { DCOLS, DROWS, MAX_WAYPOINT_COUNT } from "./types/constants.js";
-import { TileFlag } from "./types/flags.js";
-import { CreatureState, GameMode } from "./types/enums.js";
+import { TileFlag, MonsterBookkeepingFlag } from "./types/flags.js";
+import { GameMode } from "./types/enums.js";
 import type { SpawnContext } from "./monsters/monster-spawning.js";
 import type { MonsterStateContext } from "./monsters/monster-state.js";
 import type { MonsterQueryContext } from "./monsters/monster-queries.js";
 import type { MonsterGenContext } from "./monsters/monster-creation.js";
+import { becomeAllyWith as becomeAllyWithFn } from "./monsters/monster-lifecycle.js";
 import type { Creature, Pos } from "./types/types.js";
 
 // =============================================================================
@@ -72,7 +73,7 @@ function buildMonsterAtLoc(player: Creature, monsters: Creature[]) {
 export function buildMonsterSpawningContext(): SpawnContext {
     const {
         player, rogue, pmap, monsters, monsterCatalog,
-        gameConst, monsterItemsHopper,
+        gameConst, monsterItemsHopper, floorItems,
     } = getGameState();
 
     const combatCtx = buildCombatDamageContext();
@@ -131,10 +132,36 @@ export function buildMonsterSpawningContext(): SpawnContext {
 
         // ── Ally management ───────────────────────────────────────────────────
         becomeAllyWith(creature) {
-            // Minimal: set ally state and link to player.
-            // Full implementation (sound, bookkeepingFlags, etc.) wired in port-v2-platform.
-            creature.creatureState = CreatureState.Ally;
-            creature.leader = player;
+            becomeAllyWithFn(creature, {
+                player,
+                demoteMonsterFromLeadership(monst) {
+                    // Simplified: single-level follower reassignment.
+                    // Full multi-level iteration deferred to port-v2-platform.
+                    monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_LEADER;
+                    monst.mapToMe = null;
+                    let newLeader: Creature | null = null;
+                    for (const follower of monsters) {
+                        if (follower === monst || follower.leader !== monst) continue;
+                        if (follower.bookkeepingFlags & MonsterBookkeepingFlag.MB_BOUND_TO_LEADER) {
+                            follower.leader = null;
+                            follower.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_FOLLOWER;
+                        } else if (newLeader) {
+                            follower.leader = newLeader;
+                        } else {
+                            newLeader = follower;
+                            follower.bookkeepingFlags |= MonsterBookkeepingFlag.MB_LEADER;
+                            follower.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_FOLLOWER;
+                        }
+                    }
+                },
+                makeMonsterDropItem(monst) {
+                    if (monst.carriedItem) {
+                        floorItems.push(monst.carriedItem);
+                        monst.carriedItem = null;
+                    }
+                },
+                refreshDungeonCell: () => {},   // stub — wired in port-v2-platform
+            });
         },
 
         // ── Decorative stubs ──────────────────────────────────────────────────
