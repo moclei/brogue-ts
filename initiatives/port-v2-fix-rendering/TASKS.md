@@ -126,3 +126,4 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 [from: port-v2-audit] `loadSavedGame` — blocked on persistence layer; no filesystem in browser.
 [from: port-v2-audit] Recordings.c file I/O (28 OUT-OF-SCOPE) — deferred to persistence layer initiative.
 [from: port-v2-audit] SeedCatalog.c (10 OUT-OF-SCOPE) — CLI tool, no browser equivalent needed.
+[from: port-v2-fix-rendering Phase 5a] Zap pipeline (`zapItem` in Items.c; `zap: () => {}` stub in turn.ts) — 14 staff/weapon/ring power-table functions are tested but have no reachable call site until this is ported. Port when combat/item-use pipeline is in scope.
