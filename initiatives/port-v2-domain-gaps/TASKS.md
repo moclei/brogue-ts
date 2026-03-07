@@ -25,12 +25,12 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 - [x] Document in Session Notes: dependency graph, file split plan (zap is large)
 - [x] Committed notes; generated handoff
 
-## Phase 1c: Bolt/zap system — implement helpers
+## Phase 1c: Bolt/zap system — implement helpers ✓
 
-- [ ] Implement `impermissibleKinkBetween`, `tunnelize`, `negationWillAffectMonster`,
-      `projectileReflects` — items/bolt-helpers.ts (new file)
-- [ ] Add unit tests for each
-- [ ] Commit; generate handoff
+- [x] Implement `impermissibleKinkBetween`, `tunnelize`, `negationWillAffectMonster`,
+      `projectileReflects` — items/bolt-helpers.ts (new file); exported from items/index.ts
+- [x] Add unit tests: 27 tests in tests/items/bolt-helpers.test.ts (all pass)
+- [x] Committed
 
 ## Phase 1d: Bolt/zap system — implement detonateBolt + zap
 
