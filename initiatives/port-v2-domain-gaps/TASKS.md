@@ -32,13 +32,19 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 - [x] Add unit tests: 27 tests in tests/items/bolt-helpers.test.ts (all pass)
 - [x] Committed
 
-## Phase 1d: Bolt/zap system — implement detonateBolt + zap
+## Phase 1d: Bolt/zap system — implement detonateBolt + zap ✓
 
-- [ ] Implement `detonateBolt` — items/bolt-detonation.ts (new file)
-- [ ] Implement `zap` — items/zap.ts (new file); wire into item context builders
-- [ ] Add integration tests: staff fires bolt, wand fires bolt, bolt reaches monster
-- [ ] Remove test.skip entries unblocked by zap
-- [ ] Commit; generate handoff
+- [x] Implement `detonateBolt` — items/bolt-detonation.ts (new file); handles BE_OBSTRUCTION,
+      BE_CONJURATION, BE_BLINKING, BE_TUNNELING, targetDF spawn
+- [x] Implement `zap` async — items/zap.ts (new file); full bolt-travel loop with creature/terrain
+      reflection, tunneling, blink pre-flight, impact animation; uses ZapContext.render stubs
+- [x] Add `randRange` to ZapContext (needed by reflectBolt); fix CreatureState magic numbers in
+      bolt-update.ts
+- [x] Add integration tests: 11 detonateBolt unit tests + 7 zap integration tests (18 new total)
+- [x] No test.skip entries existed for these functions; no removals needed
+- [x] All 64 test files pass (1652 pass, 131 skip)
+- [x] Exported from items/index.ts: updateBolt, detonateBolt, zap, ZapContext, ZapRenderContext
+- [x] Committed
 
 ## Phase 2a: Spell effects — negate / weaken / slow
 

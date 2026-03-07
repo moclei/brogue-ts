@@ -153,3 +153,9 @@ export type {
     TunnelizeContext,
     ProjectileReflectsContext,
 } from "./bolt-helpers.js";
+
+// ── Bolt system (Phase 1d) ──
+export { updateBolt } from "./bolt-update.js";
+export { detonateBolt } from "./bolt-detonation.js";
+export { zap } from "./zap.js";
+export type { ZapContext, ZapRenderContext } from "./zap-context.js";
