@@ -63,16 +63,49 @@ It is better to flag something for human review than to assume it is correct.
 5. Check off the task in TASKS.md. Add any notes about unexpected findings.
 6. Commit. Stop. Do not start the next file.
 
-### Synthesis session (Phase 3)
+### Phase 3a — Summary session
 
-1. Read BRIEF.md, PLAN.md, TASKS.md.
-2. Read all `docs/audit/gaps-*.md` files.
-3. Count totals per category across all files.
-4. Identify critical gaps: functions that are MISSING or STUBBED-UNTRACKED in systems required
+1. Read PLAN.md and TASKS.md. Find the Phase 3a task.
+2. Use grep to extract only the Summary Counts tables from all `docs/audit/gaps-*.md` files.
+   Do NOT read each file in full — 20 files will exhaust the context window.
+   Suggested: `grep -A 12 "## Summary Counts" docs/audit/gaps-*.md`
+3. Aggregate counts per category across all 20 files.
+4. Identify critical gaps: MISSING or STUBBED-UNTRACKED functions in systems required
    for basic gameplay (rendering, movement, combat, level generation).
 5. Write `docs/audit/summary.md` (see template below).
-6. Update TASKS.md to reflect completion.
-7. Commit.
+6. Check off Phase 3a in TASKS.md.
+7. Commit. Stop — do not begin Phase 3b.
+
+### Phase 3b — High-impact domain stubs session (IO.c + Items.c)
+
+1. Read PLAN.md and TASKS.md. Find the Phase 3b task.
+2. Read `docs/audit/gaps-IO.md` and `docs/audit/gaps-Items.md` — focus on STUBBED-UNTRACKED rows.
+3. For each STUBBED-UNTRACKED entry: locate the relevant test file in `rogue-ts/tests/`,
+   add a `test.skip` block with: stub name, C source reference (file:line), and a one-sentence
+   description of the expected behavior when implemented.
+4. Check off Phase 3b in TASKS.md.
+5. Commit. Stop — do not begin Phase 3c.
+
+### Phase 3c — Remaining domain stubs session (Monsters.c + Recordings.c + Architect.c + Time.c)
+
+1. Read PLAN.md and TASKS.md. Find the Phase 3c task.
+2. Read STUBBED-UNTRACKED rows from `gaps-Monsters.md`, `gaps-Recordings.md`,
+   `gaps-Architect.md`, `gaps-Time.md`.
+3. For each entry: add a `test.skip` block as in Phase 3b.
+4. Check off Phase 3c in TASKS.md.
+5. Commit. Stop — do not begin Phase 3d.
+
+### Phase 3d — Wiring stubs, stale cleanup, and PROJECT.md session
+
+1. Read PLAN.md and TASKS.md. Find the Phase 3d task.
+2. Add `test.skip` entries for all untracked wiring stubs listed in the Phase 3d task.
+   These are context-builder stubs (e.g. `() => 0`, `() => {}`) in wiring files like
+   `input-context.ts`, `menus.ts`, `ui.ts` — not domain function stubs.
+3. Remove stale `test.skip` entries listed in the Phase 3d task (functions now IMPLEMENTED).
+   Scan all gaps files' notes sections for any additional stale entries before removing.
+4. Update `PROJECT.md` to point to the follow-on fix initiative.
+5. Check off Phase 3d in TASKS.md.
+6. Commit.
 
 ---
 

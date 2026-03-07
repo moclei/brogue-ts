@@ -158,22 +158,60 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
 
 ---
 
-## Phase 3: Synthesis (one session)
+## Phase 3: Synthesis (four sessions)
 
-- [ ] Read all `docs/audit/gaps-*.md` files
+### Phase 3a — Summary (one session)
+
+- [ ] Use grep to extract Summary Counts tables from all `docs/audit/gaps-*.md` files
+      (do NOT read each file in full — too large for one context window)
+- [ ] Aggregate counts per category across all 20 files
 - [ ] Write `docs/audit/summary.md` using the template in PLAN.md
-- [ ] Identify all STUBBED-UNTRACKED items — add corresponding `test.skip` entries to the
-      relevant test files in `rogue-ts/tests/` (this is the one code change permitted in this initiative)
-- [ ] Identify all stale `test.skip` entries — remove entries where the function is now IMPLEMENTED
-      (known: `movement.test.ts:241` for `useStairs`; scan all gaps files' notes sections for others)
-- [ ] Commit: `"chore: port-v2-audit — synthesis complete, untracked stubs recorded"`
+- [ ] Check off this task in TASKS.md
+- [ ] Commit: `"chore: port-v2-audit — Phase 3a synthesis summary complete"`
+- [ ] Stop. Do not start Phase 3b in the same session.
+
+### Phase 3b — High-impact domain stubs: IO.c + Items.c (one session)
+
+Covers the two files with the most STUBBED-UNTRACKED entries (~25 combined).
+- [ ] Re-read `docs/audit/gaps-IO.md` and `docs/audit/gaps-Items.md` — STUBBED-UNTRACKED rows only
+- [ ] For each entry: find the relevant test file in `rogue-ts/tests/`, add a `test.skip` entry
+      documenting the stub name, C source reference, and expected behavior
+- [ ] Check off this task in TASKS.md
+- [ ] Commit: `"chore: port-v2-audit — Phase 3b test.skip entries for IO.c + Items.c stubs"`
+- [ ] Stop. Do not start Phase 3c in the same session.
+
+### Phase 3c — Remaining domain stubs: Monsters.c + Recordings.c + Architect.c + Time.c (one session)
+
+Covers ~23 STUBBED-UNTRACKED entries across four files.
+- [ ] Re-read STUBBED-UNTRACKED rows from `gaps-Monsters.md`, `gaps-Recordings.md`,
+      `gaps-Architect.md`, `gaps-Time.md`
+- [ ] For each entry: find the relevant test file, add a `test.skip` entry
+- [ ] Check off this task in TASKS.md
+- [ ] Commit: `"chore: port-v2-audit — Phase 3c test.skip entries for Monsters/Recordings/Architect/Time stubs"`
+- [ ] Stop. Do not start Phase 3d in the same session.
+
+### Phase 3d — Wiring stubs, stale cleanup, and PROJECT.md (one session)
+
+- [ ] Add `test.skip` entries for all untracked wiring stubs identified in gaps files:
+      - Time.c notes: `autoRest`, `manualSearch` in input-context.ts
+      - RogueMain.c notes: `enableEasyMode` (input-context.ts:203), `executeEvent` (menus.ts:256)
+      - MainMenu.c notes: `listFiles`, `loadRunHistory`, `saveResetRun`
+      - Buttons.c notes: 3 wiring stubs in input-context.ts and ui.ts
+      - Globals.c notes: `terrainFlags`, `terrainMechFlags` in io/input-context.ts:247–248
+- [ ] Remove stale `test.skip` entries where function is now IMPLEMENTED:
+      - Known: `movement.test.ts:241` (useStairs)
+      - Known: `combat.test.ts:228,255,261,267,272` (5 entries — see gaps-Combat.md notes)
+      - Scan all gaps files' notes sections for any others flagged
 - [ ] Update `PROJECT.md` to point to the follow-on fix initiative as the new active initiative
+- [ ] Commit: `"chore: port-v2-audit — Phase 3d wiring stubs recorded, stale skips removed, audit complete"`
 
 ---
 
 ## Completion Criteria
 
-- All Phase 2 gap files exist and are committed
-- `docs/audit/summary.md` exists with full counts and prioritized gap list
-- All STUBBED-UNTRACKED items now have test.skip entries
-- A follow-on initiative is documented or planned
+- All Phase 2 gap files exist and are committed ✓
+- `docs/audit/summary.md` exists with full counts and prioritized gap list (Phase 3a)
+- All STUBBED-UNTRACKED domain functions have test.skip entries (Phase 3b + 3c)
+- All untracked wiring stubs have test.skip entries (Phase 3d)
+- All stale test.skip entries are removed (Phase 3d)
+- A follow-on initiative is documented and PROJECT.md updated (Phase 3d)
