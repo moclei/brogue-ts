@@ -47,3 +47,64 @@ C line numbers are. The C source is ground truth for correctness.
   `impermissibleKinkBetween`, `tunnelize`
 - `spawnDungeonFeature` source location needs investigation (Movement.c audit attributes it
   to Items.c but it does not appear in gaps-Items.md — may be in Architect.c)
+
+---
+
+## Session Notes 2026-03-07 — Phase 1b read-through
+
+### zap architecture decision: rendering via ZapRenderContext
+
+`zap` (Items.c:4814) is 361 lines. Rendering is deeply interleaved with game logic inside
+the main bolt-travel loop. The TS implementation must separate them:
+
+- All rendering/animation calls go into a `ZapRenderContext` injected into `zap`
+- Stubs in the context for: `refreshSideBar`, `displayCombatText`, `refreshDungeonCell`,
+  `getCellAppearance`, `backUpLighting`, `restoreLighting`, `demoteVisibility`,
+  `updateFieldOfViewDisplay`, `paintLight`, `updateVision`, `updateLighting`,
+  `hiliteCell`, `pauseAnimation` (async — returns boolean fast-forward flag)
+- Domain state flows through separately
+
+### File split plan (Phases 1c + 1d)
+
+```
+items/bolt-helpers.ts       — impermissibleKinkBetween, tunnelize,
+                              negationWillAffectMonster, projectileReflects
+items/bolt-update.ts        — updateBolt (large switch; per-cell monster/tile effects)
+items/bolt-detonation.ts    — detonateBolt (impact effects)
+items/zap.ts                — zap (main engine; rendering via ZapRenderContext)
+```
+
+### Dependency map for Phase 1c helpers
+
+- `impermissibleKinkBetween` — pure geometry; needs `cellHasTerrainFlag`
+- `projectileReflects` — needs `netEnchant`, `reflectionChance`, `monsterIsInClass`,
+  `monstersAreEnemies`, `rand_percent`
+- `negationWillAffectMonster` — needs `boltCatalog`; pure logic
+- `tunnelize` — needs `spawnDungeonFeature` (stub), `freeCaptivesEmbeddedAt`,
+  `monsterAtLoc`, `inflictLethalDamage`, `killCreature`, `tileCatalog`, `pmap`
+
+### updateBolt bolt-effect dependencies (Phase 1d)
+
+All already-implemented functions: `attack`, `inflictDamage`, `killCreature`,
+`moralAttack`, `splitMonster`, `haste`, `imbueInvisibility`, `wandDominate`,
+`becomeAllyWith`, `negate` (Phase 2a but can stub), `empowerMonster`, `addPoison`,
+`heal`, `cloneMonster` (Phase 4b), `flashMonster`, `wakeUp`, `exposeCreatureToFire`,
+`exposeTileToFire`, `exposeTileToElectricity`.
+Stubs needed: `teleport` (Phase 2c), `beckonMonster` (Phase 5), `slow` (Phase 2a),
+`polymorph` (Phase 2b).
+
+### detonateBolt dependencies (Phase 1d)
+
+- `spawnDungeonFeature` — MISSING (Phase 5); stub as no-op for now (only affects
+  BE_OBSTRUCTION and `targetDF` — not core combat path)
+- `staffBladeCount` — need to verify if implemented
+- `generateMonster`, `getQualifyingPathLocNear`, `fadeInMonster` — for BE_CONJURATION
+- `disentangle` — MISSING (Phase 2c); needed for BE_BLINKING
+- `setUpWaypoints` — for BE_TUNNELING; check if implemented
+- `applyInstantTileEffectsToCreature`, `pickUpItemAt`, `checkForMissingKeys` — for BE_BLINKING player case
+
+### reflectBolt note
+
+The C version uses `perimeterCoords(rand_range(0, 39))` for random reflection targets.
+The current TS `reflectBolt` in bolt-geometry.ts uses a simplified fallback. Phase 4a
+implements `perimeterCoords` — wire it into `reflectBolt` at that point.

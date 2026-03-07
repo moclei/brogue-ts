@@ -16,14 +16,14 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 - [x] No test.skip entries existed for these functions; all 61 test files pass (1607 pass, 131 skip)
 - [x] Committed
 
-## Phase 1b: Bolt/zap system — read-through + plan
+## Phase 1b: Bolt/zap system — read-through + plan ✓
 
-- [ ] Read `src/brogue/Items.c`: `zap` (4814), `detonateBolt` (4720),
+- [x] Read `src/brogue/Items.c`: `zap` (4814), `detonateBolt` (4720),
       `impermissibleKinkBetween` (3605), `tunnelize` (3631),
       `negationWillAffectMonster` (3690), `projectileReflects` (4206)
-- [ ] Map all inputs, branches, and dependencies for zap + detonateBolt
-- [ ] Document in Session Notes: dependency graph, file split plan (zap is large)
-- [ ] Commit notes; generate handoff
+- [x] Map all inputs, branches, and dependencies for zap + detonateBolt
+- [x] Document in Session Notes: dependency graph, file split plan (zap is large)
+- [x] Committed notes; generated handoff
 
 ## Phase 1c: Bolt/zap system — implement helpers
 
