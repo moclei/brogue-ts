@@ -186,3 +186,11 @@ export {
     beckonMonster,
 } from "./item-utils.js";
 export type { BeckonMonsterContext } from "./item-utils.js";
+
+// ── Throw system (Phase 6) ──
+export { hitMonsterWithProjectileWeapon, throwItem } from "./throw-item.js";
+export type {
+    HitMonsterContext,
+    ThrowItemRenderContext,
+    ThrowItemContext,
+} from "./throw-item.js";
