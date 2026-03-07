@@ -115,16 +115,22 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 - [x] All 69 test files pass (1765 pass, 125 skip)
 - [x] Committed
 
-## Phase 4a: Monster summoning — perimeterCoords + swarming + summonMinions
+## Phase 4a: Monster summoning — perimeterCoords + swarming + summonMinions ✓
 
-Note: disentangle completed in Phase 2c.
+Note: disentangle completed in Phase 2c; perimeterCoords completed in Phase 3b.
 
-- [ ] Implement `perimeterCoords` (Monsters.c:2260) — prerequisite for summonMinions
-- [ ] Implement `creatureEligibleForSwarming` (Monsters.c:2134) +
-      `monsterSwarmDirection` (Monsters.c:2160)
-- [ ] Implement `summonMinions` (Monsters.c:976) — replaces `() => {}` stub in summonsCtx
-- [ ] Wire into turn.ts summonsCtx; add tests; remove test.skip in monster-actions.test.ts
-- [ ] Commit; generate handoff
+- [x] Implement `creatureEligibleForSwarming` (Monsters.c:2134) — monsters/monster-swarm-ai.ts;
+      pure predicate checking immobility flags, status effects, seizing state, creature state
+- [x] Implement `monsterSwarmDirection` (Monsters.c:2160) — same file; MonsterSwarmContext;
+      shuffles cardinal/diagonal dirs independently; checks flanking cell + ally analysis
+- [x] Implement `summonMinions` (Monsters.c:976) — monsters/monster-summoning.ts;
+      SummonMinionsContext; pickHordeType + spawnMinions + MA_ENTER_SUMMONS path;
+      HORDE_SUMMONED_AT_DISTANCE deferred; IO callbacks stubbed for port-v2-platform
+- [x] Wire summonMinions into turn.ts summonsCtx; imports buildMonsterSpawningContext
+      from monsters.ts; removed test.skip in monster-actions.test.ts
+- [x] 22 new tests in monster-swarm-ai.test.ts; 18 new in monster-summoning.test.ts
+- [x] All 71 test files pass: 1806 pass, 124 skip
+- [x] Committed (5614065)
 
 ## Phase 4b: Monster combat gaps
 
