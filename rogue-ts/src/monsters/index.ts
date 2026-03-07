@@ -135,3 +135,18 @@ export {
 export type {
     NegateContext,
 } from "./monster-negate.js";
+
+export {
+    buildProperCommaString,
+    monsterIsNegatable,
+    getMonsterAbilitiesText,
+    getMonsterDominationText,
+} from "./monster-details-helpers.js";
+
+export {
+    monsterDetails,
+} from "./monster-details.js";
+
+export type {
+    MonsterDetailsContext,
+} from "./monster-details.js";

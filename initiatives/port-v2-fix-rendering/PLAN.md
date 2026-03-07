@@ -124,6 +124,26 @@ unwired) → RogueMain.c (20) → rest.
 
 ---
 
+## Session Notes 2026-03-06 — Phase 4b
+
+### monstUseDomination / monstUseBeckon / monstUseBlinkAway — don't exist in C
+These planned names were incorrect. The C code handles domination and beckoning as
+bolt effects in the existing `monstUseBolt` pipeline (already ported in Phase 4a).
+`monsterBlinkToSafety` and `monsterBlinkToPreferenceMap` exist but are STUBBED-UNTRACKED
+(deferred — depend on `getSafetyMap` which requires safety-map computation).
+
+### monsterDetails — implemented in two files (600-line split)
+- `monsters/monster-details-helpers.ts` — `buildProperCommaString`, `monsterIsNegatable`,
+  `getMonsterAbilitiesText`, `getMonsterDominationText`
+- `monsters/monster-details.ts` — `MonsterDetailsContext`, `staffOrWandEffectOnMonsterDescription`,
+  `summarizePack`, `monsterDetails`
+
+`monsterDetails` is a standalone function. Wiring it into `SidebarContext.monsterDetails`
+requires building the sidebar context (not done yet — `refreshSideBar` is still `() => {}`).
+The wiring is tracked via `describe.skip` in `monster-details.test.ts`.
+
+---
+
 ## Session Notes 2026-03-06 — Phase 1a
 
 ### getCellAppearance: inputs, output, branches

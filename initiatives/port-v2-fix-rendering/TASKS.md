@@ -81,10 +81,11 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 
 ## Phase 4b: Monster AI — targeted abilities
 
-- [ ] Implement `monstUseDomination`, `monstUseBeckon`, `monstUseBlinkAway`
-- [ ] Implement `monsterDetails` (sidebar description)
-- [ ] Remove test.skip entries for implemented functions
-- [ ] Commit; generate handoff
+- [x] `monstUseDomination`, `monstUseBeckon`, `monstUseBlinkAway` — do not exist as C functions; domination/beckoning are bolt effects handled by Phase 4a bolt pipeline; blink is `monsterBlinkToSafety` (STUBBED-UNTRACKED, deferred)
+- [x] Implement `monsterDetails` — new files `monsters/monster-details-helpers.ts` + `monsters/monster-details.ts`; exported from monsters/index.ts
+- [x] Add unit tests: `buildProperCommaString`, `monsterIsNegatable`, `getMonsterAbilitiesText`, `getMonsterDominationText` — 18 tests passing
+- [x] Add `describe.skip` for `SidebarContext.monsterDetails` wiring (sidebar context builder not yet created)
+- [x] Commit; generate handoff
 
 ## Phase 4c: Monster AI — summon / polymorph / fear / confusion
 
