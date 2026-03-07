@@ -83,15 +83,20 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 - [x] All 67 test files pass (1723 pass, 127 skip)
 - [x] Committed
 
-## Phase 3a: Monster flee AI — getSafetyMap + allyFlees
+## Phase 3a: Monster flee AI — getSafetyMap + allyFlees ✓
 
-- [ ] Read `src/brogue/Monsters.c` getSafetyMap (2371) + allyFlees (2988) — map dependencies
-- [ ] Implement `getSafetyMap` — time/safety-maps.ts (domain function exists as interface
-      only; turn.ts currently stubs with allocGrid())
-- [ ] Implement `allyFlees` (2988) + `fleeingMonsterAwareOfPlayer` (2363)
-- [ ] Wire getSafetyMap into turn.ts; wire allyFlees into MonstersTurnContext
-- [ ] Add tests; remove relevant test.skip entries
-- [ ] Commit; generate handoff
+- [x] Read `src/brogue/Monsters.c` getSafetyMap (2371) + allyFlees (2988) — map dependencies
+- [x] Implement `getSafetyMap` — new file monsters/monster-flee-ai.ts;
+      `fleeingMonsterAwareOfPlayer` helper co-located; `monsterFleesFrom` already in
+      monsters/monster-state.ts
+- [x] Implement `allyFlees` (2988) + `fleeingMonsterAwareOfPlayer` (2363) — monster-flee-ai.ts
+- [x] Wire getSafetyMap into turn.ts buildMonstersTurnContext() (replaces allocGrid() stub);
+      allyFlees wired via MoveAllyContext (interface already declared; moveAlly still stubbed —
+      will unwrap when full ally AI is wired in a later phase)
+- [x] 20 new tests in tests/monsters/monster-flee-ai.test.ts — all pass; no test.skip removals
+      (no prior skips existed for these functions)
+- [x] All 68 test files pass (1743 pass, 127 skip)
+- [x] Committed
 
 ## Phase 3b: Monster blink AI
 

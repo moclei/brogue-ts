@@ -28,7 +28,7 @@ import {
     cellHasTMFlag as cellHasTMFlagFn,
     terrainFlags as terrainFlagsFn,
 } from "./state/helpers.js";
-import { allocGrid } from "./grid/grid.js";
+import { allocGrid, copyGrid } from "./grid/grid.js";
 import { zeroOutGrid } from "./architect/helpers.js";
 import { FP_FACTOR } from "./math/fixpt.js";
 import { randRange, randPercent } from "./math/rng.js";
@@ -63,6 +63,7 @@ import {
 import type { BoltAIContext } from "./monsters/monster-bolt-ai.js";
 import { monsterSummons as monsterSummonsFn } from "./monsters/monster-actions.js";
 import type { MonsterSummonsContext } from "./monsters/monster-actions.js";
+import { getSafetyMap as getSafetyMapFn } from "./monsters/monster-flee-ai.js";
 import type { TurnProcessingContext } from "./time/turn-processing.js";
 import type { MonstersTurnContext } from "./monsters/monster-actions.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
@@ -335,6 +336,9 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
 export function buildMonstersTurnContext(): MonstersTurnContext {
     const { player, rogue, pmap, monsters } = getGameState();
 
+    // Transient safety map — persisted level map wired in port-v2-platform
+    const localSafetyMap = allocGrid();
+
     // ── Monster query context (for canSeeMonster, monsterIsHidden, etc.) ────
     const queryCtx: MonsterQueryContext = {
         player,
@@ -428,7 +432,15 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         isLocalScentMaximum: () => false,
         pathTowardCreature: () => {},
         nextStep: () => -1,
-        getSafetyMap: () => allocGrid(),
+        getSafetyMap: (monst) => getSafetyMapFn(monst, {
+            player,
+            safetyMap: localSafetyMap,
+            rogue: { updatedSafetyMapThisTurn: rogue.updatedSafetyMapThisTurn },
+            inFieldOfView: (loc) => !!(pmap[loc.x]?.[loc.y]?.flags & TileFlag.IN_FIELD_OF_VIEW),
+            allocGrid,
+            copyGrid,
+            updateSafetyMap: () => {},   // stub — SafetyMapsContext wired in port-v2-platform
+        }),
         traversiblePathBetween: () => false,
         monsterWillAttackTarget: () => false,
 
