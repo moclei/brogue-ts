@@ -13,9 +13,9 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 
 ## Phase 1b: Implement getCellAppearance
 
-- [ ] Implement `getCellAppearance` in `rogue-ts/src/io/display.ts`
-- [ ] Add unit test (or test.skip if lighting dependency blocks full test)
-- [ ] Commit; generate handoff
+- [x] Implement `getCellAppearance` in `rogue-ts/src/io/cell-appearance.ts` (new file)
+- [x] Add unit tests: undiscovered cell + stable memory paths; test.skip for lighting round-trip
+- [x] Commit; generate handoff
 
 ## Phase 1c: Implement refreshDungeonCell + displayLevel
 
