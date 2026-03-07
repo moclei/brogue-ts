@@ -27,17 +27,36 @@ import {
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { boltCatalog } from "./globals/bolt-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
-import { itemName as itemNameFn } from "./items/item-naming.js";
+import {
+    itemName as itemNameFn,
+    identify as identifyFn,
+} from "./items/item-naming.js";
 import {
     removeItemFromArray,
     numberOfMatchingPackItems as numberOfMatchingPackItemsFn,
 } from "./items/item-inventory.js";
 import { enchantMagnitude } from "./items/item-usage.js";
-import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
-import { initializeItem } from "./items/item-generation.js";
-import { heal as healFn } from "./combat/combat-damage.js";
+import {
+    itemMagicPolarity as itemMagicPolarityFn,
+    initializeItem,
+} from "./items/item-generation.js";
+import {
+    heal as healFn,
+    killCreature as killCreatureFn,
+} from "./combat/combat-damage.js";
 import { distanceBetween } from "./monsters/monster-state.js";
 import { spawnHorde as spawnHordeFn } from "./monsters/monster-spawning.js";
+import {
+    monsterName as monsterNameFn,
+    monstersAreEnemies as monstersAreEnemiesFn,
+    canSeeMonster as canSeeMonsterFn,
+} from "./monsters/monster-queries.js";
+import { negateCreature } from "./monsters/monster-negate.js";
+import { negationBlast as negationBlastFn } from "./items/item-effects.js";
+import { updateIdentifiableItems as updateIdentifiableItemsFn } from "./items/item-handlers.js";
+import { statusEffectCatalog } from "./globals/status-effects.js";
+import { mutationCatalog } from "./globals/mutation-catalog.js";
+import { messageColorFromVictim as messageColorFromVictimFn } from "./io/color.js";
 import {
     charmHealing as charmHealingFn,
     charmProtection as charmProtectionFn,
@@ -59,7 +78,7 @@ import {
     itemMessageColor, advancementMessageColor, magicMapFlashColor,
     darkBlue, gray, black,
 } from "./globals/colors.js";
-import { DungeonFeatureType, LightType, BoltType, CharmKind } from "./types/enums.js";
+import { DungeonFeatureType, LightType, BoltType, CharmKind, StatusEffect } from "./types/enums.js";
 import { TileFlag, MessageFlag, HordeFlag, HORDE_MACHINE_ONLY } from "./types/flags.js";
 import { INVALID_POS } from "./types/types.js";
 import { KEYBOARD_LABELS } from "./types/constants.js";
@@ -128,6 +147,38 @@ export function buildItemHandlerContext(): ItemHandlerContext {
     const cellHasTMFlag = (loc: Pos, flags: number) =>
         cellHasTMFlagFn(pmap, loc, flags);
     const monsterAtLoc = buildMonsterAtLoc(player, monsters);
+
+    // ── MonsterQueryContext — used by negationBlast creature checks ──────────
+    const mqCtx = {
+        player,
+        cellHasTerrainFlag,
+        cellHasGas: () => false,
+        playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playbackOmniscience: rogue.playbackOmniscience,
+    };
+
+    // ── NegateContext — wires negateCreature for negationBlast ───────────────
+    const negateCtx = {
+        player,
+        boltCatalog,
+        mutationCatalog,
+        statusEffectCatalog,
+        monsterName: (m: Creature, includeArticle: boolean) =>
+            monsterNameFn(m, includeArticle, mqCtx),
+        killCreature: (m: Creature) => killCreatureFn(m, false, combatCtx),
+        combatMessage: () => {},  // stub — messages wired in port-v2-platform
+        messageColorFromVictim: (m: Creature) => messageColorFromVictimFn(
+            m, player,
+            player.status[StatusEffect.Hallucinating] > 0,
+            rogue.playbackOmniscience,
+            (a, b) => monstersAreEnemiesFn(a, b, player, cellHasTerrainFlag),
+        ),
+        extinguishFireOnCreature: () => {},  // stub — wired in port-v2-platform
+        refreshDungeonCell: () => {},        // stub — wired in port-v2-platform
+        applyInstantTileEffectsToCreature: () => {},  // stub — wired in port-v2-platform
+        resolvePronounEscapes: (text: string) => text,  // stub — pronouns not yet resolved
+    };
 
     return {
         // ── Game state ──────────────────────────────────────────────────────
@@ -223,7 +274,30 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         refreshDungeonCell: () => {},        // stub — wired in port-v2-platform
         crystalize: () => {},                // stub — wired in port-v2-platform
         rechargeItems: () => {},             // stub — wired in port-v2-platform
-        negationBlast: () => {},             // stub — wired in port-v2-platform
+        negationBlast(source, radius) {
+            negationBlastFn(source, radius, {
+                player,
+                monsters,
+                floorItems,
+                pmap,
+                itemMessageColor,
+                negate: (m) => negateCreature(m, negateCtx),
+                colorFlash: () => {},        // stub — wired in port-v2-platform
+                flashMonster: () => {},      // stub — wired in port-v2-platform
+                canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
+                messageWithColor: () => {},  // stub — wired in port-v2-platform
+                identify: (item) => identifyFn(item, gameConst),
+                refreshDungeonCell: () => {},  // stub — wired in port-v2-platform
+                updateIdentifiableItems: () => updateIdentifiableItemsFn({
+                    packItems,
+                    floorItems,
+                    updateIdentifiableItem: () => {},
+                }),
+                charmRechargeDelay: (kind, enchant) =>
+                    charmRechargeDelayFn(charmEffectTable[kind], enchant),
+                IN_FIELD_OF_VIEW: TileFlag.IN_FIELD_OF_VIEW,
+            });
+        },
         discordBlast: () => {},              // stub — wired in port-v2-platform
 
         // ── Visual effects stubs ────────────────────────────────────────────

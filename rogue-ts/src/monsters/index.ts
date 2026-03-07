@@ -127,3 +127,11 @@ export {
 export type {
     MonsterOpsContext,
 } from "./monster-ops.js";
+
+export {
+    negateCreature,
+} from "./monster-negate.js";
+
+export type {
+    NegateContext,
+} from "./monster-negate.js";

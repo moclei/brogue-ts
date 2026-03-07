@@ -226,11 +226,6 @@ it.skip("stub: crystalize() is a no-op (should create crystal terrain in radius)
     // Real implementation should call the shattering scroll terrain effect.
 });
 
-it.skip("stub: negationBlast() is a no-op (should strip magic from creatures/items in FOV)", () => {
-    // buildItemHandlerContext().negationBlast() does nothing.
-    // Real implementation should iterate creatures/floor items in field of view
-    // and remove all magical status effects.
-});
 
 it.skip("stub: exposeCreatureToFire() is a no-op (should set Burning status on creature)", () => {
     // buildItemHandlerContext().exposeCreatureToFire() does nothing.
