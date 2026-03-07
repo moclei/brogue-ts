@@ -50,9 +50,19 @@ import {
     monsterName as monsterNameFn,
     monstersAreEnemies as monstersAreEnemiesFn,
     canSeeMonster as canSeeMonsterFn,
+    monsterRevealed as monsterRevealedFn,
 } from "./monsters/monster-queries.js";
 import { negateCreature } from "./monsters/monster-negate.js";
-import { negationBlast as negationBlastFn } from "./items/item-effects.js";
+import {
+    negationBlast as negationBlastFn,
+    haste as hasteFn,
+    makePlayerTelepathic as makePlayerTelepathicFn,
+    imbueInvisibility as imbueInvisibilityFn,
+    discordBlast as discordBlastFn,
+    rechargeItems as rechargeItemsFn,
+    updateIdentifiableItem as updateIdentifiableItemFn,
+    updatePlayerRegenerationDelay as updatePlayerRegenerationDelayFn,
+} from "./items/item-effects.js";
 import { updateIdentifiableItems as updateIdentifiableItemsFn } from "./items/item-handlers.js";
 import { statusEffectCatalog } from "./globals/status-effects.js";
 import { mutationCatalog } from "./globals/mutation-catalog.js";
@@ -233,7 +243,12 @@ export function buildItemHandlerContext(): ItemHandlerContext {
             const idx = floorItems.indexOf(item);
             if (idx >= 0) floorItems.splice(idx, 1);
         },
-        updateIdentifiableItem: () => {},
+        updateIdentifiableItem(item) {
+            updateIdentifiableItemFn(item, {
+                scrollTable: mutableScrollTable,
+                potionTable: mutablePotionTable,
+            });
+        },
         updateEncumbrance: () => {},         // stub — wired in port-v2-platform
         updateRingBonuses: () => {},         // stub — wired in port-v2-platform
         equipItem: () => {},                 // stub — wired in port-v2-platform
@@ -247,12 +262,35 @@ export function buildItemHandlerContext(): ItemHandlerContext {
 
         // ── Creature / combat helpers ────────────────────────────────────────
         heal: (target, percent, increaseMax) => healFn(target, percent, increaseMax, combatCtx),
-        haste: () => {},                     // stub — wired in port-v2-platform
+        haste(target, duration) {
+            hasteFn(target, duration, {
+                player,
+                updateEncumbrance: () => {},  // stub — wired in port-v2-platform
+                message: () => {},            // stub — wired in port-v2-platform
+            });
+        },
         teleport: () => {},                  // stub — wired in port-v2-platform
         exposeCreatureToFire: () => {},      // stub — wired in port-v2-platform
         extinguishFireOnCreature: () => {},  // stub — wired in port-v2-platform
-        makePlayerTelepathic: () => {},      // stub — wired in port-v2-platform
-        imbueInvisibility: () => {},         // stub — wired in port-v2-platform
+        makePlayerTelepathic(duration) {
+            makePlayerTelepathicFn(duration, {
+                player,
+                monsters,
+                refreshDungeonCell: () => {},  // stub — wired in port-v2-platform
+                message: () => {},             // stub — wired in port-v2-platform
+            });
+        },
+        imbueInvisibility(target, duration) {
+            imbueInvisibilityFn(target, duration, {
+                player,
+                boltCatalog,
+                canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
+                monsterRevealed: (m) => monsterRevealedFn(m, player),
+                refreshDungeonCell: () => {},  // stub — wired in port-v2-platform
+                refreshSideBar: () => {},      // stub — wired in port-v2-platform
+                flashMonster: () => {},        // stub — wired in port-v2-platform
+            });
+        },
         wakeUp: () => {},                    // stub — wired in port-v2-platform
         fadeInMonster: () => {},             // stub — wired in port-v2-platform
         flashMonster: () => {},              // stub — wired in port-v2-platform
@@ -273,7 +311,12 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         discover: () => {},                  // stub — wired in port-v2-platform
         refreshDungeonCell: () => {},        // stub — wired in port-v2-platform
         crystalize: () => {},                // stub — wired in port-v2-platform
-        rechargeItems: () => {},             // stub — wired in port-v2-platform
+        rechargeItems(categories) {
+            rechargeItemsFn(categories, {
+                packItems,
+                message: () => {},           // stub — wired in port-v2-platform
+            });
+        },
         negationBlast(source, radius) {
             negationBlastFn(source, radius, {
                 player,
@@ -298,7 +341,19 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 IN_FIELD_OF_VIEW: TileFlag.IN_FIELD_OF_VIEW,
             });
         },
-        discordBlast: () => {},              // stub — wired in port-v2-platform
+        discordBlast(source, radius) {
+            discordBlastFn(source, radius, {
+                player,
+                monsters,
+                pmap,
+                itemMessageColor,
+                canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
+                colorFlash: () => {},        // stub — wired in port-v2-platform
+                flashMonster: () => {},      // stub — wired in port-v2-platform
+                messageWithColor: () => {},  // stub — wired in port-v2-platform
+                IN_FIELD_OF_VIEW: TileFlag.IN_FIELD_OF_VIEW,
+            });
+        },
 
         // ── Visual effects stubs ────────────────────────────────────────────
         colorFlash: () => {},                // stub — wired in port-v2-platform
@@ -309,7 +364,12 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         updateMinersLightRadius: () => {},   // stub — wired in port-v2-platform
         updateVision: () => {},              // stub — wired in port-v2-platform
         updateClairvoyance: () => {},        // stub — wired in port-v2-platform
-        updatePlayerRegenerationDelay: () => {}, // stub — wired in port-v2-platform
+        updatePlayerRegenerationDelay() {
+            updatePlayerRegenerationDelayFn({
+                player,
+                regenerationBonus: rogue.regenerationBonus,
+            });
+        },
 
         // ── Targeting stubs ─────────────────────────────────────────────────
         chooseTarget: () => ({ confirmed: false, target: { ...INVALID_POS } }),

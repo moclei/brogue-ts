@@ -61,9 +61,13 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 
 ## Phase 3d: Item system — remaining effects
 
-- [ ] Implement remaining potion / scroll / wand effect functions (see gaps-Items.md)
-- [ ] Remove test.skip entries for all newly implemented functions
-- [ ] Commit; generate handoff
+- [x] Implement remaining potion / scroll / wand effect functions (see gaps-Items.md)
+      Implemented: haste, makePlayerTelepathic, imbueInvisibility, discordBlast,
+      rechargeItems, updateIdentifiableItem, updatePlayerRegenerationDelay
+      Deferred: slow, weaken, aggravateMonsters, crystalize, polymorph, summonGuardian
+      (require bolt system or complex dependencies — not in scope for this phase)
+- [x] Remove test.skip entries for all newly implemented functions (7 removed; 132 remain)
+- [x] Commit; generate handoff
 
 ## Phase 4a: Monster AI — spell dispatch + bolt pipeline
 

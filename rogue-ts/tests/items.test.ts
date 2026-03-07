@@ -206,10 +206,6 @@ it.skip("stub: spawnDungeonFeature() is a no-op (should spawn terrain/gas effect
     // which places DF tile effects at the given position.
 });
 
-it.skip("stub: haste() is a no-op (should apply movementSpeed bonus for N turns)", () => {
-    // buildItemHandlerContext().haste() does nothing.
-    // Real implementation should apply the haste status effect to the creature.
-});
 
 it.skip("stub: teleport() is a no-op (should relocate creature to random valid cell)", () => {
     // buildItemHandlerContext().teleport() does nothing.
@@ -257,12 +253,6 @@ it.skip("stub: summonGuardian() is a no-op (should spawn a guardian monster near
     // creature allied to the player.
 });
 
-it.skip("stub: updateIdentifiableItem() is a no-op (should update identification state for one item)", () => {
-    // C: Items.c:6908 — updateIdentifiableItem()
-    // items.ts:185 has a `() => {}` stub.
-    // Real implementation should check whether the given item's kind has been
-    // used enough to auto-identify and update its known/identified flags.
-});
 
 it.skip("stub: nextTargetAfter() always returns false (should cycle targeting cursor to next monster)", () => {
     // C: Items.c:5281 — nextTargetAfter()
@@ -292,41 +282,10 @@ it.skip("stub: swapLastEquipment() is a no-op (should swap weapon/armor with pre
     // armor, swapping with the currently equipped item.
 });
 
-it.skip("stub: updatePlayerRegenerationDelay() is a no-op (should recalculate HP regeneration rate)", () => {
-    // C: Items.c:7903 — updatePlayerRegenerationDelay()
-    // items.ts:238 has a `() => {}` stub.
-    // Real implementation should recompute the player's regeneration delay based
-    // on equipped rings of regeneration and current status effects.
-});
 
-it.skip("stub: makePlayerTelepathic() is a no-op (should grant temporary telepathy to the player)", () => {
-    // C: Items.c:3976 — makePlayerTelepathic()
-    // items.ts:203 has a `() => {}` stub.
-    // Real implementation should set the telepathy status flag and duration on
-    // the player creature so monsters become visible through walls.
-});
 
-it.skip("stub: rechargeItems() is a no-op (should recharge all depleted staffs and charms)", () => {
-    // C: Items.c:3989 — rechargeItems()
-    // items.ts:225 has a `() => {}` stub.
-    // Note: distinct from rechargeItemsIncrementally (Time.c per-turn tick).
-    // Real implementation should instantly restore all staffs/charms to full
-    // charge (used by the recharge scroll).
-});
 
-it.skip("stub: discordBlast() is a no-op (should make all monsters in FOV attack each other)", () => {
-    // C: Items.c:4129 — discordBlast()
-    // items.ts:227 has a `() => {}` stub.
-    // Real implementation should apply the discord status to every visible
-    // monster, causing them to treat all creatures as enemies.
-});
 
-it.skip("stub: imbueInvisibility() is a no-op (should grant temporary invisibility to the player)", () => {
-    // C: Items.c:4187 — imbueInvisibility()
-    // items.ts:204 has a `() => {}` stub.
-    // Real implementation should set the invisible status flag and duration on
-    // the player so monsters cannot detect them by sight.
-});
 
 // =============================================================================
 // Stub registry — Monsters.c domain stubs (Phase 3c, port-v2-audit)
