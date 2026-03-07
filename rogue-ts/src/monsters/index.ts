@@ -150,3 +150,13 @@ export {
 export type {
     MonsterDetailsContext,
 } from "./monster-details.js";
+
+export {
+    monstUseMagic,
+    monsterHasBoltEffect,
+    monsterCanShootWebs,
+} from "./monster-bolt-ai.js";
+
+export type {
+    BoltAIContext,
+} from "./monster-bolt-ai.js";

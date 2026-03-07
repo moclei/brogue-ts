@@ -466,3 +466,54 @@ export function monstUseMagic(monst: Creature, ctx: BoltAIContext): boolean {
     }
     return monstUseBolt(monst, ctx);
 }
+
+// ============================================================================
+// monsterHasBoltEffect — Monsters.c:2079
+// ============================================================================
+
+/**
+ * Returns the bolt type if the monster has a bolt with the given effect.
+ * Returns 0 (BOLT_NONE) if no matching bolt is found.
+ *
+ * Ported from monsterHasBoltEffect() in Monsters.c.
+ */
+export function monsterHasBoltEffect(
+    monst: Creature,
+    boltEffectIndex: number,
+    boltCatalog: readonly Bolt[],
+): number {
+    for (let i = 0; i < monst.info.bolts.length && monst.info.bolts[i] !== 0; i++) {
+        if (boltCatalog[monst.info.bolts[i]]?.boltEffect === boltEffectIndex) {
+            return monst.info.bolts[i];
+        }
+    }
+    return 0;
+}
+
+// ============================================================================
+// monsterCanShootWebs — Monsters.c:1608
+// ============================================================================
+
+/**
+ * Returns true if the monster has a bolt whose path-spawned dungeon feature
+ * entangles targets (i.e. the monster can shoot webs).
+ *
+ * Ported from monsterCanShootWebs() in Monsters.c.
+ */
+export function monsterCanShootWebs(
+    monst: Creature,
+    boltCatalog: readonly Bolt[],
+    tileCatalog: readonly FloorTileType[],
+    dungeonFeatureCatalog: readonly DungeonFeature[],
+): boolean {
+    for (let i = 0; i < monst.info.bolts.length && monst.info.bolts[i] !== 0; i++) {
+        const theBolt = boltCatalog[monst.info.bolts[i]];
+        if (theBolt?.pathDF) {
+            const df = dungeonFeatureCatalog[theBolt.pathDF];
+            if (df && (tileCatalog[df.tile]?.flags ?? 0) & TerrainFlag.T_ENTANGLES) {
+                return true;
+            }
+        }
+    }
+    return false;
+}

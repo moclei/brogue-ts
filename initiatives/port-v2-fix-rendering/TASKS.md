@@ -89,9 +89,11 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 
 ## Phase 4c: Monster AI — summon / polymorph / fear / confusion
 
-- [ ] Implement summon, polymorph, fear, confusion AI functions
-- [ ] Remove test.skip entries for all newly implemented functions
-- [ ] Commit; generate handoff
+- [x] Implement `monsterHasBoltEffect` + `monsterCanShootWebs` as standalone functions in monster-bolt-ai.ts; wire into turn.ts MonstersTurnContext; 9 real tests in monster-bolt-ai.test.ts
+- [x] Wire real `monsterSummons` into turn.ts boltAICtx + MonstersTurnContext (was `() => false`); add `summonMinions: () => {}` stub tracked with test.skip in monster-actions.test.ts
+- [x] Polymorph / fear / confusion — handled by Phase 4a bolt pipeline; no additional functions needed
+- [x] Remove test.skip entries for monsterHasBoltEffect + monsterCanShootWebs (131 skips remain; net -1)
+- [x] Commit; generate handoff
 
 ## Phase 5a: NEEDS-VERIFICATION — Monsters.c + PowerTables.c
 

@@ -54,8 +54,14 @@ import {
 import type { MonsterQueryContext } from "./monsters/monster-queries.js";
 import { distanceBetween } from "./monsters/monster-state.js";
 import { avoidedFlagsForMonster } from "./monsters/monster-spawning.js";
-import { monstUseMagic as monstUseMagicFn } from "./monsters/monster-bolt-ai.js";
+import {
+    monstUseMagic as monstUseMagicFn,
+    monsterHasBoltEffect as monsterHasBoltEffectFn,
+    monsterCanShootWebs as monsterCanShootWebsFn,
+} from "./monsters/monster-bolt-ai.js";
 import type { BoltAIContext } from "./monsters/monster-bolt-ai.js";
+import { monsterSummons as monsterSummonsFn } from "./monsters/monster-actions.js";
+import type { MonsterSummonsContext } from "./monsters/monster-actions.js";
 import type { TurnProcessingContext } from "./time/turn-processing.js";
 import type { MonstersTurnContext } from "./monsters/monster-actions.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
@@ -338,6 +344,17 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         playbackOmniscience: rogue.playbackOmniscience,
     };
 
+    // ── Monster summons context — wires monsterSummons ───────────────────────
+    const summonsCtx: MonsterSummonsContext = {
+        player,
+        monsters,
+        rng: { randRange },
+        adjacentLevelAllyCount: 0,   // adjacent levels not tracked in TS port
+        deepestLevel: rogue.deepestLevel,
+        depthLevel: rogue.depthLevel,
+        summonMinions: () => {},     // stub — summonMinions not yet ported (see test.skip)
+    };
+
     // ── Bolt AI context — wires monstUseMagic / monstUseBolt ────────────────
     const boltAICtx: BoltAIContext = {
         player,
@@ -375,7 +392,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         combatMessage: () => {},                // stub — wired in port-v2-platform
         zap: () => {},                          // stub — wired in port-v2-platform
         gameOver: (msg) => gameOver(msg),
-        monsterSummons: () => false,            // stub — summonMinions not yet wired
+        monsterSummons: (monst, alwaysUse) => monsterSummonsFn(monst, alwaysUse, summonsCtx),
     };
 
     return {
@@ -395,11 +412,11 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         moveMonsterPassivelyTowards: () => false,
         monsterAvoids: () => false,
         monstUseMagic: (monst) => monstUseMagicFn(monst, boltAICtx),
-        monsterHasBoltEffect: () => 0,
+        monsterHasBoltEffect: (monst, effectType) => monsterHasBoltEffectFn(monst, effectType, boltCatalog),
         monsterBlinkToPreferenceMap: () => false,
         monsterBlinkToSafety: () => false,
-        monsterSummons: () => false,
-        monsterCanShootWebs: () => false,
+        monsterSummons: (monst, alwaysUse) => monsterSummonsFn(monst, alwaysUse, summonsCtx),
+        monsterCanShootWebs: (monst) => monsterCanShootWebsFn(monst, boltCatalog, tileCatalog, dungeonFeatureCatalog),
         updateMonsterCorpseAbsorption: () => false,
         spawnDungeonFeature: () => {},
         applyInstantTileEffectsToCreature: () => {},

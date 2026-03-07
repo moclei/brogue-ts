@@ -569,6 +569,15 @@ describe("monstersTurn", () => {
 // Stub registry — Monsters.c domain stubs (Phase 3c, port-v2-audit)
 // =============================================================================
 
+it.skip("stub: summonMinions() is a no-op (should spawn horde minions around summoner and handle enter-summons transition)", () => {
+    // C: Monsters.c:976 — summonMinions()
+    // turn.ts summonsCtx has `summonMinions: () => {}`.
+    // Real implementation should call pickHordeType + spawnMinions, set ticksUntilTurn
+    // and leader on newly summoned minions, and handle MA_ENTER_SUMMONS by placing the
+    // summoner inside a minion (carriedMonster). HORDE_SUMMONED_AT_DISTANCE path
+    // requires calculateDistances + teleport — deferred.
+});
+
 it.skip("stub: monsterBlinkToPreferenceMap() is a no-op (should teleport monster toward highest-value preference cell)", () => {
     // C: Monsters.c:2290 — monsterBlinkToPreferenceMap()
     // monsters/monster-actions.ts:205 exports monsterBlinkToPreferenceMapStub as a no-op.

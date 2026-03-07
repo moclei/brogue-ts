@@ -198,19 +198,6 @@ it.skip("stub: pathTowardCreature wires Dijkstra pathfinding", () => {
 // Stub registry — Monsters.c + Recordings.c + Time.c domain stubs (Phase 3c, port-v2-audit)
 // =============================================================================
 
-it.skip("stub: monsterCanShootWebs() always returns false (should check if monster has web-shooting ability)", () => {
-    // C: Monsters.c:1608 — monsterCanShootWebs()
-    // turn.ts:337 has a `() => false` context stub.
-    // Real implementation should return true if the monster has the MA_SHOOTS_WEBS
-    // ability flag and there are no webs between it and the target cell.
-});
-
-it.skip("stub: monsterHasBoltEffect() always returns 0 (should return the bolt type the monster can fire)", () => {
-    // C: Monsters.c:2079 — monsterHasBoltEffect()
-    // turn.ts:333 has a `() => 0` context stub.
-    // Real implementation should return a non-zero bolt enum value if the monster
-    // has a bolt in its bolt list and is eligible to fire it this turn.
-});
 
 it.skip("stub: displayAnnotation() is a no-op (should display recording annotation text during playback)", () => {
     // C: Recordings.c:435 — displayAnnotation()
