@@ -9,7 +9,7 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { initGameState, getGameState, setMonsters } from "../src/core.js";
-import { buildTurnProcessingContext } from "../src/turn.js";
+import { buildTurnProcessingContext, buildMonstersTurnContext } from "../src/turn.js";
 import { playerTurnEnded as playerTurnEndedFn } from "../src/time/turn-processing.js";
 import { createCreature } from "../src/monsters/monster-creation.js";
 import { monsterCatalog } from "../src/globals/monster-catalog.js";
@@ -173,9 +173,15 @@ it.skip("stub: moveMonster wires real movement with collision detection", () => 
     // Real implementation should call movement/player-movement.ts moveMonster().
 });
 
-it.skip("stub: monstUseMagic wires bolt/spell AI", () => {
-    // buildMonstersTurnContext().monstUseMagic is a no-op returning false.
-    // Real implementation should call monster-actions.ts monstUseMagic().
+it("monstUseMagic returns false for a monster with no bolt abilities", () => {
+    // A rat has no bolts — monstUseBolt short-circuits and returns false,
+    // so monstUseMagic returns false without attempting to cast.
+    setupPlayer();
+    const ctx = buildMonstersTurnContext();
+    const rat = makeTestCreature();
+    // Ensure no bolt abilities (MK_RAT.bolts should be empty / [0, ...])
+    rat.info.bolts = [0];
+    expect(ctx.monstUseMagic(rat)).toBe(false);
 });
 
 it.skip("stub: scentDirection wires scent-following pathfinding", () => {

@@ -34,13 +34,28 @@ import { randRange, randPercent } from "./math/rng.js";
 import { nbDirs, coordinatesAreInMap } from "./globals/tables.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
+import { boltCatalog } from "./globals/bolt-catalog.js";
+import { monsterCatalog } from "./globals/monster-catalog.js";
 import {
     goodMessageColor, badMessageColor, advancementMessageColor, itemMessageColor,
     orange, green, red, yellow, darkRed, darkGreen, poisonColor,
 } from "./globals/colors.js";
 import { DCOLS, DROWS } from "./types/constants.js";
-import { TileFlag, MonsterBookkeepingFlag, MonsterBehaviorFlag } from "./types/flags.js";
-import { BoltEffect, CreatureState, GameMode } from "./types/enums.js";
+import { TileFlag, MonsterBookkeepingFlag, MonsterBehaviorFlag, TerrainFlag } from "./types/flags.js";
+import { BoltEffect, CreatureState, DungeonLayer, GameMode } from "./types/enums.js";
+import { openPathBetween as openPathBetweenFn } from "./items/bolt-geometry.js";
+import {
+    monsterIsHidden as monsterIsHiddenFn,
+    monstersAreTeammates as monstersAreTeammatesFn,
+    monstersAreEnemies as monstersAreEnemiesFn,
+    canSeeMonster as canSeeMonsterFn,
+    canDirectlySeeMonster as canDirectlySeeMonsterFn,
+} from "./monsters/monster-queries.js";
+import type { MonsterQueryContext } from "./monsters/monster-queries.js";
+import { distanceBetween } from "./monsters/monster-state.js";
+import { avoidedFlagsForMonster } from "./monsters/monster-spawning.js";
+import { monstUseMagic as monstUseMagicFn } from "./monsters/monster-bolt-ai.js";
+import type { BoltAIContext } from "./monsters/monster-bolt-ai.js";
 import type { TurnProcessingContext } from "./time/turn-processing.js";
 import type { MonstersTurnContext } from "./monsters/monster-actions.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
@@ -313,6 +328,56 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
 export function buildMonstersTurnContext(): MonstersTurnContext {
     const { player, rogue, pmap, monsters } = getGameState();
 
+    // ── Monster query context (for canSeeMonster, monsterIsHidden, etc.) ────
+    const queryCtx: MonsterQueryContext = {
+        player,
+        cellHasTerrainFlag: (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags),
+        cellHasGas: (loc) => !!(pmap[loc.x]?.[loc.y]?.layers[DungeonLayer.Gas]),
+        playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playbackOmniscience: rogue.playbackOmniscience,
+    };
+
+    // ── Bolt AI context — wires monstUseMagic / monstUseBolt ────────────────
+    const boltAICtx: BoltAIContext = {
+        player,
+        monsters,
+        rogue,
+        boltCatalog,
+        tileCatalog,
+        dungeonFeatureCatalog,
+        monsterCatalog,
+        rng: { randPercent },
+        openPathBetween: (loc1, loc2) =>
+            openPathBetweenFn(
+                loc1, loc2,
+                (loc) => cellHasTerrainFlagFn(pmap, loc, TerrainFlag.T_OBSTRUCTS_PASSABILITY),
+            ),
+        cellHasTerrainFlag: (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags),
+        inFieldOfView: (loc) => !!(pmap[loc.x]?.[loc.y]?.flags & TileFlag.IN_FIELD_OF_VIEW),
+        canDirectlySeeMonster: (m) => canDirectlySeeMonsterFn(m, queryCtx),
+        monsterIsHidden: (target, viewer) => monsterIsHiddenFn(target, viewer, queryCtx),
+        monstersAreTeammates: (a, b) => monstersAreTeammatesFn(a, b, player),
+        monstersAreEnemies: (a, b) =>
+            monstersAreEnemiesFn(a, b, player, (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags)),
+        canSeeMonster: (m) => canSeeMonsterFn(m, queryCtx),
+        burnedTerrainFlagsAtLoc: () => 0,   // stub — burnedTerrainFlagsAtLoc not yet ported
+        avoidedFlagsForMonster,
+        distanceBetween,
+        monsterName: (m, includeArticle) => {
+            if (m === player) return "you";
+            const pfx = includeArticle
+                ? (m.creatureState === CreatureState.Ally ? "your " : "the ")
+                : "";
+            return `${pfx}${m.info.monsterName}`;
+        },
+        resolvePronounEscapes: (text) => text,  // stub — wired in combat.ts
+        combatMessage: () => {},                // stub — wired in port-v2-platform
+        zap: () => {},                          // stub — wired in port-v2-platform
+        gameOver: (msg) => gameOver(msg),
+        monsterSummons: () => false,            // stub — summonMinions not yet wired
+    };
+
     return {
         player,
         monsters,
@@ -329,7 +394,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         moveMonster: () => false,
         moveMonsterPassivelyTowards: () => false,
         monsterAvoids: () => false,
-        monstUseMagic: () => false,
+        monstUseMagic: (monst) => monstUseMagicFn(monst, boltAICtx),
         monsterHasBoltEffect: () => 0,
         monsterBlinkToPreferenceMap: () => false,
         monsterBlinkToSafety: () => false,

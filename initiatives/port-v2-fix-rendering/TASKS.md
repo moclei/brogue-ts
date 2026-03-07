@@ -71,11 +71,13 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 
 ## Phase 4a: Monster AI — spell dispatch + bolt pipeline
 
-- [ ] Read `docs/audit/gaps-Monsters.md` — confirm full 27 MISSING list
-- [ ] Implement `monsterCastSpell`
-- [ ] Implement `monstUseBolt`
-- [ ] Remove test.skip entries for implemented functions
-- [ ] Commit; generate handoff
+- [x] Read `docs/audit/gaps-Monsters.md` — confirm full 27 MISSING list
+- [x] Implement `monsterCastSpell`
+- [x] Implement `monstUseBolt`
+- [x] Implement `generallyValidBoltTarget`, `targetEligibleForCombatBuff`, `specificallyValidBoltTarget` (prerequisites for monstUseBolt)
+- [x] Implement `monstUseMagic` (replaces monstUseMagicStub); wire into buildMonstersTurnContext in turn.ts
+- [x] Remove test.skip for monstUseMagic in turn.test.ts; add real test (131 skips remain)
+- [x] Commit; generate handoff
 
 ## Phase 4b: Monster AI — targeted abilities
 
