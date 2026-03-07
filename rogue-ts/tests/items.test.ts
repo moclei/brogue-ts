@@ -207,9 +207,13 @@ it.skip("stub: spawnDungeonFeature() is a no-op (should spawn terrain/gas effect
 });
 
 
-it.skip("stub: teleport() is a no-op (should relocate creature to random valid cell)", () => {
-    // buildItemHandlerContext().teleport() does nothing.
-    // Real implementation should find a random passable cell and move the creature.
+it("teleport() with INVALID_POS runs without throwing", () => {
+    // Smoke test: teleport() is now wired. With an empty pmap (default state)
+    // there may be no valid cell, so the player may stay put — but it must not throw.
+    setupPlayer();
+    const ctx = buildItemHandlerContext();
+    const { player } = getGameState();
+    expect(() => ctx.teleport(player, ctx.INVALID_POS, true)).not.toThrow();
 });
 
 

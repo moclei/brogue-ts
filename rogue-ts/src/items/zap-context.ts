@@ -143,9 +143,7 @@ export interface ZapContext {
     ): void;
 
     // ── Teleport / blink ──
-    /** STUB — Phase 2c */
     teleport(monst: Creature, targetPos: Pos, safe: boolean): void;
-    /** STUB — Phase 2c */
     disentangle(caster: Creature): void;
     applyInstantTileEffectsToCreature(monst: Creature): void;
     pickUpItemAt(loc: Pos): void;

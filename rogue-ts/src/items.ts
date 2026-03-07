@@ -46,7 +46,18 @@ import {
     inflictLethalDamage as inflictLethalDamageFn,
 } from "./combat/combat-damage.js";
 import { distanceBetween, alertMonster as alertMonsterFn } from "./monsters/monster-state.js";
-import { spawnHorde as spawnHordeFn } from "./monsters/monster-spawning.js";
+import {
+    teleport as teleportFn,
+    disentangle as disentangleFn,
+} from "./monsters/monster-teleport.js";
+import { calculateDistances } from "./dijkstra/dijkstra.js";
+import { getFOVMask as getFOVMaskFn } from "./light/fov.js";
+import { FP_FACTOR } from "./math/fixpt.js";
+import {
+    spawnHorde as spawnHordeFn,
+    forbiddenFlagsForMonster as forbiddenFlagsForMonsterFn,
+    avoidedFlagsForMonster as avoidedFlagsForMonsterFn,
+} from "./monsters/monster-spawning.js";
 import {
     monsterName as monsterNameFn,
     monstersAreEnemies as monstersAreEnemiesFn,
@@ -100,11 +111,13 @@ import {
     darkBlue, gray, black, forceFieldColor,
 } from "./globals/colors.js";
 import { DungeonFeatureType, LightType, BoltType, CharmKind, StatusEffect } from "./types/enums.js";
-import { TileFlag, MessageFlag, HordeFlag, HORDE_MACHINE_ONLY } from "./types/flags.js";
+import {
+    TileFlag, MessageFlag, HordeFlag, HORDE_MACHINE_ONLY,
+    MonsterBookkeepingFlag, TerrainMechFlag, IS_IN_MACHINE,
+} from "./types/flags.js";
 import { INVALID_POS } from "./types/types.js";
 import { KEYBOARD_LABELS } from "./types/constants.js";
 import type { ItemHandlerContext } from "./items/item-handlers.js";
-import type { ItemHelperContext } from "./movement/item-helpers.js";
 import type { ItemTable, Creature, Pos } from "./types/types.js";
 
 // =============================================================================
@@ -280,7 +293,56 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 message: () => {},            // stub — wired in port-v2-platform
             });
         },
-        teleport: () => {},                  // stub — wired in port-v2-platform
+        teleport(target, destination, voluntary) {
+            const calcDistCtx = {
+                cellHasTerrainFlag,
+                cellHasTMFlag,
+                monsterAtLoc,
+                monsterAvoids: () => false as const,
+                discoveredTerrainFlagsAtLoc: () => 0,
+                isPlayer: (m: Creature) => m === player,
+                getCellFlags: (x: number, y: number) => pmap[x]?.[y]?.flags ?? 0,
+            };
+            const fovCtx = {
+                cellHasTerrainFlag,
+                getCellFlags: (x: number, y: number) => pmap[x]?.[y]?.flags ?? 0,
+            };
+            teleportFn(target, destination, voluntary, {
+                player,
+                disentangle: (m) => disentangleFn(m, { player, message: () => {} }),
+                calculateDistancesFrom: (grid, x, y, flags) =>
+                    calculateDistances(grid, x, y, flags, null, true, false, calcDistCtx),
+                getFOVMaskAt: (grid, x, y, radius, terrain, flags, cautious) =>
+                    getFOVMaskFn(grid, x, y, radius, terrain, flags, cautious, fovCtx),
+                forbiddenFlagsForMonster: (info) => forbiddenFlagsForMonsterFn(info),
+                avoidedFlagsForMonster: (info) => avoidedFlagsForMonsterFn(info),
+                cellHasTerrainFlag,
+                cellHasTMFlag,
+                getCellFlags: (x, y) => pmap[x]?.[y]?.flags ?? 0,
+                isPosInMap: (loc) => coordinatesAreInMap(loc.x, loc.y),
+                setMonsterLocation(monst, loc) {
+                    const flag = monst === player ? TileFlag.HAS_PLAYER : TileFlag.HAS_MONSTER;
+                    if (pmap[monst.loc.x]?.[monst.loc.y]) {
+                        pmap[monst.loc.x][monst.loc.y].flags &= ~flag;
+                    }
+                    monst.loc = { ...loc };
+                    if (pmap[loc.x]?.[loc.y]) {
+                        pmap[loc.x][loc.y].flags |= flag;
+                    }
+                    if (
+                        (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_SUBMERGED) &&
+                        !cellHasTMFlagFn(pmap, loc, TerrainMechFlag.TM_ALLOWS_SUBMERGING)
+                    ) {
+                        monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_SUBMERGED;
+                    }
+                },
+                chooseNewWanderDestination: () => {},  // stub — Phase 3a
+                IS_IN_MACHINE,
+                HAS_PLAYER: TileFlag.HAS_PLAYER,
+                HAS_MONSTER: TileFlag.HAS_MONSTER,
+                HAS_STAIRS: TileFlag.HAS_STAIRS,
+            });
+        },
         exposeCreatureToFire: () => {},      // stub — wired in port-v2-platform
         extinguishFireOnCreature: () => {},  // stub — wired in port-v2-platform
         makePlayerTelepathic(duration) {
@@ -527,65 +589,5 @@ export function buildItemHandlerContext(): ItemHandlerContext {
     };
 }
 
-// =============================================================================
-// buildItemHelperContext
-// =============================================================================
-
-/**
- * Build an ItemHelperContext backed by the current game state.
- *
- * Wires real implementations for item description, key use, map queries,
- * and pack/floor item management.  promoteTile and discover are stubbed —
- * they require terrain mutation wired in port-v2-platform.
- */
-export function buildItemHelperContext(): ItemHelperContext {
-    const state = getGameState();
-    const { player, rogue, pmap, monsters, packItems, floorItems } = state;
-
-    const namingCtx = buildNamingCtx(state);
-    const monsterAtLoc = buildMonsterAtLoc(player, monsters);
-
-    return {
-        pmap,
-        player,
-        rogue: { playbackOmniscience: rogue.playbackOmniscience },
-        tileCatalog: tileCatalog as unknown as readonly {
-            flags: number; mechFlags: number; discoverType: number; description: string;
-        }[],
-        packItems,
-        floorItems,
-        itemMessageColor,
-
-        initializeItem: () => initializeItem(),
-
-        itemName(theItem, buf, includeDetails, includeArticle, _maxLen) {
-            buf[0] = itemNameFn(theItem, includeDetails, includeArticle, namingCtx);
-        },
-
-        describeHallucinatedItem(buf) {
-            buf[0] = "something strange";  // stub — wired in port-v2-platform
-        },
-
-        removeItemFromChain: (item, chain) => removeItemFromArray(item, chain),
-
-        deleteItem(item) {
-            removeItemFromArray(item, floorItems);
-            removeItemFromArray(item, packItems);
-        },
-
-        monsterAtLoc,
-
-        promoteTile: () => {},              // stub — wired in port-v2-platform
-
-        messageWithColor: () => {},         // stub — wired in port-v2-platform
-
-        cellHasTerrainFlag: (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags),
-        cellHasTMFlag: (loc, flags) => cellHasTMFlagFn(pmap, loc, flags),
-        coordinatesAreInMap: (x, y) => coordinatesAreInMap(x, y),
-        playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-        distanceBetween: (p1, p2) => distanceBetween(p1, p2),
-        discover: () => {},                 // stub — wired in port-v2-platform
-        randPercent: (pct) => randPercent(pct),
-        posEq: (a, b) => a.x === b.x && a.y === b.y,
-    };
-}
+// buildItemHelperContext is in items/item-helper-context.ts (split for file-size limit)
+export { buildItemHelperContext } from "./items/item-helper-context.js";

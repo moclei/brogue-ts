@@ -172,3 +172,7 @@ export type {
     CrystalizeContext,
     SummonGuardianContext,
 } from "./monster-spell-effects.js";
+
+// ── Teleport / disentangle (Phase 2c) ──
+export { disentangle, teleport } from "../monsters/monster-teleport.js";
+export type { DisentangleContext, TeleportContext } from "../monsters/monster-teleport.js";

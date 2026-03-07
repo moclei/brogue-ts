@@ -70,13 +70,18 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 - [x] All 66 test files pass (1707 pass, 128 skip); 36 new tests in monster-spell-effects.test.ts
 - [x] Committed
 
-## Phase 2c: Spell effects — disentangle + teleport
+## Phase 2c: Spell effects — disentangle + teleport ✓
 
-- [ ] Implement `disentangle` (Monsters.c:1138) — prerequisite for teleport; new export in
-      monsters/monster-state.ts or monsters/monster-ops.ts
-- [ ] Implement `teleport` (Items.c:1146) — now unblocked; wire into items context
-- [ ] Add tests; remove test.skip at items.test.ts:214
-- [ ] Commit; generate handoff
+- [x] Implement `disentangle` (Monsters.c:1138) — DisentangleContext + disentangle() in
+      new file monsters/monster-teleport.ts; exported from items/index.ts
+- [x] Implement `teleport` (Monsters.c:1146) — TeleportContext + teleport() in
+      monsters/monster-teleport.ts; wired into ItemHandlerContext in items.ts
+- [x] Split buildItemHelperContext to items/item-helper-context.ts (items.ts at 593 lines)
+- [x] Remove STUB Phase 2c comments from zap-context.ts
+- [x] 24 new tests in tests/monsters/monster-teleport.test.ts (all pass)
+- [x] Remove test.skip for teleport in tests/items.test.ts; replaced with smoke test
+- [x] All 67 test files pass (1723 pass, 127 skip)
+- [x] Committed
 
 ## Phase 3a: Monster flee AI — getSafetyMap + allyFlees
 
