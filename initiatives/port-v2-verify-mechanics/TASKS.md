@@ -4,20 +4,21 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 
 ---
 
-## Phase 1a: Targeting UI — read-through + plan
+## Phase 1a: Targeting UI — read-through + plan ✓
 
 *Source: port-v2-platform Phase 8. C file: Items.c.*
 
-- [ ] Read C source for all 7 targeting functions:
+- [x] Read C source for all 7 targeting functions:
       `itemCanBeCalled` (Items.c:1314), `inscribeItem` (Items.c:1292),
       `moveCursor` (Items.c:5372), `nextTargetAfter` (Items.c:5281),
-      `hiliteTrajectory` (Items.c:~5550), `playerCancelsBlinking` (Items.c:6470),
+      `hiliteTrajectory` (Items.c:5328), `playerCancelsBlinking` (Items.c:6470),
       `chooseTarget` (Items.c:5607)
-- [ ] Map inputs, outputs, dependencies, and rough line counts for each
-- [ ] Confirm file placement (likely `items/targeting.ts` or extend `io/targeting.ts`);
-      confirm which need async context
-- [ ] Document decisions in a `## Session Notes` in PLAN.md
-- [ ] Commit notes; generate handoff
+- [x] Map inputs, outputs, dependencies, and rough line counts for each
+- [x] Confirm file placement: `io/cursor-move.ts` (moveCursor + nextTargetAfter),
+      `items/targeting.ts` (hiliteTrajectory + canAutoTargetMonster + playerCancelsBlinking + chooseTarget),
+      `items/item-utils.ts` (itemCanBeCalled), `items/item-call.ts` (inscribeItem)
+- [x] Document decisions in a `## Session Notes` in PLAN.md
+- [x] Commit notes; generate handoff
 
 ## Phase 1b: Targeting UI — pure helpers
 

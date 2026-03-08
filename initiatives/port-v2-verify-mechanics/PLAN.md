@@ -95,4 +95,40 @@ Minor style differences (API shape, naming) are acceptable as noted divergences.
 
 ## Session Notes
 
-*(Add dated notes here when decisions change from the approach above.)*
+### 2026-03-07 — Phase 1a read-through
+
+#### Function inventory
+
+| Function | C lines | Async? | Status in TS |
+|---|---|---|---|
+| `itemCanBeCalled` | ~10 | No | Missing |
+| `inscribeItem` | ~20 | Yes (`getInputTextString`) | Missing |
+| `itemMagicPolarityIsKnown` | ~10 | No | Missing (helper for `canAutoTargetMonster`) |
+| `canAutoTargetMonster` | ~80 | No | Missing (needed by `nextTargetAfter` + `chooseTarget`) |
+| `moveCursor` | ~215 | Yes (event loop) | Stubbed sync → must become async |
+| `nextTargetAfter` | ~45 | No | Stubbed `() => false` |
+| `hiliteTrajectory` | ~40 | No | Missing |
+| `playerCancelsBlinking` | ~60 | Yes (calls `confirm`) | Stubbed `() => true` |
+| `chooseTarget` | ~160 | Yes (calls moveCursor loop) | Stubbed sync → must become async |
+
+#### File placement
+
+- `itemCanBeCalled` → `items/item-utils.ts` (pure predicate, no context)
+- `inscribeItem` → `items/item-call.ts` (new file; only called from `call()`)
+- `itemMagicPolarityIsKnown` + `canAutoTargetMonster` → `items/targeting.ts` (new file, private helpers)
+- `moveCursor` + `nextTargetAfter` → `io/cursor-move.ts` (new file; both in `InputContext`)
+- `hiliteTrajectory` + `playerCancelsBlinking` + `chooseTarget` → `items/targeting.ts` (new file)
+
+#### Async changes required (Phase 1b–1d)
+
+- `InputContext.moveCursor` → must become `async`; update `mainInputLoop` to `await ctx.moveCursor(...)`
+- `ItemHandlerContext.playerCancelsBlinking` → `Promise<boolean>`
+- `ItemHandlerContext.chooseTarget` → `Promise<{ confirmed: boolean; target: Pos }>`
+- `useStaffOrWand` → must become `async` once `chooseTarget` is real
+
+#### Missing sub-dependencies
+
+- `itemMagicPolarityIsKnown` (~10 lines) — not in TS yet; implement in Phase 1b alongside `canAutoTargetMonster`
+- `canAutoTargetMonster` (~80 lines, `Items.c:5197`) — not in TS; implement in Phase 1b
+  - All its sub-deps exist: `monstersAreTeammates`, `itemMagicPolarity`, `wandDominate`,
+    `negationWillAffectMonster`, `itemIsThrowingWeapon`, `tableForItemCategory`
