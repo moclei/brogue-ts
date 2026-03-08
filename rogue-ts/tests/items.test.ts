@@ -254,11 +254,10 @@ it.skip("stub: updateEncumbrance() is a no-op (should recalculate speed penaltie
 // Stub registry — Items.c domain stubs (Phase 3b, port-v2-audit)
 // =============================================================================
 
-it.skip("stub: playerCancelsBlinking() always returns true (should let player abort blink wand targeting)", () => {
-    // C: Items.c:6470 — playerCancelsBlinking()
-    // items.ts:243 has a `() => true` stub.
-    // Real implementation should run the blink targeting cursor loop and return
-    // true only if the player presses Escape or an invalid target key.
+it.skip("wiring stub: items.ts context playerCancelsBlinking() still returns true unconditionally", () => {
+    // Domain function implemented in items/targeting.ts (Phase 1c).
+    // The wiring stub in items.ts (~line 520) still returns `() => true`.
+    // Wire up in Phase 1d when useStaffOrWand/apply become async.
 });
 
 

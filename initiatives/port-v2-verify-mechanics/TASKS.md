@@ -34,16 +34,16 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 - [x] All files under 600 lines
 - [x] Commit; generate handoff
 
-## Phase 1c: Targeting UI — display helpers
+## Phase 1c: Targeting UI — display helpers ✓
 
-- [ ] Implement `hiliteTrajectory` (Items.c:~5550) — draw bolt path highlight on dungeon map;
-      uses `getLineCoordinates` (already in bolt-geometry.ts); wire into targeting context
-- [ ] Implement `playerCancelsBlinking` (Items.c:6470) — async blink targeting cursor loop;
-      returns true if player cancels; uses waitForEvent pattern
-- [ ] Add unit tests for both; export from relevant index
-- [ ] Remove any test.skip entries now unblocked
-- [ ] All files under 600 lines
-- [ ] Commit; generate handoff
+- [x] Implement `hiliteTrajectory` (Items.c:5328) — draw bolt path highlight on dungeon map;
+      uses `getLineCoordinates` (already in bolt-geometry.ts); new file items/targeting.ts
+- [x] Implement `playerCancelsBlinking` (Items.c:6470) — async blink cancel check;
+      returns true if player should abort blink due to lava; uses confirm pattern
+- [x] Add unit tests for both (23 tests in tests/items/targeting.test.ts)
+- [x] Export from items/index.ts; test.skip comment updated (wiring deferred to Phase 1d)
+- [x] All files under 600 lines (targeting.ts ~250 lines)
+- [x] Commit; generate handoff
 
 ## Phase 1d: Targeting UI — chooseTarget
 

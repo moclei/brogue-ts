@@ -203,6 +203,13 @@ export type { InscribeContext } from "./item-call.js";
 
 // ── Throw system (Phase 6) ──
 export { hitMonsterWithProjectileWeapon, throwItem } from "./throw-item.js";
+
+// ── Targeting UI (Phase 1c) ──
+export { hiliteTrajectory, playerCancelsBlinking } from "./targeting.js";
+export type {
+    HiliteTrajectoryContext,
+    PlayerCancelsBlinkingContext,
+} from "./targeting.js";
 export type {
     HitMonsterContext,
     ThrowItemRenderContext,
