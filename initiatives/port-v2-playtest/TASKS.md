@@ -144,20 +144,22 @@ Branch: feat/port-v2-playtest
 
 ---
 
-## Phase 5b: Item floor effects + creature fire
+## Phase 5b: Item floor effects + creature fire ✓ DONE (5afa6f7)
 
 *Wire floor-item lifecycle, drop path, and fire exposure.*
 *After this sub-phase: item auto-descent, fire/lava burn, drift, and terrain promote work.*
 
-- [ ] Wire `exposeCreatureToFire` → `src/time/creature-effects.ts` → `items.ts`
+- [x] Wire `exposeCreatureToFire` → `buildExposeCreatureToFireFn()` in `io-wiring.ts` → `items.ts`
 - [ ] Wire `dropItem` full path → `src/items/floor-items.ts` → `turn.ts` `playerFalls` context
-- [ ] Wire `placeItemAt` in machine context → `lifecycle.ts:362`; wire `src/items/floor-items.ts`
-- [ ] Complete `updateFloorItems` subtasks: auto-descent, fire/lava burn, drift, terrain promote
-      (check which branches are missing in `src/items/floor-items.ts`)
-- [ ] Port `swapLastEquipment` from `Items.c`; wire into `items.ts`, `io/input-context.ts`
-- [ ] Remove or activate test.skip entries now unblocked (items.test.ts, floor-items.test.ts)
-- [ ] All files under 600 lines; tests pass
-- [ ] Commit; generate handoff
+      DEFER: `playerFalls` needs `startLevel()` (level-transition context); deferred to Phase 8
+- [x] Wire `placeItemAt` in machine context → `lifecycle.ts machineContext.itemOps` now wired to
+      real `placeItemAtFn` from `items/floor-items.ts` (handles ITEM_DETECTED + pressure plates)
+- [x] Complete `updateFloorItems` subtasks: all branches fully implemented in `floor-items.ts`;
+      activated 7 test.skip entries (auto-descent, burn, drift, promote, potion-fall, etc.)
+- [x] Port `swapLastEquipment` from `Items.c:6441`; wired inline into `io/input-context.ts`
+- [x] Remove or activate test.skip entries now unblocked (items.test.ts, floor-items.test.ts, turn.test.ts)
+- [x] All files under 600 lines; tests pass (87 files, 2188 pass, 115 skip)
+- [x] Commit; generate handoff
 
 ---
 
