@@ -51,12 +51,15 @@ import { itemName as itemNameFn } from "./items/item-naming.js";
 import {
     monsterName as monsterNameFn,
     canSeeMonster as canSeeMonsterFn,
+    monsterIsInClass as monsterIsInClassFn,
 } from "./monsters/monster-queries.js";
+import { monsterDetails as monsterDetailsFn } from "./monsters/monster-details.js";
+import type { MonsterDetailsContext } from "./monsters/monster-details.js";
 import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
     cellHasTMFlag as cellHasTMFlagFn,
 } from "./state/helpers.js";
-import { layerWithTMFlag as layerWithTMFlagFn } from "./movement/map-queries.js";
+import { layerWithTMFlag as layerWithTMFlagFn, layerWithFlag as layerWithFlagFn } from "./movement/map-queries.js";
 import {
     printProgressBar,
     describeHallucinatedItem as describeHallucinatedItemFn,
@@ -69,6 +72,10 @@ import {
 import { charmRechargeDelay as charmRechargeDelayFn } from "./power/power-tables.js";
 import type { MessageContext as SyncMessageContext } from "./io/messages-state.js";
 import { TileFlag } from "./types/flags.js";
+import { hitProbability, monsterDamageAdjustmentAmount } from "./combat/combat-math.js";
+import { encodeMessageColor } from "./io/color.js";
+import { buildResolvePronounEscapesFn } from "./io/text.js";
+import { boltCatalog } from "./globals/bolt-catalog.js";
 import type { Color, Pos, ItemTable, Item } from "./types/types.js";
 import type { DisplayGlyph } from "./types/enums.js";
 import type { SidebarContext } from "./io/sidebar-player.js";
@@ -140,7 +147,7 @@ export function buildRefreshSideBarFn(): () => void {
     const {
         rogue, player, pmap, tmap, monsters,
         floorItems, monsterCatalog, displayBuffer,
-        mutableScrollTable, mutablePotionTable, gameConst,
+        mutableScrollTable, mutablePotionTable, gameConst, packItems,
     } = getGameState();
     const scentMap = getScentMap() ?? [];
 
@@ -236,7 +243,38 @@ export function buildRefreshSideBarFn(): () => void {
         cellHasTMFlag,
         layerWithTMFlag: (x, y, flag) => layerWithTMFlagFn(pmap, x, y, flag),
 
-        monsterDetails: () => "",               // stub — Phase 6
+        monsterDetails: (monst) => {
+            const resolvePronounEscapes = buildResolvePronounEscapesFn(player, pmap, rogue);
+            const mqCtxLocal = {
+                player, cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
+                cellHasGas: () => false as const,
+                playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+                playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+                playbackOmniscience: rogue.playbackOmniscience,
+            };
+            const detailsCtx: MonsterDetailsContext = {
+                player,
+                rogue: { weapon: rogue.weapon, armor: rogue.armor, strength: rogue.strength },
+                packItems,
+                boltCatalog,
+                staffTable: staffTable as unknown as import("./types/types.js").ItemTable[],
+                wandTable: wandTable as unknown as import("./types/types.js").ItemTable[],
+                monsterText,
+                mutationCatalog,
+                tileCatalog,
+                monsterName: (m, inc) => monsterNameFn(m, inc, mqCtxLocal),
+                monsterIsInClass: (m, cls) => monsterIsInClassFn(m, cls),
+                resolvePronounEscapes: (text, m) => resolvePronounEscapes(text, m),
+                hitProbability: (att, def) => hitProbability(att, def),
+                monsterDamageAdjustment: (m) => monsterDamageAdjustmentAmount(m, player),
+                itemName: (item, incDet, incArt) => itemNameFn(item, incDet, incArt, namingCtx),
+                encodeMessageColor: (color) => encodeMessageColor(color),
+                cellHasTerrainFlag: (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags),
+                cellHasTMFlag: (loc, flag) => cellHasTMFlagFn(pmap, loc, flag),
+                layerWithFlag: (x, y, flag) => layerWithFlagFn(pmap, x, y, flag),
+            };
+            return monsterDetailsFn(monst, detailsCtx);
+        },
         itemDetails: () => "",                  // stub — Phase 7
         printTextBox: () => 0,                  // stub — Phase 7
         printProgressBar: () => {},             // patched below

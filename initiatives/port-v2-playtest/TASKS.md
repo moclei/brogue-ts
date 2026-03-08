@@ -163,43 +163,47 @@ Branch: feat/port-v2-playtest
 
 ---
 
-## Phase 5c: Inventory dialog port
+## Phase 5c: Inventory dialog port ✓ DONE (2ba9f23)
 
 *Port promptForItemOfType — modal inventory chooser dialog.*
 *After this sub-phase: inventory selection dialogs functional.*
 
-Note: depends on Phase 7a button infrastructure; if buttons are not yet wired, defer to after 7a.
-
-- [ ] Port `promptForItemOfType` from `Items.c` — modal inventory chooser dialog;
-      check if `buttonInputLoop` (Phase 7a) is required; note dependency
-- [ ] Remove or activate test.skip entries now unblocked
-- [ ] All files under 600 lines; tests pass
-- [ ] Commit; generate handoff
+- [x] Port `promptForItemOfType` from `Items.c` — added to `io/inventory-display.ts` as async fn;
+      `PromptItemContext` extends `InventoryContext` with `temporaryMessage` + `numberOfMatchingPackItems`
+- [x] Async cascade: `readScroll` now async; 3 `await ctx.promptForItemOfType` call sites updated;
+      `ItemHandlerContext.promptForItemOfType` return type updated to `Promise<Item | null>`
+- [x] Wired via `buildPromptForItemOfTypeFn()` factory in `io-wiring.ts`; replaces stub in `items.ts`
+- [x] Activated `items.test.ts` stub (empty-pack case returns null immediately)
+- [x] `buttonInputLoop` still stubbed → displayInventory always cancels until Phase 7a
+- [x] All files under 600 lines; tests pass (87 files, 2189 pass, 114 skip)
+- [x] Commit; generate handoff
 
 ---
 
-## Phase 6: Monster capability stubs
+## Phase 6: Monster capability stubs ✓ DONE
 
 *Wire waypoints, awareness, and remaining monster state into context builders.*
 *After this phase: monsters use waypoints, can absorb corpses, awareness is accurate.*
 
-- [ ] Port `closestWaypointIndex`, `closestWaypointIndexTo` from `Architect.c`;
-      wire into `monsters.ts` buildMonsterStateContext
-- [ ] Port `burnedTerrainFlagsAtLoc` from `Time.c`; wire into `monsters.ts`, `turn.ts`
-- [ ] Wire `cellHasGas` → check `src/state/helpers.ts` for terrain flag check; wire into `monsters.ts`
-- [ ] Wire `awareOfTarget` → implement creature awareness check (scent + sight);
-      wire into `monsters.ts` buildMonsterStateContext
-- [ ] Wire `openPathBetween` → `src/items/bolt-geometry.ts` → `monsters.ts`
-- [ ] Wire `updateMonsterCorpseAbsorption` → `src/monsters/monster-actions.ts`
-- [ ] Port `anyoneWantABite` from `Combat.c:1401` — depends on `canAbsorb`; wire into
-      `combat.ts`, `turn.ts` (currently `() => false` stub from Phase 4)
-- [ ] Upgrade `wakeUp` in `buildWakeUpFn` (`io-wiring.ts`) to call `updateMonsterState(teammate)` —
-      currently skips this call; requires `MonsterStateContext` to be fully wired first
-- [ ] Wire `monsterDetails` → `src/io/sidebar-monsters.ts` → SidebarContext
-- [ ] Port `drawManacles` from `IO.c` (manacle decoration) or no-op with note
-- [ ] Remove or activate test.skip entries now unblocked
-- [ ] All files under 600 lines; tests pass
-- [ ] Commit; generate handoff
+- [x] Port `closestWaypointIndex`, `closestWaypointIndexTo` from `Monsters.c` →
+      new `monsters/monster-awareness.ts`; wire into `monsters.ts` + `turn-monster-ai.ts`
+      Note: `closestWaypointIndex` simplified — no `nextStep` check (stub); `closestWaypointIndexTo` fully functional
+- [x] Port `burnedTerrainFlagsAtLoc` from `Monsters.c` → `state/helpers.ts` (approximation:
+      flammable → T_IS_FIRE|T_CAUSES_DAMAGE, explosive-promote → also T_CAUSES_EXPLOSIVE_DAMAGE);
+      wire into `monsters.ts` + `turn-monster-ai.ts` (2 occurrences)
+- [x] Wire `cellHasGas` → `pmap[loc].layers[DungeonLayer.Gas] !== 0` in `monsters.ts`
+- [x] Port `awareOfTarget` + `awarenessDistance` from `Monsters.c` → `monsters/monster-awareness.ts`;
+      wire into `monsters.ts` + `turn-monster-ai.ts`
+- [x] Wire `openPathBetween` → `openPathBetweenFn` from `bolt-geometry.ts` → `monsters.ts`
+- [x] Wire `waypointDistanceMap` in `turn-monster-ai.ts` → `rogue.wpDistance[i]`
+- [x] Wire `monsterDetails` → `monsters/monster-details.ts` `monsterDetailsFn` → `io-wiring.ts` SidebarContext
+- [ ] Wire `updateMonsterCorpseAbsorption` → `src/monsters/monster-actions.ts` — DEFER: stub is equivalent no-op
+- [ ] Port `anyoneWantABite` → needs full `CombatHelperContext` with `monsterAvoids`; DEFER to Phase 8
+- [ ] Upgrade `wakeUp` in `buildWakeUpFn` (`io-wiring.ts`) — DEFER to Phase 8 (needs full MonsterStateContext)
+- [ ] Port `drawManacles` — no-op with note (visual only; permanent defer acceptable)
+- [x] Remove or activate test.skip entries now unblocked (7 activated: monsters.test.ts×6, monster-details.test.ts×1)
+- [x] All files under 600 lines; tests pass (87 files, 2196 pass, 107 skip)
+- [x] Commit; generate handoff
 
 ---
 
@@ -208,6 +212,9 @@ Note: depends on Phase 7a button infrastructure; if buttons are not yet wired, d
 *Wire text utilities, button infrastructure, shuffleTerrainColors, and printSeed.*
 *After this sub-phase: button rendering works, terrain colors animate, seed displayable.*
 
+- [ ] Wire `message`, `confirmMessages` into `buildInventoryContext()` in `ui.ts` —
+      currently `() => {}` stubs; use `buildMessageFns()` from `io-wiring.ts`
+      (needed so "Your pack is empty!" and error messages display through the inventory context)
 - [ ] Wire `strLenWithoutEscapes` → `src/io/text.ts` → ButtonContext in `ui.ts`
 - [ ] Wire button gradient color ops → `src/io/color.ts` → ButtonContext in `ui.ts`
 - [ ] Wire `buttonInputLoop`, `initializeButtonState` → `src/io/buttons.ts` → `ui.ts`, `io/input-context.ts`

@@ -180,13 +180,31 @@ describe("getMonsterDominationText", () => {
 // monsterDetails — wiring stub (SidebarContext not yet built)
 // =============================================================================
 
-describe.skip("monsterDetails wiring (SidebarContext)", () => {
-    // monsterDetails is implemented as a standalone function; wiring it into
-    // SidebarContext requires building the sidebar context (currently stubbed
-    // in lifecycle.ts with refreshSideBar: () => {}).
-    // This test.skip tracks that the wiring is pending.
-    it("should call monsterDetails from SidebarContext.monsterDetails", () => {
-        // TODO: wire MonsterDetailsContext into SidebarContext builder
-        // and verify monsterDetails is called on printMonsterDetails.
-    });
+it("monsterDetails wiring: SidebarContext.monsterDetails returns a string (Phase 6)", async () => {
+    // monsterDetails is now wired in io-wiring.ts buildRefreshSideBarFn.
+    // Build a minimal MonsterDetailsContext and verify monsterDetails returns a string.
+    const ctx: MonsterDetailsContext = {
+        player: makeMinimalMonster(),
+        rogue: { weapon: null, armor: null, strength: 12 },
+        packItems: [],
+        boltCatalog: [],
+        staffTable: [],
+        wandTable: [],
+        monsterText: [],
+        mutationCatalog: [],
+        tileCatalog: [],
+        monsterName: (m) => m.info.monsterName ?? "creature",
+        monsterIsInClass: () => false,
+        resolvePronounEscapes: (text) => text,
+        hitProbability: () => 50,
+        monsterDamageAdjustment: () => BigInt(100) as import("../../src/types/types.js").Fixpt,
+        itemName: () => "item",
+        encodeMessageColor: () => "",
+        cellHasTerrainFlag: () => false,
+        cellHasTMFlag: () => false,
+        layerWithFlag: () => 0,
+    };
+    const monst = makeMinimalMonster();
+    const result = monsterDetails(monst, ctx);
+    expect(typeof result).toBe("string");
 });

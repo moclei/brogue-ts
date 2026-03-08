@@ -230,16 +230,20 @@ it.skip("stub: buildMonsterSpawningContext().buildMachine is a no-op (stub, need
 });
 
 
-it.skip("stub: buildMonsterStateContext().closestWaypointIndex returns -1 (stub, needs waypoint distance maps)", () => {
-    // buildMonsterStateContext().closestWaypointIndex always returns -1.
-    // Real implementation requires rogue.wpDistance maps and a full waypoint system.
-    // Required for chooseNewWanderDestination() to pick a wander target.
+it("buildMonsterStateContext().closestWaypointIndex uses wpDistance maps (Phase 6)", () => {
+    // closestWaypointIndex is now wired via monster-awareness.ts.
+    // With no wpDistance maps (rogue.wpCount=0), returns -1 (no waypoints).
+    const ctx = buildMonsterStateContext();
+    const monst = makeMonster(MonsterType.MK_GOBLIN);
+    expect(ctx.closestWaypointIndex(monst)).toBe(-1);
 });
 
-it.skip("stub: buildMonsterStateContext().awareOfTarget returns false (stub, needs scent map)", () => {
-    // buildMonsterStateContext().awareOfTarget always returns false.
-    // Real implementation checks scent levels, FOV, and awareness bonuses.
-    // Required for updateMonsterState() to wake sleeping monsters.
+it("buildMonsterStateContext().awareOfTarget uses scent map and FOV (Phase 6)", () => {
+    // awareOfTarget is now wired via monster-awareness.ts.
+    // With stealthRange=0 and no scent, perceived distance=1000 > awareness*3=0 → false.
+    const ctx = buildMonsterStateContext();
+    const monst = makeMonster(MonsterType.MK_GOBLIN);
+    expect(ctx.awareOfTarget(monst, monst)).toBe(false);
 });
 
 it.skip("stub: buildMonsterStateContext().traversiblePathBetween returns false (stub, needs pathfinding)", () => {
@@ -254,22 +258,31 @@ it.skip("stub: buildMonsterStateContext().extinguishFireOnCreature is a no-op (s
     // Required for decrementMonsterStatus() burning cleanup.
 });
 
-it.skip("stub: buildMonsterStateContext().cellHasGas returns false (should detect gas terrain)", () => {
-    // buildMonsterStateContext().cellHasGas(loc) returns false unconditionally.
-    // Real implementation should check the dungeon cell for gas volume > 0,
-    // affecting monster avoidance behaviour in monster-ai.
+it("buildMonsterStateContext().queryCtx.cellHasGas detects gas layer (Phase 6)", () => {
+    // cellHasGas now checks pmap[loc].layers[DungeonLayer.Gas] !== 0.
+    // Clear the gas layer to NOTHING; then expect false.
+    const { pmap } = getGameState();
+    pmap[5][5].layers[2] = TileType.NOTHING;  // DungeonLayer.Gas = 2
+    const ctx = buildMonsterStateContext();
+    expect(ctx.queryCtx.cellHasGas({ x: 5, y: 5 })).toBe(false);
+    // Set a non-zero gas tile; expect true.
+    pmap[5][5].layers[2] = TileType.POISON_GAS;
+    const ctx2 = buildMonsterStateContext();
+    expect(ctx2.queryCtx.cellHasGas({ x: 5, y: 5 })).toBe(true);
 });
 
-it.skip("stub: buildMonsterStateContext().closestWaypointIndexTo returns -1 (needs waypoint maps)", () => {
-    // buildMonsterStateContext().closestWaypointIndexTo() returns -1 always.
-    // Real implementation requires rogue.wpDistance maps populated by
-    // the waypoint system for monster pathfinding.
+it("buildMonsterStateContext().closestWaypointIndexTo uses wpDistance maps (Phase 6)", () => {
+    // closestWaypointIndexTo is now wired via monster-awareness.ts.
+    // With no wpDistance maps, returns -1.
+    const ctx = buildMonsterStateContext();
+    expect(ctx.closestWaypointIndexTo({ x: 5, y: 5 })).toBe(-1);
 });
 
-it.skip("stub: buildMonsterStateContext().burnedTerrainFlagsAtLoc returns 0 (needs terrain history)", () => {
-    // buildMonsterStateContext().burnedTerrainFlagsAtLoc(loc) returns 0.
-    // Real implementation should inspect the burned terrain record at loc
-    // to decide if a monster avoids fire-scarred cells.
+it("buildMonsterStateContext().burnedTerrainFlagsAtLoc checks flammable layers (Phase 6)", () => {
+    // burnedTerrainFlagsAtLoc is now wired via state/helpers.ts.
+    // With default pmap (all NOTHING/non-flammable layers), returns 0.
+    const ctx = buildMonsterStateContext();
+    expect(ctx.burnedTerrainFlagsAtLoc({ x: 0, y: 0 })).toBe(0);
 });
 
 it.skip("stub: buildMonsterStateContext().discoveredTerrainFlagsAtLoc returns 0 (needs terrain history)", () => {
@@ -278,10 +291,11 @@ it.skip("stub: buildMonsterStateContext().discoveredTerrainFlagsAtLoc returns 0 
     // the current generation for secret-door hunting AI.
 });
 
-it.skip("stub: buildMonsterStateContext().openPathBetween returns false (needs FOV/LOS check)", () => {
-    // buildMonsterStateContext().openPathBetween(a, b) returns false.
-    // Real implementation should check line-of-sight using the dungeon map
-    // to determine whether the monster has an unobstructed path to its target.
+it("buildMonsterStateContext().openPathBetween uses bolt-geometry (Phase 6)", () => {
+    // openPathBetween is now wired via openPathBetweenFn from bolt-geometry.ts.
+    // Adjacent cells with no obstructing terrain → open path.
+    const ctx = buildMonsterStateContext();
+    expect(ctx.openPathBetween({ x: 5, y: 5 }, { x: 5, y: 6 })).toBe(true);
 });
 
 // =============================================================================

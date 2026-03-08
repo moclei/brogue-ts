@@ -92,6 +92,13 @@ import { diagonalBlocked as diagonalBlockedFn } from "./combat/combat-math.js";
 import { passableArcCount } from "./architect/helpers.js";
 import { buildRefreshDungeonCellFn, buildMessageFns } from "./io-wiring.js";
 import { buildResolvePronounEscapesFn } from "./io/text.js";
+import {
+    awareOfTarget as awareOfTargetFn,
+    closestWaypointIndex as closestWaypointIndexFn,
+    closestWaypointIndexTo as closestWaypointIndexToFn,
+} from "./monsters/monster-awareness.js";
+import type { AwarenessContext } from "./monsters/monster-awareness.js";
+import { burnedTerrainFlagsAtLoc as burnedTerrainFlagsAtLocFn } from "./state/helpers.js";
 import type { Creature, Pcell, Pos } from "./types/types.js";
 
 // =============================================================================
@@ -157,17 +164,19 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         downLoc: rogue.downLoc,
         upLoc: rogue.upLoc,
         monsterAtLoc,
-        // Waypoints — wired in Phase 6
         waypointCount: rogue.wpCount,
         maxWaypointCount: rogue.wpCount,
-        closestWaypointIndex: () => -1,
-        closestWaypointIndexTo: () => -1,
-        // Terrain analysis — wired in Phase 6
-        burnedTerrainFlagsAtLoc: () => 0,
+        closestWaypointIndex: (m) => closestWaypointIndexFn(m, rogue.wpCount, rogue.wpDistance, DCOLS),
+        closestWaypointIndexTo: (l) => closestWaypointIndexToFn(l, rogue.wpCount, rogue.wpDistance),
+        burnedTerrainFlagsAtLoc: (loc) => burnedTerrainFlagsAtLocFn(pmap, loc),
         discoveredTerrainFlagsAtLoc: () => 0,
         passableArcCount: (x, y) => passableArcCount(pmap, x, y),
-        // Awareness — wired in Phase 6
-        awareOfTarget: () => false,
+        awareOfTarget: (observer, target) => awareOfTargetFn(observer, target, {
+            player, scentMap: scentMap as number[][], scentTurnNumber: rogue.scentTurnNumber,
+            stealthRange: rogue.stealthRange,
+            openPathBetween: (l1, l2) => openPathBetweenFn(l1, l2, (pos) => chTF(pos, TerrainFlag.T_OBSTRUCTS_PASSABILITY)),
+            inFieldOfView: inFOV, randPercent,
+        }),
         openPathBetween: (loc1, loc2) =>
             openPathBetweenFn(loc1, loc2, (pos) => chTF(pos, TerrainFlag.T_OBSTRUCTS_PASSABILITY)),
         traversiblePathBetween: (monst, x, y) => traversibleImpl(monst, x, y),
@@ -442,7 +451,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         monstersAreTeammates: (a, b) => monstersAreTeammatesFn(a, b, player),
         monstersAreEnemies: (a, b) => monstersAreEnemiesFn(a, b, player, chTF),
         canSeeMonster: (m) => canSeeMonsterFn(m, queryCtx),
-        burnedTerrainFlagsAtLoc: () => 0,
+        burnedTerrainFlagsAtLoc: (loc) => burnedTerrainFlagsAtLocFn(pmap, loc),
         avoidedFlagsForMonster,
         distanceBetween,
         monsterName: (m, includeArticle) => {
@@ -568,7 +577,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
 
         chooseNewWanderDestination: (monst) => chooseNewWanderDestFn(monst, monsterStateCtx),
         isValidWanderDestination: (monst, wpIndex) => isValidWanderDestinationFn(monst, wpIndex, wanderCtx),
-        waypointDistanceMap: () => allocGrid(),         // stub — Phase 6
+        waypointDistanceMap: (i) => rogue.wpDistance[i] ?? null,
         wanderToward: (monst, loc) => wanderTowardFn(monst, loc, wanderTowardCtx),
         randValidDirectionFrom: randValidDirShared,
         monsterMillAbout: (monst, chance) => monsterMillAboutFn(monst, chance, millAboutCtx),

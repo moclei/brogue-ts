@@ -20,7 +20,7 @@
 import type { Pcell, FloorTileType, Pos } from "../types/types.js";
 import { DungeonLayer } from "../types/enums.js";
 import { NUMBER_TERRAIN_LAYERS } from "../types/constants.js";
-import { TerrainMechFlag } from "../types/flags.js";
+import { TerrainFlag, TerrainMechFlag } from "../types/flags.js";
 import { tileCatalog } from "../globals/tile-catalog.js";
 
 // =============================================================================
@@ -151,5 +151,33 @@ export function discoveredTerrainFlagsAtLoc(
         }
     }
 
+    return flags >>> 0;
+}
+
+// =============================================================================
+// burnedTerrainFlagsAtLoc — Monsters.c:1275
+// =============================================================================
+
+/**
+ * Returns the terrain flags that would result from burning the terrain at pos.
+ * Used by monster AI to determine fire avoidance.
+ *
+ * Approximation: flammable layers → T_IS_FIRE | T_CAUSES_DAMAGE.
+ * Explosive-promote layers also add T_CAUSES_EXPLOSIVE_DAMAGE.
+ *
+ * C: unsigned long burnedTerrainFlagsAtLoc(pos loc)
+ */
+export function burnedTerrainFlagsAtLoc(pmap: Pcell[][], pos: Pos): number {
+    const cell = pmap[pos.x][pos.y];
+    let flags = 0;
+    for (let layer = 0; layer < NUMBER_TERRAIN_LAYERS; layer++) {
+        const tile = tileCatalog[cell.layers[layer]];
+        if (tile.flags & TerrainFlag.T_IS_FLAMMABLE) {
+            flags |= TerrainFlag.T_IS_FIRE | TerrainFlag.T_CAUSES_DAMAGE;
+            if (tile.mechFlags & TerrainMechFlag.TM_EXPLOSIVE_PROMOTE) {
+                flags |= TerrainFlag.T_CAUSES_EXPLOSIVE_DAMAGE;
+            }
+        }
+    }
     return flags >>> 0;
 }

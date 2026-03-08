@@ -22,7 +22,14 @@ import {
     cellHasTMFlag as cellHasTMFlagFn,
     terrainFlags as terrainFlagsFn,
     cellHasTerrainType as cellHasTerrainTypeFn,
+    burnedTerrainFlagsAtLoc as burnedTerrainFlagsAtLocFn,
 } from "./state/helpers.js";
+import {
+    awareOfTarget as awareOfTargetFn,
+    closestWaypointIndex as closestWaypointIndexFn,
+    closestWaypointIndexTo as closestWaypointIndexToFn,
+} from "./monsters/monster-awareness.js";
+import type { AwarenessContext } from "./monsters/monster-awareness.js";
 import {
     inflictDamage as inflictDamageFn,
     killCreature as killCreatureFn,
@@ -32,11 +39,12 @@ import { monsterCanSubmergeNow } from "./monsters/monster-spawning.js";
 import { hordeCatalog } from "./globals/horde-catalog.js";
 import { mutationCatalog } from "./globals/mutation-catalog.js";
 import { allocGrid, fillGrid } from "./grid/grid.js";
+import { openPathBetween as openPathBetweenFn } from "./items/bolt-geometry.js";
 import { randRange, randPercent } from "./math/rng.js";
 import { coordinatesAreInMap } from "./globals/tables.js";
 import { DCOLS, DROWS, MAX_WAYPOINT_COUNT } from "./types/constants.js";
-import { TileFlag, MonsterBookkeepingFlag } from "./types/flags.js";
-import { GameMode } from "./types/enums.js";
+import { TileFlag, MonsterBookkeepingFlag, TerrainFlag } from "./types/flags.js";
+import { GameMode, DungeonLayer } from "./types/enums.js";
 import type { SpawnContext } from "./monsters/monster-spawning.js";
 import type { MonsterStateContext } from "./monsters/monster-state.js";
 import type { MonsterQueryContext } from "./monsters/monster-queries.js";
@@ -210,7 +218,7 @@ export function buildMonsterStateContext(): MonsterStateContext {
     const queryCtx: MonsterQueryContext = {
         player,
         cellHasTerrainFlag,
-        cellHasGas: (_loc) => false,     // stub
+        cellHasGas: (loc) => !!(pmap[loc.x]?.[loc.y]?.layers[DungeonLayer.Gas]),
         playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
         playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
         playbackOmniscience: rogue.playbackOmniscience,
@@ -234,20 +242,36 @@ export function buildMonsterStateContext(): MonsterStateContext {
         // ── Creature queries ──────────────────────────────────────────────────
         monsterAtLoc,
 
-        // ── Waypoint system (stubs — needs wpDistance maps) ───────────────────
+        // ── Waypoint system ───────────────────────────────────────────────────
         waypointCount: rogue.wpCount,
         maxWaypointCount: MAX_WAYPOINT_COUNT,
-        closestWaypointIndex: () => -1,         // stub
-        closestWaypointIndexTo: () => -1,       // stub
+        closestWaypointIndex: (monst) =>
+            closestWaypointIndexFn(monst, rogue.wpCount, rogue.wpDistance, DCOLS),
+        closestWaypointIndexTo: (loc) =>
+            closestWaypointIndexToFn(loc, rogue.wpCount, rogue.wpDistance),
 
-        // ── Terrain analysis (stubs — needs burn/secret tile logic) ───────────
-        burnedTerrainFlagsAtLoc: () => 0,       // stub
-        discoveredTerrainFlagsAtLoc: () => 0,   // stub
+        // ── Terrain analysis ──────────────────────────────────────────────────
+        burnedTerrainFlagsAtLoc: (loc) => burnedTerrainFlagsAtLocFn(pmap, loc),
+        discoveredTerrainFlagsAtLoc: () => 0,   // stub — secrets awareness not yet wired
         passableArcCount: () => 0,              // stub
 
-        // ── Awareness (stubs — needs scent map and FOV) ───────────────────────
-        awareOfTarget: () => false,             // stub
-        openPathBetween: () => false,           // stub
+        // ── Awareness ────────────────────────────────────────────────────────
+        awareOfTarget: (observer, target) => {
+            const scentMap = rogue.scentMap ?? [];
+            const awarenessCtx: AwarenessContext = {
+                player,
+                scentMap: scentMap as number[][],
+                scentTurnNumber: rogue.scentTurnNumber,
+                stealthRange: rogue.stealthRange,
+                openPathBetween: (l1, l2) =>
+                    openPathBetweenFn(l1, l2, (pos) => cellHasTerrainFlagFn(pmap, pos, TerrainFlag.T_OBSTRUCTS_PASSABILITY)),
+                inFieldOfView: (loc) => !!(pmap[loc.x]?.[loc.y]?.flags & TileFlag.IN_FIELD_OF_VIEW),
+                randPercent: (pct) => randPercent(pct),
+            };
+            return awareOfTargetFn(observer, target, awarenessCtx);
+        },
+        openPathBetween: (l1, l2) =>
+            openPathBetweenFn(l1, l2, (pos) => cellHasTerrainFlagFn(pmap, pos, TerrainFlag.T_OBSTRUCTS_PASSABILITY)),
         traversiblePathBetween: () => false,    // stub
         inFieldOfView: (loc) =>
             !!(pmap[loc.x]?.[loc.y]?.flags & TileFlag.IN_FIELD_OF_VIEW),
