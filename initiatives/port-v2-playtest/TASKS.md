@@ -283,8 +283,23 @@ Branch: feat/port-v2-playtest
 This phase is inherently multi-session. Each session = build + playtest + fix 1–3 bugs.
 Stop and commit after each bug-fix batch; generate a handoff listing what was fixed and what is next.
 
-**Build and launch**
-- [ ] Build the TS bundle: `npm run build` (or equivalent)
+**Build clean (`tsc --noEmit` must pass before serving)**
+- [ ] Fix unused imports (~12 errors, trivial): `TS6133/TS6192/TS6196` in `movement.ts`,
+      `turn.ts`, `turn-monster-ai.ts`, `monsters/monster-awareness.ts`, `time/environment.ts`
+- [ ] Add `scentMap` to `PlayerCharacter` type (~10 errors): referenced in `monsters.ts`,
+      `turn.ts`, `turn-monster-ai.ts` but missing from the type definition
+- [ ] Fix interface/signature mismatches (~13 errors):
+      - `PromptItemContext` in `io-wiring.ts:435` missing ~17 properties
+      - `ItemHelperContext` missing `keyOnTileAt` in `input-context.ts` and `item-helper-context.ts`
+      - `keyMatchesLocationFn` called with 2 args in `movement.ts` but now requires 4
+      - `hitProbability` missing `ctx` argument in `io-wiring.ts`
+      - `combatMessage` signature mismatch in `turn-monster-ai.ts`
+      - `waypointDistanceMap` returns `number[][] | null` but interface requires `number[][]`
+      - `io.message` flags/boolean mismatch in `items.ts`
+      - `buildCostMapFovContext` referenced but not defined in `movement.ts`
+- [ ] Confirm `npm run build` exits clean (0 errors)
+
+**Launch**
 - [ ] Serve locally: navigate to the game in a browser
 
 **Playtest — work through in order; apply the noted deferred fix when each step fails**
