@@ -2,8 +2,9 @@
  *  item-helpers.ts — Item description helpers and search/key functions
  *  brogue-ts
  *
- *  Ported from: src/brogue/Movement.c
- *  Functions: describedItemBasedOnParameters, describedItemName, useKeyAt, search
+ *  Ported from: src/brogue/Movement.c, Items.c
+ *  Functions: describedItemBasedOnParameters, describedItemName, useKeyAt, search,
+ *             checkForMissingKeys
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -70,6 +71,10 @@ export interface ItemHelperContext {
 
     // --- Pos helpers ---
     posEq(a: Pos, b: Pos): boolean;
+
+    // --- Key helpers ---
+    /** Returns a key item at the given location, or null. */
+    keyOnTileAt(loc: Pos): Item | null;
 }
 
 // =============================================================================
@@ -246,4 +251,31 @@ export function search(
         }
     }
     return foundSomething;
+}
+
+// =============================================================================
+// checkForMissingKeys — from Items.c:4310
+// =============================================================================
+
+/**
+ * Promotes any terrain layer that requires a key when no key is present.
+ * Called after the player leaves a tile to handle locked-door unlatch logic.
+ *
+ * C: void checkForMissingKeys(short x, short y)
+ */
+export function checkForMissingKeys(
+    x: number,
+    y: number,
+    ctx: ItemHelperContext,
+): void {
+    if (
+        ctx.cellHasTMFlag({ x, y }, TerrainMechFlag.TM_PROMOTES_WITHOUT_KEY) &&
+        !ctx.keyOnTileAt({ x, y })
+    ) {
+        for (let layer = 0; layer < NUMBER_TERRAIN_LAYERS; layer++) {
+            if (ctx.tileCatalog[ctx.pmap[x][y].layers[layer]].mechFlags & TerrainMechFlag.TM_PROMOTES_WITHOUT_KEY) {
+                ctx.promoteTile(x, y, layer, false);
+            }
+        }
+    }
 }

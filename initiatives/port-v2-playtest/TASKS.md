@@ -63,23 +63,28 @@ Branch: feat/port-v2-playtest
 
 ---
 
-## Phase 3a: Domain functions + movement restructure
+## Phase 3a: Domain functions + movement restructure ✓ DONE
 
 *Port and wire movement-adjacent domain functions; restructure oversized files.*
 *After this sub-phase: pickUpItemAt, promoteTile, useKeyAt, getQualifyingPathLocNear ported.*
 
-Note: `time/environment.ts` is 609 lines — split it when first touched here.
-
-- [ ] Audit `src/movement/` for `pickUpItemAt`, `checkForMissingKeys`, `useKeyAt` — port from
-      `Items.c`/`Movement.c` if missing
-- [ ] Wire `promoteTile` → `src/time/environment.ts` → `movement.ts`
-      (split `environment.ts` to stay under 600 lines if it is touched)
-- [ ] Wire `useKeyAt` → `src/movement/item-helpers.ts` → `movement.ts`
-- [ ] Wire `getQualifyingPathLocNear` → `src/dijkstra/` or `src/architect/` → `movement.ts`
-- [ ] Wire `updatePlayerUnderwaterness` → check `src/movement/` or `src/time/`
-- [ ] Mark `recordKeystroke`, `cancelKeystroke` as permanent DEFER no-ops (recordings layer); add note
-- [ ] All files under 600 lines; tests pass
-- [ ] Commit; generate handoff
+- [x] Audit `src/movement/` for `pickUpItemAt`, `checkForMissingKeys`, `useKeyAt` — ported:
+      `checkForMissingKeys` added to `movement/item-helpers.ts`;
+      `pickUpItemAt` ported to new `items/pickup.ts`;
+      `getQualifyingPathLocNear` ported to new `movement/path-qualifying.ts`
+- [x] Wire `promoteTile` → `src/time/environment.ts` → `movement.ts`
+      (environment.ts shrunk from 609 → 570 lines by removing dead duplicate `updateYendorWardenTracking`;
+       re-exported from misc-helpers.ts instead)
+- [x] Wire `useKeyAt` → `src/movement/item-helpers.ts` → `movement.ts`
+- [x] Wire `getQualifyingPathLocNear` → `src/movement/path-qualifying.ts` → `movement.ts`
+      (ported `getTerrainGrid` + `getPassableArcGrid` helpers from Grid.c as local statics)
+- [x] Wire `updatePlayerUnderwaterness` → `src/time/creature-effects.ts` → `movement.ts`
+- [x] Wire `checkForMissingKeys` → `movement/item-helpers.ts` → `movement.ts`
+- [x] Wire `pickUpItemAt` → `items/pickup.ts` → `movement.ts`
+- [x] Split `buildCostMapFovContext` out of `movement.ts` → new `movement-cost-map.ts` (re-exported)
+- [x] Mark `recordKeystroke`, `cancelKeystroke` as permanent DEFER no-ops (recordings layer); add note
+- [x] All files under 600 lines; tests pass (87 files, 2171 pass, 134 skip)
+- [x] Commit; generate handoff
 
 ---
 

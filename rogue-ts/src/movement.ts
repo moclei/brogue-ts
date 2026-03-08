@@ -50,7 +50,25 @@ import {
     playerRecoversFromAttacking as playerRecoversFromAttackingFn,
     playerTurnEnded as playerTurnEndedFn,
 } from "./time/turn-processing.js";
-import { monsterShouldFall as monsterShouldFallFn } from "./time/creature-effects.js";
+import {
+    monsterShouldFall as monsterShouldFallFn,
+    updatePlayerUnderwaterness as updatePlayerUnderwaternessFn,
+} from "./time/creature-effects.js";
+import { promoteTile as promoteTileFn } from "./time/environment.js";
+import { useKeyAt as useKeyAtFn, checkForMissingKeys as checkForMissingKeysFn } from "./movement/item-helpers.js";
+import { getQualifyingPathLocNear as getQualifyingPathLocNearFn } from "./movement/path-qualifying.js";
+import { pickUpItemAt as pickUpItemAtFn } from "./items/pickup.js";
+import { removeItemAt as removeItemAtFn } from "./items/floor-items.js";
+import { identifyItemKind as identifyItemKindFn } from "./items/item-naming.js";
+import {
+    numberOfItemsInPack as numberOfItemsInPackFn,
+    itemWillStackWithPack as itemWillStackWithPackFn,
+    removeItemFromArray as removeItemFromArrayFn,
+    addItemToPack as addItemToPackFn,
+    deleteItem as deleteItemFn,
+} from "./items/item-inventory.js";
+import { wandTable } from "./globals/item-catalog.js";
+import { keyMatchesLocation as keyMatchesLocationFn } from "./items/item-utils.js";
 import { layerWithTMFlag as layerWithTMFlagFn, layerWithFlag as layerWithFlagFn } from "./movement/map-queries.js";
 import {
     handleWhipAttacks as handleWhipAttacksFn,
@@ -82,9 +100,10 @@ import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
 import type { CalculateDistancesContext } from "./dijkstra/dijkstra.js";
 import type { PlayerMoveContext } from "./movement/player-movement.js";
 import type { TravelExploreContext } from "./movement/travel-explore.js";
-import type { CostMapFovContext } from "./movement/cost-maps-fov.js";
 import type { WeaponAttackContext, BoltInfo } from "./movement/weapon-attacks.js";
 import type { Creature, Pos, RogueEvent } from "./types/types.js";
+import type { EnvironmentContext } from "./time/environment.js";
+import type { CreatureEffectsContext } from "./time/creature-effects.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns } from "./io-wiring.js";
 
 // =============================================================================
@@ -178,7 +197,7 @@ function buildWeaponAttackContext(): WeaponAttackContext {
  * are stubbed — wired in port-v2-platform.
  */
 export function buildMovementContext(): PlayerMoveContext {
-    const { player, rogue, pmap, monsters, packItems } = getGameState();
+    const { player, rogue, pmap, monsters, packItems, floorItems, gameConst } = getGameState();
     const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn();
 
     const cellHasTerrainFlag = (pos: Pos, flags: number) =>
@@ -195,6 +214,89 @@ export function buildMovementContext(): PlayerMoveContext {
 
     const monsterStateCtx = buildMonsterStateContext();
     const attackCtx = buildCombatAttackContext();
+
+    // Partial EnvironmentContext for promoteTile (unused fields stubbed).
+    const envCtx = {
+        pmap, rogue, tileCatalog, dungeonFeatureCatalog, DCOLS, DROWS, monsters: [], levels: [],
+        refreshDungeonCell, spawnDungeonFeature: spawnFeature, cellHasTerrainFlag, cellHasTMFlag,
+        coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
+        monstersFall: () => {}, updateFloorItems: () => {}, monstersTurn: () => {}, keyOnTileAt: () => null,
+        removeCreature: () => false, prependCreature: () => {},
+        rand_range: (a: number, b: number) => randRange(a, b), rand_percent: (p: number) => randPercent(p),
+        max: Math.max, min: Math.min, fillSequentialList: () => {}, shuffleList: () => {}, exposeTileToFire: () => false,
+    } as unknown as EnvironmentContext;
+
+    // Partial ItemHelperContext for useKeyAt/checkForMissingKeys.
+    const itemHelperCtx = {
+        pmap, player, tileCatalog,
+        rogue: { playbackOmniscience: rogue.playbackOmniscience ?? false },
+        packItems, floorItems,
+        cellHasTerrainFlag, cellHasTMFlag,
+        coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
+        promoteTile: (x: number, y: number, layer: number, isVolatile: boolean) =>
+            promoteTileFn(x, y, layer as DungeonLayer, isVolatile, envCtx),
+        messageWithColor: io.messageWithColor,
+        itemMessageColor: { red: 100, green: 100, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false },
+        removeItemFromChain: (item: any, chain: any[]) => removeItemFromArrayFn(item, chain),
+        deleteItem: (item: any) => deleteItemFn(item),
+        monsterAtLoc,
+        playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        distanceBetween,
+        discover: (x: number, y: number) => { if (coordinatesAreInMap(x, y)) pmap[x][y].flags |= TileFlag.DISCOVERED; },
+        randPercent,
+        posEq: (a: Pos, b: Pos) => a.x === b.x && a.y === b.y,
+        keyOnTileAt: (loc: Pos) => {
+            if (player.loc.x === loc.x && player.loc.y === loc.y) {
+                const k = packItems.find(it => (it.category & ItemCategory.KEY) && keyMatchesLocationFn(it, loc));
+                if (k) return k;
+            }
+            if (pmap[loc.x][loc.y].flags & TileFlag.HAS_ITEM) {
+                const fi = itemAtLocFn(loc, floorItems);
+                if (fi && (fi.category & ItemCategory.KEY) && keyMatchesLocationFn(fi, loc)) return fi;
+            }
+            const monst = monsterAtLoc(loc);
+            if (monst?.carriedItem && (monst.carriedItem.category & ItemCategory.KEY) && keyMatchesLocationFn(monst.carriedItem, loc)) return monst.carriedItem;
+            return null;
+        },
+        initializeItem: () => ({}) as any,
+        itemName: (_item: any, buf: string[]) => { buf[0] = "item"; },  // stub
+        describeHallucinatedItem: (buf: string[]) => { buf[0] = "something"; },
+    } as unknown as import("./movement/item-helpers.js").ItemHelperContext;
+
+    // Partial QualifyingPathContext for getQualifyingPathLocNear.
+    const pathCtx = {
+        pmap,
+        cellHasTerrainFlag,
+        cellFlags: (pos: Pos) => pmap[pos.x][pos.y].flags,
+        rng: { randRange: (lo: number, hi: number) => randRange(lo, hi) },
+        // Fallback is rare (only when dijkstra finds no path); stub for now.
+        getQualifyingLocNear: (_t: Pos) => null,
+    } as unknown as import("./movement/path-qualifying.js").QualifyingPathContext;
+
+    // Context for pickUpItemAt.
+    const pickupCtx = {
+        player, rogue, pmap, monsters, packItems, floorItems,
+        gameConst,
+        tileCatalog,
+        itemAtLoc: (loc: Pos) => itemAtLocFn(loc, floorItems),
+        identifyItemKind: (item: any) => identifyItemKindFn(item, gameConst),
+        wandKindData: (kind: number) => wandTable[kind] ?? null,
+        numberOfItemsInPack: () => numberOfItemsInPackFn(packItems),
+        itemWillStackWithPack: (item: any) => itemWillStackWithPackFn(item, packItems),
+        removeItemFromFloor: (item: any) => removeItemFromArrayFn(item, floorItems),
+        addItemToPack: (item: any) => addItemToPackFn(item, packItems),
+        deleteItem: (item: any) => deleteItemFn(item),
+        removeItemAt: (loc: Pos) => removeItemAtFn(loc, { pmap, tileCatalog, cellHasTMFlag,
+            promoteTile: (x: number, y: number, layer: number, isVol: boolean) => promoteTileFn(x, y, layer as DungeonLayer, isVol, envCtx) }),
+        numberOfMatchingPackItems: (cat: number, req: number, forb: number) => numberOfMatchingPackItemsFn(packItems, cat, req, forb),
+        getRandomMonsterSpawnLocation: (): Pos => ({ x: 0, y: 0 }),  // stub — DEFER: port-v2-platform
+        generateMonster: () => ({}) as any,                           // stub — DEFER: port-v2-platform
+        itemName: (_item: any, buf: string[]) => { buf[0] = "item"; },  // stub
+        messageWithColor: io.messageWithColor,
+        message: io.message,
+        itemMessageColor: { red: 100, green: 100, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false },
+        badMessageColor: { red: 100, green: 0, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false },
+    } as unknown as import("./items/pickup.js").PickUpItemAtContext;
 
     function randValidDirectionFrom(
         monst: Creature, x: number, y: number, respectAvoidance: boolean,
@@ -275,7 +377,8 @@ export function buildMovementContext(): PlayerMoveContext {
             monst.loc = { x: nx, y: ny };
             pmap[nx][ny].flags |= TileFlag.HAS_MONSTER;
         },
-        getQualifyingPathLocNear: (target) => ({ ...target }),  // stub — wired in port-v2-platform
+        getQualifyingPathLocNear: (target, hallwaysAllowed, blockTF, blockMF, forbidTF, forbidMF, det) =>
+            getQualifyingPathLocNearFn(target, hallwaysAllowed, blockTF, blockMF, forbidTF, forbidMF, det, pathCtx),
 
         // ── Items ─────────────────────────────────────────────────────────────
         keyInPackFor(loc) {
@@ -290,30 +393,25 @@ export function buildMovementContext(): PlayerMoveContext {
                 return false;
             }) ?? null;
         },
-        useKeyAt: () => {},              // stub — wired in port-v2-platform
-        pickUpItemAt: () => {},          // stub — wired in port-v2-platform
-        checkForMissingKeys: () => {},   // stub — wired in port-v2-platform
+        useKeyAt: (item, x, y) => useKeyAtFn(item, x, y, itemHelperCtx),
+        pickUpItemAt: (loc) => pickUpItemAtFn(loc, pickupCtx),
+        checkForMissingKeys: (x, y) => checkForMissingKeysFn(x, y, itemHelperCtx),
 
         // ── Ally/captive ──────────────────────────────────────────────────────
         freeCaptive(monst) { monst.creatureState = CreatureState.Ally; monst.leader = player; },
 
-        // ── Map manipulation (stubs — wired in port-v2-platform) ─────────────
-        promoteTile: () => {},
+        // ── Map manipulation ──────────────────────────────────────────────────
+        promoteTile: (x, y, layer, useFireDF) => promoteTileFn(x, y, layer as DungeonLayer, useFireDF, envCtx),
         refreshDungeonCell,
-        discoverCell(x, y) {
-            if (coordinatesAreInMap(x, y)) {
-                pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY;
-                pmap[x][y].flags |= TileFlag.DISCOVERED;
-            }
-        },
+        discoverCell: (x, y) => { if (coordinatesAreInMap(x, y)) { pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY; pmap[x][y].flags |= TileFlag.DISCOVERED; } },
         spawnDungeonFeature: spawnFeature,
         dungeonFeatureCatalog,
         useStairs: () => {},                 // stub — wired in port-v2-platform
 
         // ── Game flow ────────────────────────────────────────────────────────
         playerTurnEnded: () => playerTurnEndedFn(buildTurnProcessingContext()),
-        recordKeystroke: () => {},       // stub — wired in port-v2-platform
-        cancelKeystroke: () => {},       // stub — wired in port-v2-platform
+        recordKeystroke: () => {},       // DEFER: port-v2-persistence (input recording layer)
+        cancelKeystroke: () => {},       // DEFER: port-v2-persistence (input recording layer)
         confirm: () => true,             // stub — wired in port-v2-platform
 
         // ── Messages (stubs — wired in port-v2-platform) ─────────────────────
@@ -461,7 +559,11 @@ export function buildTravelContext(): TravelExploreContext {
         mapToWindowY: (y) => y,
         windowToMapX: (wx) => wx,
         windowToMapY: (wy) => wy,
-        updatePlayerUnderwaterness: () => {},
+        updatePlayerUnderwaterness: () => updatePlayerUnderwaternessFn({
+            player, rogue: rogue as unknown as CreatureEffectsContext["rogue"], pmap,
+            cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
+            updateMinersLightRadius: () => {}, updateVision: () => {}, displayLevel: () => {},
+        } as unknown as CreatureEffectsContext),
         updateVision: () => {},
         nextBrogueEvent: (_event: RogueEvent) => {},   // stub — wired in port-v2-platform
         executeMouseClick: () => {},
@@ -494,107 +596,5 @@ export function buildTravelContext(): TravelExploreContext {
     };
 }
 
-// =============================================================================
-// buildCostMapFovContext
-// =============================================================================
-
-/**
- * Build a CostMapFovContext backed by the current game state.
- *
- * Wires real terrain queries and cell flag access.
- * Display callbacks (refreshDungeonCell, messageWithColor) and cosmetic RNG
- * are stubbed — wired in port-v2-platform.
- */
-export function buildCostMapFovContext(): CostMapFovContext {
-    const { player, rogue, pmap, tmap, floorItems } = getGameState();
-    const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn();
-
-    const cellHasTerrainFlag = (pos: Pos, flags: number) =>
-        cellHasTerrainFlagFn(pmap, pos, flags);
-    const cellHasTMFlag = (pos: Pos, flags: number) =>
-        cellHasTMFlagFn(pmap, pos, flags);
-
-    const monsterStateCtx = buildMonsterStateContext();
-
-    return {
-        // ── Map state ─────────────────────────────────────────────────────────
-        pmap,
-        tmap,
-        player,
-        rogue: {
-            depthLevel: rogue.depthLevel,
-            automationActive: rogue.automationActive,
-            playerTurnNumber: rogue.playerTurnNumber,
-            xpxpThisTurn: rogue.xpxpThisTurn,
-            mapToShore: rogue.mapToShore ?? Array.from({ length: DCOLS }, () => new Array(DROWS).fill(0)),
-        },
-        tileCatalog: tileCatalog as unknown as CostMapFovContext["tileCatalog"],
-
-        // ── Map helpers ───────────────────────────────────────────────────────
-        cellHasTerrainFlag,
-        cellHasTMFlag,
-        terrainFlags: (pos) => terrainFlagsFn(pmap, pos),
-        terrainMechFlags: (pos) => terrainMechFlagsFn(pmap, pos),
-        discoveredTerrainFlagsAtLoc: (pos) => discoveredTerrainFlagsAtLocFn(
-            pmap, pos, tileCatalog,
-            (tileType) => { const df = tileCatalog[tileType]?.discoverType ?? 0; return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0; },
-        ),
-        monsterAvoids: (m, pos) => monsterAvoidsFn(m, pos, monsterStateCtx),
-        canPass: (_m, _blocker) => false,   // stub
-        distanceBetween: (a, b) => distanceBetween(a, b),
-
-        // ── Creature helpers ──────────────────────────────────────────────────
-        monsterAtLoc: buildMonsterAtLocHelper(player, []),
-        playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-        playerCanSeeOrSense: (x, y) =>
-            !!(pmap[x]?.[y]?.flags & (TileFlag.VISIBLE | TileFlag.WAS_VISIBLE)),
-
-        // ── Item helpers ──────────────────────────────────────────────────────
-        itemAtLoc: (loc) => itemAtLocFn(loc, floorItems),
-        itemName: (_item, buf) => { buf[0] = "item"; },  // stub
-
-        // ── UI stubs (wired in port-v2-platform) ─────────────────────────────
-        messageWithColor: io.messageWithColor,
-        refreshDungeonCell,
-        discoverCell: (x, y) => {
-            if (x >= 0 && x < DCOLS && y >= 0 && y < DROWS) {
-                pmap[x][y].flags |= TileFlag.DISCOVERED;
-            }
-        },
-        storeMemories: () => {},             // stub — wired in port-v2-platform
-        layerWithTMFlag: (x, y, flag) =>
-            layerWithTMFlagFn(pmap, x, y, flag) as DungeonLayer,
-
-        // ── Color constants ───────────────────────────────────────────────────
-        itemMessageColor: { red: 100, green: 100, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false },
-        backgroundMessageColor,
-
-        // ── Item category constant ────────────────────────────────────────────
-        KEY: ItemCategory.KEY,
-
-        // ── Cosmetic RNG (stubs — wired in port-v2-platform) ─────────────────
-        assureCosmeticRNG: () => {},
-        restoreRNG: () => {},
-
-        // ── getLocationFlags ──────────────────────────────────────────────────
-        getLocationFlags(x, y, limitToPlayerKnowledge) {
-            const cell = pmap[x][y];
-            if (
-                limitToPlayerKnowledge &&
-                (cell.flags & (TileFlag.DISCOVERED | TileFlag.MAGIC_MAPPED)) &&
-                !(pmap[x][y].flags & TileFlag.VISIBLE)
-            ) {
-                return {
-                    tFlags: cell.rememberedTerrainFlags,
-                    tmFlags: cell.rememberedTMFlags,
-                    cellFlags: cell.rememberedCellFlags,
-                };
-            }
-            return {
-                tFlags: terrainFlagsFn(pmap, { x, y }),
-                tmFlags: terrainMechFlagsFn(pmap, { x, y }),
-                cellFlags: cell.flags,
-            };
-        },
-    };
-}
+// buildCostMapFovContext moved to movement-cost-map.ts to stay under 600 lines.
+export { buildCostMapFovContext } from "./movement-cost-map.js";

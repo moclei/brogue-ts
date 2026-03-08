@@ -5,7 +5,7 @@
  *  Ported from: src/brogue/Time.c
  *  Functions: promoteTile, activateMachine, circuitBreakersPreventActivation,
  *             exposeTileToElectricity, exposeTileToFire, updateVolumetricMedia,
- *             updateYendorWardenTracking, updateEnvironment
+ *             updateEnvironment
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -440,47 +440,6 @@ export function updateVolumetricMedia(
 }
 
 // =============================================================================
-// updateYendorWardenTracking — from Time.c:1324
-// =============================================================================
-
-export function updateYendorWardenTracking(
-    ctx: EnvironmentContext,
-): void {
-    if (!ctx.rogue.yendorWarden) {
-        return;
-    }
-    if (ctx.rogue.yendorWarden.depth === ctx.rogue.depthLevel) {
-        return;
-    }
-    if (!(ctx.rogue.yendorWarden.bookkeepingFlags & MonsterBookkeepingFlag.MB_PREPLACED)) {
-        const d = ctx.rogue.yendorWarden.depth - 1;
-        ctx.levels[d].mapStorage[ctx.rogue.yendorWarden.loc.x][ctx.rogue.yendorWarden.loc.y].flags &= ~TileFlag.HAS_MONSTER;
-    }
-    let n = ctx.rogue.yendorWarden.depth - 1;
-
-    // Remove from other level's monster chain
-    ctx.removeCreature(ctx.levels[n].monsters, ctx.rogue.yendorWarden);
-
-    if (ctx.rogue.yendorWarden.depth > ctx.rogue.depthLevel) {
-        ctx.rogue.yendorWarden.depth = ctx.rogue.depthLevel + 1;
-        n = ctx.rogue.yendorWarden.depth - 1;
-        ctx.rogue.yendorWarden.bookkeepingFlags |= MonsterBookkeepingFlag.MB_APPROACHING_UPSTAIRS;
-        ctx.rogue.yendorWarden.loc.x = ctx.levels[n].downStairsLoc.x;
-        ctx.rogue.yendorWarden.loc.y = ctx.levels[n].downStairsLoc.y;
-    } else {
-        ctx.rogue.yendorWarden.depth = ctx.rogue.depthLevel - 1;
-        n = ctx.rogue.yendorWarden.depth - 1;
-        ctx.rogue.yendorWarden.bookkeepingFlags |= MonsterBookkeepingFlag.MB_APPROACHING_DOWNSTAIRS;
-        ctx.rogue.yendorWarden.loc.x = ctx.levels[n].upStairsLoc.x;
-        ctx.rogue.yendorWarden.loc.y = ctx.levels[n].upStairsLoc.y;
-    }
-
-    ctx.prependCreature(ctx.levels[ctx.rogue.yendorWarden.depth - 1].monsters, ctx.rogue.yendorWarden);
-    ctx.rogue.yendorWarden.bookkeepingFlags |= MonsterBookkeepingFlag.MB_PREPLACED;
-    ctx.rogue.yendorWarden.status[StatusEffect.EntersLevelIn] = 50;
-}
-
-// =============================================================================
 // updateEnvironment — from Time.c:1412
 // =============================================================================
 
@@ -607,3 +566,6 @@ export function updateEnvironment(
     // Terrain that affects items and vice versa
     ctx.updateFloorItems();
 }
+
+// Re-export from misc-helpers so callers can import from a single entry point.
+export { updateYendorWardenTracking } from "./misc-helpers.js";
