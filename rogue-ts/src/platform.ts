@@ -28,6 +28,7 @@ import { COLS, ROWS } from "./types/constants.js";
 import { buildInputContext } from "./io/input-context.js";
 import { executeKeystroke } from "./io/input-dispatch.js";
 import { createScreenDisplayBuffer } from "./io/display.js";
+import { registerPauseAndCheckForEvent } from "./platform-bridge.js";
 
 // =============================================================================
 // Module-level state
@@ -77,6 +78,7 @@ export function initPlatform(browserConsole: PlatformConsole & { plotChar?: Plot
     _console = browserConsole;
     _plotChar = browserConsole.plotChar ?? null;
     _prevBuffer = createScreenDisplayBuffer();
+    registerPauseAndCheckForEvent(pauseAndCheckForEvent);
 }
 
 // =============================================================================

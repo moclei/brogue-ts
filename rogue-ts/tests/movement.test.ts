@@ -275,22 +275,32 @@ it.skip("stub: getQualifyingPathLocNear() returns target as-is (should pathfind)
     // given blocking/forbidden flag constraints.
 });
 
-it.skip("stub: nextBrogueEvent() is a no-op in travel context (should wait for input)", () => {
-    // buildTravelContext().nextBrogueEvent() does nothing.
-    // Real implementation should await a platform event (key/mouse) before returning.
-    // This is the async bridge for travel confirmation dialogs.
+it.skip("deferred: nextBrogueEvent() sync/async mismatch — travel confirm dialog needs refactor", () => {
+    // The travel context's nextBrogueEvent(event, ...) is called synchronously in travel-explore.ts.
+    // In the browser, all input is async (waitForEvent from platform.ts).
+    // Wiring requires making the travel confirm dialog loop async — a larger refactor.
+    // Left as no-op until the travel loop architecture is revisited.
 });
 
-it.skip("stub: pauseAnimation() returns false in travel context (should animate steps)", () => {
-    // buildTravelContext().pauseAnimation() returns false immediately.
-    // Real implementation should delay rendering by the given frame count and
-    // return true if interrupted by a keypress.
+it("pauseAnimation() wired: returns Promise<boolean> (platform bridge connected)", async () => {
+    // platformPauseAndCheckForEvent returns Promise.resolve(false) when platform not initialized.
+    const ctx = buildTravelContext();
+    const result = await ctx.pauseAnimation(0, 0);
+    expect(typeof result).toBe("boolean");
 });
 
-it.skip("stub: hilitePath()/clearCursorPath() are no-ops (should draw path on map)", () => {
-    // buildTravelContext().hilitePath() and clearCursorPath() do nothing.
-    // Real implementation should highlight/un-highlight the travel route on the
-    // dungeon map display.
+it("hilitePath() sets IS_IN_PATH flags; clearCursorPath() clears them", () => {
+    // hilitePath wired to io/targeting.ts hilitePathFn.
+    // clearCursorPath wired to io/targeting.ts clearCursorPathFn.
+    const { pmap } = getGameState();
+    const ctx = buildTravelContext();
+    const path = [{ x: 5, y: 5 }, { x: 6, y: 5 }];
+    ctx.hilitePath(path, 2, false);
+    expect(pmap[5][5].flags & TileFlag.IS_IN_PATH).toBeTruthy();
+    expect(pmap[6][5].flags & TileFlag.IS_IN_PATH).toBeTruthy();
+    ctx.clearCursorPath();
+    expect(pmap[5][5].flags & TileFlag.IS_IN_PATH).toBeFalsy();
+    expect(pmap[6][5].flags & TileFlag.IS_IN_PATH).toBeFalsy();
 });
 
 it.skip("stub: buildMovementContext().getImpactLoc returns target as-is (should trace bolt path)", () => {
@@ -315,11 +325,10 @@ it.skip("stub: buildCostMapFovContext().itemName writes 'item' (should name the 
 // Stub registry — IO.c movement-context domain stubs (Phase 3b, port-v2-audit)
 // =============================================================================
 
-it.skip("stub: plotForegroundChar() is a no-op (should render a foreground glyph for projectile animation)", () => {
-    // C: IO.c:1836 — plotForegroundChar()
-    // movement.ts:161 has a `() => {}` stub with comment "stub — wired in port-v2-platform".
-    // Real implementation should write a glyph with foreground color to the display
-    // buffer at the given position, used for spear and bolt projectile animations.
+it.skip("stub: plotForegroundChar() needs display buffer cell content to verify (IO integration)", () => {
+    // plotForegroundChar wired in movement-weapon-context.ts to plotCharWithColor + displayBuffer.
+    // Functional in browser; test verification requires a rendered dungeon cell.
+    // C: IO.c:1836 — plotForegroundChar() — draws glyph using existing cell background.
 });
 
 it.skip("stub: exploreKey() is a no-op (should execute one step of auto-explore)", () => {

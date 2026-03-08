@@ -62,7 +62,33 @@ import { charmRechargeDelay as charmRechargeDelayFn } from "./power/power-tables
 import type { MessageContext as SyncMessageContext } from "./io/messages-state.js";
 import { TileFlag } from "./types/flags.js";
 import type { Color, Pos, ItemTable } from "./types/types.js";
+import type { DisplayGlyph } from "./types/enums.js";
 import type { SidebarContext } from "./io/sidebar-player.js";
+
+// =============================================================================
+// buildGetCellAppearanceFn
+// =============================================================================
+
+/**
+ * Returns a `(loc: Pos) => { glyph, foreColor, backColor }` closure using
+ * the full getCellAppearance pipeline.
+ *
+ * Used by context builders that need cell appearance for highlighting
+ * (e.g. hiliteCell in the travel context).
+ */
+export function buildGetCellAppearanceFn(): (loc: Pos) => { glyph: DisplayGlyph; foreColor: Color; backColor: Color } {
+    const {
+        pmap, tmap, rogue, player, monsters, dormantMonsters,
+        floorItems, monsterCatalog, displayBuffer,
+    } = getGameState();
+    const scentMap = getScentMap() ?? [];
+    return (loc: Pos) => getCellAppearance(
+        loc, pmap, tmap, displayBuffer, rogue, player,
+        monsters, dormantMonsters, floorItems,
+        tileCatalog, dungeonFeatureCatalog, monsterCatalog,
+        terrainRandomValues, displayDetail, scentMap,
+    );
+}
 
 // =============================================================================
 // buildRefreshDungeonCellFn

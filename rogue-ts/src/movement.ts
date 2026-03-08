@@ -28,7 +28,7 @@ import {
     terrainMechFlags as terrainMechFlagsFn,
     discoveredTerrainFlagsAtLoc as discoveredTerrainFlagsAtLocFn,
 } from "./state/helpers.js";
-import { coordinatesAreInMap, nbDirs } from "./globals/tables.js";
+import { coordinatesAreInMap, nbDirs, mapToWindowX as mapToWindowXFn, mapToWindowY as mapToWindowYFn } from "./globals/tables.js";
 import { diagonalBlocked as diagonalBlockedFn } from "./combat/combat-math.js";
 import {
     monsterAvoids as monsterAvoidsFn,
@@ -38,14 +38,28 @@ import {
     monsterRevealed as monsterRevealedFn,
     monstersAreEnemies as monstersAreEnemiesFn,
     monsterWillAttackTarget as monsterWillAttackTargetFn,
-    monsterIsHidden as monsterIsHiddenFn,
-    monsterIsInClass as monsterIsInClassFn,
 } from "./monsters/monster-queries.js";
 import { forbiddenFlagsForMonster as forbiddenFlagsForMonsterFn } from "./monsters/monster-spawning.js";
 import {
     buildHitList as buildHitListFn,
     attack as attackFn,
 } from "./combat/combat-attack.js";
+import {
+    hilitePath as hilitePathFn,
+    clearCursorPath as clearCursorPathFn,
+    hiliteCell as hiliteCellFn,
+} from "./io/targeting.js";
+import {
+    applyColorAugment as applyColorAugmentFn,
+    separateColors as separateColorsFn,
+} from "./io/color.js";
+import {
+    mapToWindow as mapToWindowFn,
+    plotCharWithColor as plotCharWithColorFn,
+    windowToMapX as windowToMapXFn,
+    windowToMapY as windowToMapYFn,
+} from "./io/display.js";
+import { platformPauseAndCheckForEvent } from "./platform-bridge.js";
 import {
     playerRecoversFromAttacking as playerRecoversFromAttackingFn,
     playerTurnEnded as playerTurnEndedFn,
@@ -104,7 +118,9 @@ import type { WeaponAttackContext, BoltInfo } from "./movement/weapon-attacks.js
 import type { Creature, Pos, RogueEvent } from "./types/types.js";
 import type { EnvironmentContext } from "./time/environment.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
-import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns } from "./io-wiring.js";
+import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildGetCellAppearanceFn } from "./io-wiring.js";
+import { buildWeaponAttackContext } from "./movement-weapon-context.js";
+export { buildWeaponAttackContext };
 
 // =============================================================================
 // Private helpers
@@ -126,62 +142,6 @@ function buildMonsterNameHelper(player: Creature) {
             ? (monst.creatureState === CreatureState.Ally ? "your " : "the ")
             : "";
         return `${pfx}${monst.info.monsterName}`;
-    };
-}
-/** Build a WeaponAttackContext for whip/spear/flail attacks. */
-function buildWeaponAttackContext(): WeaponAttackContext {
-    const { player, rogue, pmap, monsters } = getGameState();
-    const attackCtx = buildCombatAttackContext();
-
-    const cellHasTerrainFlag = (pos: Pos, flags: number) =>
-        cellHasTerrainFlagFn(pmap, pos, flags);
-    const monsterAtLoc = buildMonsterAtLocHelper(player, monsters);
-    const canSeeMonster = (m: Creature) =>
-        !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE);
-
-    return {
-        pmap,
-        player,
-        rogue: { weapon: rogue.weapon, playbackFastForward: rogue.playbackFastForward },
-        nbDirs,
-        coordinatesAreInMap: (x, y) => coordinatesAreInMap(x, y),
-        isPosInMap: (pos) => coordinatesAreInMap(pos.x, pos.y),
-        cellHasTerrainFlag,
-        diagonalBlocked: (x1, y1, x2, y2, _isPlayer) =>
-            diagonalBlockedFn(x1, y1, x2, y2, (pos) => terrainFlagsFn(pmap, pos)),
-        monsterAtLoc,
-        canSeeMonster,
-        monsterIsHidden: (m, observer) => monsterIsHiddenFn(m, observer, {
-            player, cellHasTerrainFlag,
-            cellHasGas: () => false,
-            playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-            playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-            playbackOmniscience: false,
-        }),
-        monsterWillAttackTarget: (a, d) =>
-            monsterWillAttackTargetFn(a, d, player, cellHasTerrainFlag),
-        monsterIsInClass: (m, cls) => monsterIsInClassFn(m, monsterClassCatalog[cls]),
-        monstersAreEnemies: (a, b) => monstersAreEnemiesFn(a, b, player, cellHasTerrainFlag),
-        monsterName: buildMonsterNameHelper(player),
-        distanceBetween: (a, b) => distanceBetween(a, b),
-
-        itemName: () => "item",             // stub — real name in port-v2-platform
-
-        attack: (attacker, defender, lunge) =>
-            attackFn(attacker, defender, lunge, attackCtx),
-
-        boltCatalog: boltCatalog as unknown as readonly BoltInfo[],
-        getImpactLoc: (_origin, target) => ({ ...target }),  // stub
-        zap: () => {},                       // stub — wired in port-v2-platform
-
-        confirm: () => true,                 // stub — wired in port-v2-platform
-        playerCanSeeOrSense: (x, y) =>
-            !!(pmap[x]?.[y]?.flags & (TileFlag.VISIBLE | TileFlag.WAS_VISIBLE)),
-        plotForegroundChar: () => {},         // stub — wired in port-v2-platform
-        pauseAnimation: () => {},             // stub — wired in port-v2-platform
-        refreshDungeonCell: () => {},         // stub — wired in port-v2-platform
-        lightBlue,
-        allMonsters: () => monsters,
     };
 }
 // =============================================================================
@@ -465,7 +425,7 @@ export function buildMovementContext(): PlayerMoveContext {
  * nextBrogueEvent, commitDraws, etc.) are stubbed — wired in port-v2-platform.
  */
 export function buildTravelContext(): TravelExploreContext {
-    const { player, rogue, pmap, monsters, floorItems, packItems, gameConst } = getGameState();
+    const { player, rogue, pmap, monsters, floorItems, packItems, gameConst, displayBuffer } = getGameState();
     const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn(), refreshSideBar = buildRefreshSideBarFn();
 
     const cellHasTerrainFlag = (pos: Pos, flags: number) =>
@@ -476,6 +436,25 @@ export function buildTravelContext(): TravelExploreContext {
     const canSeeMonster = (m: Creature) =>
         !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE);
     const monsterStateCtx = buildMonsterStateContext();
+
+    // Minimal context for cursor-path highlighting (hilitePath, clearCursorPath)
+    const pathHighlightCtx = {
+        rogue: { playbackMode: rogue.playbackMode },
+        pmap,
+        refreshDungeonCell,
+    } as unknown as import("./io/targeting.js").TargetingContext;
+
+    // Context for hiliteCell: needs cell appearance + color ops + plotCharWithColor
+    const getCellApp = buildGetCellAppearanceFn();
+    const hiliteCellCtx = {
+        ...pathHighlightCtx,
+        getCellAppearance: getCellApp,
+        applyColorAugment: applyColorAugmentFn,
+        separateColors: separateColorsFn,
+        plotCharWithColor: (g: number, wp: { windowX: number; windowY: number }, fg: unknown, bg: unknown) =>
+            plotCharWithColorFn(g as never, wp, fg as never, bg as never, displayBuffer),
+        mapToWindow: mapToWindowFn,
+    } as unknown as import("./io/targeting.js").TargetingContext;
 
     return {
         // ── Map state ─────────────────────────────────────────────────────────
@@ -541,24 +520,24 @@ export function buildTravelContext(): TravelExploreContext {
         numberOfMatchingPackItems: (cat, req, forbidden, _isBlessed) =>
             numberOfMatchingPackItemsFn(packItems, cat, req, forbidden),
 
-        // ── UI stubs (wired in port-v2-platform) ─────────────────────────────
+        // ── UI ────────────────────────────────────────────────────────────────
         message: io.message,
         messageWithColor: io.messageWithColor,
         confirmMessages: io.confirmMessages,
-        hiliteCell: () => {},
+        hiliteCell: (x, y, color, strength, flash) => hiliteCellFn(x, y, color, strength, flash, hiliteCellCtx),
         refreshDungeonCell,
         refreshSideBar,
-        updateFlavorText: () => {},
-        clearCursorPath: () => {},
-        hilitePath: () => {},
+        updateFlavorText: () => {},          // stub — needs CreatureEffectsContext (Phase 3c)
+        clearCursorPath: () => clearCursorPathFn(pathHighlightCtx),
+        hilitePath: (path, steps, remove) => hilitePathFn(path, steps, remove, pathHighlightCtx),
         getPlayerPathOnMap: () => 0,
         commitDraws: () => {},
-        pauseAnimation: async () => false,
+        pauseAnimation: async (ms, _behavior) => platformPauseAndCheckForEvent(ms),
         recordMouseClick: () => {},
-        mapToWindowX: (x) => x,
-        mapToWindowY: (y) => y,
-        windowToMapX: (wx) => wx,
-        windowToMapY: (wy) => wy,
+        mapToWindowX: (x) => mapToWindowXFn(x),
+        mapToWindowY: (y) => mapToWindowYFn(y),
+        windowToMapX: (wx) => windowToMapXFn(wx),
+        windowToMapY: (wy) => windowToMapYFn(wy),
         updatePlayerUnderwaterness: () => updatePlayerUnderwaternessFn({
             player, rogue: rogue as unknown as CreatureEffectsContext["rogue"], pmap,
             cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
