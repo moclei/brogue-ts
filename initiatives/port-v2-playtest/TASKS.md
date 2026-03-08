@@ -255,6 +255,8 @@ Note: depends on Phase 7a button infrastructure; if buttons are not yet wired, d
 This phase is inherently multi-session. Each session = build + playtest + fix 1–3 bugs.
 Stop and commit after each bug-fix batch; generate a handoff listing what was fixed and what is next.
 
+- [ ] Wire `dropItem`/`playerFalls` — deferred from Phase 5b; requires `startLevel()` in
+      `buildTurnProcessingContext()`; implement after stair descent is verified in playtest
 - [ ] Fix `nextBrogueEvent` in travel context — sync/async mismatch deferred from Phase 3b;
       requires async refactor of travel confirm dialog in `movement.ts`
 - [ ] Fix `confirm` in `PlayerMoveContext` — currently sync stub; needs cascading async
