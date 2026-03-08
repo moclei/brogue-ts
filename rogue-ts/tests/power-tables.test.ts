@@ -275,16 +275,31 @@ describe("Charm effect duration", () => {
 });
 
 describe("Charm recharge delay", () => {
-    // NOTE: The decay term in charmRechargeDelay uses an extra * FP_FACTOR / 100n
-    // on the rechargeDelayBase, which appears to diverge from the C formula
-    // (rechargeDelayBase is already a fixed-point value — no further scaling needed).
-    // This results in astronomically large outputs at enchant > 1.
-    // Tracked for NEEDS-VERIFICATION — for now just assert the basic contract.
+    // Verified against C PowerTables.c:212-218.
+    // C: rechargeDelayDuration * fp_pow(rechargeDelayBase, enchant) / FP_FACTOR
+    // rechargeDelayBase is a fixed-point value (e.g. FP_FACTOR * 65 / 100 = 42598 for haste).
+    // The previous TS formula had an extra * FP_FACTOR / 100n — confirmed bug, now fixed.
+    //
+    // Cross-validation (haste charm: rechargeDelayDuration=800, rechargeDelayBase=42598):
+    //   enchant=1: effectDuration=8, decay=floor(800*42598/65536)=519  → delay=527
+    //   enchant=2: effectDuration=10, decay=floor(800*floor(42598²/65536)/65536)=337 → delay=347
+    //   enchant=5: delay must be below enchant=1 (shorter recharge at higher enchant)
     const hasteEntry = charmEffectTable.find(e => e.effectDurationBase === 7)!;
 
     it("returns at least rechargeDelayMinTurns at enchant 1", () => {
-        const result = charmRechargeDelay(hasteEntry, 1);
-        expect(result).toBeGreaterThanOrEqual(hasteEntry.rechargeDelayMinTurns);
+        expect(charmRechargeDelay(hasteEntry, 1)).toBeGreaterThanOrEqual(hasteEntry.rechargeDelayMinTurns);
+    });
+
+    it("returns correct value at enchant 1 (cross-validated vs C)", () => {
+        expect(charmRechargeDelay(hasteEntry, 1)).toBe(527);
+    });
+
+    it("returns correct value at enchant 2 (cross-validated vs C)", () => {
+        expect(charmRechargeDelay(hasteEntry, 2)).toBe(347);
+    });
+
+    it("decreases with enchant level (higher enchant = shorter recharge)", () => {
+        expect(charmRechargeDelay(hasteEntry, 5)).toBeLessThan(charmRechargeDelay(hasteEntry, 1));
     });
 });
 
