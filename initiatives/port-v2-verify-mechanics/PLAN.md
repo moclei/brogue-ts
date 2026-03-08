@@ -97,6 +97,26 @@ Key notes:
 
 ---
 
+### 2026-03-07 — Phase 5b: Architect.c top-level orchestrators
+
+All 10 functions reviewed against C source. 7 VERIFIED MATCH, 2 NEAR MATCH, 1 DOCUMENTED DIVERGENCE.
+
+Results:
+- `abortItemsAndMonsters` — VERIFIED MATCH; private; no direct test (test.skip added)
+- `redesignInterior` — VERIFIED MATCH; 2 direct tests in architect-level-setup.test.ts
+- `buildAMachine` — VERIFIED (complex ~700-line port); covered by seed-determinism; test.skip notes coverage
+- `addMachines` — NEAR MATCH; DIVERGENCE: Bullet Brogue variant weapon vault on depth 1 absent (not in scope); test.skip documents gap
+- `runAutogenerators` — VERIFIED MATCH; covered by seed-determinism; test.skip notes coverage
+- `digDungeon` — VERIFIED MATCH; minor gap: C resets topBlobMinX/Y/blobWidth/blobHeight globals (blob bookkeeping only, no gameplay impact); test.skip documents
+- `refreshWaypoint` — DOCUMENTED DIVERGENCE: sleeping/immobile/captive monster PDS_FORBIDDEN marking absent (comment already in TS); test.skip added; 3 direct tests pass
+- `setUpWaypoints` — VERIFIED MATCH (minus wpRefreshTicker=0, a counter not critical to generation); 3 direct tests pass
+- `placeStairs` — VERIFIED MATCH; 4 direct tests pass
+- `initializeLevel` — VERIFIED MATCH for FOV+populate path; stubs (restoreItems/restoreMonster) already tracked; 4 direct tests pass
+
+Test counts: 87 files, 2171 pass, 139 skip (+16 pass, +6 skip vs Phase 5a)
+
+---
+
 ## Known dependency relationships
 
 - `chooseTarget` requires `moveCursor`, `nextTargetAfter`, `hiliteTrajectory` — implement

@@ -195,19 +195,23 @@ Functions in scope (~8):
 - [x] 86 files, 2155 pass, 133 skip (was 2137/133; +18 tests)
 - [x] Commit; generate handoff
 
-## Phase 5b: NEEDS-VERIFICATION — Architect.c top-level orchestrators
+## Phase 5b: NEEDS-VERIFICATION — Architect.c top-level orchestrators ✓
 
 Functions in scope (~10):
 `abortItemsAndMonsters`, `redesignInterior`, `buildAMachine`, `addMachines`,
 `runAutogenerators`, `digDungeon`, `refreshWaypoint`, `setUpWaypoints`,
 `placeStairs`, `initializeLevel`
 
-- [ ] For each: read C, confirm TS is faithful; add a direct test where feasible, or document
+- [x] For each: read C, confirm TS is faithful; add a direct test where feasible, or document
       why seed regression tests are sufficient coverage
-- [ ] Note: `buildAMachine` and `addMachines` are the top-level machine-placement orchestrators —
-      these are exercised by seed regression tests; confirm no behavioral divergences
-- [ ] Note: `digDungeon` and `initializeLevel` are wired in lifecycle.ts but have no direct tests
-- [ ] Commit; generate handoff
+- [x] Note: `buildAMachine` and `addMachines` covered by seed-determinism; addMachines has minor
+      Bullet Brogue variant gap (weapon vault on depth 1); both test.skip documented
+- [x] Note: `digDungeon` covered by seed-determinism; minor blob-global reset gap (no gameplay impact)
+- [x] Note: `refreshWaypoint` has documented divergence (no monster PDS_FORBIDDEN marking); test.skip added
+- [x] Note: `initializeLevel` FOV+populate path verified; restoreItems/restoreMonster stubs already tracked
+- [x] New file: architect-level-setup.test.ts (16 pass, 6 skip)
+- [x] 87 files, 2171 pass, 139 skip (was 86/2155/133)
+- [x] Commit; generate handoff
 
 ---
 
