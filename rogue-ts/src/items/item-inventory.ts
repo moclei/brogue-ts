@@ -338,6 +338,32 @@ export function checkForDisenchantment(
 }
 
 /**
+ * Whether the item's effective enchant level is known to the player.
+ * For staves: ITEM_MAX_CHARGES_KNOWN suffices. For all others: ITEM_IDENTIFIED.
+ *
+ * C: enchantLevelKnown(const item *theItem) — Items.c:1142
+ */
+export function enchantLevelKnown(theItem: Item): boolean {
+    if ((theItem.category & ItemCategory.STAFF) && (theItem.flags & ItemFlag.ITEM_MAX_CHARGES_KNOWN)) {
+        return true;
+    }
+    return !!(theItem.flags & ItemFlag.ITEM_IDENTIFIED);
+}
+
+/**
+ * The effective enchant level used for enchant-swap comparisons and mutation.
+ * Wands use charges; everything else uses enchant1.
+ *
+ * C: effectiveEnchantLevel(const item *theItem) — Items.c:1152
+ */
+export function effectiveEnchantLevel(theItem: Item): number {
+    if (theItem.category & ItemCategory.WAND) {
+        return theItem.charges;
+    }
+    return theItem.enchant1;
+}
+
+/**
  * Whether picking up this item is possible (pack has room, or item will stack).
  *
  * C: inlined in pickUpItemAt()

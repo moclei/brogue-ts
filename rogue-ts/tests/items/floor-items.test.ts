@@ -266,8 +266,23 @@ it.skip("updateFloorItems: terrain promotes when TM_PROMOTES_ON_ITEM and item is
     // promoteTile is called for each matching layer.
 });
 
-it.skip("updateFloorItems: enchant-swap activates when TM_SWAP_ENCHANTS_ACTIVATION and no circuit breakers", () => {
+it("updateFloorItems: enchant-swap activates when TM_SWAP_ENCHANTS_ACTIVATION and no circuit breakers", () => {
     // C: Items.c:1271 — TM_SWAP_ENCHANTS_ACTIVATION branch
-    // Requires swapItemEnchants to be implemented (Phase 3b — currently MISSING).
-    // When swapItemEnchants returns true and no circuit breakers, activateMachine is called.
+    const item = makeItem({ loc: { x: 1, y: 1 } });
+    const activateMachine = vi.fn();
+    const swapItemEnchants = vi.fn(() => true);
+    const pmap = makePmap();
+    pmap[1][1].machineNumber = 7;
+
+    const ctx = makeCtx({
+        floorItems: [item],
+        pmap,
+        cellHasTMFlag: (_loc, flags) => !!(flags & 0x02000000), // TM_SWAP_ENCHANTS_ACTIVATION = Fl(25)
+        circuitBreakersPreventActivation: () => false,
+        swapItemEnchants,
+        activateMachine,
+    });
+    updateFloorItems(ctx);
+    expect(swapItemEnchants).toHaveBeenCalledWith(7);
+    expect(activateMachine).toHaveBeenCalledWith(7);
 });

@@ -57,11 +57,7 @@ export interface UpdateFloorItemsContext {
     activateMachine(machineNumber: number): void;
     /** Check if circuit-breaker tiles prevent machine activation. */
     circuitBreakersPreventActivation(machineNumber: number): boolean;
-    /**
-     * Swap enchants between two items in a machine.
-     * Returns true if the swap happened.
-     * STUB until swapItemEnchants is implemented (Phase 3b).
-     */
+    /** Swap enchants between two items in a machine. Returns true if swapped. */
     swapItemEnchants(machineNumber: number): boolean;
     /** Find an adjacent qualifying location near target (hallways allowed). */
     getQualifyingLocNear(

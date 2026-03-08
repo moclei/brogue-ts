@@ -68,9 +68,18 @@ export {
     addItemToPack,
     itemIsSwappable,
     checkForDisenchantment,
+    enchantLevelKnown,
+    effectiveEnchantLevel,
     canPickUpItem,
     deleteItem,
 } from "./item-inventory.js";
+
+// ── Enchant-swap machine (Phase 7) ──
+export { swapItemToEnchantLevel, swapItemEnchants } from "./item-enchant-swap.js";
+export type {
+    SwapItemToEnchantLevelContext,
+    SwapItemEnchantsContext,
+} from "./item-enchant-swap.js";
 
 export {
     strengthModifier,
