@@ -20,19 +20,19 @@ Port V2 is underway. Full plan: `docs/PORT_V2.md`.
 3. Follow the session protocol described in `PLAN.md` exactly
 4. Work on one phase at a time; stop and commit when the phase is done
 
-**Current active initiative:** `port-v2-verify-mechanics`
+**Current active initiative:** `port-v2-playtest`
 
-**Why this initiative:** `port-v2-domain-gaps` is complete (all 72 MISSING core domain functions
-implemented). This initiative consolidates remaining outstanding work from `port-v2-fix-rendering`
-(NEEDS-VERIFICATION review for Monsters.c/RogueMain.c/Architect.c) and `port-v2-platform`
-(targeting UI domain functions), plus a known potential bug in `charmRechargeDelay`. After this,
-the game is mechanically complete and ready for `port-v2-playtest`.
+**Why this initiative:** All domain functions are implemented and verified. The remaining work
+is wiring 48 existing implementations into context builders, porting 31 smaller functions
+(pronoun resolution, pickUpItemAt, display screens, etc.), and doing a full browser playtest.
+After this, only the persistence layer (save/load/recordings) remains.
 
 **Previous initiatives (all complete):**
 - `port-v2-audit` — all gap files in `docs/audit/`, all stubs tracked
 - `port-v2-fix-rendering` — rendering, crash fix, item system, monster AI, power tables (Phases 1–5a)
 - `port-v2-domain-gaps` — all 72 MISSING core domain functions implemented
 - `port-v2-platform` — browser platform, IO, menus, entry point (Phases 1–6)
+- `port-v2-verify-mechanics` — NEEDS-VERIFICATION review, targeting UI, charmRechargeDelay fix
 
 First attempt (reference only, do not modify): `ts/`
 
