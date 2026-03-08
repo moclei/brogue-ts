@@ -46,6 +46,7 @@ import { TileFlag } from "./types/flags.js";
 import { seedRandomGenerator, randRange, rand64bits, randPercent, randClump, clamp } from "./math/rng.js";
 import { FP_FACTOR } from "./math/fixpt.js";
 import { allocGrid, fillGrid, freeGrid } from "./grid/grid.js";
+import { terrainRandomValues, displayDetail } from "./render-state.js";
 import { zeroOutGrid } from "./architect/helpers.js";
 import { distanceBetween } from "./monsters/monster-state.js";
 import { calculateDistances, pathingDistance as pathingDistanceFn } from "./dijkstra/dijkstra.js";
@@ -85,6 +86,7 @@ import type { GameInitContext } from "./game/game-init.js";
 import type { LevelContext } from "./game/game-level.js";
 import type { CleanupContext } from "./game/game-cleanup.js";
 import type { LifecycleContext } from "./game/game-lifecycle.js";
+import { buildRefreshSideBarFn, buildMessageFns } from "./io-wiring.js";
 
 // =============================================================================
 // Module-level lifecycle state (not in core.ts)
@@ -92,21 +94,12 @@ import type { LifecycleContext } from "./game/game-lifecycle.js";
 
 let dynamicColors: Color[] = dynamicColorsBounds.map(([start]) => ({ ...start }));
 
-let displayDetail: number[][] = allocGrid();
-
-let terrainRandomValues: number[][][] = (() => {
-    const t: number[][][] = [];
-    for (let i = 0; i < DCOLS; i++) {
-        t[i] = [];
-        for (let j = 0; j < DROWS; j++) { t[i][j] = new Array(8).fill(0); }
-    }
-    return t;
-})();
-
 let safetyMap: number[][] | null = allocGrid();
 let allySafetyMap: number[][] | null = allocGrid();
 let chokeMap: number[][] | null = allocGrid();
 let scentMap: number[][] | null = null;
+/** Expose the current scent map for rendering helpers. */
+export function getScentMap(): number[][] | null { return scentMap; }
 let purgatory: Creature[] = [];
 let previousGameSeed: bigint = 0n;
 
@@ -193,6 +186,7 @@ export function buildGameInitContext(): GameInitContext {
         mutableScrollTable, mutablePotionTable, messageState, displayBuffer,
         monsters, dormantMonsters, floorItems, packItems, monsterItemsHopper,
     } = getGameState();
+    const { message, messageWithColor } = buildMessageFns();
 
     return {
         rogue, player, gameConst, gameVariant, monsterCatalog,
@@ -229,7 +223,7 @@ export function buildGameInitContext(): GameInitContext {
             const state = buildEquipState(rogue, player);
             const equipCtx: EquipContext = {
                 state,
-                message: () => {},
+                message: (text, _ack) => message(text, 0),
                 updateRingBonuses: () => {},
                 updateEncumbrance: () => {},
                 itemName: (i) => i.displayChar ? String.fromCharCode(i.displayChar) : "?",
@@ -256,7 +250,7 @@ export function buildGameInitContext(): GameInitContext {
         clearMessageArchive() { clearMessageArchive(messageState); },
         blackOutScreen(dbuf) { blackOutScreen(dbuf); },
         displayBuffer,
-        message: () => {}, messageWithColor: () => {}, flavorMessage: () => {},
+        message, messageWithColor, flavorMessage: () => {},
         encodeMessageColor: () => {},
         itemMessageColor, white, backgroundMessageColor,
         initializeGameVariantBrogue() {
@@ -538,6 +532,8 @@ export function buildCleanupContext(): CleanupContext {
 export function buildLifecycleContext(): LifecycleContext {
     const { rogue, player, gameConst, pmap, tmap, monsters, dormantMonsters,
         floorItems, packItems, displayBuffer, monsterCatalog, messageState } = getGameState();
+    const { message, messageWithColor, confirmMessages } = buildMessageFns();
+    const refreshSideBar = buildRefreshSideBarFn();
     const getCellApp = (loc: { x: number; y: number }) => getCellAppearance(
         loc, pmap, tmap, displayBuffer, rogue, player, monsters, dormantMonsters, floorItems,
         tileCatalog, dungeonFeatureCatalog, monsterCatalog, terrainRandomValues, displayDetail, scentMap ?? []);
@@ -550,12 +546,12 @@ export function buildLifecycleContext(): LifecycleContext {
         displayLevel() {
             displayLevelFn(DCOLS, DROWS, (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer));
         },
-        refreshSideBar: () => {},
+        refreshSideBar,
         printString: () => {},
         plotCharToBuffer: (ch, pos, fg, bg, dbuf) => plotCharToBuffer(ch, pos.windowX, pos.windowY, fg, bg, dbuf),
         funkyFade: () => {}, strLenWithoutEscapes: () => 0,
         mapToWindowX, mapToWindowY,
-        message: () => {}, messageWithColor: () => {}, confirmMessages: () => {},
+        message, messageWithColor, confirmMessages,
         deleteMessages: () => {}, displayMoreSign: () => {},
         displayMoreSignWithoutWaitingForAcknowledgment: () => {},
         flashTemporaryAlert: () => {}, confirm: () => false,

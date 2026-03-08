@@ -85,6 +85,7 @@ import type { TravelExploreContext } from "./movement/travel-explore.js";
 import type { CostMapFovContext } from "./movement/cost-maps-fov.js";
 import type { WeaponAttackContext, BoltInfo } from "./movement/weapon-attacks.js";
 import type { Creature, Pos, RogueEvent } from "./types/types.js";
+import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns } from "./io-wiring.js";
 
 // =============================================================================
 // Private helpers
@@ -99,7 +100,6 @@ function buildMonsterAtLocHelper(player: Creature, monsters: Creature[]) {
         return null;
     };
 }
-
 function buildMonsterNameHelper(player: Creature) {
     return function monsterName(monst: Creature, includeArticle: boolean): string {
         if (monst === player) return "you";
@@ -109,7 +109,6 @@ function buildMonsterNameHelper(player: Creature) {
         return `${pfx}${monst.info.monsterName}`;
     };
 }
-
 /** Build a WeaponAttackContext for whip/spear/flail attacks. */
 function buildWeaponAttackContext(): WeaponAttackContext {
     const { player, rogue, pmap, monsters } = getGameState();
@@ -166,7 +165,6 @@ function buildWeaponAttackContext(): WeaponAttackContext {
         allMonsters: () => monsters,
     };
 }
-
 // =============================================================================
 // buildMovementContext
 // =============================================================================
@@ -181,6 +179,7 @@ function buildWeaponAttackContext(): WeaponAttackContext {
  */
 export function buildMovementContext(): PlayerMoveContext {
     const { player, rogue, pmap, monsters, packItems } = getGameState();
+    const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn();
 
     const cellHasTerrainFlag = (pos: Pos, flags: number) =>
         cellHasTerrainFlagFn(pmap, pos, flags);
@@ -300,7 +299,7 @@ export function buildMovementContext(): PlayerMoveContext {
 
         // ── Map manipulation (stubs — wired in port-v2-platform) ─────────────
         promoteTile: () => {},
-        refreshDungeonCell: () => {},
+        refreshDungeonCell,
         discoverCell(x, y) {
             if (coordinatesAreInMap(x, y)) {
                 pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY;
@@ -318,9 +317,9 @@ export function buildMovementContext(): PlayerMoveContext {
         confirm: () => true,             // stub — wired in port-v2-platform
 
         // ── Messages (stubs — wired in port-v2-platform) ─────────────────────
-        message: () => {},
-        messageWithColor: () => {},
-        combatMessage: () => {},
+        message: io.message,
+        messageWithColor: io.messageWithColor,
+        combatMessage: io.combatMessage,
         backgroundMessageColor,
 
         randPercent: (pct) => randPercent(pct),
@@ -334,7 +333,7 @@ export function buildMovementContext(): PlayerMoveContext {
                 spawnDungeonFeature: spawnFeature,
                 canDirectlySeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
                 monsterName: buildMonsterNameHelper(player),
-                combatMessage: () => {},  // stub — wired in port-v2-platform
+                combatMessage: io.combatMessage,
                 automationActive: rogue.automationActive,
             });
         },
@@ -369,6 +368,7 @@ export function buildMovementContext(): PlayerMoveContext {
  */
 export function buildTravelContext(): TravelExploreContext {
     const { player, rogue, pmap, monsters, floorItems, packItems, gameConst } = getGameState();
+    const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn(), refreshSideBar = buildRefreshSideBarFn();
 
     const cellHasTerrainFlag = (pos: Pos, flags: number) =>
         cellHasTerrainFlagFn(pmap, pos, flags);
@@ -444,12 +444,12 @@ export function buildTravelContext(): TravelExploreContext {
             numberOfMatchingPackItemsFn(packItems, cat, req, forbidden),
 
         // ── UI stubs (wired in port-v2-platform) ─────────────────────────────
-        message: () => {},
-        messageWithColor: () => {},
-        confirmMessages: () => {},
+        message: io.message,
+        messageWithColor: io.messageWithColor,
+        confirmMessages: io.confirmMessages,
         hiliteCell: () => {},
-        refreshDungeonCell: () => {},
-        refreshSideBar: () => {},
+        refreshDungeonCell,
+        refreshSideBar,
         updateFlavorText: () => {},
         clearCursorPath: () => {},
         hilitePath: () => {},
@@ -507,6 +507,7 @@ export function buildTravelContext(): TravelExploreContext {
  */
 export function buildCostMapFovContext(): CostMapFovContext {
     const { player, rogue, pmap, tmap, floorItems } = getGameState();
+    const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn();
 
     const cellHasTerrainFlag = (pos: Pos, flags: number) =>
         cellHasTerrainFlagFn(pmap, pos, flags);
@@ -553,8 +554,8 @@ export function buildCostMapFovContext(): CostMapFovContext {
         itemName: (_item, buf) => { buf[0] = "item"; },  // stub
 
         // ── UI stubs (wired in port-v2-platform) ─────────────────────────────
-        messageWithColor: () => {},
-        refreshDungeonCell: () => {},
+        messageWithColor: io.messageWithColor,
+        refreshDungeonCell,
         discoverCell: (x, y) => {
             if (x >= 0 && x < DCOLS && y >= 0 && y < DROWS) {
                 pmap[x][y].flags |= TileFlag.DISCOVERED;

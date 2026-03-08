@@ -115,6 +115,7 @@ import { KEYBOARD_LABELS } from "./types/constants.js";
 import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
 import type { ItemHandlerContext } from "./items/item-handlers.js";
 import type { ItemTable, Creature, Pos } from "./types/types.js";
+import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns } from "./io-wiring.js";
 
 // =============================================================================
 // Private helpers
@@ -169,6 +170,8 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         mutableScrollTable, mutablePotionTable, gameConst,
     } = state;
 
+    const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn(), refreshSideBar = buildRefreshSideBarFn();
+
     const combatCtx = buildCombatDamageContext();
     const namingCtx = buildNamingCtx(state);
 
@@ -197,7 +200,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         monsterName: (m: Creature, includeArticle: boolean) =>
             monsterNameFn(m, includeArticle, mqCtx),
         killCreature: (m: Creature) => killCreatureFn(m, false, combatCtx),
-        combatMessage: () => {},  // stub — messages wired in port-v2-platform
+        combatMessage: io.combatMessage,
         messageColorFromVictim: (m: Creature) => messageColorFromVictimFn(
             m, player,
             player.status[StatusEffect.Hallucinating] > 0,
@@ -205,7 +208,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
             (a, b) => monstersAreEnemiesFn(a, b, player, cellHasTerrainFlag),
         ),
         extinguishFireOnCreature: () => {},  // stub — wired in port-v2-platform
-        refreshDungeonCell: () => {},        // stub — wired in port-v2-platform
+        refreshDungeonCell,
         applyInstantTileEffectsToCreature: () => {},  // stub — wired in port-v2-platform
         resolvePronounEscapes: (text: string) => text,  // stub — pronouns not yet resolved
     };
@@ -247,9 +250,9 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         randClump: (range) => randClump(range),
 
         // ── UI stubs (wired in port-v2-platform) ────────────────────────────
-        message: () => {},
-        messageWithColor: () => {},
-        confirmMessages: () => {},
+        message: io.message,
+        messageWithColor: io.messageWithColor,
+        confirmMessages: io.confirmMessages,
         confirm: () => true,
         temporaryMessage: () => {},
         printString: () => {},
@@ -286,7 +289,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
             hasteFn(target, duration, {
                 player,
                 updateEncumbrance: () => {},  // stub — wired in port-v2-platform
-                message: () => {},            // stub — wired in port-v2-platform
+                message: io.message,
             });
         },
         teleport(target, destination, voluntary) {
@@ -345,8 +348,8 @@ export function buildItemHandlerContext(): ItemHandlerContext {
             makePlayerTelepathicFn(duration, {
                 player,
                 monsters,
-                refreshDungeonCell: () => {},  // stub — wired in port-v2-platform
-                message: () => {},             // stub — wired in port-v2-platform
+                refreshDungeonCell,
+                message: io.message,
             });
         },
         imbueInvisibility(target, duration) {
@@ -355,8 +358,8 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 boltCatalog,
                 canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
                 monsterRevealed: (m) => monsterRevealedFn(m, player),
-                refreshDungeonCell: () => {},  // stub — wired in port-v2-platform
-                refreshSideBar: () => {},      // stub — wired in port-v2-platform
+                refreshDungeonCell,
+                refreshSideBar,
                 flashMonster: () => {},        // stub — wired in port-v2-platform
             });
         },
@@ -383,7 +386,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 discoverCell: () => {},         // stub — wired in port-v2-platform
                 colorFlash: () => {},           // stub — wired in port-v2-platform
                 playerCanSee: (px, py) => !!(pmap[px]?.[py]?.flags & TileFlag.VISIBLE),
-                message: () => {},              // stub — wired in port-v2-platform
+                message: io.message,
             });
         },
         monsterAtLoc,
@@ -420,16 +423,16 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         cellHasTMFlag,
         cellHasTerrainFlag,
         discover: () => {},                  // stub — wired in port-v2-platform
-        refreshDungeonCell: () => {},        // stub — wired in port-v2-platform
+        refreshDungeonCell,
         crystalize(radius) {
             const combatCtx = buildCombatDamageContext();
             const allyCtx = {
                 player, pmap,
                 demoteMonsterFromLeadership: () => {},  // stub
                 makeMonsterDropItem: () => {},           // stub
-                refreshDungeonCell: () => {},            // stub
+                refreshDungeonCell,
                 monsterName: (m: Creature) => m.info.monsterName,
-                message: () => {},                       // stub
+                message: io.message,
                 monsterAtLoc,
                 cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
             };
@@ -445,14 +448,14 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 updateVision: () => {},         // stub — wired in port-v2-platform
                 colorFlash: () => {},           // stub — wired in port-v2-platform
                 displayLevel: () => {},         // stub — wired in port-v2-platform
-                refreshSideBar: () => {},       // stub — wired in port-v2-platform
+                refreshSideBar,
                 forceFieldColor,
             });
         },
         rechargeItems(categories) {
             rechargeItemsFn(categories, {
                 packItems,
-                message: () => {},           // stub — wired in port-v2-platform
+                message: io.message,
             });
         },
         negationBlast(source, radius) {
@@ -466,9 +469,9 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 colorFlash: () => {},        // stub — wired in port-v2-platform
                 flashMonster: () => {},      // stub — wired in port-v2-platform
                 canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
-                messageWithColor: () => {},  // stub — wired in port-v2-platform
+                messageWithColor: io.messageWithColor,
                 identify: (item) => identifyFn(item, gameConst),
-                refreshDungeonCell: () => {},  // stub — wired in port-v2-platform
+                refreshDungeonCell,
                 updateIdentifiableItems: () => updateIdentifiableItemsFn({
                     packItems,
                     floorItems,
@@ -488,7 +491,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
                 colorFlash: () => {},        // stub — wired in port-v2-platform
                 flashMonster: () => {},      // stub — wired in port-v2-platform
-                messageWithColor: () => {},  // stub — wired in port-v2-platform
+                messageWithColor: io.messageWithColor,
                 IN_FIELD_OF_VIEW: TileFlag.IN_FIELD_OF_VIEW,
             });
         },

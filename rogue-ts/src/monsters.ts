@@ -43,6 +43,7 @@ import type { MonsterQueryContext } from "./monsters/monster-queries.js";
 import type { MonsterGenContext } from "./monsters/monster-creation.js";
 import { becomeAllyWith as becomeAllyWithFn } from "./monsters/monster-lifecycle.js";
 import type { Creature, Pos } from "./types/types.js";
+import { buildRefreshDungeonCellFn, buildMessageFns } from "./io-wiring.js";
 
 // =============================================================================
 // Private helpers
@@ -75,6 +76,7 @@ export function buildMonsterSpawningContext(): SpawnContext {
         player, rogue, pmap, monsters, monsterCatalog,
         gameConst, monsterItemsHopper, floorItems,
     } = getGameState();
+    const refreshDungeonCell = buildRefreshDungeonCellFn();
 
     const combatCtx = buildCombatDamageContext();
 
@@ -124,7 +126,7 @@ export function buildMonsterSpawningContext(): SpawnContext {
                 pmap[loc.x][loc.y].flags &= ~flag;
             }
         },
-        refreshDungeonCell: () => {},   // stub — wired in port-v2-platform
+        refreshDungeonCell,
 
         // ── Visibility ────────────────────────────────────────────────────────
         playerCanSeeOrSense: (x, y) =>
@@ -160,7 +162,7 @@ export function buildMonsterSpawningContext(): SpawnContext {
                         monst.carriedItem = null;
                     }
                 },
-                refreshDungeonCell: () => {},   // stub — wired in port-v2-platform
+                refreshDungeonCell,
             });
         },
 
@@ -194,6 +196,7 @@ export function buildMonsterSpawningContext(): SpawnContext {
  */
 export function buildMonsterStateContext(): MonsterStateContext {
     const { player, rogue, pmap, monsters, floorItems } = getGameState();
+    const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn();
 
     const combatCtx = buildCombatDamageContext();
 
@@ -263,10 +266,10 @@ export function buildMonsterStateContext(): MonsterStateContext {
         },
 
         // ── UI stubs (wired in port-v2-platform) ──────────────────────────────
-        refreshDungeonCell: () => {},
-        message: () => {},
-        messageWithColor: () => {},
-        combatMessage: () => {},
+        refreshDungeonCell,
+        message: io.message,
+        messageWithColor: io.message,
+        combatMessage: (text) => io.combatMessage(text, null),
         playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
 
         // ── Player equipment stubs ────────────────────────────────────────────

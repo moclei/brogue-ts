@@ -35,6 +35,7 @@ import { CreatureState, GameMode } from "./types/enums.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { AttackContext } from "./combat/combat-attack.js";
 import type { Creature, Pos } from "./types/types.js";
+import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns } from "./io-wiring.js";
 
 // =============================================================================
 // Private helpers
@@ -63,6 +64,7 @@ function buildMonsterName(player: Creature) {
  */
 export function buildCombatDamageContext(): CombatDamageContext {
     const { player, rogue, pmap, monsters, floorItems, monsterCatalog } = getGameState();
+    const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn(), refreshSideBar = buildRefreshSideBarFn();
 
     const canSeeMonster = (m: Creature): boolean =>
         !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE);
@@ -83,11 +85,11 @@ export function buildCombatDamageContext(): CombatDamageContext {
 
         // ── Platform stubs (wired in port-v2-platform) ────────────────────────
         spawnDungeonFeature: () => {},
-        refreshSideBar: () => {},
-        combatMessage: () => {},
-        messageWithColor: () => {},
-        message: () => {},
-        refreshDungeonCell: () => {},
+        refreshSideBar,
+        combatMessage: io.combatMessage,
+        messageWithColor: (text, color) => io.messageWithColor(text, color, 0),
+        message: io.message,
+        refreshDungeonCell,
         applyInstantTileEffectsToCreature: () => {},
         fadeInMonster: () => {},
 

@@ -1,0 +1,246 @@
+/*
+ *  io-wiring.ts — Shared IO closure factories for context builders
+ *  Port V2 — rogue-ts
+ *
+ *  Exports factory functions that build ready-to-call closures for the IO
+ *  stubs that appear in many context builders.  All factories read live
+ *  game state at call time via getGameState() and render-state.ts.
+ *
+ *  Phase 1 wiring: message, refreshDungeonCell, refreshSideBar, combatMessage.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or (at your option) any later version.
+ */
+
+import { getGameState } from "./core.js";
+import { tileCatalog } from "./globals/tile-catalog.js";
+import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
+import { statusEffectCatalog } from "./globals/status-effects.js";
+import { mutationCatalog } from "./globals/mutation-catalog.js";
+import { monsterText } from "./globals/monster-text.js";
+import { terrainRandomValues, displayDetail } from "./render-state.js";
+import { getScentMap } from "./lifecycle.js";
+import {
+    getCellAppearance,
+    refreshDungeonCell as refreshDungeonCellFn,
+} from "./io/cell-appearance.js";
+import { refreshSideBar as refreshSideBarFn } from "./io/sidebar-monsters.js";
+import {
+    message as messageFn,
+    messageWithColor as messageWithColorFn,
+    confirmMessages as confirmMessagesFn,
+    temporaryMessage as temporaryMessageFn,
+    combatMessage as combatMessageFn,
+} from "./io/messages.js";
+import { buildMessageContext } from "./ui.js";
+import {
+    getHallucinatedItemCategory,
+    getItemCategoryGlyph,
+} from "./items/item-generation.js";
+import { itemName as itemNameFn } from "./items/item-naming.js";
+import {
+    monsterName as monsterNameFn,
+    canSeeMonster as canSeeMonsterFn,
+} from "./monsters/monster-queries.js";
+import {
+    cellHasTerrainFlag as cellHasTerrainFlagFn,
+    cellHasTMFlag as cellHasTMFlagFn,
+} from "./state/helpers.js";
+import { layerWithTMFlag as layerWithTMFlagFn } from "./movement/map-queries.js";
+import {
+    printProgressBar,
+    describeHallucinatedItem as describeHallucinatedItemFn,
+} from "./io/sidebar-player.js";
+import { displayedArmorValue } from "./items/item-usage.js";
+import { itemAtLoc as itemAtLocFn } from "./items/item-inventory.js";
+import {
+    wandTable, staffTable, ringTable, charmTable, charmEffectTable,
+} from "./globals/item-catalog.js";
+import { charmRechargeDelay as charmRechargeDelayFn } from "./power/power-tables.js";
+import type { MessageContext as SyncMessageContext } from "./io/messages-state.js";
+import { TileFlag } from "./types/flags.js";
+import type { Color, Pos, ItemTable } from "./types/types.js";
+import type { SidebarContext } from "./io/sidebar-player.js";
+
+// =============================================================================
+// buildRefreshDungeonCellFn
+// =============================================================================
+
+/**
+ * Returns a `(loc: Pos) => void` closure that redraws the dungeon cell
+ * at `loc` using the full getCellAppearance pipeline.
+ *
+ * Call once per context-builder invocation; the closure captures live
+ * game-state references so it reflects the current level state.
+ */
+export function buildRefreshDungeonCellFn(): (loc: Pos) => void {
+    const {
+        pmap, tmap, rogue, player, monsters, dormantMonsters,
+        floorItems, monsterCatalog, displayBuffer,
+    } = getGameState();
+    const scentMap = getScentMap() ?? [];
+    const getCellApp = (loc: Pos) => getCellAppearance(
+        loc, pmap, tmap, displayBuffer, rogue, player,
+        monsters, dormantMonsters, floorItems,
+        tileCatalog, dungeonFeatureCatalog, monsterCatalog,
+        terrainRandomValues, displayDetail, scentMap,
+    );
+    return (loc: Pos) => refreshDungeonCellFn(loc, getCellApp, displayBuffer);
+}
+
+// =============================================================================
+// buildRefreshSideBarFn
+// =============================================================================
+
+/**
+ * Returns a `() => void` closure that redraws the sidebar at the player's
+ * current position using the full SidebarContext.
+ */
+export function buildRefreshSideBarFn(): () => void {
+    const {
+        rogue, player, pmap, tmap, monsters,
+        floorItems, monsterCatalog, displayBuffer,
+        mutableScrollTable, mutablePotionTable, gameConst,
+    } = getGameState();
+    const scentMap = getScentMap() ?? [];
+
+    const getCellApp = (loc: Pos) => getCellAppearance(
+        loc, pmap, tmap, displayBuffer, rogue, player,
+        monsters, [], floorItems,
+        tileCatalog, dungeonFeatureCatalog, monsterCatalog,
+        terrainRandomValues, displayDetail, scentMap,
+    );
+
+    const cellHasTerrainFlag = (pos: Pos, flags: number) =>
+        cellHasTerrainFlagFn(pmap, pos, flags);
+    const cellHasTMFlag = (pos: Pos, flags: number) =>
+        cellHasTMFlagFn(pmap, pos, flags);
+    const mqCtx = {
+        player,
+        cellHasTerrainFlag,
+        cellHasGas: () => false as const,
+        playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playbackOmniscience: rogue.playbackOmniscience,
+    };
+
+    const namingCtx = {
+        gameConstants: gameConst,
+        depthLevel: rogue.depthLevel,
+        potionTable: mutablePotionTable,
+        scrollTable: mutableScrollTable,
+        wandTable: wandTable as unknown as ItemTable[],
+        staffTable: staffTable as unknown as ItemTable[],
+        ringTable: ringTable as unknown as ItemTable[],
+        charmTable: charmTable as unknown as ItemTable[],
+        charmRechargeDelay: (kind: number, enchant: number) =>
+            charmRechargeDelayFn(charmEffectTable[kind], enchant),
+        playbackOmniscience: rogue.playbackOmniscience,
+        monsterClassName: (classId: number) =>
+            monsterCatalog[classId]?.monsterName ?? "creature",
+    };
+
+    // Build the partial context first (without self-referential methods), then patch in.
+    const partialCtx: Omit<SidebarContext, "describeHallucinatedItem" | "printProgressBar"> & {
+        describeHallucinatedItem: () => string;
+        printProgressBar: SidebarContext["printProgressBar"];
+    } = {
+        rogue,
+        player,
+        pmap,
+        tileCatalog: tileCatalog as SidebarContext["tileCatalog"],
+        displayBuffer,
+        statusEffectCatalog: statusEffectCatalog as SidebarContext["statusEffectCatalog"],
+        mutationCatalog: mutationCatalog as SidebarContext["mutationCatalog"],
+        monsterText: monsterText as SidebarContext["monsterText"],
+
+        monsterAtLoc(loc) {
+            if (loc.x === player.loc.x && loc.y === player.loc.y) return player;
+            return monsters.find(m => m.loc.x === loc.x && m.loc.y === loc.y) ?? null;
+        },
+        itemAtLoc: (loc) => itemAtLocFn(loc, floorItems),
+        canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
+        canDirectlySeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+        playerCanSeeOrSense: (x, y) =>
+            !!(pmap[x]?.[y]?.flags & (TileFlag.VISIBLE | TileFlag.WAS_VISIBLE)),
+        playerCanDirectlySee: (x, y) =>
+            !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playerInDarkness: () => false,          // stub — light state not wired yet
+        iterateMonsters: () => monsters,
+        floorItems: () => floorItems,
+
+        monsterName: (monst, includeArticle) =>
+            monsterNameFn(monst, includeArticle, mqCtx),
+        itemName: (theItem, includeDetails, includeArticle) =>
+            itemNameFn(theItem, includeDetails, includeArticle, namingCtx),
+
+        getHallucinatedItemCategory: () => getHallucinatedItemCategory({
+            randRange: (lo: number) => lo,
+            randPercent: () => false,
+            randClump: (r: { lowerBound: number }) => r.lowerBound,
+        }),
+        getItemCategoryGlyph: (cat) => getItemCategoryGlyph(cat),
+        describeHallucinatedItem: () => "",     // patched below
+
+        getCellAppearance: getCellApp,
+
+        displayedArmorValue: () =>
+            displayedArmorValue({
+                player,
+                armor: rogue.armor,
+                weapon: rogue.weapon,
+                strength: rogue.strength,
+            } as unknown as import("./items/item-usage.js").EquipmentState),
+        estimatedArmorValue: () => 0,           // stub — Phase 5
+
+        cellHasTMFlag,
+        layerWithTMFlag: (x, y, flag) => layerWithTMFlagFn(pmap, x, y, flag),
+
+        monsterDetails: () => "",               // stub — Phase 6
+        itemDetails: () => "",                  // stub — Phase 7
+        printTextBox: () => 0,                  // stub — Phase 7
+        printProgressBar: () => {},             // patched below
+    };
+
+    // Patch self-referential methods
+    (partialCtx as SidebarContext).describeHallucinatedItem = () =>
+        describeHallucinatedItemFn(partialCtx as SidebarContext);
+    (partialCtx as SidebarContext).printProgressBar = (x, y, label, amtFilled, amtMax, fillColor, dim) =>
+        printProgressBar(x, y, label, amtFilled, amtMax, fillColor, dim, displayBuffer);
+
+    const sidebarCtx = partialCtx as SidebarContext;
+    return () => {
+        const { player: p } = getGameState();
+        refreshSideBarFn(p.loc.x, p.loc.y, false, sidebarCtx);
+    };
+}
+
+// =============================================================================
+// buildMessageFns
+// =============================================================================
+
+/**
+ * Returns message function closures wired to a MessageContext built from
+ * the current game state.
+ *
+ * Build once per context-builder invocation; the MessageContext holds live
+ * references so it stays current for the lifetime of the turn.
+ */
+export function buildMessageFns(): {
+    message: (msg: string, flags: number) => void;
+    messageWithColor: (msg: string, color: Readonly<Color>, flags: number) => void;
+    confirmMessages: () => void;
+    temporaryMessage: (msg: string, flags: number) => void;
+    combatMessage: (msg: string, color: Readonly<Color> | null) => void;
+} {
+    const ctx = buildMessageContext() as unknown as SyncMessageContext;
+    return {
+        message: (msg, flags) => messageFn(ctx, msg, flags),
+        messageWithColor: (msg, color, flags) => messageWithColorFn(ctx, msg, color, flags),
+        confirmMessages: () => confirmMessagesFn(ctx),
+        temporaryMessage: (msg, flags) => temporaryMessageFn(ctx, msg, flags),
+        combatMessage: (msg, color) => combatMessageFn(ctx, msg, color),
+    };
+}

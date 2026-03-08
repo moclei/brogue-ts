@@ -79,6 +79,7 @@ import type { TurnProcessingContext } from "./time/turn-processing.js";
 import type { MonstersTurnContext } from "./monsters/monster-actions.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { Creature, Pcell, Pos, PlayerCharacter } from "./types/types.js";
+import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns } from "./io-wiring.js";
 
 // =============================================================================
 // Minimal combat context — used by inflictDamage/killCreature/addPoison calls
@@ -92,6 +93,7 @@ function buildMinimalCombatContext(
 ): CombatDamageContext {
     const canSeeMonster = (m: Creature) =>
         !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE);
+    const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn(), refreshSideBar = buildRefreshSideBarFn();
 
     return {
         player,
@@ -102,9 +104,9 @@ function buildMinimalCombatContext(
         canDirectlySeeMonster: canSeeMonster,
         wakeUp: () => {},                           // stub — wired in combat.ts
         spawnDungeonFeature: () => {},              // stub
-        refreshSideBar: () => {},                   // stub
-        combatMessage: () => {},                    // stub
-        messageWithColor: () => {},                 // stub
+        refreshSideBar,
+        combatMessage: io.combatMessage,
+        messageWithColor: (text, color) => io.messageWithColor(text, color, 0),
         monsterName: (m, includeArticle) => {
             if (m === player) return "you";
             const pfx = includeArticle
@@ -122,13 +124,13 @@ function buildMinimalCombatContext(
         prependCreature: () => {},                  // stub
         applyInstantTileEffectsToCreature: () => {},// stub
         fadeInMonster: () => {},                    // stub
-        refreshDungeonCell: () => {},               // stub
+        refreshDungeonCell,
         anyoneWantABite: () => false,               // stub
         demoteMonsterFromLeadership: () => {},      // stub
         checkForContinuedLeadership: () => {},      // stub
         getMonsterDFMessage: () => "",              // stub
         resolvePronounEscapes: (text) => text,      // stub
-        message: () => {},                          // stub
+        message: io.message,
         monsterCatalog: [],                         // stub — real catalog via core.ts
         updateEncumbrance: () => {},                // stub
         updateMinersLightRadius: () => {},          // stub
@@ -154,6 +156,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         player, rogue, pmap, monsters, dormantMonsters,
         packItems, floorItems, levels, gameConst,
     } = getGameState();
+    const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn(), refreshSideBar = buildRefreshSideBarFn();
 
     const combatCtx = buildMinimalCombatContext(player, rogue, pmap);
 
@@ -237,25 +240,25 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         inflictDamage: (attacker, defender, damage, flashColor, showDamage) =>
             inflictDamageFn(attacker, defender, damage, flashColor, showDamage, combatCtx),
         killCreature: (monst, adminDeath) => killCreatureFn(monst, adminDeath, combatCtx),
-        combatMessage: () => {},                            // stub
+        combatMessage: io.combatMessage,
         displayCombatText: () => {},                        // stub
         messageColorFromVictim: () => badMessageColor,
         addPoison: (monst, total, conc) => addPoisonFn(monst, total, conc, combatCtx),
         flashMonster: (monst, color, strength) => flashMonsterFn(monst, color, strength, combatCtx),
 
         // ── UI (stubs — wired in port-v2-platform) ────────────────────────────
-        message: () => {},
-        messageWithColor: () => {},
+        message: io.message,
+        messageWithColor: io.messageWithColor,
         flavorMessage: () => {},
-        refreshDungeonCell: () => {},
+        refreshDungeonCell,
         displayLevel: () => {},
         displayAnnotation: () => {},
-        refreshSideBar: () => {},
+        refreshSideBar,
         gameOver: (msg) => gameOver(msg),
         confirm: () => true,
         flashMessage: () => {},
         recordKeystroke: () => {},
-        confirmMessages: () => {},
+        confirmMessages: io.confirmMessages,
         pauseAnimation: () => false,
 
         // ── Colors ───────────────────────────────────────────────────────────
@@ -346,6 +349,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
  */
 export function buildMonstersTurnContext(): MonstersTurnContext {
     const { player, rogue, pmap, monsters } = getGameState();
+    const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn();
 
     // Transient safety map — persisted level map wired in port-v2-platform
     const localSafetyMap = allocGrid();
@@ -389,9 +393,9 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
             return `${pfx}${m.info.monsterName}`;
         },
         getSummonMessage: (monsterId) => monsterText[monsterId]?.summonMessage ?? "",
-        message: () => {},                      // stub — wired in port-v2-platform
+        message: io.message,
         fadeInMonster: () => {},                // stub — wired in port-v2-platform
-        refreshDungeonCell: () => {},           // stub — wired in port-v2-platform
+        refreshDungeonCell,
         demoteMonsterFromLeadership: () => {},  // stub — wired in port-v2-platform
         createFlare: () => {},                  // stub — wired in port-v2-platform
         monstersAreTeammates: (a, b) => monstersAreTeammatesFn(a, b, player),
@@ -426,7 +430,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
                 : "";
             return `${pfx}${m.info.monsterName}`;
         },
-        combatMessage: () => {},        // stub — wired in port-v2-platform
+        combatMessage: io.combatMessage,
         cellHasTerrainFlag: (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags),
         zap: () => {},                  // stub — wired in port-v2-platform
         BE_BLINKING: BoltEffect.Blinking,
@@ -484,7 +488,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
             return `${pfx}${m.info.monsterName}`;
         },
         resolvePronounEscapes: (text) => text,  // stub — wired in combat.ts
-        combatMessage: () => {},                // stub — wired in port-v2-platform
+        combatMessage: io.combatMessage,
         zap: () => {},                          // stub — wired in port-v2-platform
         gameOver: (msg) => gameOver(msg),
         monsterSummons: (monst, alwaysUse) => monsterSummonsFn(monst, alwaysUse, summonsCtx),
