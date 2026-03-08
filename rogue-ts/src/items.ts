@@ -115,7 +115,8 @@ import { KEYBOARD_LABELS } from "./types/constants.js";
 import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
 import type { ItemHandlerContext } from "./items/item-handlers.js";
 import type { ItemTable, Creature, Pos } from "./types/types.js";
-import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns } from "./io-wiring.js";
+import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
+import { buildResolvePronounEscapesFn } from "./io/text.js";
 
 // =============================================================================
 // Private helpers
@@ -210,7 +211,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         extinguishFireOnCreature: () => {},  // stub — wired in port-v2-platform
         refreshDungeonCell,
         applyInstantTileEffectsToCreature: () => {},  // stub — wired in port-v2-platform
-        resolvePronounEscapes: (text: string) => text,  // stub — pronouns not yet resolved
+        resolvePronounEscapes: buildResolvePronounEscapesFn(player, pmap, rogue),
     };
 
     return {
@@ -363,7 +364,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 flashMonster: () => {},        // stub — wired in port-v2-platform
             });
         },
-        wakeUp: () => {},                    // stub — wired in port-v2-platform
+        wakeUp: buildWakeUpFn(player, monsters),
         fadeInMonster: () => {},             // stub — wired in port-v2-platform
         flashMonster: () => {},              // stub — wired in port-v2-platform
         aggravateMonsters(range, x, y, color) {
@@ -377,7 +378,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                     return g;
                 },
                 refreshWaypoint: () => {},      // stub — wired in port-v2-platform
-                wakeUp: () => {},               // stub — wired in port-v2-platform
+                wakeUp: buildWakeUpFn(player, monsters),
                 alertMonster: (m) => alertMonsterFn(m, player),
                 addScentToCell: () => {},       // stub — needs MapQueryContext with scentTurnNumber
                 setStealthRange: (r) => { rogue.stealthRange = r; },

@@ -15,6 +15,10 @@
  */
 
 import { getGameState } from "./core.js";
+import { alertMonster as alertMonsterFn } from "./monsters/monster-state.js";
+import { monstersAreTeammates } from "./monsters/monster-queries.js";
+import { CreatureState, CreatureMode } from "./types/enums.js";
+import type { Creature } from "./types/types.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
 import { statusEffectCatalog } from "./globals/status-effects.js";
@@ -246,6 +250,42 @@ export function buildRefreshSideBarFn(): () => void {
 // =============================================================================
 // buildMessageFns
 // =============================================================================
+
+/**
+ * Returns a wakeUp closure that alerts a monster and its teammates.
+ *
+ * Covers the essential alert + ticksUntilTurn logic from wakeUp() in Monsters.c.
+ * The full updateMonsterState(teammate) call is deferred until MonsterStateContext
+ * is fully wired.
+ *
+ * @param player   The player creature (for ally checks).
+ * @param monsters Active monsters list.
+ */
+export function buildWakeUpFn(player: Creature, monsters: Creature[]): (monst: Creature) => void {
+    return function wakeUp(monst: Creature): void {
+        if (monst.creatureState !== CreatureState.Ally) {
+            alertMonsterFn(monst, player);
+        }
+        monst.ticksUntilTurn = 100;
+        for (const teammate of monsters) {
+            if (
+                monst !== teammate &&
+                monstersAreTeammates(monst, teammate, player) &&
+                teammate.creatureMode === CreatureMode.Normal
+            ) {
+                if (
+                    teammate.creatureState === CreatureState.Sleeping ||
+                    teammate.creatureState === CreatureState.Wandering
+                ) {
+                    teammate.ticksUntilTurn = Math.max(100, teammate.ticksUntilTurn);
+                }
+                if (monst.creatureState !== CreatureState.Ally) {
+                    alertMonsterFn(teammate, player);
+                }
+            }
+        }
+    };
+}
 
 /**
  * Returns message function closures wired to a MessageContext built from

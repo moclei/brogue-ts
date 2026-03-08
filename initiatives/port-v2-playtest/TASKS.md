@@ -88,37 +88,43 @@ Branch: feat/port-v2-playtest
 
 ---
 
-## Phase 3b: Platform wiring + test cleanup
+## Phase 3b: Platform wiring + test cleanup ✓ DONE (54ac6ff)
 
 *Wire async travel helpers, cursor/path display, and input keystrokes into movement.ts.*
 *After this sub-phase: cursor path shows, travel mode responds to input events.*
 
-- [ ] Wire `nextBrogueEvent`, `pauseAnimation` → `src/io/input-keystrokes.ts` → `movement.ts` travel context
-- [ ] Wire `confirm` (async) → `src/io/input-dispatch.ts` → `movement.ts`, `items.ts` non-targeting contexts
-- [ ] Wire `hilitePath`, `clearCursorPath`, `hiliteCell` → `src/io/` → `movement.ts`, `io/input-context.ts`
-- [ ] Wire `plotForegroundChar` → `src/io/display.ts` → `movement.ts` (trivial if plotCharWithColor)
-- [ ] Wire `waitForAcknowledgment`, `flashTemporaryAlert`, `updateFlavorText` → `src/io/` → relevant contexts
-- [ ] Remove or activate test.skip entries now unblocked (movement.test.ts)
-- [ ] All files under 600 lines; tests pass
-- [ ] Commit; generate handoff
+- [x] Wire `pauseAnimation` → `platform-bridge.ts` → `movement.ts` travel context
+      (platform-bridge.ts breaks circular dep; platformPauseAndCheckForEvent registered at initPlatform)
+- [x] Wire `hilitePath`, `clearCursorPath`, `hiliteCell` → `io/targeting.ts` → `movement.ts`
+- [x] Wire `plotForegroundChar` → `io/display.ts` → `movement-weapon-context.ts` (uses displayBuffer bg)
+- [x] Extract `buildWeaponAttackContext()` to `movement-weapon-context.ts` (movement.ts was at 600 lines)
+- [x] Add `buildGetCellAppearanceFn()` factory to `io-wiring.ts` for hiliteCell context
+- [x] Activate `pauseAnimation` + `hilitePath/clearCursorPath` tests in movement.test.ts (2 skip → pass)
+- [x] All files under 600 lines; tests pass (87 files, 2173 pass, 132 skip)
+- [x] Commit; generate handoff
+- DEFER: `nextBrogueEvent` — sync/async mismatch; requires travel confirm dialog async refactor
+- DEFER: `confirm` (async) — PlayerMoveContext.confirm is sync; cascading async change required
+- DEFER: `waitForAcknowledgment`, `flashTemporaryAlert`, `updateFlavorText` — circular dep via ui.ts
 
 ---
 
-## Phase 4: Combat domain stubs
+## Phase 4: Combat domain stubs ✓ DONE
 
 *Implement pronoun resolution and wire remaining combat helpers.*
 *After this phase: correct combat messages, full combat resolution including leadership.*
 
-- [ ] Port `resolvePronounEscapes` from `Combat.c` — substitute $HESHE/$OBJHE/etc. from
-      `monsterText` table; wire into `combat.ts`, `turn.ts`, `items.ts`
-- [ ] Port `getMonsterDFMessage` — DF catalog lookup for monster death message;
-      wire into `combat.ts`, `turn.ts`
-- [ ] Audit `src/monsters/` for `demoteMonsterFromLeadership`, `checkForContinuedLeadership`,
-      `unAlly`, `anyoneWantABite`; wire into `combat.ts`, `turn.ts`
-- [ ] Wire `wakeUp` fully into `combat.ts`, `items.ts` (not just turn.ts)
-- [ ] Remove or activate test.skip entries now unblocked (combat.test.ts)
-- [ ] All files under 600 lines; tests pass
-- [ ] Commit; generate handoff
+- [x] Port `resolvePronounEscapes` from `Combat.c` — ported to `io/text.ts` as
+      `buildResolvePronounEscapesFn`; wired into `combat.ts`, `turn.ts`, `items.ts`, `turn-monster-ai.ts`
+- [x] Port `getMonsterDFMessage` — `monsterText[id].DFMessage` lookup in `io/text.ts`;
+      wired into `combat.ts`, `turn.ts`
+- [x] Port `unAlly`, `checkForContinuedLeadership`, `demoteMonsterFromLeadership` →
+      new `src/monsters/monster-ally-ops.ts`; wired into `combat.ts`, `turn.ts`
+      Note: `anyoneWantABite` kept as `() => false` stub — depends on `canAbsorb` (Phase 6)
+- [x] Wire `wakeUp` fully into `combat.ts`, `turn.ts`, `items.ts` via `buildWakeUpFn` in `io-wiring.ts`
+      (covers alertMonster + ticksUntilTurn + teammate alert; updateMonsterState on teammates deferred)
+- [x] Activated 6 test.skip entries in combat.test.ts
+- [x] All files under 600 lines; tests pass (87 files, 2179 pass, 126 skip)
+- [x] Commit; generate handoff
 
 ---
 

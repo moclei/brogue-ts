@@ -91,6 +91,7 @@ import type { MonsterBlinkContext, MonsterBlinkToSafetyContext } from "./monster
 import { diagonalBlocked as diagonalBlockedFn } from "./combat/combat-math.js";
 import { passableArcCount } from "./architect/helpers.js";
 import { buildRefreshDungeonCellFn, buildMessageFns } from "./io-wiring.js";
+import { buildResolvePronounEscapesFn } from "./io/text.js";
 import type { Creature, Pcell, Pos } from "./types/types.js";
 
 // =============================================================================
@@ -105,6 +106,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
     const { player, rogue, pmap, monsters } = getGameState();
     const io = buildMessageFns();
     const refreshDungeonCell = buildRefreshDungeonCellFn();
+    const resolvePronounEscapes = buildResolvePronounEscapesFn(player, pmap, rogue);
 
     // Ensure scentMap is allocated — shared between turn and monster AI
     if (!rogue.scentMap) rogue.scentMap = allocGrid();
@@ -448,7 +450,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
             const pfx = includeArticle ? (m.creatureState === CreatureState.Ally ? "your " : "the ") : "";
             return `${pfx}${m.info.monsterName}`;
         },
-        resolvePronounEscapes: (text) => text,
+        resolvePronounEscapes,
         combatMessage: io.combatMessage,
         zap: () => {},
         gameOver: (msg) => gameOver(msg),

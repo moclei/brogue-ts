@@ -210,3 +210,9 @@ export type {
     CloneMonsterContext,
     ResurrectAllyContext,
 } from "./monster-lifecycle.js";
+
+export {
+    unAlly,
+    checkForContinuedLeadership,
+    demoteMonsterFromLeadership,
+} from "./monster-ally-ops.js";

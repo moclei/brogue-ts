@@ -45,7 +45,9 @@ import { CreatureState, GameMode } from "./types/enums.js";
 import type { TurnProcessingContext } from "./time/turn-processing.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { Creature, Pcell, Pos, PlayerCharacter } from "./types/types.js";
-import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns } from "./io-wiring.js";
+import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
+import { unAlly as unAllyFn, checkForContinuedLeadership as checkForContinuedLeadershipFn, demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "./monsters/monster-ally-ops.js";
+import { buildResolvePronounEscapesFn, getMonsterDFMessage as getMonsterDFMessageFn } from "./io/text.js";
 import { buildMonstersTurnContext } from "./turn-monster-ai.js";
 import { getFOVMask as getFOVMaskFn } from "./light/fov.js";
 import { scentDistance } from "./time/turn-processing.js";
@@ -59,10 +61,12 @@ function buildMinimalCombatContext(
     player: Creature,
     rogue: PlayerCharacter,
     pmap: Pcell[][],
+    monsters: Creature[],
 ): CombatDamageContext {
     const canSeeMonster = (m: Creature) =>
         !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE);
     const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn(), refreshSideBar = buildRefreshSideBarFn();
+    const resolvePronounEscapes = buildResolvePronounEscapesFn(player, pmap, rogue);
 
     return {
         player,
@@ -71,7 +75,7 @@ function buildMinimalCombatContext(
         playerTransferenceRatio: 20,
         canSeeMonster,
         canDirectlySeeMonster: canSeeMonster,
-        wakeUp: () => {},                           // stub — wired in combat.ts
+        wakeUp: buildWakeUpFn(player, monsters),
         spawnDungeonFeature: () => {},              // stub
         refreshSideBar,
         combatMessage: io.combatMessage,
@@ -94,11 +98,11 @@ function buildMinimalCombatContext(
         applyInstantTileEffectsToCreature: () => {},// stub
         fadeInMonster: () => {},                    // stub
         refreshDungeonCell,
-        anyoneWantABite: () => false,               // stub
-        demoteMonsterFromLeadership: () => {},      // stub
-        checkForContinuedLeadership: () => {},      // stub
-        getMonsterDFMessage: () => "",              // stub
-        resolvePronounEscapes: (text) => text,      // stub
+        anyoneWantABite: () => false,               // stub — depends on canAbsorb (Phase 6)
+        demoteMonsterFromLeadership: (monst) => demoteMonsterFromLeadershipFn(monst, monsters),
+        checkForContinuedLeadership: (monst) => checkForContinuedLeadershipFn(monst, monsters),
+        getMonsterDFMessage: (id) => getMonsterDFMessageFn(id),
+        resolvePronounEscapes,
         message: io.message,
         monsterCatalog: [],                         // stub — real catalog via core.ts
         updateEncumbrance: () => {},                // stub
@@ -127,7 +131,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
     } = getGameState();
     const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn(), refreshSideBar = buildRefreshSideBarFn();
 
-    const combatCtx = buildMinimalCombatContext(player, rogue, pmap);
+    const combatCtx = buildMinimalCombatContext(player, rogue, pmap, monsters);
 
     function pmapAt(loc: Pos): Pcell { return pmap[loc.x][loc.y]; }
 

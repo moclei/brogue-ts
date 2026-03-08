@@ -26,6 +26,8 @@ import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
 import { alertMonster as alertMonsterFn } from "./monsters/monster-state.js";
 import { monsterWillAttackTarget as monsterWillAttackTargetFn } from "./monsters/monster-queries.js";
 import { monsterIsInClass as monsterIsInClassFn } from "./monsters/monster-queries.js";
+import { unAlly as unAllyFn, checkForContinuedLeadership as checkForContinuedLeadershipFn, demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "./monsters/monster-ally-ops.js";
+import { buildResolvePronounEscapesFn, getMonsterDFMessage as getMonsterDFMessageFn } from "./io/text.js";
 import {
     white, red, poisonColor,
     goodMessageColor, badMessageColor, itemMessageColor,
@@ -35,7 +37,7 @@ import { CreatureState, GameMode } from "./types/enums.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { AttackContext } from "./combat/combat-attack.js";
 import type { Creature, Pos } from "./types/types.js";
-import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns } from "./io-wiring.js";
+import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
 
 // =============================================================================
 // Private helpers
@@ -65,6 +67,7 @@ function buildMonsterName(player: Creature) {
 export function buildCombatDamageContext(): CombatDamageContext {
     const { player, rogue, pmap, monsters, floorItems, monsterCatalog } = getGameState();
     const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn(), refreshSideBar = buildRefreshSideBarFn();
+    const resolvePronounEscapes = buildResolvePronounEscapesFn(player, pmap, rogue);
 
     const canSeeMonster = (m: Creature): boolean =>
         !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE);
@@ -78,10 +81,7 @@ export function buildCombatDamageContext(): CombatDamageContext {
         canSeeMonster,
         canDirectlySeeMonster: canSeeMonster,
 
-        wakeUp(monst) {
-            // Simplified: set state to TrackingScent (real wakeUp needs MonsterStateContext).
-            monst.creatureState = CreatureState.TrackingScent;
-        },
+        wakeUp: buildWakeUpFn(player, monsters),
 
         // ── Platform stubs (wired in port-v2-platform) ────────────────────────
         spawnDungeonFeature: () => {},
@@ -127,14 +127,14 @@ export function buildCombatDamageContext(): CombatDamageContext {
         },
         prependCreature(monst) { monsters.unshift(monst); },
 
-        // ── Leadership stubs (wired in monsters.ts) ───────────────────────────
-        anyoneWantABite: () => false,
-        demoteMonsterFromLeadership: () => {},
-        checkForContinuedLeadership: () => {},
+        // ── Leadership ────────────────────────────────────────────────────────
+        anyoneWantABite: () => false,   // stub — depends on canAbsorb (Phase 6)
+        demoteMonsterFromLeadership: (monst) => demoteMonsterFromLeadershipFn(monst, monsters),
+        checkForContinuedLeadership: (monst) => checkForContinuedLeadershipFn(monst, monsters),
 
-        // ── Message stubs (wired in port-v2-platform) ─────────────────────────
-        getMonsterDFMessage: () => "",
-        resolvePronounEscapes: (text) => text,
+        // ── Message ───────────────────────────────────────────────────────────
+        getMonsterDFMessage: (id) => getMonsterDFMessageFn(id),
+        resolvePronounEscapes,
 
         monsterCatalog,
 
@@ -255,7 +255,7 @@ export function buildCombatAttackContext(): AttackContext {
         },
 
         // ── Ally ops ─────────────────────────────────────────────────────────
-        unAlly: () => {},   // stub — wired in monsters.ts
+        unAlly: (monst) => unAllyFn(monst),
         alertMonster: (monst) => alertMonsterFn(monst, player),
     };
 }
