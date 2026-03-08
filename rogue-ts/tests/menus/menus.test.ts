@@ -217,3 +217,19 @@ it.skip("stub: saveResetRun() is a no-op in menus context (should persist a save
     // Real wiring should append a seed=0 reset marker entry to the persisted run history,
     // so viewGameStats correctly splits recent-stats windows on save-reset boundaries.
 });
+
+it.skip("stub: initializeLaunchArguments() is a no-op in menus context (no CLI args in browser)", () => {
+    // C: platform function (Rogue.h:2965) — called from MainMenu.c:1121 before the main menu loop.
+    // menus.ts:247 has a `() => {}` context stub.
+    // Real implementation (if ever needed) would parse URL query params or a config object
+    // to set rogue.nextGame, rogue.nextGamePath, rogue.nextGameSeed before the menu is shown.
+    // In browser mode, there are no command-line arguments, so no-op is correct for now.
+});
+
+it.skip("stub: displayAnnotation() is a no-op in menus context (playback layer not yet implemented)", () => {
+    // C: Recordings.c:435 — displayAnnotation()
+    // menus.ts:257 has a `() => {}` context stub (playback stubs section).
+    // Also stubbed in turn.ts:252 (displayAnnotation in the turn input context).
+    // Real implementation should display the text annotation stored for the current playback
+    // turn, overlaid on the dungeon view, so recorded game annotations are shown during replay.
+});

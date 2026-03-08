@@ -215,21 +215,30 @@ Functions in scope (~10):
 
 ---
 
-## Phase 6: Stubs audit + final cleanup
+## Phase 6: Stubs audit + final cleanup ✓
 
 *Consolidate all stub tracking. This phase ensures every stub has a test.skip and
 every solved test.skip is removed or updated.*
 
-- [ ] Run `grep -r "it\.skip\|test\.skip\|describe\.skip"` across all test files; record count
-- [ ] For each test.skip: verify the underlying function is still unimplemented/unwired;
+- [x] Run `grep -r "it\.skip\|test\.skip\|describe\.skip"` across all test files; record count
+- [x] For each test.skip: verify the underlying function is still unimplemented/unwired;
       if it is now implemented, either activate the test or remove the skip with a note
-- [ ] Run `grep -r "() => {}\|() => false\|// stub"` across `rogue-ts/src/` to find
+      **All 139 existing test.skip entries are still valid — no stale entries to remove**
+- [x] Run `grep -r "() => {}\|() => false\|// stub"` across `rogue-ts/src/` to find
       candidate untracked stubs; for each, confirm a paired test.skip exists
-- [ ] Specifically confirm the known gaps from the audit:
-      `enableEasyMode` (input-context.ts:203), `executeEvent` stub (menus.ts:256),
-      `initializeGameVariant` (menus.ts:253), `monsterDetails` sidebar wiring
-- [ ] Record final test.skip count in TASKS.md
-- [ ] Commit; generate handoff
+      **2 untracked stubs found and added to menus.test.ts:**
+      - `initializeLaunchArguments` (menus.ts:247) — CLI arg parsing; browser no-op; tracked
+      - `displayAnnotation` (menus.ts:257) — playback annotation display; tracked
+      **combat.ts `() => {}` entries (magicWeaponHit, specialHit, etc.) are implemented domain
+      functions with real tests; their stubs are context builder callbacks, not domain stubs.**
+- [x] Specifically confirm the known gaps from the audit:
+      `enableEasyMode` (input-context.ts:209) → turn.test.ts:255 ✓
+      `executeEvent` stub (menus.ts:256) → menus.test.ts:192 ✓
+      `initializeGameVariant` (menus.ts:244) → menus.test.ts:184 ✓
+      `monsterDetails` sidebar wiring → monster-details.test.ts:183 ✓
+- [x] Final test.skip count: **141 skipped** (was 139; +2 new)
+- [x] 87 files, 2171 pass, 141 skip
+- [x] Commit; generate handoff
 
 ---
 
