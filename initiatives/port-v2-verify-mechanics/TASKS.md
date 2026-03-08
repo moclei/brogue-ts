@@ -45,18 +45,19 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 - [x] All files under 600 lines (targeting.ts ~250 lines)
 - [x] Commit; generate handoff
 
-## Phase 1d: Targeting UI — chooseTarget
+## Phase 1d: Targeting UI — chooseTarget ✓
 
 *The full targeting UI loop. Depends on Phase 1b + 1c functions being in place.*
 
-- [ ] Implement `chooseTarget` (Items.c:5607, ~200 lines) — full bolt targeting UI loop;
+- [x] Implement `chooseTarget` (Items.c:5607, ~200 lines) — full bolt targeting UI loop;
       player moves cursor, cycles targets, confirms or cancels; returns target Pos or null;
       async (uses waitForEvent); needs moveCursor, nextTargetAfter, hiliteTrajectory
-- [ ] Add integration tests (mock IO; confirm target selection + cancel paths)
-- [ ] Wire into zap context (ZapContext currently has targeting stubbed for port-v2-platform)
-- [ ] Remove test.skip entries now unblocked
-- [ ] All files under 600 lines
-- [ ] Commit; generate handoff
+- [x] Add integration tests (mock IO; confirm target selection + cancel paths)
+- [x] Wire async cascade: ItemHandlerContext.chooseTarget + playerCancelsBlinking → async;
+      useStaffOrWand + apply → async; stubs in items.ts remain for platform IO layer
+- [x] Remove/update test.skip entries now unblocked
+- [x] All files under 600 lines (targeting.ts 522, targeting.test.ts 447, choose-target.test.ts 248)
+- [x] Commit; generate handoff
 
 ---
 

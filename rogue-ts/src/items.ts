@@ -515,9 +515,9 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         },
 
         // ── Targeting stubs ─────────────────────────────────────────────────
-        chooseTarget: () => ({ confirmed: false, target: { ...INVALID_POS } }),
+        chooseTarget: async () => ({ confirmed: false, target: { ...INVALID_POS } }), // stub — wired in port-v2-platform
         staffBlinkDistance: (enchant) => staffBlinkDistanceFn(enchant),
-        playerCancelsBlinking: () => true,   // stub — wired in port-v2-platform
+        playerCancelsBlinking: async () => true,   // stub — wired in port-v2-platform
 
         // ── Turn management ─────────────────────────────────────────────────
         playerTurnEnded() {

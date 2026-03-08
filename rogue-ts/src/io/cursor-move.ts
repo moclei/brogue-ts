@@ -87,7 +87,7 @@ export interface AutoTargetContext {
  *        const item *theItem, enum autoTargetMode targetingMode)
  *    — Items.c:5197
  */
-function canAutoTargetMonster(
+export function canAutoTargetMonster(
     monst: Creature,
     theItem: Item | null,
     targetMode: AutoTargetMode,
@@ -350,7 +350,7 @@ export async function moveCursor(
     tabKey: { value: boolean },
     targetLoc: { value: Pos },
     theEvent: { value: RogueEvent },
-    state: ButtonState,
+    state: ButtonState | null,
     colorsDance: boolean,
     keysMoveCursor: boolean,
     targetCanLeaveMap: boolean,
@@ -378,20 +378,24 @@ export async function moveCursor(
         const oldRNG = ctx.rogue.RNG;
         ctx.rogue.RNG = RNG.Cosmetic;
 
-        // Draw buttons into a temp buffer; get event; process button input.
-        const dbuf = ctx.createScreenDisplayBuffer();
-        ctx.clearDisplayBuffer(dbuf);
-        ctx.drawButtonsInState(state, dbuf);
-        const rbuf = ctx.saveDisplayBuffer();
-        ctx.overlayDisplayBuffer(dbuf);
+        // Draw buttons (if any) into a temp buffer; get event; process input.
+        if (state !== null) {
+            const dbuf = ctx.createScreenDisplayBuffer();
+            ctx.clearDisplayBuffer(dbuf);
+            ctx.drawButtonsInState(state, dbuf);
+            const rbuf = ctx.saveDisplayBuffer();
+            ctx.overlayDisplayBuffer(dbuf);
 
-        event = ctx.nextKeyOrMouseEvent(false, colorsDance);
-        const buttonInput = await ctx.processButtonInput(state, event);
-        if (buttonInput !== -1) {
-            state.buttonDepressed = state.buttonFocused = -1;
+            event = ctx.nextKeyOrMouseEvent(false, colorsDance);
+            const buttonInput = await ctx.processButtonInput(state, event);
+            if (buttonInput !== -1) {
+                state.buttonDepressed = state.buttonFocused = -1;
+            }
+
+            ctx.restoreDisplayBuffer(rbuf);
+        } else {
+            event = ctx.nextKeyOrMouseEvent(false, colorsDance);
         }
-
-        ctx.restoreDisplayBuffer(rbuf);
         ctx.rogue.RNG = oldRNG;
 
         const mapLeft = ctx.mapToWindowX(0);

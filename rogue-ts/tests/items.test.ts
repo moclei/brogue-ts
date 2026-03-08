@@ -254,19 +254,12 @@ it.skip("stub: updateEncumbrance() is a no-op (should recalculate speed penaltie
 // Stub registry — Items.c domain stubs (Phase 3b, port-v2-audit)
 // =============================================================================
 
-it.skip("wiring stub: items.ts context playerCancelsBlinking() still returns true unconditionally", () => {
-    // Domain function implemented in items/targeting.ts (Phase 1c).
-    // The wiring stub in items.ts (~line 520) still returns `() => true`.
-    // Wire up in Phase 1d when useStaffOrWand/apply become async.
-});
-
-
-
-it.skip("stub: chooseTarget() returns an invalid position (should run the bolt targeting UI loop)", () => {
-    // C: Items.c:5607 — chooseTarget()
-    // items.ts:241 has a context stub returning an invalid position.
-    // Real implementation should show the targeting cursor, handle directional
-    // input, and return the confirmed target location.
+it.skip("wiring stub: items.ts chooseTarget() and playerCancelsBlinking() are async stubs (platform IO required)", () => {
+    // chooseTarget domain function is implemented in items/targeting.ts (Phase 1d).
+    // playerCancelsBlinking domain function is in items/targeting.ts (Phase 1c).
+    // Both stubs in items.ts are async but still return stub values.
+    // Full wiring requires platform IO (moveCursor + confirm via waitForEvent).
+    // Wire up in port-v2-platform initiative.
 });
 
 it.skip("stub: swapLastEquipment() is a no-op (should swap weapon/armor with previously equipped item)", () => {

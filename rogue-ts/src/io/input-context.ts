@@ -198,7 +198,7 @@ export function buildInputContext(): InputContext {
         travelRoute: (path, steps) => travelRouteFn(path, steps, travelCtx()),
         useStairs: (delta) => { useStairsFn(delta, travelCtx()); },
 
-        apply: (item) => { applyFn(item, itemCtx()); },
+        apply: (item) => applyFn(item, itemCtx()),
         equip: async () => {},                      // stub — equip dialog not yet ported
         unequip: async () => {},                    // stub — unequip dialog not yet ported
         drop: async () => {},                       // stub — drop dialog not yet ported

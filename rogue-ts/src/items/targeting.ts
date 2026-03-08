@@ -1,10 +1,11 @@
 /*
- *  items/targeting.ts — Bolt trajectory highlighting and blink safety check
+ *  items/targeting.ts — Bolt trajectory highlighting, blink safety, and targeting UI
  *  Port V2 — rogue-ts
  *
  *  Ported from: src/brogue/Items.c
  *  Functions: hiliteTrajectory (Items.c:5328, private),
- *             playerCancelsBlinking (Items.c:6470, private)
+ *             playerCancelsBlinking (Items.c:6470, private),
+ *             chooseTarget (Items.c:5607)
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -12,8 +13,8 @@
  *  License, or (at your option) any later version.
  */
 
-import type { Pos, Bolt, Creature, Pcell, Color } from "../types/types.js";
-import { StatusEffect, BoltEffect } from "../types/enums.js";
+import type { Pos, Bolt, Creature, Pcell, Color, Item, RogueEvent, ButtonState } from "../types/types.js";
+import { StatusEffect, BoltEffect, AutoTargetMode, EventType, BoltType, RNG, ItemCategory } from "../types/enums.js";
 import {
     BoltFlag, TileFlag, TerrainFlag, TerrainMechFlag,
     MonsterBookkeepingFlag,
@@ -21,6 +22,11 @@ import {
 import { DCOLS } from "../types/constants.js";
 import { FP_FACTOR } from "../math/fixpt.js";
 import { getImpactLoc, getLineCoordinates } from "./bolt-geometry.js";
+import { getTableForCategory } from "./item-generation.js";
+import { normColor } from "../io/color.js";
+import { red, gray, white } from "../globals/colors.js";
+import { canAutoTargetMonster, nextTargetAfter } from "../io/cursor-move.js";
+import { INVALID_POS } from "../types/types.js";
 
 // =============================================================================
 // HiliteTrajectoryContext
@@ -261,4 +267,256 @@ export async function playerCancelsBlinking(
         return true;
     }
     return false;
+}
+
+// =============================================================================
+// ChooseTargetContext
+// =============================================================================
+
+/**
+ * Dependencies for chooseTarget.
+ * Flat superset of AutoTargetContext, NextTargetContext, and HiliteTrajectoryContext,
+ * plus chooseTarget-specific display helpers.
+ */
+export interface ChooseTargetContext {
+    // ── State ──
+    rogue: {
+        lastTarget: Creature | null;
+        cursorLoc: Pos;
+        RNG: number;
+        playbackMode: boolean;
+        sidebarLocationList: Pos[];
+        depthLevel: number;
+    };
+    player: Creature;
+    pmap: Pcell[][];
+    boltCatalog: readonly Bolt[];
+
+    // ── From AutoTargetContext (canAutoTargetMonster) ──
+    monstersAreTeammates(a: Creature, b: Creature): boolean;
+    canSeeMonster(monst: Creature): boolean;
+    openPathBetween(from: Pos, to: Pos): boolean;
+    distanceBetween(a: Pos, b: Pos): number;
+    wandDominate(currentHP: number, maxHP: number): number;
+    negationWillAffectMonster(monst: Creature, isBolt: boolean): boolean;
+
+    // ── From NextTargetContext (nextTargetAfter) ──
+    isPosInMap(loc: Pos): boolean;
+    posEq(a: Pos, b: Pos): boolean;
+    monsterAtLoc(loc: Pos): Creature | null;
+    itemAtLoc(loc: Pos): Item | null;
+
+    // ── From HiliteTrajectoryContext (hiliteTrajectory) ──
+    hiliteCell(x: number, y: number, color: Readonly<Color>, strength: number, saveBuf: boolean): void;
+    refreshDungeonCell(loc: Pos): void;
+    playerCanSee(x: number, y: number): boolean;
+    monsterIsHidden(monst: Creature, observer: Creature): boolean;
+    cellHasTerrainFlag(loc: Pos, flags: number): boolean;
+
+    // ── chooseTarget-specific display ──
+    playerCanSeeOrSense(x: number, y: number): boolean;
+    cellHasTMFlag(loc: Pos, flag: number): boolean;
+    refreshSideBar(x: number, y: number, justClearing: boolean): void;
+    printLocationDescription(x: number, y: number): void;
+    confirmMessages(): void;
+
+    // ── Pre-bound moveCursor (hides platform IO complexity) ──
+    moveCursor(
+        targetConfirmed: { value: boolean },
+        canceled: { value: boolean },
+        tabKey: { value: boolean },
+        targetLoc: { value: Pos },
+        theEvent: { value: RogueEvent },
+        state: ButtonState | null,
+        colorsDance: boolean,
+        keysMoveCursor: boolean,
+        targetCanLeaveMap: boolean,
+    ): Promise<boolean>;
+}
+
+// =============================================================================
+// chooseTarget — Items.c:5607
+// =============================================================================
+
+/**
+ * Full bolt targeting UI loop.
+ * Player moves cursor, cycles targets, confirms or cancels.
+ * Returns { confirmed: true, target } on success, { confirmed: false } on cancel.
+ *
+ * C: boolean chooseTarget(pos *returnLoc, short maxDistance,
+ *        enum autoTargetMode targetMode, const item *theItem)
+ *    — Items.c:5607
+ */
+export async function chooseTarget(
+    maxDistance: number,
+    targetMode: AutoTargetMode,
+    theItem: Item | null,
+    ctx: ChooseTargetContext,
+): Promise<{ confirmed: boolean; target: Pos }> {
+    const CANCEL = { confirmed: false, target: { ...INVALID_POS } };
+    const stopAtTarget = targetMode === AutoTargetMode.Throw;
+
+    // 1. Determine theBolt and trajColor.
+    let theBolt: Bolt | null = { ...ctx.boltCatalog[BoltType.NONE] };
+    let trajColor: Color;
+
+    if (theItem && targetMode === AutoTargetMode.UseStaffOrWand
+        && (theItem.category === ItemCategory.STAFF || theItem.category === ItemCategory.WAND)) {
+        const table = getTableForCategory(theItem.category);
+        if (table && table[theItem.kind].identified) {
+            const boltIdx = table[theItem.kind].power;
+            theBolt = { ...ctx.boltCatalog[boltIdx] };
+            trajColor = { ...(theBolt.backColor ?? red) };
+        } else {
+            trajColor = { ...gray };
+        }
+    } else if (theItem && targetMode === AutoTargetMode.Throw) {
+        trajColor = { ...red };
+    } else {
+        trajColor = { ...white };
+    }
+    normColor(trajColor, 100, 10);
+
+    // 2. Playback mode: no interactive targeting supported.
+    if (ctx.rogue.playbackMode) {
+        ctx.rogue.cursorLoc = { ...INVALID_POS };
+        return CANCEL;
+    }
+
+    // 3. Save RNG.
+    const oldRNG = ctx.rogue.RNG;
+    ctx.rogue.RNG = RNG.Cosmetic;
+
+    const originLoc: Pos = { ...ctx.player.loc };
+    let targetLoc: Pos = { ...ctx.player.loc };
+    let oldTargetLoc: Pos = { ...ctx.player.loc };
+
+    // 4. Auto-target: try lastTarget, then nextTargetAfter.
+    let focusedOnSomething = false;
+    if (theItem && (targetMode === AutoTargetMode.UseStaffOrWand || targetMode === AutoTargetMode.Throw)) {
+        let monst: Creature | null = null;
+        if (ctx.rogue.lastTarget && canAutoTargetMonster(ctx.rogue.lastTarget, theItem, targetMode, ctx)) {
+            monst = ctx.rogue.lastTarget;
+        } else {
+            const newLoc = { value: { ...targetLoc } };
+            if (nextTargetAfter(theItem, newLoc, targetLoc, targetMode, false, ctx)) {
+                targetLoc = { ...newLoc.value };
+            }
+            monst = ctx.monsterAtLoc(targetLoc);
+        }
+        if (monst) {
+            targetLoc = { ...monst.loc };
+            ctx.refreshSideBar(monst.loc.x, monst.loc.y, false);
+            focusedOnSomething = true;
+        }
+    }
+
+    // 5. Initial trajectory.
+    let coords: readonly Pos[] = getLineCoordinates(originLoc, targetLoc, theBolt);
+    let numCells = coords.length;
+    if (maxDistance > 0) numCells = Math.min(numCells, maxDistance);
+    if (stopAtTarget) numCells = Math.min(numCells, ctx.distanceBetween(ctx.player.loc, targetLoc));
+
+    // 6. Main targeting loop.
+    let targetConfirmed = false;
+    let canceled = false;
+    let tabKey = false;
+    let event: RogueEvent = { eventType: EventType.EventError, param1: 0, param2: 0, controlKey: false, shiftKey: false };
+
+    do {
+        ctx.printLocationDescription(targetLoc.x, targetLoc.y);
+
+        if (canceled) {
+            ctx.refreshDungeonCell(oldTargetLoc);
+            hiliteTrajectory(coords, numCells, true, theBolt, trajColor, ctx);
+            ctx.confirmMessages();
+            ctx.rogue.cursorLoc = { ...INVALID_POS };
+            ctx.rogue.RNG = oldRNG;
+            return CANCEL;
+        }
+
+        if (tabKey) {
+            const newLoc = { value: { ...targetLoc } };
+            if (nextTargetAfter(theItem, newLoc, targetLoc, targetMode, event.shiftKey, ctx)) {
+                targetLoc = { ...newLoc.value };
+            }
+        }
+
+        // Update sidebar focus.
+        const monst = ctx.monsterAtLoc(targetLoc);
+        if (monst && monst !== ctx.player && ctx.canSeeMonster(monst)) {
+            focusedOnSomething = true;
+        } else if (
+            (ctx.playerCanSeeOrSense(targetLoc.x, targetLoc.y) &&
+                !!(ctx.pmap[targetLoc.x]?.[targetLoc.y]?.flags & TileFlag.HAS_ITEM)) ||
+            ctx.cellHasTMFlag(targetLoc, TerrainMechFlag.TM_LIST_IN_SIDEBAR)
+        ) {
+            focusedOnSomething = true;
+        } else if (focusedOnSomething) {
+            ctx.refreshSideBar(-1, -1, false);
+            focusedOnSomething = false;
+        }
+        if (focusedOnSomething) {
+            ctx.refreshSideBar(targetLoc.x, targetLoc.y, false);
+        }
+
+        ctx.refreshDungeonCell(oldTargetLoc);
+        hiliteTrajectory(coords, numCells, true, theBolt, trajColor, ctx); // erase
+
+        if (!targetConfirmed) {
+            coords = getLineCoordinates(originLoc, targetLoc, theBolt);
+            numCells = coords.length;
+            if (maxDistance > 0) numCells = Math.min(numCells, maxDistance);
+            if (stopAtTarget) numCells = Math.min(numCells, ctx.distanceBetween(ctx.player.loc, targetLoc));
+
+            const distance = hiliteTrajectory(coords, numCells, false, theBolt, trajColor, ctx);
+            let cursorInTrajectory = false;
+            for (let i = 0; i < distance; i++) {
+                if (coords[i].x === targetLoc.x && coords[i].y === targetLoc.y) {
+                    cursorInTrajectory = true;
+                    break;
+                }
+            }
+            ctx.hiliteCell(targetLoc.x, targetLoc.y, white, cursorInTrajectory ? 100 : 35, true);
+        }
+
+        oldTargetLoc = { ...targetLoc };
+
+        const tc = { value: false };
+        const ca = { value: false };
+        const tk = { value: false };
+        const tl = { value: { ...targetLoc } };
+        const ev = { value: event };
+        await ctx.moveCursor(tc, ca, tk, tl, ev, null, false, true, false);
+        targetConfirmed = tc.value;
+        canceled = ca.value;
+        tabKey = tk.value;
+        targetLoc = { ...tl.value };
+        event = ev.value;
+
+        if (event.eventType === EventType.RightMouseUp) {
+            canceled = true;
+        }
+    } while (!targetConfirmed);
+
+    // 7. Post-loop cleanup.
+    if (maxDistance > 0) numCells = Math.min(numCells, maxDistance);
+    hiliteTrajectory(coords, numCells, true, theBolt, trajColor, ctx);
+    ctx.refreshDungeonCell(oldTargetLoc);
+
+    if (ctx.posEq(originLoc, targetLoc)) {
+        ctx.confirmMessages();
+        ctx.rogue.RNG = oldRNG;
+        ctx.rogue.cursorLoc = { ...INVALID_POS };
+        return CANCEL;
+    }
+
+    const finalMonst = ctx.monsterAtLoc(targetLoc);
+    if (finalMonst && finalMonst !== ctx.player && ctx.canSeeMonster(finalMonst)) {
+        ctx.rogue.lastTarget = finalMonst;
+    }
+
+    ctx.rogue.RNG = oldRNG;
+    ctx.rogue.cursorLoc = { ...INVALID_POS };
+    return { confirmed: true, target: { ...targetLoc } };
 }

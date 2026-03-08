@@ -445,3 +445,4 @@ describe("playerCancelsBlinking", () => {
         expect(await playerCancelsBlinking(pos(5, 5), pos(10, 5), 0, ctx)).toBe(false);
     });
 });
+

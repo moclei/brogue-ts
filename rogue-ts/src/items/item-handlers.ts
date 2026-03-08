@@ -148,9 +148,9 @@ export interface ItemHandlerContext {
     updatePlayerRegenerationDelay(): void;
 
     // ── Targeting ──
-    chooseTarget(maxDistance: number, autoTargetMode: number, theItem: Item): { confirmed: boolean; target: Pos };
+    chooseTarget(maxDistance: number, autoTargetMode: number, theItem: Item): Promise<{ confirmed: boolean; target: Pos }>;
     staffBlinkDistance(enchant: Fixpt): number;
-    playerCancelsBlinking(origin: Pos, target: Pos, maxDistance: number): boolean;
+    playerCancelsBlinking(origin: Pos, target: Pos, maxDistance: number): Promise<boolean>;
 
     // ── Turn management ──
     playerTurnEnded(): void;
@@ -1027,7 +1027,7 @@ export function drinkPotion(theItem: Item, ctx: ItemHandlerContext): boolean {
  * Port of C `useStaffOrWand()`.
  * The player zaps a staff or wand at a target. Returns true if the turn was used.
  */
-export function useStaffOrWand(theItem: Item, ctx: ItemHandlerContext): boolean {
+export async function useStaffOrWand(theItem: Item, ctx: ItemHandlerContext): Promise<boolean> {
     const theTable = getTableForCategory(theItem.category, {
         scrollTable: ctx.scrollTable,
         potionTable: ctx.potionTable,
@@ -1068,11 +1068,11 @@ export function useStaffOrWand(theItem: Item, ctx: ItemHandlerContext): boolean 
     const boltKnown = theTable[theItem.kind].identified;
     const originLoc: Pos = { ...ctx.player.loc };
     const { confirmed: confirmedTarget, target: zapTarget } =
-        ctx.chooseTarget(maxDistance, 0 /* AUTOTARGET_MODE_USE_STAFF_OR_WAND */, theItem);
+        await ctx.chooseTarget(maxDistance, 0 /* AUTOTARGET_MODE_USE_STAFF_OR_WAND */, theItem);
 
     if (confirmedTarget && boltKnown
         && theBolt.boltEffect === BoltEffect.Blinking
-        && ctx.playerCancelsBlinking(originLoc, zapTarget, maxDistance)) {
+        && await ctx.playerCancelsBlinking(originLoc, zapTarget, maxDistance)) {
         return false;
     }
 
@@ -1230,7 +1230,7 @@ export function useCharm(theItem: Item, ctx: ItemHandlerContext): boolean {
  * Port of C `apply()`.
  * Main dispatcher for using an item from the inventory.
  */
-export function apply(theItem: Item | null, ctx: ItemHandlerContext): void {
+export async function apply(theItem: Item | null, ctx: ItemHandlerContext): Promise<void> {
     if (!theItem) {
         theItem = ctx.promptForItemOfType(
             ItemCategory.SCROLL | ItemCategory.FOOD | ItemCategory.POTION
@@ -1262,7 +1262,7 @@ export function apply(theItem: Item | null, ctx: ItemHandlerContext): void {
             return;
         case ItemCategory.STAFF:
         case ItemCategory.WAND:
-            if (useStaffOrWand(theItem, ctx)) break;
+            if (await useStaffOrWand(theItem, ctx)) break;
             return;
         case ItemCategory.CHARM:
             if (useCharm(theItem, ctx)) break;

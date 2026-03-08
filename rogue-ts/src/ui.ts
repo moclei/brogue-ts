@@ -311,7 +311,7 @@ export function buildInventoryContext(): InventoryContext {
         createScreenDisplayBuffer: createScreenDisplayBufferFn,
         mapToWindowX,
         mapToWindowY,
-        apply: (item) => { applyFn(item, buildItemHandlerContext()); },
+        apply: (item) => applyFn(item, buildItemHandlerContext()),
         equip: async () => {},                                // stub — dialog not yet ported
         unequip: async () => {},                              // stub — dialog not yet ported
         drop: async () => {},                                 // stub — dialog not yet ported
