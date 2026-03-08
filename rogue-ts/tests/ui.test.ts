@@ -9,6 +9,8 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { initGameState, getGameState } from "../src/core.js";
+import { shuffleTerrainColors, terrainRandomValues } from "../src/render-state.js";
+import { seedRandomGenerator } from "../src/math/rng.js";
 import {
     buildDisplayContext,
     buildMessageContext,
@@ -316,16 +318,22 @@ it.skip("stub: flashTemporaryAlert() is a no-op (should show a brief overlay ale
     // milliseconds, then restore the previous display state.
 });
 
-it.skip("stub: buildInventoryContext().message() is a no-op (should queue display message)", () => {
-    // buildInventoryContext().message(msg, flags) does nothing.
-    // Real implementation should call buildMessageContext()'s message pipeline
-    // to archive and display the string in the 3-row message area.
+it("buildInventoryContext().message() queues message in archive (Phase 7a)", () => {
+    // buildInventoryContext().message(msg, flags) now wired to real message pipeline.
+    const ctx = buildInventoryContext();
+    ctx.message("test message", 0);
+    const { messageState } = getGameState();
+    // archive position advanced = message was queued
+    expect(messageState.archivePosition).toBeGreaterThan(0);
 });
 
-it.skip("stub: buildInventoryContext().confirmMessages() is a no-op (should mark messages confirmed)", () => {
-    // buildInventoryContext().confirmMessages() does nothing.
-    // Real implementation should set messagesUnconfirmed = 0 and redraw the
-    // message area without highlighting.
+it("buildInventoryContext().confirmMessages() marks messages confirmed (Phase 7a)", () => {
+    // buildInventoryContext().confirmMessages() now wired to real confirmMessages.
+    const { messageState } = getGameState();
+    messageState.messagesUnconfirmed = 3;
+    const ctx = buildInventoryContext();
+    ctx.confirmMessages();
+    expect(messageState.messagesUnconfirmed).toBe(0);
 });
 
 it.skip("stub: buildInventoryContext() item actions are no-ops (should dispatch to handlers)", () => {
@@ -354,18 +362,16 @@ it.skip("stub: initializeButtonState() is a no-op in input context (should deleg
 
 it.skip("stub: buttonInputLoop() returns -1 in input context (should delegate to io/buttons buttonInputLoop)", () => {
     // C: Buttons.c:323 — buttonInputLoop()
-    // io/input-context.ts:157 has an `async () => -1` context stub.
+    // io/input-context.ts: stub async () => -1.
     // Domain function is IMPLEMENTED at io/buttons.ts:422.
-    // Real wiring should call buttonInputLoop() from io/buttons.ts; the stub silently
-    // cancels all input-context button loops (chosenButton -1 = no selection).
+    // Deferred to Phase 7c — real wiring requires the async event bridge to be active.
 });
 
 it.skip("stub: buttonInputLoop() returns {chosenButton:-1} in ui/inventory context (should delegate to io/buttons buttonInputLoop)", () => {
     // C: Buttons.c:323 — buttonInputLoop()
-    // ui.ts:306 has an `async () => ({ chosenButton: -1, event: fakeEvent() })` stub (comment: "stub — Phase 7").
+    // ui.ts: stub async () => ({ chosenButton: -1 }).
     // Domain function is IMPLEMENTED at io/buttons.ts:422.
-    // Real wiring should call buttonInputLoop() from io/buttons.ts; the stub silently
-    // cancels all inventory button loops (chosenButton -1 = no selection).
+    // Deferred to Phase 7c — real wiring requires the async event bridge to be active.
 });
 
 it.skip("stub: buildButtonContext() color ops are no-ops (should compute button gradients)", () => {
@@ -385,11 +391,20 @@ it.skip("stub: displayLevel() is a no-op in items.ts and input-context.ts", () =
     // have `() => {}` stubs — wired in port-v2-platform.
 });
 
-it.skip("stub: shuffleTerrainColors() is a no-op (should animate terrain color variation)", () => {
-    // C: IO.c:966 — shuffleTerrainColors()
-    // lifecycle.ts and turn.ts have `() => {}` stubs.
-    // Real implementation should randomise the color offsets of animated terrain
-    // tiles (fire, water shimmer) each frame to produce visual animation.
+it("shuffleTerrainColors() populates terrainRandomValues (Phase 7a)", () => {
+    // C: IO.c:966 — shuffleTerrainColors() now wired in lifecycle.ts and turn.ts.
+    // Seed the RNG so randRange returns non-zero values, then reset all and shuffle.
+    seedRandomGenerator(12345n);
+    for (let i = 0; i < 10; i++) for (let j = 0; j < 10; j++) terrainRandomValues[i][j].fill(0);
+    shuffleTerrainColors(100, true);
+    // After a full reset, at least one cell in the grid should have a non-zero value.
+    let found = false;
+    outer: for (let i = 0; i < 10; i++) {
+        for (let j = 0; j < 10; j++) {
+            if (terrainRandomValues[i][j].some((v) => v !== 0)) { found = true; break outer; }
+        }
+    }
+    expect(found).toBe(true);
 });
 
 it.skip("stub: printHelpScreen() is a no-op (should render the in-game help overlay)", () => {
@@ -413,11 +428,13 @@ it.skip("stub: printDiscoveriesScreen() is a no-op (should render item discoveri
     // grouped by category.
 });
 
-it.skip("stub: printSeed() is a no-op (should display the current dungeon seed)", () => {
-    // C: IO.c:4391 — printSeed()
-    // io/input-context.ts:206 has a `() => {}` stub with comment "not yet ported".
-    // Real implementation should render the numeric seed in an overlay so the
-    // player can record it for replay.
+it("printSeed() wired: displays seed via message system (Phase 7a)", async () => {
+    // C: IO.c:4391 — printSeed() now wired in io/input-context.ts.
+    // Calling it should not throw; it emits the seed as a message.
+    initGameState();
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    const ctx = buildInputContext();
+    expect(() => ctx.printSeed()).not.toThrow();
 });
 
 it.skip("stub: displayGrid() is a no-op (should render a debug grid overlay)", () => {

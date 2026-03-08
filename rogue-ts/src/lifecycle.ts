@@ -46,7 +46,7 @@ import { TileFlag } from "./types/flags.js";
 import { seedRandomGenerator, randRange, rand64bits, randPercent, randClump, clamp } from "./math/rng.js";
 import { FP_FACTOR } from "./math/fixpt.js";
 import { allocGrid, fillGrid, freeGrid } from "./grid/grid.js";
-import { terrainRandomValues, displayDetail } from "./render-state.js";
+import { terrainRandomValues, displayDetail, shuffleTerrainColors as shuffleTerrainColorsFn } from "./render-state.js";
 import { zeroOutGrid } from "./architect/helpers.js";
 import { distanceBetween } from "./monsters/monster-state.js";
 import { calculateDistances, pathingDistance as pathingDistanceFn } from "./dijkstra/dijkstra.js";
@@ -453,7 +453,7 @@ export function buildLevelContext(): LevelContext {
             const r = setUpWaypoints(pmap, costMapWrap, getFOVMaskWrap);
             rogue.wpDistance = r.wpDistance;
         },
-        shuffleTerrainColors: () => {},
+        shuffleTerrainColors: (pct, reset) => shuffleTerrainColorsFn(pct, reset),
         numberOfMatchingPackItems: (cat, flags, flags2, _useFlags) =>
             numberOfMatchingPackItems(packItems, cat, flags, flags2),
         itemAtLoc: (loc) => itemAtLocFn(loc, floorItems),

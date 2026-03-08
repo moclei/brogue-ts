@@ -421,7 +421,7 @@ export function buildInputContext(): InputContext {
         enableEasyMode: () => {},                   // stub — LifecycleContext not wired
         saveGame: () => {},                         // stub — save system not yet ported
         gameOver: () => {},                         // stub — LifecycleContext not wired
-        printSeed: () => {},                        // stub — not yet ported
+        printSeed: () => { buildMessageFns().message(`Seed: ${rogue.seed}`, 0); },
         showCursor: () => {},                       // stub — cursor display (Phase 5)
         hideCursor: () => {},                       // stub — cursor display (Phase 5)
         exploreKey: async () => {},                 // stub — explore display hooks (Phase 5)

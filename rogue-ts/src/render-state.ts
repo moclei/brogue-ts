@@ -15,6 +15,7 @@
 
 import { DCOLS, DROWS } from "./types/constants.js";
 import { allocGrid } from "./grid/grid.js";
+import { randPercent, randRange } from "./math/rng.js";
 
 // Per-cell random offsets used by bakeTerrainColors.
 // 8 values per cell, pre-rolled at startup — never changes.
@@ -30,3 +31,25 @@ export const terrainRandomValues: number[][][] = (() => {
 // Per-cell lighting detail flags (Dark / Lit / Normal) used by
 // the true-color and stealth-range render paths.
 export const displayDetail: number[][] = allocGrid();
+
+// =============================================================================
+// shuffleTerrainColors — IO.c:966
+// =============================================================================
+
+/**
+ * Re-roll terrain color offsets for animated tiles (fire, water shimmer, etc.).
+ * Called each turn to drive per-cell color variation.
+ *
+ * C: `shuffleTerrainColors` in IO.c
+ */
+export function shuffleTerrainColors(percentOfCells: number, resetAll: boolean): void {
+    for (let i = 0; i < DCOLS; i++) {
+        for (let j = 0; j < DROWS; j++) {
+            if (resetAll || randPercent(percentOfCells)) {
+                for (let k = 0; k < 8; k++) {
+                    terrainRandomValues[i][j][k] = randRange(0, 1000);
+                }
+            }
+        }
+    }
+}

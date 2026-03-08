@@ -56,6 +56,11 @@ import {
     decodeMessageColor as decodeMessageColorFn,
 } from "./io/color.js";
 import { strLenWithoutEscapes as strLenWithoutEscapesFn } from "./io/text.js";
+import {
+    message as messageFn,
+    confirmMessages as confirmMessagesFn,
+} from "./io/messages.js";
+import type { MessageContext as SyncMessageContext } from "./io/messages-state.js";
 
 // =============================================================================
 // Private helpers
@@ -301,9 +306,15 @@ export function buildInventoryContext(): InventoryContext {
         itemMagicPolarity: (item) => itemMagicPolarityFn(item),
         numberOfItemsInPack: () =>
             numberOfItemsInPackFn(packItems),
-        message: () => {},                                    // stub — needs message context wiring
-        confirmMessages: () => {},                            // stub — needs message context wiring
-        buttonInputLoop: async () => ({ chosenButton: -1, event: fakeEvent() }), // stub — Phase 7
+        message: (() => {
+            const mc = buildMessageContext() as unknown as SyncMessageContext;
+            return (msg: string, flags: number) => messageFn(mc, msg, flags);
+        })(),
+        confirmMessages: (() => {
+            const mc = buildMessageContext() as unknown as SyncMessageContext;
+            return () => confirmMessagesFn(mc);
+        })(),
+        buttonInputLoop: async () => ({ chosenButton: -1, event: fakeEvent() }), // stub — Phase 7c
         overlayDisplayBuffer: (dbuf) => overlayDisplayBufferFn(displayBuffer, dbuf),
         saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
         restoreDisplayBuffer: (saved) => restoreDisplayBufferFn(displayBuffer, saved),
