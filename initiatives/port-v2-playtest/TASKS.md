@@ -47,16 +47,19 @@ Branch: feat/port-v2-playtest
 
 ---
 
-## Phase 2b: Input context + test cleanup
+## Phase 2b: Input context + test cleanup ✓ DONE
 
 *Wire autoRest/manualSearch/dijkstraScan; activate unblocked skipped tests.*
 *After this sub-phase: player can auto-rest, search, pathfinding infrastructure live.*
 
-- [ ] Wire `autoRest`, `manualSearch` → audit `src/time/misc-helpers.ts`; wire into `io/input-context.ts`
-- [ ] Wire `dijkstraScan` → `src/dijkstra/dijkstra.ts` → `io/input-context.ts`
-- [ ] Remove or activate test.skip entries now unblocked (turn.test.ts, monsters.test.ts)
-- [ ] All files under 600 lines; tests pass
-- [ ] Commit; generate handoff
+- [x] Wire `autoRest`, `manualSearch` → built `buildMiscHelpersContext()` in `io/input-context.ts`;
+      wired real `autoRestFn`/`manualSearchFn` from `time/misc-helpers.ts`
+- [x] Wire `dijkstraScan` → imported `dijkstraScanFn` from `dijkstra/dijkstra.ts`; replaced stub
+- [x] Remove or activate test.skip entries now unblocked:
+      removed 7 stale stubs from turn.test.ts (Phase 2a wired: updateMonsterState, moveMonster,
+      scentDirection, pathTowardCreature, updateScent; Phase 2b wired: autoRest, manualSearch)
+- [x] All files under 600 lines (input-context.ts = 530 lines); tests pass
+- [x] Commit; generate handoff
 
 ---
 

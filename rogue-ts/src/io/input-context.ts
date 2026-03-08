@@ -16,6 +16,7 @@
 import { getGameState } from "../core.js";
 import { buildMovementContext, buildTravelContext } from "../movement.js";
 import { buildItemHandlerContext } from "../items.js";
+import { buildMonsterStateContext } from "../monsters.js";
 import { playerTurnEnded as playerTurnEndedFn } from "../turn.js";
 import {
     playerMoves as playerMovesFn,
@@ -33,23 +34,49 @@ import {
     mapToWindowX, mapToWindowY,
     windowToMapX, windowToMapY,
     coordinatesAreInMap, nbDirs,
+    posNeighborInDirection,
 } from "../globals/tables.js";
-import { distanceBetween } from "../monsters/monster-state.js";
+import {
+    distanceBetween,
+    monsterAvoids as monsterAvoidsFn,
+} from "../monsters/monster-state.js";
 import { wandDominate } from "../power/power-tables.js";
 import { openPathBetween } from "../items/bolt-geometry.js";
 import { negationWillAffectMonster } from "../items/bolt-helpers.js";
 import { boltCatalog } from "../globals/bolt-catalog.js";
 import { mutationCatalog } from "../globals/mutation-catalog.js";
 import { monstersAreTeammates as monstersAreTeammatesFn } from "../monsters/monster-queries.js";
-import { cellHasTerrainFlag as cellHasTerrainFlagFn } from "../state/helpers.js";
-import { cellHasTMFlag as cellHasTMFlagFn } from "../state/helpers.js";
+import {
+    cellHasTerrainFlag as cellHasTerrainFlagFn,
+    cellHasTMFlag as cellHasTMFlagFn,
+    terrainFlags as terrainFlagsFn,
+    terrainMechFlags as terrainMechFlagsFn,
+} from "../state/helpers.js";
+import { search as searchFn } from "../movement/item-helpers.js";
+import { discover as discoverFn } from "../movement/map-queries.js";
+import { spawnDungeonFeature as spawnDungeonFeatureFn } from "../architect/machines.js";
+import { dungeonFeatureCatalog } from "../globals/dungeon-feature-catalog.js";
+import { tileCatalog } from "../globals/tile-catalog.js";
+import { ringTable } from "../globals/item-catalog.js";
+import { randPercent, randClumpedRange } from "../math/rng.js";
+import { autoRest as autoRestFn, manualSearch as manualSearchFn } from "../time/misc-helpers.js";
+import type { MiscHelpersContext } from "../time/misc-helpers.js";
+import type { ItemHelperContext } from "../movement/item-helpers.js";
+import { getScentMap } from "../lifecycle.js";
+import { dijkstraScan as dijkstraScanFn } from "../dijkstra/dijkstra.js";
+import {
+    buildMessageFns,
+    buildRefreshDungeonCellFn,
+} from "../io-wiring.js";
+import { TURNS_FOR_FULL_REGEN, REST_KEY, SEARCH_KEY, DCOLS, DROWS } from "../types/constants.js";
 import { moveCursor as moveCursorFn, nextTargetAfter as nextTargetAfterFn } from "./cursor-move.js";
 import { commitDraws } from "../platform.js";
 import { EventType, AutoTargetMode, StatusEffect, ALL_ITEMS } from "../types/enums.js";
 import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MessageFlag } from "../types/flags.js";
 import type { InputContext } from "./input-keystrokes.js";
 import type { PlayerRunContext } from "../movement/player-movement.js";
-import type { Pos, RogueEvent } from "../types/types.js";
+import type { Pos, RogueEvent, Color } from "../types/types.js";
+import { INVALID_POS } from "../types/types.js";
 
 // =============================================================================
 // Helpers
@@ -63,6 +90,166 @@ function fakeEvent(): RogueEvent {
     };
 }
 
+
+// =============================================================================
+// buildMiscHelpersContext — Time.c helpers (autoRest, manualSearch)
+// =============================================================================
+
+/**
+ * Build a MiscHelpersContext backed by the current game state.
+ *
+ * Only autoRest and manualSearch are called from buildInputContext; the
+ * remaining fields (rechargeItemsIncrementally, monsterEntersLevel, etc.)
+ * are stubbed — they are not invoked from this context.
+ */
+function buildMiscHelpersContext(): MiscHelpersContext {
+    const { rogue, player, pmap, monsters, floorItems, packItems, levels } = getGameState();
+    const io = buildMessageFns();
+    const refreshDungeonCell = buildRefreshDungeonCellFn();
+
+    const cellHasTerrainFlag = (pos: Pos, flags: number) =>
+        cellHasTerrainFlagFn(pmap, pos, flags);
+    const cellHasTMFlag = (pos: Pos, flags: number) =>
+        cellHasTMFlagFn(pmap, pos, flags);
+    const monsterAtLoc = (loc: Pos) => {
+        if (loc.x === player.loc.x && loc.y === player.loc.y) return player;
+        return monsters.find(m => m.loc.x === loc.x && m.loc.y === loc.y) ?? null;
+    };
+    const spawnFeature = (x: number, y: number, feat: unknown, rc: boolean, ab: boolean) =>
+        spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, rc, ab);
+
+    // Minimal ItemHelperContext for the search() call in manualSearch
+    const searchCtx: ItemHelperContext = {
+        pmap,
+        player,
+        rogue: { playbackOmniscience: rogue.playbackOmniscience },
+        tileCatalog: tileCatalog as unknown as ItemHelperContext["tileCatalog"],
+        initializeItem: () => ({} as never),
+        itemName: () => {},
+        describeHallucinatedItem: () => {},
+        removeItemFromChain: () => false,
+        deleteItem: () => {},
+        monsterAtLoc,
+        promoteTile: () => {},
+        messageWithColor: () => {},
+        itemMessageColor: null,
+        packItems,
+        floorItems,
+        cellHasTerrainFlag,
+        cellHasTMFlag,
+        coordinatesAreInMap,
+        playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        distanceBetween,
+        discover: (x, y) => {
+            discoverFn(x, y, {
+                pmap,
+                player,
+                rogue: {
+                    scentTurnNumber: rogue.scentTurnNumber,
+                    disturbed: rogue.disturbed,
+                    automationActive: rogue.automationActive,
+                },
+                scentMap: getScentMap() ?? ([] as number[][]),
+                terrainFlags: (pos) => terrainFlagsFn(pmap, pos),
+                terrainMechFlags: (pos) => terrainMechFlagsFn(pmap, pos),
+                cellHasTerrainFlag,
+                cellHasTMFlag,
+                coordinatesAreInMap,
+                playerCanSee: (x2, y2) => !!(pmap[x2]?.[y2]?.flags & TileFlag.VISIBLE),
+                monsterAtLoc,
+                canSeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+                monsterRevealed: () => false,
+                spawnDungeonFeature: spawnFeature as never,
+                refreshDungeonCell,
+                dungeonFeatureCatalog,
+                nbDirs: nbDirs as [number, number][],
+            });
+        },
+        randPercent,
+        posEq: (a, b) => a.x === b.x && a.y === b.y,
+    };
+
+    return {
+        player,
+        rogue: {
+            depthLevel: rogue.depthLevel,
+            wisdomBonus: rogue.wisdomBonus,
+            awarenessBonus: rogue.awarenessBonus,
+            justRested: rogue.justRested,
+            justSearched: rogue.justSearched,
+            automationActive: rogue.automationActive,
+            disturbed: rogue.disturbed,
+            yendorWarden: rogue.yendorWarden ?? null,
+            weapon: rogue.weapon ?? null,
+            armor: rogue.armor ?? null,
+            ringLeft: rogue.ringLeft ?? null,
+            ringRight: rogue.ringRight ?? null,
+            upLoc: rogue.upLoc,
+            downLoc: rogue.downLoc,
+            monsterSpawnFuse: rogue.monsterSpawnFuse,
+        },
+        monsters,
+        levels,
+        pmap,
+        packItems,
+
+        DCOLS,
+        DROWS,
+        FP_FACTOR: 1000,                         // stub — not used by autoRest/manualSearch
+        TURNS_FOR_FULL_REGEN,
+        deepestLevel: rogue.deepestLevel,
+        INVALID_POS,
+
+        randClumpedRange: (min, max, clumps) => randClumpedRange(min, max, clumps),
+        rand_percent: (pct) => randPercent(pct),
+        max: Math.max,
+        clamp: (val, min, max) => Math.min(Math.max(val, min), max),
+        ringWisdomMultiplier: (val) => val,       // stub — not used by autoRest/manualSearch
+        charmRechargeDelay: () => 0,              // stub — not used by autoRest/manualSearch
+
+        itemName: () => "",                       // stub
+        identify: () => {},                       // stub
+        updateIdentifiableItems: () => {},        // stub
+        numberOfMatchingPackItems: () => 0,       // stub
+
+        message: io.message,
+        messageWithColor: (msg, color, flags) =>
+            io.messageWithColor(msg, color as Readonly<Color>, flags),
+
+        monsterAvoids: (monst, loc) =>
+            monsterAvoidsFn(monst, loc, buildMonsterStateContext()),
+        canSeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+        monsterName: () => "",                    // stub
+        messageColorFromVictim: () => null,       // stub
+        inflictDamage: () => false,               // stub
+        killCreature: () => {},                   // stub
+        demoteMonsterFromLeadership: () => {},    // stub
+        restoreMonster: () => {},                 // stub
+        removeCreature: () => {},                 // stub
+        prependCreature: () => {},                // stub
+        avoidedFlagsForMonster: () => 0,          // stub
+        getQualifyingPathLocNear: (loc) => loc,   // stub
+
+        posNeighborInDirection,
+        cellHasTerrainFlag,
+        pmapAt: (loc) => pmap[loc.x][loc.y],
+        terrainFlags: (loc) => terrainFlagsFn(pmap, loc),
+        refreshDungeonCell,
+        search: (strength) => { searchFn(strength, searchCtx); },
+        recordKeystroke: () => {},                // stub — persistence layer
+        playerTurnEnded: () => { playerTurnEndedFn(); },
+        pauseAnimation: () => false,              // stub — Phase 3b
+
+        ringTable: ringTable as unknown as Array<{ identified: boolean }>,
+        displayLevel: () => {},                   // stub
+        updateMinersLightRadius: () => {},        // stub
+        itemMessageColor: null,
+        red: null,
+        REST_KEY: String.fromCharCode(REST_KEY),
+        SEARCH_KEY: String.fromCharCode(SEARCH_KEY),
+        PAUSE_BEHAVIOR_DEFAULT: 0,
+    };
+}
 
 // =============================================================================
 // buildInputContext — IO.c / RogueMain.c
@@ -192,8 +379,8 @@ export function buildInputContext(): InputContext {
         playerMoves: (dir) => { playerMovesFn(dir, moveCtx()); },
         playerRuns: (dir) => { playerRunsFn(dir, moveCtx() as PlayerRunContext); },
         playerTurnEnded: () => { playerTurnEndedFn(); },
-        autoRest: () => {},                         // stub — no MiscHelpersContext yet
-        manualSearch: () => {},                     // stub — no MiscHelpersContext yet
+        autoRest: () => { autoRestFn(buildMiscHelpersContext()); },
+        manualSearch: () => { manualSearchFn(buildMiscHelpersContext()); },
 
         travel: (loc, autoConfirm) => travelFn(loc, autoConfirm, travelCtx()),
         travelRoute: (path, steps) => travelRouteFn(path, steps, travelCtx()),
@@ -299,7 +486,8 @@ export function buildInputContext(): InputContext {
         allocGrid: () => [],
         freeGrid: () => {},
         fillGrid: () => {},
-        dijkstraScan: () => {},
+        dijkstraScan: (distanceMap, costMap, useDiagonals) =>
+            dijkstraScanFn(distanceMap, costMap, useDiagonals),
         populateCreatureCostMap: () => {},
         getPlayerPathOnMap: () => 0,
         processSnapMap: () => {},

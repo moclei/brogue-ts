@@ -159,20 +159,6 @@ describe("playerTurnEnded — scheduler", () => {
     });
 });
 
-// =============================================================================
-// Stub audit: known-incomplete behaviours in buildMonstersTurnContext
-// =============================================================================
-
-it.skip("stub: updateMonsterState wires real monster state transitions", () => {
-    // buildMonstersTurnContext().updateMonsterState is a no-op.
-    // Real implementation should call monster-state.ts updateMonsterState().
-});
-
-it.skip("stub: moveMonster wires real movement with collision detection", () => {
-    // buildMonstersTurnContext().moveMonster is a no-op returning false.
-    // Real implementation should call movement/player-movement.ts moveMonster().
-});
-
 it("monstUseMagic returns false for a monster with no bolt abilities", () => {
     // A rat has no bolts — monstUseBolt short-circuits and returns false,
     // so monstUseMagic returns false without attempting to cast.
@@ -182,16 +168,6 @@ it("monstUseMagic returns false for a monster with no bolt abilities", () => {
     // Ensure no bolt abilities (MK_RAT.bolts should be empty / [0, ...])
     rat.info.bolts = [0];
     expect(ctx.monstUseMagic(rat)).toBe(false);
-});
-
-it.skip("stub: scentDirection wires scent-following pathfinding", () => {
-    // buildMonstersTurnContext().scentDirection returns -1 (no scent).
-    // Real implementation needs live scentMap and monster-state helpers.
-});
-
-it.skip("stub: pathTowardCreature wires Dijkstra pathfinding", () => {
-    // buildMonstersTurnContext().pathTowardCreature is a no-op.
-    // Real implementation needs monster mapToMe Dijkstra maps.
 });
 
 // =============================================================================
@@ -227,30 +203,9 @@ it.skip("stub: executePlaybackInput() always returns false (should execute one s
     // and return true if the recording has been fully replayed.
 });
 
-it.skip("stub: updateScent() is a no-op (should propagate player scent trail each turn)", () => {
-    // C: Time.c:649 — updateScent()
-    // turn.ts:282 has a `() => {}` context stub; no domain function exists in time/.
-    // Real implementation should update the scentTurnNumber grid around the player
-    // so scent-following monsters can track movement history via the scent map.
-});
-
 // =============================================================================
 // Stub registry — wiring stubs (Phase 3d, port-v2-audit)
 // =============================================================================
-
-it.skip("stub: autoRest() is a no-op in input context (should delegate to time/misc-helpers autoRest)", () => {
-    // C: Time.c:2087 — autoRest()
-    // io/input-context.ts:188 has a `() => {}` context stub with comment "no MiscHelpersContext yet".
-    // Domain function is IMPLEMENTED and tested in misc-helpers.test.ts:351.
-    // Real wiring should build a MiscHelpersContext and call autoRest() from time/misc-helpers.ts.
-});
-
-it.skip("stub: manualSearch() is a no-op in input context (should delegate to time/misc-helpers manualSearch)", () => {
-    // C: Time.c:2146 — manualSearch()
-    // io/input-context.ts:189 has a `() => {}` context stub with comment "no MiscHelpersContext yet".
-    // Domain function is IMPLEMENTED and tested in misc-helpers.test.ts:414.
-    // Real wiring should build a MiscHelpersContext and call manualSearch() from time/misc-helpers.ts.
-});
 
 it.skip("stub: enableEasyMode() is a no-op in input context (should delegate to game-lifecycle enableEasyMode)", () => {
     // C: RogueMain.c:1384 — enableEasyMode()
