@@ -181,6 +181,14 @@ it.skip("stub: saveGame() is a no-op (should save the current game state to a .b
 // Stub registry — wiring stubs (Phase 3d, port-v2-audit)
 // =============================================================================
 
+it.skip("stub: initializeGameVariant() is a no-op in menus context (should dispatch to variant-specific init)", () => {
+    // C: RogueMain.c:173 — initializeGameVariant()
+    // menus.ts:244 has a `() => {}` context stub (comment: "handled in lifecycle.ts").
+    // Domain function is IMPLEMENTED at game-init.ts:400 and called from lifecycle.ts via buildGameInitContext.
+    // Real wiring in menus.ts should call initializeGameVariant(buildGameInitContext()) so variant
+    // constants (amuletLevel, etc.) are set before menus are shown.
+});
+
 it.skip("stub: executeEvent() is a no-op in menus context (should execute one recorded input event during playback)", () => {
     // C: RogueMain.c:45 — executeEvent()
     // menus.ts:256 has a `() => {}` context stub.

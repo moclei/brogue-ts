@@ -4,15 +4,24 @@
  *
  *  Phase 3b NEEDS-VERIFICATION: setPlayerDisplayChar
  *  Phase 4a NEEDS-VERIFICATION: getOrdinalSuffix, printBrogueVersion
- *  Source: RogueMain.c:137, 39
+ *  Phase 4b NEEDS-VERIFICATION: initializeGameVariant, welcome, fileExists,
+ *                                chooseFile, openFile, enableEasyMode, executeEvent
+ *  Source: RogueMain.c:137, 39, 157, 173, 45, 55, 68, 89, 1384
  */
 
-import { describe, it, expect } from "vitest";
-import { setPlayerDisplayChar, getOrdinalSuffix, printBrogueVersion } from "../src/game/game-init.js";
+import { describe, it, expect, vi } from "vitest";
+import {
+    setPlayerDisplayChar, getOrdinalSuffix, printBrogueVersion,
+    initializeGameVariant, welcome, fileExists, chooseFile, openFile,
+} from "../src/game/game-init.js";
+import { enableEasyMode } from "../src/game/game-lifecycle.js";
+import { executeEvent } from "../src/io/input-dispatch.js";
 import { createCreature } from "../src/monsters/monster-creation.js";
 import { monsterCatalog } from "../src/globals/monster-catalog.js";
-import { MonsterType, StatusEffect, GameMode, DisplayGlyph } from "../src/types/enums.js";
-import type { Creature } from "../src/types/types.js";
+import { MonsterType, StatusEffect, GameMode, GameVariant, EventType, DisplayGlyph } from "../src/types/enums.js";
+import { MessageFlag } from "../src/types/flags.js";
+import { EASY_MODE_KEY } from "../src/types/constants.js";
+import type { Creature, RogueEvent } from "../src/types/types.js";
 
 function makePlayer(): Creature {
     const c = createCreature();
@@ -154,3 +163,279 @@ it.skip(
         // (player reaches upstairs with amulet), but the display sequence is unverified.
     },
 );
+
+// =============================================================================
+// initializeGameVariant — RogueMain.c:173
+// =============================================================================
+
+describe("initializeGameVariant", () => {
+    function makeCtx() {
+        return {
+            gameVariant: GameVariant.Brogue,
+            initializeGameVariantBrogue: vi.fn(),
+            initializeGameVariantRapidBrogue: vi.fn(),
+            initializeGameVariantBulletBrogue: vi.fn(),
+        };
+    }
+
+    it("dispatches to initializeGameVariantBrogue for default variant", () => {
+        const ctx = makeCtx();
+        ctx.gameVariant = GameVariant.Brogue;
+        initializeGameVariant(ctx as any);
+        expect(ctx.initializeGameVariantBrogue).toHaveBeenCalledOnce();
+        expect(ctx.initializeGameVariantRapidBrogue).not.toHaveBeenCalled();
+    });
+
+    it("dispatches to initializeGameVariantRapidBrogue", () => {
+        const ctx = makeCtx();
+        ctx.gameVariant = GameVariant.RapidBrogue;
+        initializeGameVariant(ctx as any);
+        expect(ctx.initializeGameVariantRapidBrogue).toHaveBeenCalledOnce();
+        expect(ctx.initializeGameVariantBrogue).not.toHaveBeenCalled();
+    });
+
+    it("dispatches to initializeGameVariantBulletBrogue", () => {
+        const ctx = makeCtx();
+        ctx.gameVariant = GameVariant.BulletBrogue;
+        initializeGameVariant(ctx as any);
+        expect(ctx.initializeGameVariantBulletBrogue).toHaveBeenCalledOnce();
+        expect(ctx.initializeGameVariantBrogue).not.toHaveBeenCalled();
+    });
+});
+
+// =============================================================================
+// welcome — RogueMain.c:157
+// =============================================================================
+// Divergence: C uses encodeMessageColor to embed color codes in the amulet message;
+// TS concatenates a plain string. The Amulet name will not be colorized in-game.
+// Test.skip tracks the color-encoding gap.
+
+describe("welcome", () => {
+    function makeCtx(keyboardLabels: boolean) {
+        const messages: string[] = [];
+        return {
+            message: vi.fn((msg: string) => { messages.push(msg); }),
+            messageWithColor: vi.fn(),
+            flavorMessage: vi.fn(),
+            encodeMessageColor: vi.fn(),
+            itemMessageColor: {},
+            white: {},
+            backgroundMessageColor: {},
+            KEYBOARD_LABELS: keyboardLabels,
+            gameConst: { amuletLevel: 26 },
+            _messages: messages,
+        };
+    }
+
+    it("sends welcome and amulet messages (amuletLevel=26)", () => {
+        const ctx = makeCtx(false);
+        welcome(ctx as any);
+        expect(ctx.message).toHaveBeenCalledWith(
+            "Hello and welcome, adventurer, to the Dungeons of Doom!", 0,
+        );
+        const amuletCall = ctx.message.mock.calls[1][0] as string;
+        expect(amuletCall).toContain("Amulet of Yendor");
+        expect(amuletCall).toContain("26th floor");
+    });
+
+    it("sends keyboard-help message only when KEYBOARD_LABELS=true", () => {
+        const ctxOff = makeCtx(false);
+        welcome(ctxOff as any);
+        expect(ctxOff.messageWithColor).not.toHaveBeenCalled();
+
+        const ctxOn = makeCtx(true);
+        welcome(ctxOn as any);
+        expect(ctxOn.messageWithColor).toHaveBeenCalledOnce();
+        expect(ctxOn.messageWithColor.mock.calls[0][0]).toContain("<?>");
+    });
+
+    it("always sends the flavor message", () => {
+        const ctx = makeCtx(false);
+        welcome(ctx as any);
+        expect(ctx.flavorMessage).toHaveBeenCalledWith(
+            "The doors to the dungeon slam shut behind you.",
+        );
+    });
+
+    it.skip("welcome: amulet name is not colorized (color encoding divergence vs C)", () => {
+        // C: welcome() calls encodeMessageColor(buf, ..., &itemMessageColor) and
+        //    encodeMessageColor(buf, ..., &white) to embed color codes in the message string.
+        // TS: welcome() (game-init.ts) just joins the strings — no encodeMessageColor call.
+        // Fix: call ctx.encodeMessageColor on the string[] parts before joining.
+        // Impact: Amulet of Yendor will not be highlighted in itemMessageColor in-game.
+    });
+});
+
+// =============================================================================
+// fileExists — RogueMain.c:55
+// =============================================================================
+
+describe("fileExists", () => {
+    it("returns true when ctx.fileExistsSync returns true", () => {
+        const ctx = { fileExistsSync: (_p: string) => true };
+        expect(fileExists(ctx, "/some/path.broguesave")).toBe(true);
+    });
+
+    it("returns false when ctx.fileExistsSync returns false", () => {
+        const ctx = { fileExistsSync: (_p: string) => false };
+        expect(fileExists(ctx, "/no/such/file")).toBe(false);
+    });
+
+    it("passes the pathname to ctx.fileExistsSync", () => {
+        const spy = vi.fn(() => false);
+        fileExists({ fileExistsSync: spy }, "/my/file.brogue");
+        expect(spy).toHaveBeenCalledWith("/my/file.brogue");
+    });
+});
+
+// =============================================================================
+// chooseFile — RogueMain.c:68
+// =============================================================================
+
+describe("chooseFile", () => {
+    it("returns path+suffix when getInputTextString returns non-empty name", () => {
+        const ctx = { getInputTextString: () => "dungeon" };
+        const result = chooseFile(ctx as any, "prompt", "default", ".broguesave", 0);
+        expect(result).toBe("dungeon.broguesave");
+    });
+
+    it("returns null when getInputTextString returns null (cancelled)", () => {
+        const ctx = { getInputTextString: () => null };
+        expect(chooseFile(ctx as any, "prompt", "default", ".broguesave", 0)).toBeNull();
+    });
+
+    it("returns null when getInputTextString returns empty string", () => {
+        const ctx = { getInputTextString: () => "" };
+        expect(chooseFile(ctx as any, "prompt", "default", ".broguesave", 0)).toBeNull();
+    });
+});
+
+// =============================================================================
+// openFile — RogueMain.c:89
+// =============================================================================
+
+describe("openFile", () => {
+    it("returns success:false when file does not exist", () => {
+        const ctx = { fileExistsSync: () => false };
+        const result = openFile(ctx, "/no/file.broguesave");
+        expect(result.success).toBe(false);
+        expect(result.currentFilePath).toBe("");
+    });
+
+    it("returns success:true with currentFilePath and derived annotationPathname", () => {
+        const ctx = { fileExistsSync: () => true };
+        const result = openFile(ctx, "/save/dungeon.broguesave");
+        expect(result.success).toBe(true);
+        expect(result.currentFilePath).toBe("/save/dungeon.broguesave");
+        expect(result.annotationPathname).toBe("/save/dungeon.txt");
+    });
+
+    it("leaves annotationPathname empty when path has no dot", () => {
+        const ctx = { fileExistsSync: () => true };
+        const result = openFile(ctx, "/save/dungeon");
+        expect(result.success).toBe(true);
+        // No dot → no annotation suffix derivable (lastIndexOf(".") returns -1)
+        expect(result.annotationPathname).toBe("");
+    });
+});
+
+// =============================================================================
+// enableEasyMode — RogueMain.c:1384
+// =============================================================================
+
+describe("enableEasyMode", () => {
+    function makeEasyCtx(confirmResult: boolean, initialMode = GameMode.Normal) {
+        const player = makePlayer();
+        return {
+            rogue: { mode: initialMode },
+            player,
+            message: vi.fn(),
+            confirm: vi.fn(() => confirmResult),
+            recordKeystroke: vi.fn(),
+            refreshDungeonCell: vi.fn(),
+            refreshSideBar: vi.fn(),
+        };
+    }
+
+    it("sends 'Alas' message and returns early when already in easy mode", () => {
+        const ctx = makeEasyCtx(false, GameMode.Easy);
+        enableEasyMode(ctx as any);
+        expect(ctx.message.mock.calls[0][0]).toContain("Alas");
+        expect(ctx.confirm).not.toHaveBeenCalled();
+        expect(ctx.rogue.mode).toBe(GameMode.Easy);
+    });
+
+    it("sends 'dissipates' message when player declines", () => {
+        const ctx = makeEasyCtx(false);
+        enableEasyMode(ctx as any);
+        expect(ctx.confirm).toHaveBeenCalledOnce();
+        const lastMsg = ctx.message.mock.calls.at(-1)?.[0] as string;
+        expect(lastMsg).toContain("dissipates");
+        expect(ctx.rogue.mode).toBe(GameMode.Normal);
+    });
+
+    it("enables easy mode and records keystroke when player confirms", () => {
+        const ctx = makeEasyCtx(true);
+        enableEasyMode(ctx as any);
+        expect(ctx.rogue.mode).toBe(GameMode.Easy);
+        expect(ctx.recordKeystroke).toHaveBeenCalledWith(EASY_MODE_KEY, false, true);
+        expect(ctx.refreshDungeonCell).toHaveBeenCalledOnce();
+        expect(ctx.refreshSideBar).toHaveBeenCalledOnce();
+    });
+
+    it("first message to player uses REQUIRE_ACKNOWLEDGMENT flag", () => {
+        const ctx = makeEasyCtx(false);
+        enableEasyMode(ctx as any);
+        const firstMsg = ctx.message.mock.calls[0];
+        expect(firstMsg[1]).toBe(MessageFlag.REQUIRE_ACKNOWLEDGMENT);
+    });
+});
+
+// =============================================================================
+// executeEvent — RogueMain.c:45
+// =============================================================================
+
+describe("executeEvent", () => {
+    function makeMinimalCtx() {
+        return { rogue: { playbackBetweenTurns: true } };
+    }
+
+    function makeEvent(type: EventType, param1 = 0): RogueEvent {
+        return { eventType: type, param1, param2: 0, controlKey: false, shiftKey: false };
+    }
+
+    it("always sets playbackBetweenTurns to false", async () => {
+        const ctx = makeMinimalCtx();
+        const ev = makeEvent(EventType.MouseMoved);
+        await executeEvent(ctx as any, ev);
+        expect(ctx.rogue.playbackBetweenTurns).toBe(false);
+    });
+
+    it("calls onMouseClick for MOUSE_UP event", async () => {
+        const ctx = makeMinimalCtx();
+        const onMouseClick = vi.fn(async () => {});
+        await executeEvent(ctx as any, makeEvent(EventType.MouseUp), onMouseClick);
+        expect(onMouseClick).toHaveBeenCalledOnce();
+    });
+
+    it("calls onMouseClick for RIGHT_MOUSE_UP event", async () => {
+        const ctx = makeMinimalCtx();
+        const onMouseClick = vi.fn(async () => {});
+        await executeEvent(ctx as any, makeEvent(EventType.RightMouseUp), onMouseClick);
+        expect(onMouseClick).toHaveBeenCalledOnce();
+    });
+
+    it("does not call onMouseClick for unmatched event type", async () => {
+        const ctx = makeMinimalCtx();
+        const onMouseClick = vi.fn(async () => {});
+        await executeEvent(ctx as any, makeEvent(EventType.MouseMoved), onMouseClick);
+        expect(onMouseClick).not.toHaveBeenCalled();
+    });
+
+    it.skip("executeEvent: KEYSTROKE path requires full InputContext mock", () => {
+        // C: executeEvent dispatches KEYSTROKE → executeKeystroke(param1, controlKey, shiftKey).
+        // TS: executeEvent → executeKeystroke(ctx, param1, controlKey, shiftKey, openMenu).
+        // executeKeystroke requires a full InputContext with rogue, player, items, equipment etc.
+        // Indirect coverage: input-dispatch.ts is exercised by io/input-cursor.ts in play sessions.
+    });
+})
