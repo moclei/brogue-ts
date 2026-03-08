@@ -195,10 +195,12 @@ it.skip("stub: confirm() always returns true (should prompt player for y/n)", ()
     // This means cursed-item warnings are silently bypassed in the wiring phase.
 });
 
-it.skip("stub: promptForItemOfType() returns null (should open inventory chooser)", () => {
-    // buildItemHandlerContext().promptForItemOfType() always returns null.
-    // Real implementation should render the inventory list, highlight matching items,
-    // and wait for the player to pick one.
+it("promptForItemOfType() returns null with empty pack (real impl, buttonInputLoop deferred)", async () => {
+    // Real promptForItemOfType is wired. With an empty pack, returns null immediately
+    // without showing the inventory. Full selection requires Phase 7a (buttonInputLoop wiring).
+    const ctx = buildItemHandlerContext();
+    const result = await ctx.promptForItemOfType(0xffff, 0, 0, "Pick an item", false);
+    expect(result).toBeNull();
 });
 
 it("spawnDungeonFeature() places a gas tile on the pmap (architect spawner wired)", () => {

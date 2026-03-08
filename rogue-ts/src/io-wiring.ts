@@ -42,7 +42,7 @@ import {
     temporaryMessage as temporaryMessageFn,
     combatMessage as combatMessageFn,
 } from "./io/messages.js";
-import { buildMessageContext } from "./ui.js";
+import { buildMessageContext, buildInventoryContext } from "./ui.js";
 import {
     getHallucinatedItemCategory,
     getItemCategoryGlyph,
@@ -62,16 +62,20 @@ import {
     describeHallucinatedItem as describeHallucinatedItemFn,
 } from "./io/sidebar-player.js";
 import { displayedArmorValue } from "./items/item-usage.js";
-import { itemAtLoc as itemAtLocFn } from "./items/item-inventory.js";
+import { itemAtLoc as itemAtLocFn, numberOfMatchingPackItems as numberOfMatchingPackItemsFn } from "./items/item-inventory.js";
 import {
     wandTable, staffTable, ringTable, charmTable, charmEffectTable,
 } from "./globals/item-catalog.js";
 import { charmRechargeDelay as charmRechargeDelayFn } from "./power/power-tables.js";
 import type { MessageContext as SyncMessageContext } from "./io/messages-state.js";
 import { TileFlag } from "./types/flags.js";
-import type { Color, Pos, ItemTable } from "./types/types.js";
+import type { Color, Pos, ItemTable, Item } from "./types/types.js";
 import type { DisplayGlyph } from "./types/enums.js";
 import type { SidebarContext } from "./io/sidebar-player.js";
+import {
+    promptForItemOfType as promptForItemOfTypeFn,
+    type PromptItemContext,
+} from "./io/inventory-display.js";
 
 // =============================================================================
 // buildGetCellAppearanceFn
@@ -362,5 +366,40 @@ export function buildExposeCreatureToFireFn(): (monst: Creature) => void {
             torchLightColor,
             max: Math.max,
         } as unknown as CreatureEffectsContext);
+    };
+}
+
+// =============================================================================
+// buildPromptForItemOfTypeFn
+// =============================================================================
+
+/**
+ * Returns a `promptForItemOfType(cat, req, forbidden, prompt, allowInventory)`
+ * closure wired to the current game state.
+ *
+ * Builds a PromptItemContext by extending the InventoryContext from
+ * buildInventoryContext() with temporaryMessage and numberOfMatchingPackItems.
+ *
+ * Note: until buttonInputLoop is fully wired (Phase 7a), displayInventory
+ * immediately cancels and promptForItemOfType always returns null.
+ */
+export function buildPromptForItemOfTypeFn(): (
+    category: number,
+    requiredFlags: number,
+    forbiddenFlags: number,
+    prompt: string,
+    allowInventoryActions: boolean,
+) => Promise<Item | null> {
+    const io = buildMessageFns();
+    return (category, requiredFlags, forbiddenFlags, prompt, allowInventoryActions) => {
+        const invCtx = buildInventoryContext();
+        const { packItems } = invCtx;
+        const ctx: PromptItemContext = {
+            ...invCtx,
+            temporaryMessage: io.temporaryMessage,
+            numberOfMatchingPackItems: (cat, req, forbidden) =>
+                numberOfMatchingPackItemsFn(packItems, cat, req, forbidden),
+        };
+        return promptForItemOfTypeFn(category, requiredFlags, forbiddenFlags, prompt, allowInventoryActions, ctx);
     };
 }

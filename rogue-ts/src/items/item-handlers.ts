@@ -92,7 +92,7 @@ export interface ItemHandlerContext {
         forbiddenFlags: number,
         prompt: string,
         allowEscape: boolean,
-    ): Item | null;
+    ): Promise<Item | null>;
     numberOfMatchingPackItems(category: number, requiredFlags: number, forbiddenFlags: number, displayErrors: boolean): number;
     removeItemFromChain(theItem: Item, chain: Item[]): void;
     deleteItem(theItem: Item): void;
@@ -444,7 +444,7 @@ export function eat(theItem: Item, recordCommands: boolean, ctx: ItemHandlerCont
  * Port of C `readScroll()`.
  * The player reads a scroll. Returns true if the scroll was consumed.
  */
-export function readScroll(theItem: Item, ctx: ItemHandlerContext): boolean {
+export async function readScroll(theItem: Item, ctx: ItemHandlerContext): Promise<boolean> {
     const scrollKind = ctx.scrollTable[theItem.kind];
 
     // Warn about known-cursed scrolls
@@ -483,7 +483,7 @@ export function readScroll(theItem: Item, ctx: ItemHandlerContext): boolean {
             {
                 let chosen: Item | null;
                 do {
-                    chosen = ctx.promptForItemOfType(
+                    chosen = await ctx.promptForItemOfType(
                         ALL_ITEMS,
                         ItemFlag.ITEM_CAN_BE_IDENTIFIED, 0,
                         ctx.KEYBOARD_LABELS
@@ -545,7 +545,7 @@ export function readScroll(theItem: Item, ctx: ItemHandlerContext): boolean {
                 }
                 let enchantTarget: Item | null;
                 do {
-                    enchantTarget = ctx.promptForItemOfType(
+                    enchantTarget = await ctx.promptForItemOfType(
                         enchantableCategories, 0, 0,
                         ctx.KEYBOARD_LABELS
                             ? "Enchant what? (a-z; shift for more info)"
@@ -1232,7 +1232,7 @@ export function useCharm(theItem: Item, ctx: ItemHandlerContext): boolean {
  */
 export async function apply(theItem: Item | null, ctx: ItemHandlerContext): Promise<void> {
     if (!theItem) {
-        theItem = ctx.promptForItemOfType(
+        theItem = await ctx.promptForItemOfType(
             ItemCategory.SCROLL | ItemCategory.FOOD | ItemCategory.POTION
                 | ItemCategory.STAFF | ItemCategory.WAND | ItemCategory.CHARM,
             0, 0,
@@ -1255,7 +1255,7 @@ export async function apply(theItem: Item | null, ctx: ItemHandlerContext): Prom
             if (drinkPotion(theItem, ctx)) break;
             return;
         case ItemCategory.SCROLL:
-            if (readScroll(theItem, ctx)) {
+            if (await readScroll(theItem, ctx)) {
                 consumePackItem(theItem, ctx);
                 break;
             }
