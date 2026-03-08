@@ -249,31 +249,30 @@ Branch: feat/port-v2-playtest
 
 ---
 
-## Phase 7c: Inventory dialogs + test cleanup
+## Phase 7c: Inventory dialogs + test cleanup ✓ DONE (e509782)
 
 *Wire all inventory action dialogs (equip, unequip, drop, throw, relabel, call).*
 *After this sub-phase: full inventory interaction works.*
 
-- [ ] Wire `buttonInputLoop` in `buildInventoryContext()` (`ui.ts`) and `buildInputContext()`
-      (`io/input-context.ts`) to real `buttonInputLoopFn` from `io/buttons.ts` — deferred from
-      Phase 7a because fake nextBrogueEvent hangs the loop; requires real event bridge active
-      (test the wiring with a platform that registers real events, not the stub)
-- [ ] Wire `waitForAcknowledgment` into `buildMessageContext()` — deferred from Phase 3b/7a;
-      wrap `waitForAcknowledgment` from `io/input-keystrokes.ts` with a minimal InputContext
-      (only needs `rogue.autoPlayingLevel`, `rogue.playbackMode`, `rogue.playbackOOS`,
-      `nonInteractivePlayback`, `flashTemporaryAlert`, `nextBrogueEvent`)
-- [ ] Wire `waitForKeystrokeOrMouseClick` in `overlay-screens.ts` — deferred from Phase 7b;
-      currently a no-op comment in `printDiscoveriesScreen` and `displayFeatsScreen`; requires
-      the same async event bridge as `waitForAcknowledgment`
-- [ ] Wire `flashTemporaryAlert` into `buildMessageContext()` — deferred from Phase 3b/7a;
+- [x] Wire `buttonInputLoop` in `buildInventoryContext()` (`ui.ts`) and `buildInputContext()`
+      (`io/input-context.ts`) to real `buttonInputLoopFn`; `buildButtonContext().nextBrogueEvent`
+      now calls `waitForEvent()` with escape-key fallback so loops terminate cleanly in tests
+- [ ] Wire `waitForAcknowledgment` into `buildMessageContext()` — DEFER to Phase 8;
+      requires async cascade through `messages.ts`
+- [x] Wire `waitForKeystrokeOrMouseClick` in `overlay-screens.ts` — implemented as optional
+      `waitFn?: () => Promise<void>` parameter on all three overlay functions; callers pass
+      `overlayWaitFn` (tries `waitForEvent()`, no-op fallback in tests)
+- [ ] Wire `flashTemporaryAlert` into `buildMessageContext()` — DEFER to Phase 8;
       requires `EffectsContext` (getCellAppearance, hiliteCell, pauseAnimation, etc.)
-- [ ] Wire `updateFlavorText` — deferred from Phase 3b/7a; needs `CreatureEffectsContext`
-      (flavorMessage, describeLocation, highestPriorityLayer, tileFlavor, etc.)
-- [ ] Wire inventory dialogs (equip, unequip, drop, throw, relabel, call) —
-      port each from `Items.c`; these are in `io/input-context.ts:202-207` and `ui.ts:315-321`
-- [ ] Remove or activate test.skip entries now unblocked
-- [ ] All files under 600 lines; tests pass
-- [ ] Commit; generate handoff
+- [ ] Wire `updateFlavorText` — DEFER to Phase 8; needs `CreatureEffectsContext`
+- [x] Wire inventory dialogs — `equip`, `unequip`, `drop`, `relabel` ported in new
+      `io/inventory-actions.ts` (Items.c:3232/7500/7548/6385); `throw` and `call` DEFER
+      to Phase 8 (need `chooseTarget` and `getInputTextString` respectively);
+      also fixed pre-existing bug: `syncEquipState()` added to `items/equip-helpers.ts`
+      to sync weapon/armor/ring refs back to rogue (previously only ring bonuses synced)
+- [x] Remove or activate test.skip entries now unblocked (3 activated)
+- [x] All files under 600 lines; tests pass (87 files, 2206 pass, 97 skip)
+- [x] Commit; generate handoff
 
 ---
 
