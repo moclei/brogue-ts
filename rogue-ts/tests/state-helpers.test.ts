@@ -8,9 +8,14 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { discoveredTerrainFlagsAtLoc } from "../src/state/helpers.js";
-import { TileType } from "../src/types/enums.js";
-import { TerrainMechFlag } from "../src/types/flags.js";
+import {
+    discoveredTerrainFlagsAtLoc,
+    cellHasTerrainFlag,
+    cellHasTMFlag,
+    cellHasTerrainType,
+} from "../src/state/helpers.js";
+import { TileType, DungeonLayer } from "../src/types/enums.js";
+import { TerrainFlag, TerrainMechFlag } from "../src/types/flags.js";
 import { tileCatalog } from "../src/globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "../src/globals/dungeon-feature-catalog.js";
 import type { Pcell, FloorTileType } from "../src/types/types.js";
@@ -114,5 +119,95 @@ describe("discoveredTerrainFlagsAtLoc", () => {
         // Secret door appears in 2 layers — callback called twice
         expect(callCount).toBe(2);
         expect(result).toBe(0b1); // 0b1 | 0b1 = 0b1
+    });
+});
+
+// =============================================================================
+// cellHasTerrainFlag — Architect.c:30 / state/helpers.ts:66
+// =============================================================================
+
+describe("cellHasTerrainFlag", () => {
+    it("returns true when dungeon layer has the queried flag", () => {
+        // WALL has T_OBSTRUCTS_PASSABILITY
+        const cell = makeCell([TileType.WALL, 0, 0, 0]);
+        const pmap = makePmap(cell);
+        expect(
+            cellHasTerrainFlag(pmap as unknown as Pcell[][], { x: 5, y: 5 }, TerrainFlag.T_OBSTRUCTS_PASSABILITY),
+        ).toBe(true);
+    });
+
+    it("returns false when no layer has the queried flag", () => {
+        // FLOOR has no T_OBSTRUCTS_PASSABILITY
+        const cell = makeCell([TileType.FLOOR, 0, 0, 0]);
+        const pmap = makePmap(cell);
+        expect(
+            cellHasTerrainFlag(pmap as unknown as Pcell[][], { x: 5, y: 5 }, TerrainFlag.T_OBSTRUCTS_PASSABILITY),
+        ).toBe(false);
+    });
+
+    it("ORs flags from multiple layers — liquid layer flag detected", () => {
+        // FLOOR dungeon + DEEP_WATER liquid: flags should include T_IS_DEEP_WATER
+        const cell = makeCell([TileType.FLOOR, TileType.DEEP_WATER, 0, 0]);
+        const pmap = makePmap(cell);
+        const deepWaterFlag = tileCatalog[TileType.DEEP_WATER].flags;
+        expect(deepWaterFlag).not.toBe(0); // sanity check
+        expect(
+            cellHasTerrainFlag(pmap as unknown as Pcell[][], { x: 5, y: 5 }, deepWaterFlag),
+        ).toBe(true);
+    });
+});
+
+// =============================================================================
+// cellHasTMFlag — Architect.c:35 / state/helpers.ts:75
+// =============================================================================
+
+describe("cellHasTMFlag", () => {
+    it("returns true when a layer has the queried mechFlag", () => {
+        // SECRET_DOOR has TM_IS_SECRET
+        const cell = makeCell([TileType.SECRET_DOOR, 0, 0, 0]);
+        const pmap = makePmap(cell);
+        expect(
+            cellHasTMFlag(pmap as unknown as Pcell[][], { x: 5, y: 5 }, TerrainMechFlag.TM_IS_SECRET),
+        ).toBe(true);
+    });
+
+    it("returns false when no layer has the queried mechFlag", () => {
+        // WALL does not have TM_IS_SECRET
+        const cell = makeCell([TileType.WALL, 0, 0, 0]);
+        const pmap = makePmap(cell);
+        expect(
+            cellHasTMFlag(pmap as unknown as Pcell[][], { x: 5, y: 5 }, TerrainMechFlag.TM_IS_SECRET),
+        ).toBe(false);
+    });
+});
+
+// =============================================================================
+// cellHasTerrainType — Architect.c:39 / state/helpers.ts:84
+// =============================================================================
+
+describe("cellHasTerrainType", () => {
+    it("returns true when the dungeon layer matches", () => {
+        const cell = makeCell([TileType.WALL, 0, 0, 0]);
+        const pmap = makePmap(cell);
+        expect(
+            cellHasTerrainType(pmap as unknown as Pcell[][], { x: 5, y: 5 }, TileType.WALL),
+        ).toBe(true);
+    });
+
+    it("returns false when no layer matches", () => {
+        const cell = makeCell([TileType.FLOOR, 0, 0, 0]);
+        const pmap = makePmap(cell);
+        expect(
+            cellHasTerrainType(pmap as unknown as Pcell[][], { x: 5, y: 5 }, TileType.WALL),
+        ).toBe(false);
+    });
+
+    it("detects a tile type in the liquid layer", () => {
+        // DEEP_WATER in the liquid slot
+        const cell = makeCell([TileType.FLOOR, TileType.DEEP_WATER, 0, 0]);
+        const pmap = makePmap(cell);
+        expect(
+            cellHasTerrainType(pmap as unknown as Pcell[][], { x: 5, y: 5 }, TileType.DEEP_WATER),
+        ).toBe(true);
     });
 });

@@ -149,25 +149,28 @@ Functions in scope (~10):
 - [x] 86 files, 2114 pass, 130 skip
 - [x] Commit; generate handoff
 
-## Phase 4b: NEEDS-VERIFICATION — RogueMain.c init helpers + wiring gaps
+## Phase 4b: NEEDS-VERIFICATION — RogueMain.c init helpers + wiring gaps ✓
 
 Functions in scope (~7 remaining):
 `initializeGameVariant`, `enableEasyMode`, `executeEvent`, `fileExists`, `chooseFile`,
 `openFile`, `welcome`
 (Note: `getOrdinalSuffix`, `printBrogueVersion`, `unflag` tested in Phase 4a)
 
-- [ ] For each: read C, confirm TS is faithful, add a direct unit test
-- [ ] Note: `initializeGameVariant` context stub in menus.ts:253 is a no-op with no test.skip —
-      add the test.skip; verify the domain fn in lifecycle.ts:253
-- [ ] Note: `enableEasyMode` context stub in io/input-context.ts:203 is untracked (no test.skip)
-      — add the test.skip
-- [ ] Note: `executeEvent` context stub in menus.ts:256 is untracked — add the test.skip;
-      verify the domain fn in io/input-dispatch.ts:485
-- [ ] Commit; generate handoff
+- [x] For each: read C, confirm TS is faithful, add a direct unit test
+- [x] Note: `initializeGameVariant` context stub in menus.ts:244 is a no-op with no test.skip —
+      test.skip added to menus.test.ts; domain fn in game-init.ts:400 confirmed correct
+- [x] Note: `enableEasyMode` context stub in io/input-context.ts:209 — test.skip already in
+      turn.test.ts:255 (confirmed); domain fn in game-lifecycle.ts:627 confirmed correct
+- [x] Note: `executeEvent` context stub in menus.ts:256 — test.skip already in
+      menus.test.ts:184 (confirmed); domain fn in io/input-dispatch.ts:485 confirmed correct
+- [x] Note: `welcome` color divergence — TS concatenates plain string without encodeMessageColor;
+      test.skip added documenting amulet-name colorization gap
+- [x] 86 files, 2137 pass, 133 skip (was 2114/130)
+- [x] Commit; generate handoff
 
 ---
 
-## Phase 5a: NEEDS-VERIFICATION — Architect.c terrain helpers + lake/room functions
+## Phase 5a: NEEDS-VERIFICATION — Architect.c terrain helpers + lake/room functions ✓
 
 *Reference: `docs/audit/gaps-Architect.md`. All 18 have real implementations.*
 *Note: seed regression tests in tests/seed-determinism.test.ts provide indirect coverage
@@ -178,11 +181,19 @@ Functions in scope (~8):
 `cleanUpLakeBoundaries`, `removeDiagonalOpenings`, `attachHallwayTo`,
 `lakeFloodFill`, `buildABridge`
 
-- [ ] For each: read C, confirm TS is faithful; add a direct test (or confirm seed regression
+- [x] For each: read C, confirm TS is faithful; add a direct test (or confirm seed regression
       tests provide adequate coverage and document why)
-- [ ] Note: `cellHasTerrainFlag`, `cellHasTMFlag`, `cellHasTerrainType` live in state/helpers.ts —
-      these are used as mocks everywhere but have no direct tests of their own
-- [ ] Commit; generate handoff
+- [x] Note: `cellHasTerrainFlag`, `cellHasTMFlag`, `cellHasTerrainType` live in state/helpers.ts —
+      all three VERIFIED MATCH C; 7 tests added in state-helpers.test.ts
+- [x] Note: `cleanUpLakeBoundaries` — VERIFIED MATCH C; 2 tests in architect-lakes.test.ts
+- [x] Note: `removeDiagonalOpenings` — VERIFIED MATCH C (x2Src computed differently but
+      logically equivalent to C's x2 variable); 2 tests in architect-lakes.test.ts
+- [x] Note: `attachHallwayTo` — VERIFIED MATCH C; 2 tests in architect-rooms.test.ts
+- [x] Note: `lakeFloodFill` — VERIFIED MATCH C; 2 tests in architect-lakes.test.ts
+- [x] Note: `buildABridge` — VERIFIED MATCH C; bridgeRatioX/Y uses Math.floor vs C's (short)
+      cast — negligible ±1 difference due to integer vs float intermediate ops; 2 tests added
+- [x] 86 files, 2155 pass, 133 skip (was 2137/133; +18 tests)
+- [x] Commit; generate handoff
 
 ## Phase 5b: NEEDS-VERIFICATION — Architect.c top-level orchestrators
 

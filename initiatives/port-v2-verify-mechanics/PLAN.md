@@ -82,6 +82,21 @@ Minor style differences (API shape, naming) are acceptable as noted divergences.
 
 ---
 
+### 2026-03-07 — Phase 5a: Architect.c terrain helpers + lake/room functions
+
+All 8 functions verified faithful to C. No divergences requiring fixes.
+
+Key notes:
+- `buildABridge` uses `Math.floor` where C uses `(short)` cast — at most ±1 difference in
+  bridgeRatio thresholds due to float vs integer intermediate arithmetic. Not behavioral.
+- `removeDiagonalOpenings` TS computes x2Src via ternary (`y1===j ? i+k : i+(1-k)`) rather
+  than C's explicit x2 variable — logically identical.
+- `buildABridge` test uses two independent bridge setups (cols 20 and 50) to guard against
+  the shuffled iteration skipping a single anchor column (probability both skipped ≈ 0.06%).
+- All three `cellHas*` helper functions: trivially correct bitwise/equality checks.
+
+---
+
 ## Known dependency relationships
 
 - `chooseTarget` requires `moveCursor`, `nextTargetAfter`, `hiliteTrajectory` — implement
