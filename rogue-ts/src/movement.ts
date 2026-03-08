@@ -25,8 +25,6 @@ import {
     cellHasTMFlag as cellHasTMFlagFn,
     cellHasTerrainType as cellHasTerrainTypeFn,
     terrainFlags as terrainFlagsFn,
-    terrainMechFlags as terrainMechFlagsFn,
-    discoveredTerrainFlagsAtLoc as discoveredTerrainFlagsAtLocFn,
 } from "./state/helpers.js";
 import { coordinatesAreInMap, nbDirs, mapToWindowX as mapToWindowXFn, mapToWindowY as mapToWindowYFn } from "./globals/tables.js";
 import { diagonalBlocked as diagonalBlockedFn } from "./combat/combat-math.js";
@@ -92,7 +90,7 @@ import {
 } from "./movement/weapon-attacks.js";
 import { randValidDirectionFrom as randValidDirectionFromFn, playerMoves as playerMovesFn, vomit as vomitFn } from "./movement/player-movement.js";
 import { populateCreatureCostMap as populateCreatureCostMapFn } from "./movement/cost-maps-fov.js";
-import { boltCatalog } from "./globals/bolt-catalog.js";
+import { buildCostMapFovContext } from "./movement-cost-map.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
@@ -110,11 +108,9 @@ import {
     DCOLS, DROWS,
 } from "./types/constants.js";
 import { INVALID_POS } from "./types/types.js";
-import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
 import type { CalculateDistancesContext } from "./dijkstra/dijkstra.js";
 import type { PlayerMoveContext } from "./movement/player-movement.js";
 import type { TravelExploreContext } from "./movement/travel-explore.js";
-import type { WeaponAttackContext, BoltInfo } from "./movement/weapon-attacks.js";
 import type { Creature, Pos, RogueEvent } from "./types/types.js";
 import type { EnvironmentContext } from "./time/environment.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
@@ -206,16 +202,17 @@ export function buildMovementContext(): PlayerMoveContext {
         randPercent,
         posEq: (a: Pos, b: Pos) => a.x === b.x && a.y === b.y,
         keyOnTileAt: (loc: Pos) => {
+            const machineNum = pmap[loc.x]?.[loc.y]?.machineNumber ?? 0;
             if (player.loc.x === loc.x && player.loc.y === loc.y) {
-                const k = packItems.find(it => (it.category & ItemCategory.KEY) && keyMatchesLocationFn(it, loc));
+                const k = packItems.find(it => (it.category & ItemCategory.KEY) && keyMatchesLocationFn(it, loc, rogue.depthLevel, machineNum));
                 if (k) return k;
             }
             if (pmap[loc.x][loc.y].flags & TileFlag.HAS_ITEM) {
                 const fi = itemAtLocFn(loc, floorItems);
-                if (fi && (fi.category & ItemCategory.KEY) && keyMatchesLocationFn(fi, loc)) return fi;
+                if (fi && (fi.category & ItemCategory.KEY) && keyMatchesLocationFn(fi, loc, rogue.depthLevel, machineNum)) return fi;
             }
             const monst = monsterAtLoc(loc);
-            if (monst?.carriedItem && (monst.carriedItem.category & ItemCategory.KEY) && keyMatchesLocationFn(monst.carriedItem, loc)) return monst.carriedItem;
+            if (monst?.carriedItem && (monst.carriedItem.category & ItemCategory.KEY) && keyMatchesLocationFn(monst.carriedItem, loc, rogue.depthLevel, machineNum)) return monst.carriedItem;
             return null;
         },
         initializeItem: () => ({}) as any,

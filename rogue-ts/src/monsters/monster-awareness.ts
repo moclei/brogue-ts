@@ -16,7 +16,7 @@
  */
 
 import type { Creature, Pos } from "../types/types.js";
-import { CreatureState, TileType } from "../types/enums.js";
+import { CreatureState } from "../types/enums.js";
 import { MonsterBehaviorFlag } from "../types/flags.js";
 import { scentDistance } from "../time/turn-processing.js";
 

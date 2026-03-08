@@ -97,6 +97,7 @@ function createRogueDefaults(): PlayerCharacter {
         rewardRoomsGenerated: 0,
         machineNumber: 0,
         sidebarLocationList: Array.from({ length: ROWS * 2 }, () => ({ x: -1, y: -1 })),
+        scentMap: null,
         mapToShore: null,
         mapToSafeTerrain: null,
         clairvoyance: 0,

@@ -31,7 +31,7 @@ import {
     TileFlag, MonsterBookkeepingFlag, MonsterBehaviorFlag, TerrainFlag,
     MonsterAbilityFlag, T_HARMFUL_TERRAIN,
 } from "./types/flags.js";
-import { BoltEffect, BoltType, CreatureState, DungeonLayer, LightType, GameMode, StatusEffect } from "./types/enums.js";
+import { BoltEffect, BoltType, CreatureState, DungeonLayer, LightType, StatusEffect } from "./types/enums.js";
 import { openPathBetween as openPathBetweenFn } from "./items/bolt-geometry.js";
 import {
     monsterIsHidden as monsterIsHiddenFn,
@@ -42,7 +42,7 @@ import {
     monsterWillAttackTarget as monsterWillAttackTargetFn,
 } from "./monsters/monster-queries.js";
 import type { MonsterQueryContext } from "./monsters/monster-queries.js";
-import { distanceBetween, updateMonsterState as updateMonsterStateFn, monsterAvoids as monsterAvoidsFn, wakeUp as wakeUpFn, chooseNewWanderDestination as chooseNewWanderDestFn } from "./monsters/monster-state.js";
+import { distanceBetween, updateMonsterState as updateMonsterStateFn, monsterAvoids as monsterAvoidsFn, chooseNewWanderDestination as chooseNewWanderDestFn } from "./monsters/monster-state.js";
 import type { MonsterStateContext } from "./monsters/monster-state.js";
 import { avoidedFlagsForMonster } from "./monsters/monster-spawning.js";
 import {
@@ -97,9 +97,8 @@ import {
     closestWaypointIndex as closestWaypointIndexFn,
     closestWaypointIndexTo as closestWaypointIndexToFn,
 } from "./monsters/monster-awareness.js";
-import type { AwarenessContext } from "./monsters/monster-awareness.js";
 import { burnedTerrainFlagsAtLoc as burnedTerrainFlagsAtLocFn } from "./state/helpers.js";
-import type { Creature, Pcell, Pos } from "./types/types.js";
+import type { Creature, Pos } from "./types/types.js";
 
 // =============================================================================
 // buildMonstersTurnContext
@@ -189,8 +188,8 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         makeMonsterDropItem: () => {},
         refreshDungeonCell,
         message: io.message,
-        messageWithColor: (text, color) => io.messageWithColor(text, color, 0),
-        combatMessage: io.combatMessage,
+        messageWithColor: (text, flags) => io.message(text, flags),
+        combatMessage: (text) => io.combatMessage(text, null),
         playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
         playerHasRespirationArmor: () => false,
         mapToShore: rogue.mapToShore,
@@ -577,7 +576,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
 
         chooseNewWanderDestination: (monst) => chooseNewWanderDestFn(monst, monsterStateCtx),
         isValidWanderDestination: (monst, wpIndex) => isValidWanderDestinationFn(monst, wpIndex, wanderCtx),
-        waypointDistanceMap: (i) => rogue.wpDistance[i] ?? null,
+        waypointDistanceMap: (i) => rogue.wpDistance[i] ?? [],
         wanderToward: (monst, loc) => wanderTowardFn(monst, loc, wanderTowardCtx),
         randValidDirectionFrom: randValidDirShared,
         monsterMillAbout: (monst, chance) => monsterMillAboutFn(monst, chance, millAboutCtx),

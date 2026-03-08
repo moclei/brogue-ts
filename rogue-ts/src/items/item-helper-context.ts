@@ -18,7 +18,8 @@ import {
 import { itemMessageColor } from "../globals/colors.js";
 import { coordinatesAreInMap } from "../globals/tables.js";
 import { itemName as itemNameFn } from "./item-naming.js";
-import { removeItemFromArray } from "./item-inventory.js";
+import { removeItemFromArray, itemAtLoc as itemAtLocFn } from "./item-inventory.js";
+import { keyMatchesLocation as keyMatchesLocationFn } from "./item-utils.js";
 import { initializeItem } from "./item-generation.js";
 import { charmRechargeDelay as charmRechargeDelayFn } from "../power/power-tables.js";
 import { distanceBetween } from "../monsters/monster-state.js";
@@ -28,6 +29,7 @@ import {
 } from "../state/helpers.js";
 import { randPercent } from "../math/rng.js";
 import { TileFlag } from "../types/flags.js";
+import { ItemCategory } from "../types/enums.js";
 import type { ItemHelperContext } from "../movement/item-helpers.js";
 import type { Creature, ItemTable, Pos } from "../types/types.js";
 
@@ -124,5 +126,17 @@ export function buildItemHelperContext(): ItemHelperContext {
         discover: () => {},                 // stub — wired in port-v2-platform
         randPercent: (pct) => randPercent(pct),
         posEq: (a, b) => a.x === b.x && a.y === b.y,
+        keyOnTileAt: (loc: Pos) => {
+            const machineNum = pmap[loc.x]?.[loc.y]?.machineNumber ?? 0;
+            if (player.loc.x === loc.x && player.loc.y === loc.y) {
+                const k = packItems.find(it => (it.category & ItemCategory.KEY) && keyMatchesLocationFn(it, loc, rogue.depthLevel, machineNum));
+                if (k) return k;
+            }
+            if (pmap[loc.x]?.[loc.y]?.flags & TileFlag.HAS_ITEM) {
+                const fi = itemAtLocFn(loc, floorItems);
+                if (fi && (fi.category & ItemCategory.KEY) && keyMatchesLocationFn(fi, loc, rogue.depthLevel, machineNum)) return fi;
+            }
+            return null;
+        },
     };
 }

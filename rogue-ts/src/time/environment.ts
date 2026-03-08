@@ -33,7 +33,6 @@ import {
     MonsterBehaviorFlag,
     MonsterBookkeepingFlag,
 } from "../types/flags.js";
-import { StatusEffect } from "../types/enums.js";
 import { NUMBER_TERRAIN_LAYERS } from "../types/constants.js";
 
 // =============================================================================

@@ -73,6 +73,8 @@ import { charmRechargeDelay as charmRechargeDelayFn } from "./power/power-tables
 import type { MessageContext as SyncMessageContext } from "./io/messages-state.js";
 import { TileFlag } from "./types/flags.js";
 import { hitProbability, monsterDamageAdjustmentAmount } from "./combat/combat-math.js";
+import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
+import { randPercent } from "./math/rng.js";
 import { encodeMessageColor } from "./io/color.js";
 import { buildResolvePronounEscapesFn } from "./io/text.js";
 import { boltCatalog } from "./globals/bolt-catalog.js";
@@ -263,9 +265,12 @@ export function buildRefreshSideBarFn(): () => void {
                 mutationCatalog,
                 tileCatalog,
                 monsterName: (m, inc) => monsterNameFn(m, inc, mqCtxLocal),
-                monsterIsInClass: (m, cls) => monsterIsInClassFn(m, cls),
+                monsterIsInClass: (m, cls) => monsterIsInClassFn(m, monsterClassCatalog[cls] ?? { memberList: [] } as never),
                 resolvePronounEscapes: (text, m) => resolvePronounEscapes(text, m),
-                hitProbability: (att, def) => hitProbability(att, def),
+                hitProbability: (att, def) => hitProbability(att, def, {
+                    player, weapon: rogue.weapon, armor: rogue.armor,
+                    playerStrength: rogue.strength, monsterClassCatalog, randPercent,
+                }),
                 monsterDamageAdjustment: (m) => monsterDamageAdjustmentAmount(m, player),
                 itemName: (item, incDet, incArt) => itemNameFn(item, incDet, incArt, namingCtx),
                 encodeMessageColor: (color) => encodeMessageColor(color),
@@ -432,12 +437,12 @@ export function buildPromptForItemOfTypeFn(): (
     return (category, requiredFlags, forbiddenFlags, prompt, allowInventoryActions) => {
         const invCtx = buildInventoryContext();
         const { packItems } = invCtx;
-        const ctx: PromptItemContext = {
+        const ctx = {
             ...invCtx,
             temporaryMessage: io.temporaryMessage,
-            numberOfMatchingPackItems: (cat, req, forbidden) =>
+            numberOfMatchingPackItems: (cat: number, req: number, forbidden: number) =>
                 numberOfMatchingPackItemsFn(packItems, cat, req, forbidden),
-        };
+        } as unknown as PromptItemContext;
         return promptForItemOfTypeFn(category, requiredFlags, forbiddenFlags, prompt, allowInventoryActions, ctx);
     };
 }

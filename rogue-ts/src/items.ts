@@ -278,7 +278,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         updateRingBonuses: () => { const s = buildEquipState(); updateRingBonusesFn(s); syncEquipBonuses(s); },
         equipItem: (item, force, hint) => {
             const s = buildEquipState();
-            equipItemFn(item, force, hint, { state: s, message: io.message, itemName: () => "item",
+            equipItemFn(item, force, hint, { state: s, message: (text, req) => io.message(text, req ? 1 : 0), itemName: () => "item",
                 updateRingBonuses: () => { updateRingBonusesFn(s); syncEquipBonuses(s); }, updateEncumbrance: () => updateEncumbranceFn(s) });
             syncEquipBonuses(s);
         },

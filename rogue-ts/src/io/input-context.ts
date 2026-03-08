@@ -177,6 +177,7 @@ function buildMiscHelpersContext(): MiscHelpersContext {
         },
         randPercent,
         posEq: (a, b) => a.x === b.x && a.y === b.y,
+        keyOnTileAt: () => null,
     };
 
     return {
