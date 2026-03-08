@@ -61,18 +61,17 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 
 ---
 
-## Phase 2: charmRechargeDelay — C cross-check + fix
+## Phase 2: charmRechargeDelay — C cross-check + fix ✓
 
 *Flagged in port-v2-fix-rendering Phase 5a notes as likely buggy.*
 
-- [ ] Read `src/brogue/PowerTables.c` — find the `charmRechargeDelay` formula
-- [ ] Compare to `rogue-ts/src/power/power-tables.ts` implementation
-- [ ] Suspected bug: extra `* FP_FACTOR / 100n` in decay term produces astronomically large
+- [x] Read `src/brogue/PowerTables.c` — find the `charmRechargeDelay` formula
+- [x] Compare to `rogue-ts/src/power/power-tables.ts` implementation
+- [x] Suspected bug: extra `* FP_FACTOR / 100n` in decay term produces astronomically large
       values at enchant > 1; confirm or refute against C source
-- [ ] If bug confirmed: fix the formula, update the flagged test comment in power-tables.test.ts,
+- [x] Bug confirmed: fix the formula, update the flagged test comment in power-tables.test.ts,
       add a cross-validation test against known C output values
-- [ ] If no bug: remove the uncertainty comment and add a confirming test
-- [ ] Commit; generate handoff
+- [x] Commit; generate handoff
 
 ---
 
