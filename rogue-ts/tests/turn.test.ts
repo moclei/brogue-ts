@@ -214,17 +214,12 @@ it.skip("stub: enableEasyMode() is a no-op in input context (should delegate to 
     // Real wiring should call enableEasyMode() from game-lifecycle.ts via a LifecycleContext.
 });
 
-it.skip("stub: dropItem() not yet wired into CreatureEffectsContext (playerFalls is a stub in turn.ts)", () => {
+it.skip("stub: dropItem() not yet wired into playerFalls context (startLevel dependency missing)", () => {
     // C: Items.c:7652 — dropItem()
     // Domain function IMPLEMENTED: items/floor-items.ts — dropItem().
-    // Called from creature-effects.ts:1275 inside playerFalls().
-    // turn.ts:280 has `playerFalls: () => {}` stub — wire dropItem when playerFalls is unwired.
-    // DropItemContext (items/floor-items.ts) must be built in buildTurnProcessingContext().
+    // playerFalls() in creature-effects.ts needs startLevel() — a full level-transition context.
+    // Deferred until startLevel is wired into buildTurnProcessingContext() in Phase 8.
 });
 
-it.skip("stub: placeItemAt() not yet wired into machineContext.itemOps (lifecycle.ts:362 is a no-op)", () => {
-    // C: Items.c:422 — placeItemAt()
-    // Domain function IMPLEMENTED: items/floor-items.ts — placeItemAt().
-    // lifecycle.ts:362 machineContext.itemOps.placeItemAt is `() => {}` — items in machines not placed.
-    // Wire via createItemOps() (item-ops.ts) or inline PlaceItemAtContext when machineContext is wired.
-});
+// placeItemAt in machineContext.itemOps is now wired — lifecycle.ts uses real placeItemAt()
+// from items/floor-items.ts. Tests in tests/items/item-ops.test.ts cover the domain function.

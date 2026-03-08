@@ -10,6 +10,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { initGameState, getGameState } from "../src/core.js";
 import { buildItemHandlerContext, buildItemHelperContext } from "../src/items.js";
+import { buildInputContext } from "../src/io/input-context.js";
 import { drinkPotion, apply } from "../src/items/item-handlers.js";
 import { buildTurnProcessingContext } from "../src/turn.js";
 import { playerTurnEnded as playerTurnEndedFn } from "../src/time/turn-processing.js";
@@ -238,10 +239,15 @@ it("teleport() with INVALID_POS runs without throwing", () => {
 });
 
 
-it.skip("stub: exposeCreatureToFire() is a no-op (should set Burning status on creature)", () => {
-    // buildItemHandlerContext().exposeCreatureToFire() does nothing.
-    // Real implementation should call exposeCreatureToFire() from creature-effects.ts
-    // with a fully wired CreatureEffectsContext.
+it("exposeCreatureToFire() sets Burning status on a monster", () => {
+    setupPlayer();
+    const ctx = buildItemHandlerContext();
+    const { player } = getGameState();
+    // Use the player as the test creature (avoids needing a real monster spawn)
+    player.status[StatusEffect.Burning] = 0;
+    player.status[StatusEffect.ImmuneToFire] = 0;
+    ctx.exposeCreatureToFire(player);
+    expect(player.status[StatusEffect.Burning]).toBeGreaterThan(0);
 });
 
 
@@ -257,11 +263,13 @@ it.skip("wiring stub: items.ts chooseTarget() and playerCancelsBlinking() are as
     // Wire up in port-v2-platform initiative.
 });
 
-it.skip("stub: swapLastEquipment() is a no-op (should swap weapon/armor with previously equipped item)", () => {
+it("swapLastEquipment() does not throw when no swap state exists", () => {
     // C: Items.c:6441 — swapLastEquipment()
-    // io/input-context.ts:202 has a `() => {}` stub.
-    // Real implementation should equip the most recently unequipped weapon or
-    // armor, swapping with the currently equipped item.
+    // Verify the early-exit path: rogue.swappedIn/swappedOut null → message + return.
+    const { rogue } = getGameState();
+    rogue.swappedIn = null;
+    rogue.swappedOut = null;
+    expect(() => buildInputContext().swapLastEquipment()).not.toThrow();
 });
 
 

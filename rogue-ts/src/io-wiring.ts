@@ -16,8 +16,12 @@
 
 import { getGameState } from "./core.js";
 import { alertMonster as alertMonsterFn } from "./monsters/monster-state.js";
-import { monstersAreTeammates } from "./monsters/monster-queries.js";
-import { CreatureState, CreatureMode } from "./types/enums.js";
+import { monstersAreTeammates, monstersAreEnemies as monstersAreEnemiesFn } from "./monsters/monster-queries.js";
+import { CreatureState, CreatureMode, StatusEffect } from "./types/enums.js";
+import { exposeCreatureToFire as exposeCreatureToFireFn } from "./time/creature-effects.js";
+import type { CreatureEffectsContext } from "./time/creature-effects.js";
+import { fireForeColor, torchLightColor, badMessageColor } from "./globals/colors.js";
+import { messageColorFromVictim as messageColorFromVictimFn } from "./io/color.js";
 import type { Creature } from "./types/types.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
@@ -308,5 +312,55 @@ export function buildMessageFns(): {
         confirmMessages: () => confirmMessagesFn(ctx),
         temporaryMessage: (msg, flags) => temporaryMessageFn(ctx, msg, flags),
         combatMessage: (msg, color) => combatMessageFn(ctx, msg, color),
+    };
+}
+
+// =============================================================================
+// buildExposeCreatureToFireFn
+// =============================================================================
+
+/**
+ * Returns an `exposeCreatureToFire(monst)` closure wired to the current game
+ * state.
+ *
+ * Supplies the minimal fields of CreatureEffectsContext needed by the function:
+ * cellHasTMFlag, combatMessage, canDirectlySeeMonster, monsterName,
+ * messageColorFromVictim, refreshDungeonCell, and colour constants.
+ */
+export function buildExposeCreatureToFireFn(): (monst: Creature) => void {
+    const { player, rogue, pmap } = getGameState();
+    const cellHasTMFlag = (pos: import("./types/types.js").Pos, flags: number) =>
+        cellHasTMFlagFn(pmap, pos, flags);
+    const cellHasTerrainFlag = (pos: import("./types/types.js").Pos, flags: number) =>
+        cellHasTerrainFlagFn(pmap, pos, flags);
+    const refreshDungeonCell = buildRefreshDungeonCellFn();
+    const io = buildMessageFns();
+    return (monst: Creature): void => {
+        exposeCreatureToFireFn(monst, {
+            player,
+            rogue: { minersLight: rogue.minersLight },
+            cellHasTMFlag,
+            canDirectlySeeMonster: (m: Creature) =>
+                !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+            monsterName(buf: string[], m: Creature, includeArticle: boolean): void {
+                if (m === player) { buf[0] = "you"; return; }
+                const pfx = includeArticle
+                    ? (m.creatureState === CreatureState.Ally ? "your " : "the ")
+                    : "";
+                buf[0] = `${pfx}${m.info.monsterName}`;
+            },
+            combatMessage: io.combatMessage,
+            messageColorFromVictim: (m: Creature) => messageColorFromVictimFn(
+                m, player,
+                player.status[StatusEffect.Hallucinating] > 0,
+                rogue.playbackOmniscience,
+                (a: Creature, b: Creature) => monstersAreEnemiesFn(a, b, player, cellHasTerrainFlag),
+            ),
+            refreshDungeonCell,
+            badMessageColor,
+            fireForeColor,
+            torchLightColor,
+            max: Math.max,
+        } as unknown as CreatureEffectsContext);
     };
 }

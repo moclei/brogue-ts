@@ -116,7 +116,7 @@ import { KEYBOARD_LABELS } from "./types/constants.js";
 import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
 import type { ItemHandlerContext } from "./items/item-handlers.js";
 import type { ItemTable, Creature, Pos } from "./types/types.js";
-import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
+import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn, buildExposeCreatureToFireFn } from "./io-wiring.js";
 import { buildResolvePronounEscapesFn } from "./io/text.js";
 
 // =============================================================================
@@ -349,7 +349,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 HAS_STAIRS: TileFlag.HAS_STAIRS,
             });
         },
-        exposeCreatureToFire: () => {},      // stub — wired in port-v2-platform
+        exposeCreatureToFire: buildExposeCreatureToFireFn(),
         extinguishFireOnCreature: () => {},  // stub — wired in port-v2-platform
         makePlayerTelepathic(duration) {
             makePlayerTelepathicFn(duration, {

@@ -8,7 +8,7 @@ import { updateFloorItems } from "../../src/items/floor-items.js";
 import type { UpdateFloorItemsContext } from "../../src/items/floor-items.js";
 import type { Item, Pcell, LevelData } from "../../src/types/types.js";
 import { ItemCategory, DisplayGlyph } from "../../src/types/enums.js";
-import { ItemFlag, TileFlag } from "../../src/types/flags.js";
+import { ItemFlag, TileFlag, TerrainFlag, TerrainMechFlag } from "../../src/types/flags.js";
 import { KEY_ID_MAXIMUM } from "../../src/types/constants.js";
 import { white, itemColor } from "../../src/globals/colors.js";
 
@@ -228,42 +228,111 @@ describe("updateFloorItems", () => {
 // Stub registry — complex branches with missing dependencies
 // =============================================================================
 
-it.skip("updateFloorItems: auto-descent — item on T_AUTO_DESCENT tile falls to next level", () => {
-    // C: Items.c:1206 — T_AUTO_DESCENT branch
-    // Requires: cellHasTerrainFlag returns T_AUTO_DESCENT, discover, messageWithColor,
-    //           removeItemFromChain, deleteItem (for potions), levels array
-    // Full integration test blocked on terrain-flag wiring in tests.
+it("updateFloorItems: auto-descent — item on T_AUTO_DESCENT tile falls to next level", () => {
+    const item = makeItem({ spawnTurnNumber: 0, loc: { x: 1, y: 1 }, category: ItemCategory.WEAPON });
+    const levels = [makeLevel(), makeLevel(), makeLevel()];
+    const pmap = makePmap();
+    pmap[1][1].flags |= TileFlag.VISIBLE;
+    const ctx = makeCtx({
+        floorItems: [item],
+        levels,
+        pmap,
+        rogue: { absoluteTurnNumber: 10, depthLevel: 1 },
+        gameConst: { deepestLevel: 26 } as any,
+        cellHasTerrainFlag: (_loc, flags) => !!(flags & TerrainFlag.T_AUTO_DESCENT),
+    });
+    updateFloorItems(ctx);
+    // Item removed from current floor and moved to next level
+    expect(ctx.floorItems).not.toContain(item);
+    expect(levels[1].items).toContain(item);
+    expect(ctx.messageWithColor).toHaveBeenCalled();
 });
 
-it.skip("updateFloorItems: potion falls on T_AUTO_DESCENT tile and is deleted (not migrated)", () => {
-    // C: Items.c:1222 — category === POTION check in auto-descent
-    // Potions are destroyed by the fall rather than migrated to the next level.
+it("updateFloorItems: potion falls on T_AUTO_DESCENT tile and is deleted (not migrated)", () => {
+    const potion = makeItem({ spawnTurnNumber: 0, loc: { x: 1, y: 1 }, category: ItemCategory.POTION });
+    const levels = [makeLevel(), makeLevel(), makeLevel()];
+    const ctx = makeCtx({
+        floorItems: [potion],
+        levels,
+        rogue: { absoluteTurnNumber: 10, depthLevel: 1 },
+        gameConst: { deepestLevel: 26 } as any,
+        cellHasTerrainFlag: (_loc, flags) => !!(flags & TerrainFlag.T_AUTO_DESCENT),
+    });
+    updateFloorItems(ctx);
+    expect(ctx.floorItems).not.toContain(potion);
+    expect(levels[1].items).not.toContain(potion);
+    expect(ctx.deleteItem).toHaveBeenCalledWith(potion);
 });
 
-it.skip("updateFloorItems: flammable item on T_IS_FIRE tile is burned", () => {
-    // C: Items.c:1234 — T_IS_FIRE && ITEM_FLAMMABLE branch
-    // Requires burnItem() to be fully wired (it internally spawns fire DFs).
+it("updateFloorItems: flammable item on T_IS_FIRE tile is burned", () => {
+    const item = makeItem({
+        spawnTurnNumber: 0, loc: { x: 1, y: 1 },
+        flags: ItemFlag.ITEM_FLAMMABLE,
+    });
+    const ctx = makeCtx({
+        floorItems: [item],
+        cellHasTerrainFlag: (_loc, flags) => !!(flags & TerrainFlag.T_IS_FIRE),
+    });
+    updateFloorItems(ctx);
+    expect(ctx.burnItem).toHaveBeenCalledWith(item);
 });
 
-it.skip("updateFloorItems: item on T_LAVA_INSTA_DEATH tile is burned (unless it is the amulet)", () => {
-    // C: Items.c:1235 — T_LAVA_INSTA_DEATH && not AMULET branch
-    // Amulet of Yendor is immune to lava destruction.
+it("updateFloorItems: item on T_LAVA_INSTA_DEATH tile is burned (unless it is the amulet)", () => {
+    const item = makeItem({ spawnTurnNumber: 0, loc: { x: 1, y: 1 }, category: ItemCategory.WEAPON });
+    const amulet = makeItem({ spawnTurnNumber: 0, loc: { x: 1, y: 2 }, category: ItemCategory.AMULET });
+    const ctx = makeCtx({
+        floorItems: [item, amulet],
+        cellHasTerrainFlag: (_loc, flags) => !!(flags & TerrainFlag.T_LAVA_INSTA_DEATH),
+    });
+    updateFloorItems(ctx);
+    expect(ctx.burnItem).toHaveBeenCalledWith(item);
+    expect(ctx.burnItem).not.toHaveBeenCalledWith(amulet);
 });
 
-it.skip("updateFloorItems: item on T_MOVES_ITEMS drifts to adjacent cell", () => {
-    // C: Items.c:1240 — T_MOVES_ITEMS branch (deep water / lava conveyor)
-    // Requires getQualifyingLocNear to return an adjacent cell.
-    // Item only moves if distanceBetween == 1 (prevents wall-phasing).
+it("updateFloorItems: item on T_MOVES_ITEMS drifts to adjacent cell", () => {
+    const item = makeItem({ spawnTurnNumber: 0, loc: { x: 1, y: 1 } });
+    const pmap = makePmap(5);
+    const ctx = makeCtx({
+        floorItems: [item],
+        pmap,
+        // Use T_IS_DEEP_WATER only (T_LAVA_INSTA_DEATH would also trigger the burn check)
+        cellHasTerrainFlag: (_loc, flags) => !!(flags & TerrainFlag.T_IS_DEEP_WATER),
+        // Return adjacent cell (distance == 1)
+        getQualifyingLocNear: () => ({ x: 1, y: 2 }),
+    });
+    updateFloorItems(ctx);
+    expect(item.loc).toEqual({ x: 1, y: 2 });
+    expect(ctx.refreshDungeonCell).toHaveBeenCalled();
 });
 
-it.skip("updateFloorItems: item does not drift if getQualifyingLocNear returns a non-adjacent cell", () => {
-    // C: Items.c:1244 — distance check prevents wall phasing
+it("updateFloorItems: item does not drift if getQualifyingLocNear returns a non-adjacent cell", () => {
+    const item = makeItem({ spawnTurnNumber: 0, loc: { x: 1, y: 1 } });
+    const ctx = makeCtx({
+        floorItems: [item],
+        cellHasTerrainFlag: (_loc, flags) => !!(flags & (TerrainFlag.T_IS_DEEP_WATER | TerrainFlag.T_LAVA_INSTA_DEATH)),
+        // Return non-adjacent cell (distance > 1)
+        getQualifyingLocNear: () => ({ x: 3, y: 3 }),
+    });
+    updateFloorItems(ctx);
+    // Item should not have moved
+    expect(item.loc).toEqual({ x: 1, y: 1 });
 });
 
-it.skip("updateFloorItems: terrain promotes when TM_PROMOTES_ON_ITEM and item is present", () => {
-    // C: Items.c:1257 — TM_PROMOTES_ON_ITEM branch
-    // Requires tileCatalog entries with mechFlags including TM_PROMOTES_ON_ITEM.
-    // promoteTile is called for each matching layer.
+it("updateFloorItems: terrain promotes when TM_PROMOTES_ON_ITEM and item is present", () => {
+    const item = makeItem({ spawnTurnNumber: 0, loc: { x: 1, y: 1 } });
+    const tileCatalogWithPromotion = new Proxy([] as any[], {
+        get(_target, prop) {
+            if (prop === "length") return 256;
+            return { mechFlags: TerrainMechFlag.TM_PROMOTES_ON_ITEM, flags: 0, drawPriority: 0 };
+        },
+    });
+    const ctx = makeCtx({
+        floorItems: [item],
+        tileCatalog: tileCatalogWithPromotion,
+        cellHasTMFlag: (_loc, flags) => !!(flags & TerrainMechFlag.TM_PROMOTES_ON_ITEM),
+    });
+    updateFloorItems(ctx);
+    expect(ctx.promoteTile).toHaveBeenCalled();
 });
 
 it("updateFloorItems: enchant-swap activates when TM_SWAP_ENCHANTS_ACTIVATION and no circuit breakers", () => {

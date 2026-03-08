@@ -60,6 +60,8 @@ import { tileCatalog } from "../globals/tile-catalog.js";
 import { ringTable } from "../globals/item-catalog.js";
 import { randPercent, randClumpedRange } from "../math/rng.js";
 import { autoRest as autoRestFn, manualSearch as manualSearchFn } from "../time/misc-helpers.js";
+import { equipItem as equipItemFn, updateRingBonuses as updateRingBonusesFn, updateEncumbrance as updateEncumbranceFn } from "../items/item-usage.js";
+import { buildEquipState, syncEquipBonuses } from "../items/equip-helpers.js";
 import type { MiscHelpersContext } from "../time/misc-helpers.js";
 import type { ItemHelperContext } from "../movement/item-helpers.js";
 import { getScentMap } from "../lifecycle.js";
@@ -393,7 +395,29 @@ export function buildInputContext(): InputContext {
         throwCommand: async () => {},               // stub — throw dialog not yet ported
         relabel: async () => {},                    // stub — relabel dialog not yet ported
         call: async () => {},                       // stub — call dialog not yet ported
-        swapLastEquipment: () => {},                // stub — not yet ported
+        swapLastEquipment() {
+            // C: Items.c:6441 — swapLastEquipment()
+            const io = buildMessageFns();
+            if (!rogue.swappedIn || !rogue.swappedOut) {
+                io.confirmMessages();
+                io.message("You have nothing to swap.", 0);
+                return;
+            }
+            const s = buildEquipState();
+            const swapped = equipItemFn(rogue.swappedOut, false, rogue.swappedIn, {
+                state: s,
+                message: (text, _requireAck) => io.message(text, 0),
+                itemName: (_i, _details, _article) => "item",
+                updateRingBonuses: () => { updateRingBonusesFn(s); syncEquipBonuses(s); },
+                updateEncumbrance: () => updateEncumbranceFn(s),
+            });
+            if (!swapped) return;  // cursed — can't swap
+            syncEquipBonuses(s);
+            const tmp = rogue.swappedIn;
+            rogue.swappedIn = rogue.swappedOut;
+            rogue.swappedOut = tmp;
+            playerTurnEndedFn();
+        },
         enableEasyMode: () => {},                   // stub — LifecycleContext not wired
         saveGame: () => {},                         // stub — save system not yet ported
         gameOver: () => {},                         // stub — LifecycleContext not wired

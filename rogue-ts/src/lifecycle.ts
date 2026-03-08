@@ -62,7 +62,8 @@ import { getFOVMask } from "./light/fov.js";
 import { populateGenericCostMap } from "./movement/cost-maps-fov.js";
 import { populateItems } from "./items/item-population.js";
 import { populateMonsters } from "./monsters/monster-spawning.js";
-import { generateItem } from "./items/item-generation.js";
+import { generateItem, itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
+import { placeItemAt as placeItemAtFn } from "./items/floor-items.js";
 import { addItemToPack, numberOfMatchingPackItems, itemAtLoc as itemAtLocFn, deleteItem as deleteItemFn } from "./items/item-inventory.js";
 import { identify, shuffleFlavors } from "./items/item-naming.js";
 import { equipItem, recalculateEquipmentBonuses, updateRingBonuses as updateRingBonusesFn, updateEncumbrance as updateEncumbranceFn } from "./items/item-usage.js";
@@ -333,7 +334,26 @@ export function buildLevelContext(): LevelContext {
             gameConstants: gameConst, monsterOps,
             itemOps: {
                 generateItem: () => ({ category: 0, kind: 0, quantity: 1, flags: 0, keyLoc: [], originDepth: 0 } as unknown as Item),
-                deleteItem: () => {}, placeItemAt: () => {}, removeItemFromArray: () => {},
+                deleteItem: () => {},
+                placeItemAt(item: MachineItem, loc: import("./types/types.js").Pos) {
+                    placeItemAtFn(item as unknown as Item, loc, {
+                        pmap, floorItems: floorItems as any,
+                        tileCatalog: tileCatalog as any,
+                        dungeonFeatureCatalog: dungeonFeatureCatalog as any,
+                        itemMagicPolarity: (i) => itemMagicPolarityFn(i as unknown as Item),
+                        cellHasTerrainFlag: (pos, flags) => ctf(pmap, pos, flags),
+                        cellHasTMFlag: (pos, flags) => ctmf(pmap, pos, flags),
+                        playerCanSee: () => false,
+                        itemName: (_i, buf) => { buf[0] = "item"; },
+                        message: () => {},
+                        spawnDungeonFeature: () => {},
+                        promoteTile: () => {},
+                        discover: () => {},
+                        refreshDungeonCell: () => {},
+                        REQUIRE_ACKNOWLEDGMENT: 1,
+                    });
+                },
+                removeItemFromArray: () => {},
                 itemIsHeavyWeapon: () => false, itemIsPositivelyEnchanted: () => false,
             },
             analyzeMap: analyzeMapWrap,
