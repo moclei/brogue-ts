@@ -391,6 +391,7 @@ export async function mainBrogueJunction(ctx: MenuContext, displayBuffer: Screen
                 ctx.rogue.nextGame = NGCommand.Nothing;
                 ctx.initializeRogue(ctx.rogue.nextGameSeed);
                 ctx.startLevel(ctx.rogue.depthLevel, 1);
+                ctx.commitDraws();
                 await ctx.mainInputLoop();
 
                 if (ctx.serverMode) {

@@ -28,7 +28,6 @@ import { tileCatalog } from "./globals/tile-catalog.js";
 import { boltCatalog } from "./globals/bolt-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
 import {
-    itemName as itemNameFn,
     identify as identifyFn,
 } from "./items/item-naming.js";
 import {
@@ -36,23 +35,19 @@ import {
     numberOfMatchingPackItems as numberOfMatchingPackItemsFn,
 } from "./items/item-inventory.js";
 import { enchantMagnitude, netEnchant as netEnchantFn } from "./items/item-usage.js";
-import {
-    itemMagicPolarity as itemMagicPolarityFn,
-    initializeItem,
-} from "./items/item-generation.js";
+import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
 import {
     heal as healFn,
     killCreature as killCreatureFn,
     inflictLethalDamage as inflictLethalDamageFn,
 } from "./combat/combat-damage.js";
-import { distanceBetween, alertMonster as alertMonsterFn } from "./monsters/monster-state.js";
+import { alertMonster as alertMonsterFn } from "./monsters/monster-state.js";
 import {
     teleport as teleportFn,
     disentangle as disentangleFn,
 } from "./monsters/monster-teleport.js";
 import { calculateDistances } from "./dijkstra/dijkstra.js";
 import { getFOVMask as getFOVMaskFn } from "./light/fov.js";
-import { FP_FACTOR } from "./math/fixpt.js";
 import {
     spawnHorde as spawnHordeFn,
     forbiddenFlagsForMonster as forbiddenFlagsForMonsterFn,

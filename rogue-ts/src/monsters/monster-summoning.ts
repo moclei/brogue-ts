@@ -14,7 +14,6 @@
 import type { Creature, Pos, HordeType } from "../types/types.js";
 import type { MonsterType } from "../types/enums.js";
 import type { MonsterRNG } from "./monster-creation.js";
-import { MonsterAbilityFlag, MonsterBookkeepingFlag, TileFlag } from "../types/flags.js";
 import { pickHordeType } from "./monster-spawning.js";
 
 // =============================================================================

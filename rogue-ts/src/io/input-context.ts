@@ -44,6 +44,7 @@ import { monstersAreTeammates as monstersAreTeammatesFn } from "../monsters/mons
 import { cellHasTerrainFlag as cellHasTerrainFlagFn } from "../state/helpers.js";
 import { cellHasTMFlag as cellHasTMFlagFn } from "../state/helpers.js";
 import { moveCursor as moveCursorFn, nextTargetAfter as nextTargetAfterFn } from "./cursor-move.js";
+import { commitDraws } from "../platform.js";
 import { EventType, AutoTargetMode, StatusEffect, ALL_ITEMS } from "../types/enums.js";
 import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MessageFlag } from "../types/flags.js";
 import type { InputContext } from "./input-keystrokes.js";
@@ -144,8 +145,8 @@ export function buildInputContext(): InputContext {
         confirmMessages: () => {},
         updateMessageDisplay: () => {},
 
-        // ── Display buffers (stubs — wired in Phase 5) ───────────────────────
-        commitDraws: () => {},
+        // ── Display buffers ───────────────────────────────────────────────────
+        commitDraws,
         saveDisplayBuffer: () => ({ savedScreen: displayBuffer }),
         restoreDisplayBuffer: () => {},
         overlayDisplayBuffer: () => {},
