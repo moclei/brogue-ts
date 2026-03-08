@@ -28,58 +28,27 @@ import {
     cellHasTMFlag as cellHasTMFlagFn,
     terrainFlags as terrainFlagsFn,
 } from "./state/helpers.js";
-import { allocGrid, copyGrid } from "./grid/grid.js";
+import { allocGrid } from "./grid/grid.js";
 import { zeroOutGrid } from "./architect/helpers.js";
 import { FP_FACTOR } from "./math/fixpt.js";
 import { randRange, randPercent } from "./math/rng.js";
 import { nbDirs, coordinatesAreInMap } from "./globals/tables.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
-import { boltCatalog } from "./globals/bolt-catalog.js";
-import { monsterCatalog } from "./globals/monster-catalog.js";
 import {
     goodMessageColor, badMessageColor, advancementMessageColor, itemMessageColor,
     orange, green, red, yellow, darkRed, darkGreen, poisonColor,
 } from "./globals/colors.js";
 import { DCOLS, DROWS } from "./types/constants.js";
-import { TileFlag, MonsterBookkeepingFlag, MonsterBehaviorFlag, TerrainFlag, MonsterAbilityFlag } from "./types/flags.js";
-import { BoltEffect, BoltType, CreatureState, DungeonLayer, GameMode, LightType } from "./types/enums.js";
-import { openPathBetween as openPathBetweenFn } from "./items/bolt-geometry.js";
-import {
-    monsterIsHidden as monsterIsHiddenFn,
-    monstersAreTeammates as monstersAreTeammatesFn,
-    monstersAreEnemies as monstersAreEnemiesFn,
-    canSeeMonster as canSeeMonsterFn,
-    canDirectlySeeMonster as canDirectlySeeMonsterFn,
-} from "./monsters/monster-queries.js";
-import type { MonsterQueryContext } from "./monsters/monster-queries.js";
-import { distanceBetween } from "./monsters/monster-state.js";
-import { avoidedFlagsForMonster } from "./monsters/monster-spawning.js";
-import {
-    monstUseMagic as monstUseMagicFn,
-    monsterHasBoltEffect as monsterHasBoltEffectFn,
-    monsterCanShootWebs as monsterCanShootWebsFn,
-} from "./monsters/monster-bolt-ai.js";
-import type { BoltAIContext } from "./monsters/monster-bolt-ai.js";
-import { monsterSummons as monsterSummonsFn } from "./monsters/monster-actions.js";
-import type { MonsterSummonsContext } from "./monsters/monster-actions.js";
-import { summonMinions as summonMinionsFn } from "./monsters/monster-summoning.js";
-import type { SummonMinionsContext } from "./monsters/monster-summoning.js";
-import { spawnMinions as spawnMinionsFn } from "./monsters/monster-spawning.js";
-import { buildMonsterSpawningContext } from "./monsters.js";
-import { hordeCatalog } from "./globals/horde-catalog.js";
-import { monsterText } from "./globals/monster-text.js";
-import { getSafetyMap as getSafetyMapFn } from "./monsters/monster-flee-ai.js";
-import {
-    monsterBlinkToPreferenceMap as monsterBlinkToPreferenceMapFn,
-    monsterBlinkToSafety as monsterBlinkToSafetyFn,
-} from "./monsters/monster-blink-ai.js";
-import type { MonsterBlinkContext, MonsterBlinkToSafetyContext } from "./monsters/monster-blink-ai.js";
+import { TileFlag, MonsterBookkeepingFlag, TerrainFlag, T_OBSTRUCTS_SCENT } from "./types/flags.js";
+import { CreatureState, GameMode } from "./types/enums.js";
 import type { TurnProcessingContext } from "./time/turn-processing.js";
-import type { MonstersTurnContext } from "./monsters/monster-actions.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { Creature, Pcell, Pos, PlayerCharacter } from "./types/types.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns } from "./io-wiring.js";
+import { buildMonstersTurnContext } from "./turn-monster-ai.js";
+import { getFOVMask as getFOVMaskFn } from "./light/fov.js";
+import { scentDistance } from "./time/turn-processing.js";
 
 // =============================================================================
 // Minimal combat context — used by inflictDamage/killCreature/addPoison calls
@@ -170,11 +139,19 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         return null;
     }
 
-    // Scent/safety grids — transient per-level state.
-    // Stubs: Phase 3 (movement.ts) will wire the persisted level maps.
-    const scentMap = allocGrid();
+    // Scent map — shared with monster AI via rogue.scentMap.
+    if (!rogue.scentMap) rogue.scentMap = allocGrid();
+    const scentMap = rogue.scentMap;
+
+    // Safety grids — transient per-level state (wired in port-v2-platform).
     const safetyMap = allocGrid();
     const allySafetyMap = allocGrid();
+
+    // FOV context for updateScent
+    const fovCtxForScent = {
+        cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
+        getCellFlags: (x: number, y: number) => pmap[x]?.[y]?.flags ?? 0,
+    };
 
     return {
         player,
@@ -296,9 +273,17 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         RNGCheck: () => {},
         animateFlares: () => {},
 
-        // ── Scent / FOV (stubs) ───────────────────────────────────────────────
-        addScentToCell: () => {},
-        getFOVMask: () => {},
+        // ── Scent / FOV ───────────────────────────────────────────────────────
+        addScentToCell: (x, y, distance) => {
+            // Inline addScentToCell logic (from movement/map-queries.ts)
+            if (!cellHasTerrainFlagFn(pmap, {x, y}, T_OBSTRUCTS_SCENT) ||
+                !cellHasTerrainFlagFn(pmap, {x, y}, TerrainFlag.T_OBSTRUCTS_PASSABILITY)) {
+                const value = (rogue.scentTurnNumber - distance) & 0xFFFF;
+                scentMap[x][y] = Math.max(value, scentMap[x][y] & 0xFFFF);
+            }
+        },
+        getFOVMask: (grid, cx, cy, radius, blockFlags, blockTMFlags, ignoreWalls) =>
+            getFOVMaskFn(grid, cx, cy, radius, blockFlags, blockTMFlags, ignoreWalls, fovCtxForScent),
         zeroOutGrid,
         discoverCell: (x, y) => { if (coordinatesAreInMap(x, y)) pmap[x][y].flags |= TileFlag.DISCOVERED; },
         discover: (x, y) => { if (coordinatesAreInMap(x, y)) pmap[x][y].flags |= TileFlag.DISCOVERED; },
@@ -316,7 +301,29 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         decrementPlayerStatus: () => {},
         playerFalls: () => {},
         handleHealthAlerts: () => {},
-        updateScent: () => {},
+        updateScent() {
+            if (!rogue.scentMap) rogue.scentMap = allocGrid();
+            const sm = rogue.scentMap;
+            const grid = allocGrid();
+            zeroOutGrid(grid);
+            getFOVMaskFn(grid, player.loc.x, player.loc.y,
+                BigInt(DCOLS) * FP_FACTOR, T_OBSTRUCTS_SCENT, 0, false, fovCtxForScent);
+            const px = player.loc.x, py = player.loc.y;
+            for (let i = 0; i < DCOLS; i++) {
+                for (let j = 0; j < DROWS; j++) {
+                    if (grid[i][j]) {
+                        const dist = scentDistance(px, py, i, j);
+                        const value = (rogue.scentTurnNumber - dist) & 0xFFFF;
+                        if (!cellHasTerrainFlagFn(pmap, {x:i,y:j}, T_OBSTRUCTS_SCENT) ||
+                            !cellHasTerrainFlagFn(pmap, {x:i,y:j}, TerrainFlag.T_OBSTRUCTS_PASSABILITY)) {
+                            sm[i][j] = Math.max(value, sm[i][j] & 0xFFFF);
+                        }
+                    }
+                }
+            }
+            const val0 = rogue.scentTurnNumber & 0xFFFF;
+            sm[px][py] = Math.max(val0, sm[px][py] & 0xFFFF);
+        },
         currentStealthRange: () => 0,
 
         // ── Movement / search (stubs) ─────────────────────────────────────────
@@ -336,238 +343,8 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
     };
 }
 
-// =============================================================================
-// buildMonstersTurnContext
-// =============================================================================
-
-/**
- * Build a MonstersTurnContext for monstersTurn().
- *
- * Most fields are stubs — full monster AI wiring is Phase 4 (monsters.ts).
- * The integration test for turn.ts is designed so monsters don't actually
- * take turns (high ticksUntilTurn), so these stubs don't run.
- */
-export function buildMonstersTurnContext(): MonstersTurnContext {
-    const { player, rogue, pmap, monsters } = getGameState();
-    const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn();
-
-    // Transient safety map — persisted level map wired in port-v2-platform
-    const localSafetyMap = allocGrid();
-
-    // ── Monster query context (for canSeeMonster, monsterIsHidden, etc.) ────
-    const queryCtx: MonsterQueryContext = {
-        player,
-        cellHasTerrainFlag: (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags),
-        cellHasGas: (loc) => !!(pmap[loc.x]?.[loc.y]?.layers[DungeonLayer.Gas]),
-        playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-        playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-        playbackOmniscience: rogue.playbackOmniscience,
-    };
-
-    // ── Summon minions context — wires summonMinions ─────────────────────────
-    const summonMinionsCtx: SummonMinionsContext = {
-        hordeCatalog,
-        monsters,
-        player,
-        rng: { randRange, randPercent: (pct) => randPercent(pct) },
-        spawnMinions: (hordeID, leader) =>
-            spawnMinionsFn(hordeID, leader, true, false, buildMonsterSpawningContext()),
-        clearCellFlag: (loc, flag) => {
-            if (coordinatesAreInMap(loc.x, loc.y)) pmap[loc.x][loc.y].flags &= ~flag;
-        },
-        setCellFlag: (loc, flag) => {
-            if (coordinatesAreInMap(loc.x, loc.y)) pmap[loc.x][loc.y].flags |= flag;
-        },
-        removeCreature: (monst) => {
-            const idx = monsters.indexOf(monst);
-            if (idx !== -1) { monsters.splice(idx, 1); return true; }
-            return false;
-        },
-        prependCreature: (monst) => monsters.unshift(monst),
-        canSeeMonster: (m) => canSeeMonsterFn(m, queryCtx),
-        monsterName: (m, includeArticle) => {
-            if (m === player) return "you";
-            const pfx = includeArticle
-                ? (m.creatureState === CreatureState.Ally ? "your " : "the ")
-                : "";
-            return `${pfx}${m.info.monsterName}`;
-        },
-        getSummonMessage: (monsterId) => monsterText[monsterId]?.summonMessage ?? "",
-        message: io.message,
-        fadeInMonster: () => {},                // stub — wired in port-v2-platform
-        refreshDungeonCell,
-        demoteMonsterFromLeadership: () => {},  // stub — wired in port-v2-platform
-        createFlare: () => {},                  // stub — wired in port-v2-platform
-        monstersAreTeammates: (a, b) => monstersAreTeammatesFn(a, b, player),
-        MA_ENTER_SUMMONS: MonsterAbilityFlag.MA_ENTER_SUMMONS,
-        MB_JUST_SUMMONED: MonsterBookkeepingFlag.MB_JUST_SUMMONED,
-        MB_LEADER: MonsterBookkeepingFlag.MB_LEADER,
-        HAS_MONSTER: TileFlag.HAS_MONSTER,
-        SUMMONING_FLASH_LIGHT: LightType.SUMMONING_FLASH_LIGHT,
-    };
-
-    // ── Monster summons context — wires monsterSummons ───────────────────────
-    const summonsCtx: MonsterSummonsContext = {
-        player,
-        monsters,
-        rng: { randRange },
-        adjacentLevelAllyCount: 0,   // adjacent levels not tracked in TS port
-        deepestLevel: rogue.deepestLevel,
-        depthLevel: rogue.depthLevel,
-        summonMinions: (monst) => { summonMinionsFn(monst, summonMinionsCtx); },
-    };
-
-    // ── Blink AI context — wires monsterBlinkToPreferenceMap / monsterBlinkToSafety ─
-    const blinkCtx: MonsterBlinkContext = {
-        boltCatalog,
-        monsterHasBoltEffect: (monst, effectType) => monsterHasBoltEffectFn(monst, effectType, boltCatalog),
-        monsterAvoids: () => false,     // stub — wired in monsters.ts
-        canDirectlySeeMonster: (m) => canDirectlySeeMonsterFn(m, queryCtx),
-        monsterName: (m, includeArticle) => {
-            if (m === player) return "you";
-            const pfx = includeArticle
-                ? (m.creatureState === CreatureState.Ally ? "your " : "the ")
-                : "";
-            return `${pfx}${m.info.monsterName}`;
-        },
-        combatMessage: io.combatMessage,
-        cellHasTerrainFlag: (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags),
-        zap: () => {},                  // stub — wired in port-v2-platform
-        BE_BLINKING: BoltEffect.Blinking,
-        BOLT_BLINKING: BoltType.BLINKING,
-        MONST_CAST_SPELLS_SLOWLY: MonsterBehaviorFlag.MONST_CAST_SPELLS_SLOWLY,
-    };
-
-    const blinkToSafetyCtx: MonsterBlinkToSafetyContext = {
-        ...blinkCtx,
-        allySafetyMap: allocGrid(),     // stub — real map wired in port-v2-platform
-        rogue: {
-            updatedAllySafetyMapThisTurn: rogue.updatedAllySafetyMapThisTurn,
-            updatedSafetyMapThisTurn: rogue.updatedSafetyMapThisTurn,
-        },
-        player,
-        safetyMap: localSafetyMap,
-        inFieldOfView: (loc) => !!(pmap[loc.x]?.[loc.y]?.flags & TileFlag.IN_FIELD_OF_VIEW),
-        allocGrid,
-        copyGrid,
-        updateSafetyMap: () => {},      // stub — SafetyMapsContext wired in port-v2-platform
-        updateAllySafetyMap: () => {},  // stub — SafetyMapsContext wired in port-v2-platform
-    };
-
-    // ── Bolt AI context — wires monstUseMagic / monstUseBolt ────────────────
-    const boltAICtx: BoltAIContext = {
-        player,
-        monsters,
-        rogue,
-        boltCatalog,
-        tileCatalog,
-        dungeonFeatureCatalog,
-        monsterCatalog,
-        rng: { randPercent },
-        openPathBetween: (loc1, loc2) =>
-            openPathBetweenFn(
-                loc1, loc2,
-                (loc) => cellHasTerrainFlagFn(pmap, loc, TerrainFlag.T_OBSTRUCTS_PASSABILITY),
-            ),
-        cellHasTerrainFlag: (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags),
-        inFieldOfView: (loc) => !!(pmap[loc.x]?.[loc.y]?.flags & TileFlag.IN_FIELD_OF_VIEW),
-        canDirectlySeeMonster: (m) => canDirectlySeeMonsterFn(m, queryCtx),
-        monsterIsHidden: (target, viewer) => monsterIsHiddenFn(target, viewer, queryCtx),
-        monstersAreTeammates: (a, b) => monstersAreTeammatesFn(a, b, player),
-        monstersAreEnemies: (a, b) =>
-            monstersAreEnemiesFn(a, b, player, (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags)),
-        canSeeMonster: (m) => canSeeMonsterFn(m, queryCtx),
-        burnedTerrainFlagsAtLoc: () => 0,   // stub — burnedTerrainFlagsAtLoc not yet ported
-        avoidedFlagsForMonster,
-        distanceBetween,
-        monsterName: (m, includeArticle) => {
-            if (m === player) return "you";
-            const pfx = includeArticle
-                ? (m.creatureState === CreatureState.Ally ? "your " : "the ")
-                : "";
-            return `${pfx}${m.info.monsterName}`;
-        },
-        resolvePronounEscapes: (text) => text,  // stub — wired in combat.ts
-        combatMessage: io.combatMessage,
-        zap: () => {},                          // stub — wired in port-v2-platform
-        gameOver: (msg) => gameOver(msg),
-        monsterSummons: (monst, alwaysUse) => monsterSummonsFn(monst, alwaysUse, summonsCtx),
-    };
-
-    return {
-        player,
-        monsters,
-        rng: { randRange, randPercent: (pct) => randPercent(pct) },
-
-        // ── Map access ────────────────────────────────────────────────────────
-        cellHasTerrainFlag: (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags),
-        cellHasTMFlag: (loc, flags) => cellHasTMFlagFn(pmap, loc, flags),
-        cellFlags: (loc) => pmap[loc.x]?.[loc.y]?.flags ?? 0,
-        inFieldOfView: (loc) => !!(pmap[loc.x]?.[loc.y]?.flags & TileFlag.IN_FIELD_OF_VIEW),
-
-        // ── Monster state (stubs — wired in monsters.ts) ──────────────────────
-        updateMonsterState: () => {},
-        moveMonster: () => false,
-        moveMonsterPassivelyTowards: () => false,
-        monsterAvoids: () => false,
-        monstUseMagic: (monst) => monstUseMagicFn(monst, boltAICtx),
-        monsterHasBoltEffect: (monst, effectType) => monsterHasBoltEffectFn(monst, effectType, boltCatalog),
-        monsterBlinkToPreferenceMap: (monst, map, blinkUphill) =>
-            monsterBlinkToPreferenceMapFn(monst, map, blinkUphill, blinkCtx),
-        monsterBlinkToSafety: (monst) => monsterBlinkToSafetyFn(monst, blinkToSafetyCtx),
-        monsterSummons: (monst, alwaysUse) => monsterSummonsFn(monst, alwaysUse, summonsCtx),
-        monsterCanShootWebs: (monst) => monsterCanShootWebsFn(monst, boltCatalog, tileCatalog, dungeonFeatureCatalog),
-        updateMonsterCorpseAbsorption: () => false,
-        spawnDungeonFeature: () => {},
-        applyInstantTileEffectsToCreature: () => {},
-        makeMonsterDropItem: () => {},
-
-        // ── Pathfinding (stubs) ───────────────────────────────────────────────
-        scentDirection: () => -1,
-        isLocalScentMaximum: () => false,
-        pathTowardCreature: () => {},
-        nextStep: () => -1,
-        getSafetyMap: (monst) => getSafetyMapFn(monst, {
-            player,
-            safetyMap: localSafetyMap,
-            rogue: { updatedSafetyMapThisTurn: rogue.updatedSafetyMapThisTurn },
-            inFieldOfView: (loc) => !!(pmap[loc.x]?.[loc.y]?.flags & TileFlag.IN_FIELD_OF_VIEW),
-            allocGrid,
-            copyGrid,
-            updateSafetyMap: () => {},   // stub — SafetyMapsContext wired in port-v2-platform
-        }),
-        traversiblePathBetween: () => false,
-        monsterWillAttackTarget: () => false,
-
-        // ── Wandering (stubs) ─────────────────────────────────────────────────
-        chooseNewWanderDestination: () => {},
-        isValidWanderDestination: () => false,
-        waypointDistanceMap: () => allocGrid(),
-        wanderToward: () => {},
-        randValidDirectionFrom: () => -1,
-        monsterMillAbout: () => {},
-        moveAlly: () => {},
-
-        // ── Direction data ────────────────────────────────────────────────────
-        nbDirs,
-        NO_DIRECTION: -1,
-
-        // ── Map dimensions ────────────────────────────────────────────────────
-        DCOLS, DROWS,
-
-        // ── Misc (stubs) ──────────────────────────────────────────────────────
-        diagonalBlocked: () => false,
-        mapToSafeTerrain: rogue.mapToSafeTerrain,
-        updateSafeTerrainMap: () => {},
-        scentMap: allocGrid(),
-
-        // ── Flags ─────────────────────────────────────────────────────────────
-        IN_FIELD_OF_VIEW: TileFlag.IN_FIELD_OF_VIEW,
-        MB_GIVEN_UP_ON_SCENT: MonsterBookkeepingFlag.MB_GIVEN_UP_ON_SCENT,
-        MONST_CAST_SPELLS_SLOWLY: MonsterBehaviorFlag.MONST_CAST_SPELLS_SLOWLY,
-        BE_BLINKING: BoltEffect.Blinking,
-    };
-}
+// buildMonstersTurnContext is in turn-monster-ai.ts (re-exported below)
+export { buildMonstersTurnContext } from "./turn-monster-ai.js";
 
 // Re-export for use by other domain files
 export { buildTurnProcessingContext as buildTurnCtx };
