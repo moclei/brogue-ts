@@ -360,6 +360,20 @@ it.skip("stub: terrainFlags() returns 0 in input context (should delegate to sta
     // for a given cell — used by movement collision and traversal checks.
 });
 
+it.skip("divergence: knownToPlayerAsPassableOrSecretDoor returns false for undiscovered cells (C uses actual terrain flags)", () => {
+    // C (Monsters.c:3668): getLocationFlags(loc, &tFlags, &TMFlags, NULL, true)
+    // For undiscovered cells (!DISCOVERED && !MAGIC_MAPPED), C's getLocationFlags falls
+    // through to the else branch and returns actual terrain flags. An undiscovered passable
+    // cell returns true (no known obstruction).
+    //
+    // TS (movement.ts:431): checks (DISCOVERED | MAGIC_MAPPED) first and returns false if
+    // neither is set — so undiscovered cells are always considered impassable.
+    //
+    // In practice this divergence is harmless: populateCreatureCostMap marks undiscovered
+    // cells as PDS_OBSTRUCTION, so pathfinding never routes through them. The TS extra
+    // guard is a safe over-approximation — keep as-is, no fix needed.
+});
+
 it.skip("stub: terrainMechFlags() returns 0 in input context (should delegate to state/helpers terrainMechFlags)", () => {
     // C: Globals.c:590 — terrainMechFlags()
     // io/input-context.ts:248 has a `() => 0` context stub.

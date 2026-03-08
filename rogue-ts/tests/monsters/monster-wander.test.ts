@@ -2,8 +2,8 @@
  *  monster-wander.test.ts — Tests for wander-destination and scent-tracking functions
  *  brogue-ts
  *
- *  Covers: isValidWanderDestination, isLocalScentMaximum, scentDirection
- *  Ported from Monsters.c (Phase 3a NEEDS-VERIFICATION)
+ *  Covers: isValidWanderDestination, isLocalScentMaximum, scentDirection, wanderToward
+ *  Ported from Monsters.c (Phase 3a–3b NEEDS-VERIFICATION)
  */
 
 import { describe, it, expect } from "vitest";
@@ -11,9 +11,11 @@ import {
     isValidWanderDestination,
     isLocalScentMaximum,
     scentDirection,
+    wanderToward,
 } from "../../src/monsters/monster-actions.js";
 import type {
     WanderContext,
+    WanderTowardContext,
     LocalScentContext,
     ScentDirectionContext,
 } from "../../src/monsters/monster-actions.js";
@@ -265,5 +267,59 @@ describe("scentDirection", () => {
         const dir = scentDirection(monst, ctx);
         // After diffusion, north (5,4) gains scent 11 > 10 → dir 0
         expect(dir).toBe(0);
+    });
+});
+
+// =============================================================================
+// wanderToward — Monsters.c:1699
+// =============================================================================
+
+describe("wanderToward", () => {
+    function makeWanderTowardCtx(
+        closestIndex: number = 2,
+        overrides?: Partial<WanderTowardContext>,
+    ): WanderTowardContext {
+        return {
+            DCOLS: 79,
+            DROWS: 29,
+            waypointCount: 5,
+            waypointDistanceMap: () => null,
+            closestWaypointIndexTo: () => closestIndex,
+            ...overrides,
+        };
+    }
+
+    it("sets targetWaypointIndex to closest waypoint near destination", () => {
+        const monst = makeMonster();
+        monst.waypointAlreadyVisited = new Array(5).fill(true);
+        const ctx = makeWanderTowardCtx(3);
+        wanderToward(monst, { x: 20, y: 10 }, ctx);
+        expect(monst.targetWaypointIndex).toBe(3);
+    });
+
+    it("clears waypointAlreadyVisited for the selected waypoint", () => {
+        const monst = makeMonster();
+        monst.waypointAlreadyVisited = new Array(5).fill(true);
+        const ctx = makeWanderTowardCtx(2);
+        wanderToward(monst, { x: 20, y: 10 }, ctx);
+        expect(monst.waypointAlreadyVisited[2]).toBe(false);
+        // Other waypoints unchanged
+        expect(monst.waypointAlreadyVisited[0]).toBe(true);
+    });
+
+    it("does nothing when destination is out of map bounds", () => {
+        const monst = makeMonster();
+        monst.targetWaypointIndex = 99;
+        const ctx = makeWanderTowardCtx(1);
+        wanderToward(monst, { x: -1, y: 5 }, ctx);
+        expect(monst.targetWaypointIndex).toBe(99); // unchanged
+    });
+
+    it("does nothing when closestWaypointIndexTo returns -1", () => {
+        const monst = makeMonster();
+        monst.targetWaypointIndex = 99;
+        const ctx = makeWanderTowardCtx(-1);
+        wanderToward(monst, { x: 20, y: 10 }, ctx);
+        expect(monst.targetWaypointIndex).toBe(99); // unchanged
     });
 });

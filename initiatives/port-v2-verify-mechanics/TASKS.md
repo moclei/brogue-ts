@@ -97,7 +97,7 @@ Functions in scope (10):
 - [x] `getRandomMonsterSpawnLocation`: not a standalone TS export — test.skip added describing the gap
 - [x] Commit; generate handoff
 
-## Phase 3b: NEEDS-VERIFICATION — Monsters.c movement AI
+## Phase 3b: NEEDS-VERIFICATION — Monsters.c movement AI ✓
 
 *Highest-risk subset: these could have silent behavioral simplifications vs C.*
 
@@ -106,13 +106,21 @@ Functions in scope (10):
 `moveMonster`, `monsterMillAbout`, `moveAlly`, `knownToPlayerAsPassableOrSecretDoor`,
 `setPlayerDisplayChar`, `makeMonsterDropItem`
 
-- [ ] For each function: confirm TS matches C, add direct test, or fix divergence + add test.skip
-- [ ] Note: `moveMonster` wiring is stubbed in turn.test.ts:171 — verify the domain function
-      itself is correct even if wiring is pending
-- [ ] Note: `makeMonsterDropItem` is implemented as a simplified inline in monsters.ts:231 —
-      verify the simplification is faithful (only drops carriedItem; check if C does more)
-- [ ] Note: `moveAlly` has no direct test — verify or add test.skip describing gap
-- [ ] Commit; generate handoff
+- [x] For each function: confirm TS matches C, add direct test, or fix divergence + add test.skip
+- [x] Note: `moveMonster` wiring is stubbed in turn.test.ts:171 — domain function verified correct
+- [x] Note: `makeMonsterDropItem` simplified inline — test.skip added (drops at monster loc,
+      C uses getQualifyingPathLocNear to find valid drop cell; monster-ai-movement.test.ts)
+- [x] Note: `moveAlly` — multiple divergences documented with test.skip entries:
+      missing BE_BLINKING guard in flee-blink path; wrong leash condition (enemy dist vs player
+      dist); missing MONST_MAINTAINS_DISTANCE, attackWouldBeFutile; missing corpse-eating branch
+      and scent-follow return-to-leader path
+- [x] Note: `traversiblePathBetween` — Bresenham vs bolt getLineCoordinates, test.skip added
+- [x] Note: `knownToPlayerAsPassableOrSecretDoor` — undiscovered-cell divergence noted
+      (harmless in practice), test.skip in movement.test.ts
+- [x] New files: monster-ai-movement.test.ts (26 pass / 5 skip), game.test.ts (3 pass)
+- [x] Extended: monster-wander.test.ts (+4 wanderToward tests), movement.test.ts (+1 skip)
+- [x] 84 files, 2074 pass, 125 skip
+- [x] Commit; generate handoff
 
 ---
 
