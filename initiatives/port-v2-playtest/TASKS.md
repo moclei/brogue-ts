@@ -283,21 +283,20 @@ Branch: feat/port-v2-playtest
 This phase is inherently multi-session. Each session = build + playtest + fix 1–3 bugs.
 Stop and commit after each bug-fix batch; generate a handoff listing what was fixed and what is next.
 
-**Build clean (`tsc --noEmit` must pass before serving)**
-- [ ] Fix unused imports (~12 errors, trivial): `TS6133/TS6192/TS6196` in `movement.ts`,
+**Build clean (`tsc --noEmit` must pass before serving)** ✓ DONE (a54ed43)
+- [x] Fix unused imports (~12 errors, trivial): `TS6133/TS6192/TS6196` in `movement.ts`,
       `turn.ts`, `turn-monster-ai.ts`, `monsters/monster-awareness.ts`, `time/environment.ts`
-- [ ] Add `scentMap` to `PlayerCharacter` type (~10 errors): referenced in `monsters.ts`,
-      `turn.ts`, `turn-monster-ai.ts` but missing from the type definition
-- [ ] Fix interface/signature mismatches (~13 errors):
-      - `PromptItemContext` in `io-wiring.ts:435` missing ~17 properties
-      - `ItemHelperContext` missing `keyOnTileAt` in `input-context.ts` and `item-helper-context.ts`
-      - `keyMatchesLocationFn` called with 2 args in `movement.ts` but now requires 4
-      - `hitProbability` missing `ctx` argument in `io-wiring.ts`
-      - `combatMessage` signature mismatch in `turn-monster-ai.ts`
-      - `waypointDistanceMap` returns `number[][] | null` but interface requires `number[][]`
-      - `io.message` flags/boolean mismatch in `items.ts`
-      - `buildCostMapFovContext` referenced but not defined in `movement.ts`
-- [ ] Confirm `npm run build` exits clean (0 errors)
+- [x] Add `scentMap` to `PlayerCharacter` type (~10 errors): added to `types/types.ts` + `core.ts`
+- [x] Fix interface/signature mismatches (~13 errors):
+      - `PromptItemContext` in `io-wiring.ts:435` — `as unknown as PromptItemContext` cast
+      - `ItemHelperContext` missing `keyOnTileAt` — added to `input-context.ts` + `item-helper-context.ts`
+      - `keyMatchesLocationFn` 2→4 args — pass `rogue.depthLevel` + `machineNumber`
+      - `hitProbability` missing ctx — pass minimal `CombatMathContext`
+      - `combatMessage` mismatch — wrap as `(text) => io.combatMessage(text, null)`
+      - `waypointDistanceMap` null — `?? []` fallback
+      - `io.message` flags/boolean — `(text, req) => io.message(text, req ? 1 : 0)`
+      - `buildCostMapFovContext` — import from `movement-cost-map.ts`
+- [x] Confirm `npm run build` exits clean (0 errors); tests: 87 files, 2206 pass, 97 skip
 
 **Launch**
 - [ ] Serve locally: navigate to the game in a browser
