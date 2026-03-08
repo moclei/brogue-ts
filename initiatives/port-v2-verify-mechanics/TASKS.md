@@ -20,19 +20,19 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 - [x] Document decisions in a `## Session Notes` in PLAN.md
 - [x] Commit notes; generate handoff
 
-## Phase 1b: Targeting UI — pure helpers
+## Phase 1b: Targeting UI — pure helpers ✓
 
 *Implement the four smaller/independent targeting functions.*
 
-- [ ] Implement `itemCanBeCalled` (Items.c:1314, ~20 lines) — pure predicate; no context needed
-- [ ] Implement `inscribeItem` (Items.c:1292, ~30 lines) — async dialog; needs message + input context
-- [ ] Implement `moveCursor` (Items.c:5372) — moves targeting reticle one step on the map;
+- [x] Implement `itemCanBeCalled` (Items.c:1314, ~20 lines) — pure predicate; no context needed
+- [x] Implement `inscribeItem` (Items.c:1292, ~30 lines) — async dialog; needs message + input context
+- [x] Implement `moveCursor` (Items.c:5372) — moves targeting reticle one step on the map;
       wire into io/input-context.ts
-- [ ] Implement `nextTargetAfter` (Items.c:5281) — advances cursor to next visible hostile
-- [ ] Add unit tests for all four; export from relevant index
-- [ ] Remove any test.skip entries now unblocked
-- [ ] All files under 600 lines
-- [ ] Commit; generate handoff
+- [x] Implement `nextTargetAfter` (Items.c:5281) — advances cursor to next visible hostile
+- [x] Add unit tests for all four; export from relevant index
+- [x] Remove any test.skip entries now unblocked
+- [x] All files under 600 lines
+- [x] Commit; generate handoff
 
 ## Phase 1c: Targeting UI — display helpers
 

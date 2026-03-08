@@ -215,7 +215,7 @@ export async function mainInputLoop(ctx: InputContext): Promise<void> {
             ctx.rogue.playbackMode = playingBack;
             const cursorLocRef = { value: { ...ctx.rogue.cursorLoc } };
             const theEventRef = { value: theEvent };
-            doEvent = ctx.moveCursor(
+            doEvent = await ctx.moveCursor(
                 targetConfirmed, canceledRef, tabKey,
                 cursorLocRef, theEventRef, state,
                 !textDisplayed, ctx.rogue.cursorMode, true,

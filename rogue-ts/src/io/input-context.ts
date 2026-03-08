@@ -35,8 +35,16 @@ import {
     coordinatesAreInMap, nbDirs,
 } from "../globals/tables.js";
 import { distanceBetween } from "../monsters/monster-state.js";
+import { wandDominate } from "../power/power-tables.js";
+import { openPathBetween } from "../items/bolt-geometry.js";
+import { negationWillAffectMonster } from "../items/bolt-helpers.js";
+import { boltCatalog } from "../globals/bolt-catalog.js";
+import { mutationCatalog } from "../globals/mutation-catalog.js";
+import { monstersAreTeammates as monstersAreTeammatesFn } from "../monsters/monster-queries.js";
+import { cellHasTerrainFlag as cellHasTerrainFlagFn } from "../state/helpers.js";
 import { cellHasTMFlag as cellHasTMFlagFn } from "../state/helpers.js";
-import { EventType, StatusEffect, ALL_ITEMS } from "../types/enums.js";
+import { moveCursor as moveCursorFn, nextTargetAfter as nextTargetAfterFn } from "./cursor-move.js";
+import { EventType, AutoTargetMode, StatusEffect, ALL_ITEMS } from "../types/enums.js";
 import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MessageFlag } from "../types/flags.js";
 import type { InputContext } from "./input-keystrokes.js";
 import type { PlayerRunContext } from "../movement/player-movement.js";
@@ -54,8 +62,6 @@ function fakeEvent(): RogueEvent {
     };
 }
 
-// AUTOTARGET_MODE_EXPLORE = 3 (C enum starting at 0)
-const AUTOTARGET_MODE_EXPLORE = 3;
 
 // =============================================================================
 // buildInputContext — IO.c / RogueMain.c
@@ -225,9 +231,64 @@ export function buildInputContext(): InputContext {
         printFloorItemDetails: () => {},
         printLocationDescription: () => {},
 
-        // ── Targeting / cursor (stubs — wired in Phase 5) ────────────────────
-        moveCursor: () => false,
-        nextTargetAfter: () => false,
+        // ── Targeting / cursor ────────────────────────────────────────────────
+        moveCursor: async (targetConfirmed, canceled, tabKey, cursorLoc, theEvent, state, colorsDance, keysMoveCursor, targetCanLeaveMap) =>
+            moveCursorFn(
+                targetConfirmed, canceled, tabKey, cursorLoc, theEvent, state,
+                colorsDance, keysMoveCursor, targetCanLeaveMap,
+                {
+                    rogue,
+                    nextKeyOrMouseEvent: () => ({ eventType: EventType.EventError, param1: 0, param2: 0, controlKey: false, shiftKey: false }),
+                    createScreenDisplayBuffer: () => ({ cells: [] } as never),
+                    clearDisplayBuffer: () => {},
+                    saveDisplayBuffer: () => ({ savedScreen: displayBuffer }),
+                    overlayDisplayBuffer: () => {},
+                    restoreDisplayBuffer: () => {},
+                    drawButtonsInState: () => {},
+                    processButtonInput: async () => -1,
+                    refreshSideBar: () => {},
+                    pmapFlagsAt: (loc) => pmap[loc.x]?.[loc.y]?.flags ?? 0,
+                    canSeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+                    monsterAtLoc: (loc) => {
+                        if (loc.x === player.loc.x && loc.y === player.loc.y) return player;
+                        for (const m of monsters) {
+                            if (m.loc.x === loc.x && m.loc.y === loc.y) return m;
+                        }
+                        return null;
+                    },
+                    playerCanSeeOrSense: () => false,
+                    cellHasTMFlag: (loc, flag) => cellHasTMFlagFn(pmap, loc, flag),
+                    coordinatesAreInMap,
+                    isPosInMap: (loc) => coordinatesAreInMap(loc.x, loc.y),
+                    mapToWindowX,
+                    windowToMapX,
+                    windowToMapY,
+                },
+            ),
+        nextTargetAfter: (item, outLoc, currentLoc, mode, reverse) =>
+            nextTargetAfterFn(item, outLoc, currentLoc, mode as AutoTargetMode, reverse, {
+                player,
+                rogue,
+                boltCatalog,
+                monstersAreTeammates: (a, b) => monstersAreTeammatesFn(a, b, player),
+                canSeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+                openPathBetween: (from, to) => openPathBetween(from, to,
+                    (loc) => cellHasTerrainFlagFn(pmap, loc, TerrainFlag.T_OBSTRUCTS_PASSABILITY)),
+                distanceBetween,
+                wandDominate: (hp, max) => wandDominate(hp, max),
+                negationWillAffectMonster: (m, isBolt) =>
+                    negationWillAffectMonster(m, isBolt, boltCatalog, mutationCatalog),
+                isPosInMap: (loc) => coordinatesAreInMap(loc.x, loc.y),
+                posEq: (a, b) => a.x === b.x && a.y === b.y,
+                monsterAtLoc: (loc) => {
+                    if (loc.x === player.loc.x && loc.y === player.loc.y) return player;
+                    for (const m of monsters) {
+                        if (m.loc.x === loc.x && m.loc.y === loc.y) return m;
+                    }
+                    return null;
+                },
+                itemAtLoc,
+            }),
         hilitePath: () => {},
         clearCursorPath: () => {},
         hiliteCell: () => {},
@@ -264,7 +325,7 @@ export function buildInputContext(): InputContext {
         displayWaypoints: () => {},
 
         // ── Constants ─────────────────────────────────────────────────────────
-        AUTOTARGET_MODE_EXPLORE,
+        AUTOTARGET_MODE_EXPLORE: AutoTargetMode.Explore,
         TM_LIST_IN_SIDEBAR: TerrainMechFlag.TM_LIST_IN_SIDEBAR,
         TM_PROMOTES_ON_PLAYER_ENTRY: TerrainMechFlag.TM_PROMOTES_ON_PLAYER_ENTRY,
         T_OBSTRUCTS_PASSABILITY: TerrainFlag.T_OBSTRUCTS_PASSABILITY,

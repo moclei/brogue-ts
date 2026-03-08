@@ -193,8 +193,13 @@ export {
     keyMatchesLocation,
     monsterClassHasAcidicMonster,
     beckonMonster,
+    itemCanBeCalled,
 } from "./item-utils.js";
 export type { BeckonMonsterContext } from "./item-utils.js";
+
+// ── Item call / inscription (Phase 1b) ──
+export { inscribeItem } from "./item-call.js";
+export type { InscribeContext } from "./item-call.js";
 
 // ── Throw system (Phase 6) ──
 export { hitMonsterWithProjectileWeapon, throwItem } from "./throw-item.js";

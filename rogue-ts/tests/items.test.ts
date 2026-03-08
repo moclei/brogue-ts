@@ -262,19 +262,6 @@ it.skip("stub: playerCancelsBlinking() always returns true (should let player ab
 });
 
 
-it.skip("stub: nextTargetAfter() always returns false (should cycle targeting cursor to next monster)", () => {
-    // C: Items.c:5281 — nextTargetAfter()
-    // io/input-context.ts:230 has a `() => false` context stub.
-    // Real implementation should advance the targeting cursor to the next visible
-    // hostile monster in line-of-sight order.
-});
-
-it.skip("stub: moveCursor() always returns false (should move the targeting cursor one step)", () => {
-    // C: Items.c:5372 — moveCursor()
-    // io/input-context.ts:229 has a `() => false` context stub.
-    // Real implementation should move the targeting reticle by one cell in the
-    // given direction and update the map highlight.
-});
 
 it.skip("stub: chooseTarget() returns an invalid position (should run the bolt targeting UI loop)", () => {
     // C: Items.c:5607 — chooseTarget()

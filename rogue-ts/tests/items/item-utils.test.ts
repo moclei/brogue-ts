@@ -1,7 +1,7 @@
 /*
  *  item-utils.test.ts — Tests for lotteryDraw, describeMonsterClass,
  *                        keyMatchesLocation, monsterClassHasAcidicMonster,
- *                        beckonMonster
+ *                        beckonMonster, itemCanBeCalled
  *  brogue-ts
  */
 
@@ -12,9 +12,10 @@ import {
     keyMatchesLocation,
     monsterClassHasAcidicMonster,
     beckonMonster,
+    itemCanBeCalled,
     type BeckonMonsterContext,
 } from "../../src/items/item-utils.js";
-import { MonsterType, StatusEffect, CreatureState, BoltType, BoltEffect } from "../../src/types/enums.js";
+import { MonsterType, StatusEffect, CreatureState, BoltType, BoltEffect, ItemCategory } from "../../src/types/enums.js";
 import {
     MonsterBehaviorFlag, MonsterBookkeepingFlag, ItemFlag, TileFlag,
 } from "../../src/types/flags.js";
@@ -381,5 +382,48 @@ describe("beckonMonster", () => {
 
         // Monster should not land on the player's cell
         expect(monst.loc.x !== player.loc.x || monst.loc.y !== player.loc.y).toBe(true);
+    });
+});
+
+// =============================================================================
+// itemCanBeCalled
+// =============================================================================
+
+describe("itemCanBeCalled", () => {
+    it("returns true for WEAPON", () => {
+        expect(itemCanBeCalled(makeItem({ category: ItemCategory.WEAPON }))).toBe(true);
+    });
+    it("returns true for ARMOR", () => {
+        expect(itemCanBeCalled(makeItem({ category: ItemCategory.ARMOR }))).toBe(true);
+    });
+    it("returns true for SCROLL", () => {
+        expect(itemCanBeCalled(makeItem({ category: ItemCategory.SCROLL }))).toBe(true);
+    });
+    it("returns true for RING", () => {
+        expect(itemCanBeCalled(makeItem({ category: ItemCategory.RING }))).toBe(true);
+    });
+    it("returns true for POTION", () => {
+        expect(itemCanBeCalled(makeItem({ category: ItemCategory.POTION }))).toBe(true);
+    });
+    it("returns true for STAFF", () => {
+        expect(itemCanBeCalled(makeItem({ category: ItemCategory.STAFF }))).toBe(true);
+    });
+    it("returns true for WAND", () => {
+        expect(itemCanBeCalled(makeItem({ category: ItemCategory.WAND }))).toBe(true);
+    });
+    it("returns true for CHARM", () => {
+        expect(itemCanBeCalled(makeItem({ category: ItemCategory.CHARM }))).toBe(true);
+    });
+    it("returns false for FOOD", () => {
+        expect(itemCanBeCalled(makeItem({ category: ItemCategory.FOOD }))).toBe(false);
+    });
+    it("returns false for GOLD", () => {
+        expect(itemCanBeCalled(makeItem({ category: ItemCategory.GOLD }))).toBe(false);
+    });
+    it("returns false for AMULET", () => {
+        expect(itemCanBeCalled(makeItem({ category: ItemCategory.AMULET }))).toBe(false);
+    });
+    it("returns false for GEM", () => {
+        expect(itemCanBeCalled(makeItem({ category: ItemCategory.GEM }))).toBe(false);
     });
 });

@@ -66,6 +66,7 @@ export interface InputRogueState {
     cursorMode: boolean;
     cursorLoc: Pos;
     cursorPathIntensity: number;
+    sidebarLocationList: Pos[];
     upLoc: Pos;
     downLoc: Pos;
     playerTurnNumber: number;
@@ -197,11 +198,11 @@ export interface InputContext {
         cursorLoc: { value: Pos },
         theEvent: { value: RogueEvent },
         state: ButtonState,
-        doButtons: boolean,
-        cursorMode: boolean,
-        restingAllowed: boolean,
-    ): boolean;
-    nextTargetAfter(monst: Creature | null, outLoc: { value: Pos }, currentLoc: Pos, mode: number, reverse: boolean): boolean;
+        colorsDance: boolean,
+        keysMoveCursor: boolean,
+        targetCanLeaveMap: boolean,
+    ): Promise<boolean>;
+    nextTargetAfter(theItem: Item | null, outLoc: { value: Pos }, currentLoc: Pos, mode: number, reverse: boolean): boolean;
     hilitePath(path: Pos[], steps: number, unhilite: boolean): void;
     clearCursorPath(): void;
     hiliteCell(x: number, y: number, color: Readonly<Color>, opacity: number, flash: boolean): void;

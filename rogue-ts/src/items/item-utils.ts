@@ -3,7 +3,7 @@
  *  brogue-ts
  *
  *  Functions: lotteryDraw, describeMonsterClass, keyMatchesLocation,
- *             monsterClassHasAcidicMonster, beckonMonster
+ *             monsterClassHasAcidicMonster, beckonMonster, itemCanBeCalled
  *
  *  Ported from Items.c:
  *    lotteryDraw              (6857)
@@ -11,6 +11,7 @@
  *    keyMatchesLocation       (3305)
  *    monsterClassHasAcidicMonster (1869)
  *    beckonMonster            (4322)
+ *    itemCanBeCalled          (1314)
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -20,7 +21,7 @@
 
 import type { Creature, Item, MonsterClass, Pos, Bolt, Pcell } from "../types/types.js";
 import type { CreatureType } from "../types/types.js";
-import { BoltType } from "../types/enums.js";
+import { BoltType, ItemCategory } from "../types/enums.js";
 import {
     MonsterBookkeepingFlag, MonsterBehaviorFlag, TileFlag, TerrainFlag, ItemFlag,
 } from "../types/flags.js";
@@ -243,4 +244,27 @@ export function beckonMonster(
     if (monst.ticksUntilTurn < ctx.player.attackSpeed + 1) {
         monst.ticksUntilTurn = ctx.player.attackSpeed + 1;
     }
+}
+
+// =============================================================================
+// itemCanBeCalled — from Items.c:1314
+// =============================================================================
+
+/**
+ * Returns true if an item can be given a custom name via the 'call' command.
+ * Equippable/consumable items (weapon, armor, scroll, ring, potion, staff, wand,
+ * charm) all qualify; food, gold, amulet, gem, and key do not.
+ *
+ * C: boolean itemCanBeCalled(item *theItem)
+ *    — Items.c:1314
+ *
+ * @param theItem The item to test.
+ * @returns       true if the item category supports custom naming.
+ */
+export function itemCanBeCalled(theItem: Item): boolean {
+    return !!(theItem.category & (
+        ItemCategory.WEAPON | ItemCategory.ARMOR | ItemCategory.SCROLL |
+        ItemCategory.RING   | ItemCategory.POTION | ItemCategory.STAFF  |
+        ItemCategory.WAND   | ItemCategory.CHARM
+    ));
 }
