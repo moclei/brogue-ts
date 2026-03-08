@@ -70,6 +70,11 @@ import {
     buildMessageFns,
     buildRefreshDungeonCellFn,
 } from "../io-wiring.js";
+import {
+    printHelpScreen as printHelpScreenFn,
+    displayFeatsScreen as displayFeatsScreenFn,
+    printDiscoveriesScreen as printDiscoveriesScreenFn,
+} from "./overlay-screens.js";
 import { TURNS_FOR_FULL_REGEN, REST_KEY, SEARCH_KEY, DCOLS, DROWS } from "../types/constants.js";
 import { moveCursor as moveCursorFn, nextTargetAfter as nextTargetAfterFn } from "./cursor-move.js";
 import { commitDraws } from "../platform.js";
@@ -370,9 +375,9 @@ export function buildInputContext(): InputContext {
         refreshSideBar: () => {},
         displayInventory: async () => {},
         displayMessageArchive: () => {},
-        printHelpScreen: () => {},
-        displayFeatsScreen: () => {},
-        printDiscoveriesScreen: () => {},
+        printHelpScreen: () => { printHelpScreenFn(); },
+        displayFeatsScreen: () => { displayFeatsScreenFn(); },
+        printDiscoveriesScreen: () => { printDiscoveriesScreenFn(); },
         flashTemporaryAlert: () => {},
         displayMonsterFlashes: () => {},
         setGraphicsMode: (m) => m,

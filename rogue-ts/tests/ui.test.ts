@@ -407,25 +407,34 @@ it("shuffleTerrainColors() populates terrainRandomValues (Phase 7a)", () => {
     expect(found).toBe(true);
 });
 
-it.skip("stub: printHelpScreen() is a no-op (should render the in-game help overlay)", () => {
-    // C: IO.c:4066 — printHelpScreen()
-    // io/input-context.ts:177 has a `() => {}` stub.
-    // Real implementation should display the keybinding reference screen when
-    // the player presses '?'.
+it("printHelpScreen() renders help overlay without throwing (Phase 7b)", async () => {
+    // C: IO.c:4066 — printHelpScreen() now implemented in io/overlay-screens.ts.
+    // Saves displayBuffer, builds help text overlay, blends it, then restores.
+    // waitForAcknowledgment is a no-op stub until Phase 7c.
+    initGameState();
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    const ctx = buildInputContext();
+    expect(() => ctx.printHelpScreen()).not.toThrow();
 });
 
-it.skip("stub: displayFeatsScreen() is a no-op (should render the feats/achievements screen)", () => {
-    // C: IO.c:4188 — displayFeatsScreen()
-    // io/input-context.ts:178 has a `() => {}` stub.
-    // Real implementation should list all feats and their earned/unearned state
-    // in a full-screen overlay.
+it("displayFeatsScreen() renders feats overlay without throwing (Phase 7b)", async () => {
+    // C: IO.c:4188 — displayFeatsScreen() now implemented in io/overlay-screens.ts.
+    // Shows all feats from featCatalog with earned/unearned status.
+    // waitForKeystrokeOrMouseClick is a no-op stub until Phase 7c.
+    initGameState();
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    const ctx = buildInputContext();
+    expect(() => ctx.displayFeatsScreen()).not.toThrow();
 });
 
-it.skip("stub: printDiscoveriesScreen() is a no-op (should render item discoveries screen)", () => {
-    // C: IO.c:4240 — printDiscoveriesScreen() (calls printDiscoveries at IO.c:4139)
-    // io/input-context.ts:179 has a `() => {}` stub.
-    // Real implementation should display all identified/unidentified item kinds
-    // grouped by category.
+it("printDiscoveriesScreen() renders discoveries overlay without throwing (Phase 7b)", async () => {
+    // C: IO.c:4240 — printDiscoveriesScreen() now implemented in io/overlay-screens.ts.
+    // Shows all item kinds grouped by category (scrolls, rings, potions, staffs, wands).
+    // waitForKeystrokeOrMouseClick is a no-op stub until Phase 7c.
+    initGameState();
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    const ctx = buildInputContext();
+    expect(() => ctx.printDiscoveriesScreen()).not.toThrow();
 });
 
 it("printSeed() wired: displays seed via message system (Phase 7a)", async () => {

@@ -230,17 +230,22 @@ Branch: feat/port-v2-playtest
 
 ---
 
-## Phase 7b: Screen ports
+## Phase 7b: Screen ports ✓ DONE
 
 *Port help, feats, and discoveries overlay screens.*
 *After this sub-phase: `?` key shows help, feats screen accessible, discoveries list works.*
 
-- [ ] Port `printHelpScreen` from `IO.c` — help overlay text display
-- [ ] Port `displayFeatsScreen` from `IO.c/MainMenu.c` — feats/achievement list
-- [ ] Port `printDiscoveriesScreen` from `IO.c` — item discoveries list
-- [ ] Remove or activate test.skip entries now unblocked
-- [ ] All files under 600 lines; tests pass
-- [ ] Commit; generate handoff
+- [x] Port `printHelpScreen` from `IO.c` — implemented in `io/overlay-screens.ts`;
+      builds 33-line help text with encodeMessageColor escapes; overlays on displayBuffer;
+      waitForAcknowledgment is stub (Phase 7c)
+- [x] Port `displayFeatsScreen` from `IO.c` — implemented in `io/overlay-screens.ts`;
+      uses `featCatalog` (new `globals/feat-catalog.ts`); `featTable: []` → `featCatalog` in lifecycle.ts
+- [x] Port `printDiscoveriesScreen` from `IO.c` — implemented in `io/overlay-screens.ts`;
+      includes `printDiscoveries()` helper for each item category; uses mutable scroll/potion tables
+      and readonly ring/staff/wand tables; waitForKeystrokeOrMouseClick is stub (Phase 7c)
+- [x] Activated 3 test.skip entries in ui.test.ts (lines 410–429)
+- [x] All files under 600 lines; tests pass (87 files, 2203 pass, 100 skip)
+- [x] Commit; generate handoff
 
 ---
 

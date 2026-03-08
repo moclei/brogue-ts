@@ -29,6 +29,7 @@ import { lightCatalog } from "./globals/light-catalog.js";
 import { LightType, DungeonLayer, MonsterType, EventType, DisplayGlyph } from "./types/enums.js";
 import { meteredItemsGenerationTable, lumenstoneDistribution,
     scrollTable, potionTable } from "./globals/item-catalog.js";
+import { featCatalog } from "./globals/feat-catalog.js";
 import { autoGeneratorCatalog } from "./globals/autogenerator-catalog.js";
 import { blueprintCatalog } from "./globals/blueprint-catalog.js";
 import { hordeCatalog } from "./globals/horde-catalog.js";
@@ -171,7 +172,7 @@ export function buildGameInitContext(): GameInitContext {
 
     return {
         rogue, player, gameConst, gameVariant, monsterCatalog,
-        meteredItemsGenerationTable, featTable: [],
+        meteredItemsGenerationTable, featTable: featCatalog,
         lightCatalog, MINERS_LIGHT: LightType.MINERS_LIGHT,
         dynamicColorsBounds, dynamicColors,
         displayDetail, terrainRandomValues,
@@ -538,7 +539,7 @@ export function buildLifecycleContext(): LifecycleContext {
         loc, pmap, tmap, displayBuffer, rogue, player, monsters, dormantMonsters, floorItems,
         tileCatalog, dungeonFeatureCatalog, monsterCatalog, terrainRandomValues, displayDetail, scentMap ?? []);
     return {
-        rogue, player, gameConst, packItems, featTable: [],
+        rogue, player, gameConst, packItems, featTable: featCatalog,
         serverMode: false, nonInteractivePlayback: false,
         displayBuffer,
         clearDisplayBuffer: (d) => clearDisplayBuffer(d),
