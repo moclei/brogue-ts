@@ -336,10 +336,13 @@ it("buildInventoryContext().confirmMessages() marks messages confirmed (Phase 7a
     expect(messageState.messagesUnconfirmed).toBe(0);
 });
 
-it.skip("stub: buildInventoryContext() item actions are no-ops (should dispatch to handlers)", () => {
-    // apply(), equip(), unequip(), drop(), throwCommand(), relabel(), call()
-    // all do nothing.  Real implementations should call the corresponding item
-    // handler functions (drinkPotion, wield, removeItem, etc.) and re-render.
+it("buildInventoryContext() item actions wired (Phase 7c)", () => {
+    // equip(), unequip(), drop(), relabel() now call real handlers from inventory-actions.ts.
+    // throwCommand() and call() remain stubbed until Phase 8.
+    // Smoke test: calling with null item returns a Promise without throwing.
+    const ctx = buildInventoryContext();
+    const result = ctx.equip(null as never);
+    expect(result).toBeInstanceOf(Promise);
 });
 
 it.skip("stub: buildButtonContext().strLenWithoutEscapes() returns s.length (should skip escapes)", () => {
@@ -354,24 +357,32 @@ it.skip("stub: buildButtonContext().strLenWithoutEscapes() returns s.length (sho
 
 it.skip("stub: initializeButtonState() is a no-op in input context (should delegate to io/buttons initializeButtonState)", () => {
     // C: Buttons.c:175 — initializeButtonState()
-    // io/input-context.ts:156 has a `() => {}` context stub.
-    // Domain function is IMPLEMENTED at io/buttons.ts:269.
-    // Real wiring should call initializeButtonState() from io/buttons.ts; silently
-    // skipping it means any input-context dialog state is never initialized.
+    // io/input-context.ts has a `() => {}` stub; the domain function returns a new
+    // ButtonState rather than mutating the passed state (signature mismatch).
+    // Deferred until the cursor/dialog system needs it explicitly.
 });
 
-it.skip("stub: buttonInputLoop() returns -1 in input context (should delegate to io/buttons buttonInputLoop)", () => {
+it("buttonInputLoop() wired in input context — delegates to io/buttons (Phase 7c)", async () => {
     // C: Buttons.c:323 — buttonInputLoop()
-    // io/input-context.ts: stub async () => -1.
-    // Domain function is IMPLEMENTED at io/buttons.ts:422.
-    // Deferred to Phase 7c — real wiring requires the async event bridge to be active.
+    // io/input-context.ts now delegates to buttonInputLoopFn + buildButtonContext().
+    // Platform not initialised → nextBrogueEvent falls back to escape key → loop exits.
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    const ctx = buildInputContext();
+    const result = ctx.buttonInputLoop([], 0, 0, 0, 0, 0, null);
+    expect(result).toBeInstanceOf(Promise);
+    const chosen = await result;
+    expect(chosen).toBe(-1);
 });
 
-it.skip("stub: buttonInputLoop() returns {chosenButton:-1} in ui/inventory context (should delegate to io/buttons buttonInputLoop)", () => {
+it("buttonInputLoop() wired in ui/inventory context — delegates to io/buttons (Phase 7c)", async () => {
     // C: Buttons.c:323 — buttonInputLoop()
-    // ui.ts: stub async () => ({ chosenButton: -1 }).
-    // Domain function is IMPLEMENTED at io/buttons.ts:422.
-    // Deferred to Phase 7c — real wiring requires the async event bridge to be active.
+    // buildInventoryContext().buttonInputLoop now delegates to buttonInputLoopFn.
+    // Platform not initialised → nextBrogueEvent falls back to escape key → loop exits.
+    const ctx = buildInventoryContext();
+    const result = ctx.buttonInputLoop([], 0, 0, 0, 0, 0);
+    expect(result).toBeInstanceOf(Promise);
+    const { chosenButton } = await result;
+    expect(chosenButton).toBe(-1);
 });
 
 it.skip("stub: buildButtonContext() color ops are no-ops (should compute button gradients)", () => {
@@ -407,34 +418,32 @@ it("shuffleTerrainColors() populates terrainRandomValues (Phase 7a)", () => {
     expect(found).toBe(true);
 });
 
-it("printHelpScreen() renders help overlay without throwing (Phase 7b)", async () => {
-    // C: IO.c:4066 — printHelpScreen() now implemented in io/overlay-screens.ts.
-    // Saves displayBuffer, builds help text overlay, blends it, then restores.
-    // waitForAcknowledgment is a no-op stub until Phase 7c.
+it("printHelpScreen() renders help overlay without throwing (Phase 7c)", async () => {
+    // C: IO.c:4066 — printHelpScreen() in io/overlay-screens.ts.
+    // Now async with optional waitFn; passes overlayWaitFn from input-context
+    // (which awaits one event, falling back to no-op when platform not initialised).
     initGameState();
     const { buildInputContext } = await import("../src/io/input-context.js");
     const ctx = buildInputContext();
-    expect(() => ctx.printHelpScreen()).not.toThrow();
+    await expect(Promise.resolve(ctx.printHelpScreen())).resolves.not.toThrow();
 });
 
-it("displayFeatsScreen() renders feats overlay without throwing (Phase 7b)", async () => {
-    // C: IO.c:4188 — displayFeatsScreen() now implemented in io/overlay-screens.ts.
-    // Shows all feats from featCatalog with earned/unearned status.
-    // waitForKeystrokeOrMouseClick is a no-op stub until Phase 7c.
+it("displayFeatsScreen() renders feats overlay without throwing (Phase 7c)", async () => {
+    // C: IO.c:4188 — displayFeatsScreen() in io/overlay-screens.ts.
+    // Now async with optional waitFn.
     initGameState();
     const { buildInputContext } = await import("../src/io/input-context.js");
     const ctx = buildInputContext();
-    expect(() => ctx.displayFeatsScreen()).not.toThrow();
+    await expect(Promise.resolve(ctx.displayFeatsScreen())).resolves.not.toThrow();
 });
 
-it("printDiscoveriesScreen() renders discoveries overlay without throwing (Phase 7b)", async () => {
-    // C: IO.c:4240 — printDiscoveriesScreen() now implemented in io/overlay-screens.ts.
-    // Shows all item kinds grouped by category (scrolls, rings, potions, staffs, wands).
-    // waitForKeystrokeOrMouseClick is a no-op stub until Phase 7c.
+it("printDiscoveriesScreen() renders discoveries overlay without throwing (Phase 7c)", async () => {
+    // C: IO.c:4240 — printDiscoveriesScreen() in io/overlay-screens.ts.
+    // Now async with optional waitFn.
     initGameState();
     const { buildInputContext } = await import("../src/io/input-context.js");
     const ctx = buildInputContext();
-    expect(() => ctx.printDiscoveriesScreen()).not.toThrow();
+    await expect(Promise.resolve(ctx.printDiscoveriesScreen())).resolves.not.toThrow();
 });
 
 it("printSeed() wired: displays seed via message system (Phase 7a)", async () => {

@@ -6,11 +6,11 @@
  *               displayFeatsScreen (IO.c:4188), printDiscoveriesScreen (IO.c:4240)
  *
  *  Each function saves the current display buffer, builds a fresh overlay,
- *  blends it onto the screen, stubs the interactive wait (Phase 7c), and
- *  restores the buffer.
+ *  blends it onto the screen, awaits an optional waitFn (caller-supplied
+ *  async event wait), and restores the buffer.
  *
- *  waitForAcknowledgment / waitForKeystrokeOrMouseClick are no-ops here —
- *  see TASKS.md Phase 7c for the plan to wire real async event waits.
+ *  Pass waitFn = async () => { await waitForEvent(); } in production.
+ *  Omit waitFn in tests (overlay renders and restores immediately).
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -119,11 +119,11 @@ function printDiscoveries(
 
 /**
  * Display the in-game keybinding reference overlay.
+ * Pass waitFn to block until the player acknowledges (e.g. any key/click).
  *
  * C: `printHelpScreen` in IO.c:4066
- * waitForAcknowledgment is a no-op stub — see TASKS.md Phase 7c.
  */
-export function printHelpScreen(): void {
+export async function printHelpScreen(waitFn?: () => Promise<void>): Promise<void> {
     const { displayBuffer } = getGameState();
 
     const whiteEscape = encodeMessageColor(white);
@@ -179,10 +179,8 @@ export function printHelpScreen(): void {
     }
 
     applyOverlay(displayBuffer, dbuf);
-    // waitForAcknowledgment() — stub until Phase 7c
+    if (waitFn) await waitFn();
     restoreDisplayBuffer(displayBuffer, rbuf);
-    // updateFlavorText() — stub
-    // updateMessageDisplay() — stub
 }
 
 // =============================================================================
@@ -191,11 +189,11 @@ export function printHelpScreen(): void {
 
 /**
  * Display the feats/achievements overlay screen.
+ * Pass waitFn to block until the player acknowledges.
  *
  * C: `displayFeatsScreen` in IO.c:4188
- * waitForKeystrokeOrMouseClick is a no-op stub — see TASKS.md Phase 7c.
  */
-export function displayFeatsScreen(): void {
+export async function displayFeatsScreen(waitFn?: () => Promise<void>): Promise<void> {
     const { rogue, gameConst, displayBuffer } = getGameState();
 
     const availableEscape = encodeMessageColor(white);
@@ -247,7 +245,7 @@ export function displayFeatsScreen(): void {
 
     const rbuf = saveDisplayBuffer(displayBuffer);
     applyOverlay(displayBuffer, dbuf);
-    // waitForKeystrokeOrMouseClick() — stub until Phase 7c
+    if (waitFn) await waitFn();
     restoreDisplayBuffer(displayBuffer, rbuf);
 }
 
@@ -257,11 +255,11 @@ export function displayFeatsScreen(): void {
 
 /**
  * Display the item discoveries overlay screen.
+ * Pass waitFn to block until the player acknowledges.
  *
  * C: `printDiscoveriesScreen` in IO.c:4240
- * waitForKeystrokeOrMouseClick is a no-op stub — see TASKS.md Phase 7c.
  */
-export function printDiscoveriesScreen(): void {
+export async function printDiscoveriesScreen(waitFn?: () => Promise<void>): Promise<void> {
     const { gameConst, mutableScrollTable, mutablePotionTable, displayBuffer } = getGameState();
 
     const rbuf = saveDisplayBuffer(displayBuffer);
@@ -307,6 +305,6 @@ export function printDiscoveriesScreen(): void {
     }
 
     applyOverlay(displayBuffer, dbuf);
-    // waitForKeystrokeOrMouseClick() — stub until Phase 7c
+    if (waitFn) await waitFn();
     restoreDisplayBuffer(displayBuffer, rbuf);
 }

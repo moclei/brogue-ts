@@ -4,7 +4,8 @@
  *
  *  buildEquipState() reads the current game state from core.ts and returns
  *  an EquipmentState snapshot.  syncEquipBonuses() writes ring-derived bonus
- *  fields from a mutated state back to rogue.
+ *  fields from a mutated state back to rogue.  syncEquipState() writes all
+ *  equipment references (weapon/armor/rings) and ring bonuses.
  *
  *  Used by lifecycle.ts, combat.ts, items.ts, and turn.ts — anywhere an
  *  updateEncumbrance / updateRingBonuses / equipItem callback must be wired.
@@ -60,4 +61,25 @@ export function syncEquipBonuses(state: EquipmentState): void {
     rogue.transference      = state.transference;
     rogue.wisdomBonus       = state.wisdomBonus;
     rogue.reaping           = state.reaping;
+}
+
+// =============================================================================
+// syncEquipState — write all equipment refs + ring bonuses back to rogue
+// =============================================================================
+
+/**
+ * Copy weapon/armor/ring references AND ring-bonus fields from a mutated
+ * EquipmentState back to rogue.
+ *
+ * Use this (instead of syncEquipBonuses alone) whenever an equip or unequip
+ * operation may have changed which items are equipped — otherwise rogue.weapon,
+ * rogue.armor, rogue.ringLeft, and rogue.ringRight will be stale.
+ */
+export function syncEquipState(state: EquipmentState): void {
+    const { rogue } = getGameState();
+    rogue.weapon    = state.weapon;
+    rogue.armor     = state.armor;
+    rogue.ringLeft  = state.ringLeft;
+    rogue.ringRight = state.ringRight;
+    syncEquipBonuses(state);
 }

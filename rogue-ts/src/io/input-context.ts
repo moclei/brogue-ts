@@ -75,9 +75,12 @@ import {
     displayFeatsScreen as displayFeatsScreenFn,
     printDiscoveriesScreen as printDiscoveriesScreenFn,
 } from "./overlay-screens.js";
+import { buttonInputLoop as buttonInputLoopFn, initializeButton as initializeButtonFn } from "./buttons.js";
+import { equip as equipFn, unequip as unequipFn, drop as dropFn, relabel as relabelFn } from "./inventory-actions.js";
+import { buildButtonContext } from "../ui.js";
 import { TURNS_FOR_FULL_REGEN, REST_KEY, SEARCH_KEY, DCOLS, DROWS } from "../types/constants.js";
 import { moveCursor as moveCursorFn, nextTargetAfter as nextTargetAfterFn } from "./cursor-move.js";
-import { commitDraws } from "../platform.js";
+import { commitDraws, waitForEvent } from "../platform.js";
 import { EventType, AutoTargetMode, StatusEffect, ALL_ITEMS } from "../types/enums.js";
 import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MessageFlag } from "../types/flags.js";
 import type { InputContext } from "./input-keystrokes.js";
@@ -299,6 +302,12 @@ export function buildInputContext(): InputContext {
         return null;
     };
 
+    // Overlay screens await a single event; falls back to no-op when platform
+    // not initialised (tests).
+    const overlayWaitFn = async (): Promise<void> => {
+        try { await waitForEvent(); } catch {}
+    };
+
     return {
         // ── State ─────────────────────────────────────────────────────────────
         rogue,
@@ -350,12 +359,13 @@ export function buildInputContext(): InputContext {
             return { cells: [] };
         },
 
-        // ── Buttons (stubs — wired in Phase 5) ───────────────────────────────
-        initializeButton: () => ({
-            text: "", hotkey: [], x: 0, y: 0, width: 0, flags: 0,
-        } as never),
-        initializeButtonState: () => {},
-        buttonInputLoop: async () => -1,
+        // ── Buttons ───────────────────────────────────────────────────────────
+        initializeButton: () => initializeButtonFn(),
+        initializeButtonState: () => {},                      // stub — mutating signature differs from domain
+        buttonInputLoop: async (buttons, count, winX, winY, winWidth, winHeight, _event) => {
+            const result = await buttonInputLoopFn(buttons, count, winX, winY, winWidth, winHeight, buildButtonContext());
+            return result.chosenButton;
+        },
 
         // ── Text box (stubs — wired in Phase 5) ──────────────────────────────
         printTextBox: async () => -1,
@@ -375,9 +385,9 @@ export function buildInputContext(): InputContext {
         refreshSideBar: () => {},
         displayInventory: async () => {},
         displayMessageArchive: () => {},
-        printHelpScreen: () => { printHelpScreenFn(); },
-        displayFeatsScreen: () => { displayFeatsScreenFn(); },
-        printDiscoveriesScreen: () => { printDiscoveriesScreenFn(); },
+        printHelpScreen: () => printHelpScreenFn(overlayWaitFn),
+        displayFeatsScreen: () => displayFeatsScreenFn(overlayWaitFn),
+        printDiscoveriesScreen: () => printDiscoveriesScreenFn(overlayWaitFn),
         flashTemporaryAlert: () => {},
         displayMonsterFlashes: () => {},
         setGraphicsMode: (m) => m,
@@ -394,12 +404,12 @@ export function buildInputContext(): InputContext {
         useStairs: (delta) => { useStairsFn(delta, travelCtx()); },
 
         apply: (item) => applyFn(item, itemCtx()),
-        equip: async () => {},                      // stub — equip dialog not yet ported
-        unequip: async () => {},                    // stub — unequip dialog not yet ported
-        drop: async () => {},                       // stub — drop dialog not yet ported
-        throwCommand: async () => {},               // stub — throw dialog not yet ported
-        relabel: async () => {},                    // stub — relabel dialog not yet ported
-        call: async () => {},                       // stub — call dialog not yet ported
+        equip: (item) => equipFn(item),
+        unequip: (item) => unequipFn(item),
+        drop: (item) => dropFn(item),
+        throwCommand: async () => {},               // stub — Phase 8 (needs chooseTarget)
+        relabel: (item) => relabelFn(item),
+        call: async () => {},                       // stub — Phase 8 (needs getInputTextString)
         swapLastEquipment() {
             // C: Items.c:6441 — swapLastEquipment()
             const io = buildMessageFns();

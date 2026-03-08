@@ -21,6 +21,9 @@
  */
 
 import { getGameState } from "./core.js";
+import { waitForEvent } from "./platform.js";
+import { buttonInputLoop as buttonInputLoopFn } from "./io/buttons.js";
+import { equip as equipFn, unequip as unequipFn, drop as dropFn, relabel as relabelFn } from "./io/inventory-actions.js";
 import { itemName as itemNameFn } from "./items/item-naming.js";
 import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
 import { numberOfItemsInPack as numberOfItemsInPackFn } from "./items/item-inventory.js";
@@ -314,7 +317,8 @@ export function buildInventoryContext(): InventoryContext {
             const mc = buildMessageContext() as unknown as SyncMessageContext;
             return () => confirmMessagesFn(mc);
         })(),
-        buttonInputLoop: async () => ({ chosenButton: -1, event: fakeEvent() }), // stub — Phase 7c
+        buttonInputLoop: (buttons, count, winX, winY, winWidth, winHeight) =>
+            buttonInputLoopFn(buttons, count, winX, winY, winWidth, winHeight, buildButtonContext()),
         overlayDisplayBuffer: (dbuf) => overlayDisplayBufferFn(displayBuffer, dbuf),
         saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
         restoreDisplayBuffer: (saved) => restoreDisplayBufferFn(displayBuffer, saved),
@@ -323,12 +327,12 @@ export function buildInventoryContext(): InventoryContext {
         mapToWindowX,
         mapToWindowY,
         apply: (item) => applyFn(item, buildItemHandlerContext()),
-        equip: async () => {},                                // stub — dialog not yet ported
-        unequip: async () => {},                              // stub — dialog not yet ported
-        drop: async () => {},                                 // stub — dialog not yet ported
-        throwCommand: async () => {},                         // stub — dialog not yet ported
-        relabel: async () => {},                              // stub — dialog not yet ported
-        call: async () => {},                                 // stub — dialog not yet ported
+        equip: (item) => equipFn(item),
+        unequip: (item) => unequipFn(item),
+        drop: (item) => dropFn(item),
+        throwCommand: async () => {},                         // stub — Phase 8 (needs chooseTarget)
+        relabel: (item) => relabelFn(item),
+        call: async () => {},                                 // stub — Phase 8 (needs getInputTextString)
         white,
         gray,
         black,
@@ -373,8 +377,13 @@ export function buildButtonContext(): ButtonContext {
         saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
         restoreDisplayBuffer: (saved) => restoreDisplayBufferFn(displayBuffer, saved),
         // -- Async bridge: these MUST return Promises -------------------------
-        // Real event dispatch wired in Phase 7 when browser platform is connected.
-        nextBrogueEvent: async () => fakeEvent(),
+        // waitForEvent() throws when platform not initialised (tests); fall back
+        // to an escape keystroke so button loops terminate cleanly.
+        nextBrogueEvent: async () => {
+            try { return await waitForEvent(); } catch {
+                return { eventType: EventType.Keystroke, param1: 0x1b, param2: 0, controlKey: false, shiftKey: false };
+            }
+        },
         pauseBrogue: async () => false,
         pauseAnimation: async () => false,
     };
