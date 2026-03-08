@@ -75,7 +75,7 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 
 ---
 
-## Phase 3a: NEEDS-VERIFICATION — Monsters.c query helpers + spawning
+## Phase 3a: NEEDS-VERIFICATION — Monsters.c query helpers + spawning ✓
 
 *Reference: `docs/audit/gaps-Monsters.md`. For each function: read C, read TS, verify or fix.*
 
@@ -84,13 +84,18 @@ Functions in scope (10):
 `canDirectlySeeMonster`, `discoveredTerrainFlagsAtLoc`, `monsterAtLoc`,
 `populateMonsters`, `getRandomMonsterSpawnLocation`, `spawnPeriodicHorde`
 
-- [ ] For each function: confirm TS matches C, add direct test, or fix divergence + add test.skip
-- [ ] Note: `successorTerrainFlags` is a callback param, not standalone — verify the callback
+- [x] For each function: confirm TS matches C, add direct test, or fix divergence + add test.skip
+- [x] Note: `successorTerrainFlags` is a callback param, not standalone — verify the callback
       shape matches C's `discoveredTerrainFlagsAtLoc` behavior
-- [ ] Note: `monsterAtLoc` uses a builder pattern (`buildMonsterAtLoc`) — verify the closure
-      matches C's direct global lookup
-- [ ] Note: `discoveredTerrainFlagsAtLoc` is sometimes wired as a stub; confirm domain fn is correct
-- [ ] Commit; generate handoff
+      **BUG FIXED**: movement.ts callback was skipping `dungeonFeatureCatalog` lookup,
+      returning flags for tile index = DF_SHOW_DOOR instead of the discovered tile's flags.
+      Fixed callback: `df = tileCatalog[tileType].discoverType; return tileCatalog[dungeonFeatureCatalog[df].tile].flags`
+- [x] Note: `monsterAtLoc` uses a builder pattern (`buildMonsterAtLoc`) — verify the closure
+      matches C's direct global lookup — **VERIFIED**: player check first, then iterate monsters; functionally equivalent to C.
+- [x] Note: `discoveredTerrainFlagsAtLoc` is sometimes wired as a stub; confirm domain fn is correct
+      **VERIFIED**: domain fn in state/helpers.ts is correct. Stubs remain in turn.ts, monsters.ts, lifecycle.ts.
+- [x] `getRandomMonsterSpawnLocation`: not a standalone TS export — test.skip added describing the gap
+- [x] Commit; generate handoff
 
 ## Phase 3b: NEEDS-VERIFICATION — Monsters.c movement AI
 

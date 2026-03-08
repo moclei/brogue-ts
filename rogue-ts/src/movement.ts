@@ -536,7 +536,7 @@ export function buildCostMapFovContext(): CostMapFovContext {
         terrainMechFlags: (pos) => terrainMechFlagsFn(pmap, pos),
         discoveredTerrainFlagsAtLoc: (pos) => discoveredTerrainFlagsAtLocFn(
             pmap, pos, tileCatalog,
-            (tileType) => tileCatalog[tileCatalog[tileType]?.discoverType ?? 0]?.flags ?? 0,
+            (tileType) => { const df = tileCatalog[tileType]?.discoverType ?? 0; return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0; },
         ),
         monsterAvoids: (m, pos) => monsterAvoidsFn(m, pos, monsterStateCtx),
         canPass: (_m, _blocker) => false,   // stub

@@ -475,3 +475,41 @@ describe("monsterWillAttackTarget", () => {
         expect(monsterWillAttackTarget(hostile, player, player, () => false)).toBe(true);
     });
 });
+
+// =============================================================================
+// canDirectlySeeMonster — Monsters.c:245
+// =============================================================================
+
+describe("canDirectlySeeMonster", () => {
+    it("returns true for the player (always directly visible)", () => {
+        const player = makePlayer();
+        const ctx = makeQueryContext(player, { playerCanDirectlySee: () => false });
+        expect(canDirectlySeeMonster(player, ctx)).toBe(true);
+    });
+
+    it("returns true for a visible non-hidden monster in direct line of sight", () => {
+        const player = makePlayer();
+        const goblin = makeCreature(MonsterType.MK_GOBLIN);
+        const ctx = makeQueryContext(player, { playerCanDirectlySee: () => true });
+        expect(canDirectlySeeMonster(goblin, ctx)).toBe(true);
+    });
+
+    it("returns false when playerCanDirectlySee is false", () => {
+        const player = makePlayer();
+        const goblin = makeCreature(MonsterType.MK_GOBLIN);
+        const ctx = makeQueryContext(player, { playerCanDirectlySee: () => false });
+        expect(canDirectlySeeMonster(goblin, ctx)).toBe(false);
+    });
+
+    it("returns false for an invisible monster even in direct line of sight", () => {
+        const player = makePlayer();
+        const phantom = makeCreature(MonsterType.MK_PHANTOM);
+        phantom.status[StatusEffect.Invisible] = 1000;
+        // playerCanDirectlySee = true, but monster is hidden → canDirectlySeeMonster = false
+        const ctx = makeQueryContext(player, {
+            playerCanDirectlySee: () => true,
+            cellHasGas: () => false,
+        });
+        expect(canDirectlySeeMonster(phantom, ctx)).toBe(false);
+    });
+});
