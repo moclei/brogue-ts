@@ -249,6 +249,18 @@ Branch: feat/port-v2-playtest
 *Wire all inventory action dialogs (equip, unequip, drop, throw, relabel, call).*
 *After this sub-phase: full inventory interaction works.*
 
+- [ ] Wire `buttonInputLoop` in `buildInventoryContext()` (`ui.ts`) and `buildInputContext()`
+      (`io/input-context.ts`) to real `buttonInputLoopFn` from `io/buttons.ts` — deferred from
+      Phase 7a because fake nextBrogueEvent hangs the loop; requires real event bridge active
+      (test the wiring with a platform that registers real events, not the stub)
+- [ ] Wire `waitForAcknowledgment` into `buildMessageContext()` — deferred from Phase 3b/7a;
+      wrap `waitForAcknowledgment` from `io/input-keystrokes.ts` with a minimal InputContext
+      (only needs `rogue.autoPlayingLevel`, `rogue.playbackMode`, `rogue.playbackOOS`,
+      `nonInteractivePlayback`, `flashTemporaryAlert`, `nextBrogueEvent`)
+- [ ] Wire `flashTemporaryAlert` into `buildMessageContext()` — deferred from Phase 3b/7a;
+      requires `EffectsContext` (getCellAppearance, hiliteCell, pauseAnimation, etc.)
+- [ ] Wire `updateFlavorText` — deferred from Phase 3b/7a; needs `CreatureEffectsContext`
+      (flavorMessage, describeLocation, highestPriorityLayer, tileFlavor, etc.)
 - [ ] Wire inventory dialogs (equip, unequip, drop, throw, relabel, call) —
       port each from `Items.c`; these are in `io/input-context.ts:202-207` and `ui.ts:315-321`
 - [ ] Remove or activate test.skip entries now unblocked
@@ -266,6 +278,10 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
 
 - [ ] Wire `dropItem`/`playerFalls` — deferred from Phase 5b; requires `startLevel()` in
       `buildTurnProcessingContext()`; implement after stair descent is verified in playtest
+- [ ] Port `anyoneWantABite` — deferred from Phase 6; needs full `CombatHelperContext` with
+      `monsterAvoids`; wire into combat turn processing once combat is verified in playtest
+- [ ] Upgrade `wakeUp` in `buildWakeUpFn` (`io-wiring.ts`) — deferred from Phase 6; needs full
+      `MonsterStateContext`; upgrade after monster AI is verified working in playtest
 - [ ] Fix `nextBrogueEvent` in travel context — sync/async mismatch deferred from Phase 3b;
       requires async refactor of travel confirm dialog in `movement.ts`
 - [ ] Fix `confirm` in `PlayerMoveContext` — currently sync stub; needs cascading async
@@ -298,6 +314,14 @@ May spill to a second session if skip count is high.
 - [ ] Update `PROJECT.md` — mark `port-v2-playtest` complete; set next as `port-v2-persistence`
 - [ ] Commit final cleanup
 - [ ] Generate closing handoff prompt
+
+---
+
+## Deferred (permanent — no further action needed)
+
+- `updateMonsterCorpseAbsorption` — stub in `monster-actions.ts` is a functional no-op; the C
+  implementation is equivalent in all cases exercised during normal play; no port needed
+- `drawManacles` — visual-only rendering call; has no gameplay effect; stub is permanently acceptable
 
 ---
 
