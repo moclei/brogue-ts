@@ -284,27 +284,42 @@ Branch: feat/port-v2-playtest
 This phase is inherently multi-session. Each session = build + playtest + fix 1–3 bugs.
 Stop and commit after each bug-fix batch; generate a handoff listing what was fixed and what is next.
 
-- [ ] Wire `dropItem`/`playerFalls` — deferred from Phase 5b; requires `startLevel()` in
-      `buildTurnProcessingContext()`; implement after stair descent is verified in playtest
-- [ ] Port `anyoneWantABite` — deferred from Phase 6; needs full `CombatHelperContext` with
-      `monsterAvoids`; wire into combat turn processing once combat is verified in playtest
-- [ ] Upgrade `wakeUp` in `buildWakeUpFn` (`io-wiring.ts`) — deferred from Phase 6; needs full
-      `MonsterStateContext`; upgrade after monster AI is verified working in playtest
-- [ ] Fix `nextBrogueEvent` in travel context — sync/async mismatch deferred from Phase 3b;
-      requires async refactor of travel confirm dialog in `movement.ts`
-- [ ] Wire `nextStep` in `buildMonstersTurnContext` (`turn-monster-ai.ts`) — stub `() => -1`
-      deferred from Phase 2a; requires full `TravelExploreContext` (~40 fields); wire after
-      auto-explore is verified working in playtest
-- [ ] Fix `confirm` in `PlayerMoveContext` — currently sync stub; needs cascading async
-      change in movement context; deferred from Phase 3b
+**Build and launch**
 - [ ] Build the TS bundle: `npm run build` (or equivalent)
 - [ ] Serve locally: navigate to the game in a browser
+
+**Playtest — work through in order; apply the noted deferred fix when each step fails**
 - [ ] New game: verify dungeon renders, player visible, sidebar shows stats
-- [ ] Movement: walk around; verify cell updates, flavor text, messages
-- [ ] Combat: fight a monster; verify combat messages, death, item drop
-- [ ] Items: pick up, equip, unequip, use a scroll/potion; verify effects + messages
-- [ ] Stairs: descend; verify new level generates and renders
-- [ ] Help screen: press `?`; verify overlay shows
+- [ ] Movement: walk around; verify cell updates, messages
+      — if flavor text line is blank: wire `updateFlavorText` (deferred Phase 7c;
+        needs `CreatureEffectsContext` — `flavorMessage`, `describeLocation`, `tileFlavor` etc.)
+- [ ] Messages: trigger a `--MORE--` prompt; verify it blocks until keypress
+      — if `--MORE--` never appears: wire `waitForAcknowledgment` into `buildMessageContext()`
+        (deferred Phase 7c; requires async cascade through `messages.ts`)
+      — if temporary overlay alerts are missing: wire `flashTemporaryAlert` into
+        `buildMessageContext()` (deferred Phase 7c; needs `EffectsContext` —
+        `getCellAppearance`, `hiliteCell`, `pauseAnimation` etc.)
+- [ ] Combat: fight a monster; verify combat messages, death, item drops
+      — if bite/acid spread is broken: port `anyoneWantABite` (deferred Phase 6;
+        needs full `CombatHelperContext` with `monsterAvoids`)
+      — if monsters don't wake on hearing: upgrade `wakeUp` in `buildWakeUpFn`
+        (`io-wiring.ts`) (deferred Phase 6; needs full `MonsterStateContext`)
+- [ ] Items: pick up, equip, unequip, use a potion/scroll; verify effects + messages
+      — if throw is broken: port `throwCommand` / throw dialog (deferred Phase 7c;
+        needs `chooseTarget`)
+      — if call/inscribe is broken: port `call` dialog (deferred Phase 7c;
+        needs `getInputTextString`)
+- [ ] Stair descent: verify prompt appears and new level generates + renders
+      — if stair prompt missing: fix `confirm` in `PlayerMoveContext` (deferred Phase 3b;
+        needs cascading async change in `movement.ts`)
+      — if descent itself is broken: wire `dropItem`/`playerFalls` (deferred Phase 5b;
+        requires `startLevel()` in `buildTurnProcessingContext()`)
+- [ ] Travel / auto-explore: click a distant cell to travel; press `x` to auto-explore
+      — if travel confirm dialog is broken: fix `nextBrogueEvent` in travel context
+        (deferred Phase 3b; requires async refactor of confirm dialog in `movement.ts`)
+      — if auto-explore never moves: wire `nextStep` in `buildMonstersTurnContext`
+        (`turn-monster-ai.ts`) (deferred Phase 2a; requires full `TravelExploreContext` ~40 fields)
+- [ ] Help screen: press `?`; verify overlay renders and dismisses on any keypress
 - [ ] Win/die: complete the game loop; verify game-over or victory screen
 - [ ] For each failure: fix, add regression test, commit; generate handoff with remaining failures
 
@@ -333,6 +348,10 @@ May spill to a second session if skip count is high.
 - `updateMonsterCorpseAbsorption` — stub in `monster-actions.ts` is a functional no-op; the C
   implementation is equivalent in all cases exercised during normal play; no port needed
 - `drawManacles` — visual-only rendering call; has no gameplay effect; stub is permanently acceptable
+- `initializeButtonState` in `InputContext` — the C signature mutates a passed-in state struct;
+  the TS domain function (`io/buttons.ts:269`) returns a new `ButtonState` instead;
+  `buttonInputLoop` calls the domain function directly so this context slot is never needed;
+  stub `() => {}` is permanently acceptable
 
 ---
 
