@@ -244,11 +244,6 @@ it.skip("stub: exposeCreatureToFire() is a no-op (should set Burning status on c
     // with a fully wired CreatureEffectsContext.
 });
 
-it.skip("stub: updateEncumbrance() is a no-op (should recalculate speed penalties)", () => {
-    // buildItemHandlerContext().updateEncumbrance() does nothing.
-    // Real implementation should recalculate movement/attack speed based on
-    // equipped armor weight vs. player strength.
-});
 
 // =============================================================================
 // Stub registry — Items.c domain stubs (Phase 3b, port-v2-audit)

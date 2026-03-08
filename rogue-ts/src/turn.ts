@@ -49,6 +49,8 @@ import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buil
 import { unAlly as unAllyFn, checkForContinuedLeadership as checkForContinuedLeadershipFn, demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "./monsters/monster-ally-ops.js";
 import { buildResolvePronounEscapesFn, getMonsterDFMessage as getMonsterDFMessageFn } from "./io/text.js";
 import { buildMonstersTurnContext } from "./turn-monster-ai.js";
+import { updateEncumbrance as updateEncumbranceFn } from "./items/item-usage.js";
+import { buildEquipState } from "./items/equip-helpers.js";
 import { getFOVMask as getFOVMaskFn } from "./light/fov.js";
 import { scentDistance } from "./time/turn-processing.js";
 
@@ -105,7 +107,7 @@ function buildMinimalCombatContext(
         resolvePronounEscapes,
         message: io.message,
         monsterCatalog: [],                         // stub — real catalog via core.ts
-        updateEncumbrance: () => {},                // stub
+        updateEncumbrance: () => updateEncumbranceFn(buildEquipState()),
         updateMinersLightRadius: () => {},          // stub
         updateVision: () => {},                     // stub
         badMessageColor,

@@ -34,7 +34,8 @@ import {
     removeItemFromArray,
     numberOfMatchingPackItems as numberOfMatchingPackItemsFn,
 } from "./items/item-inventory.js";
-import { enchantMagnitude, netEnchant as netEnchantFn } from "./items/item-usage.js";
+import { enchantMagnitude, netEnchant as netEnchantFn, updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, equipItem as equipItemFn } from "./items/item-usage.js";
+import { buildEquipState, syncEquipBonuses } from "./items/equip-helpers.js";
 import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
 import {
     heal as healFn,
@@ -273,9 +274,14 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 potionTable: mutablePotionTable,
             });
         },
-        updateEncumbrance: () => {},         // stub — wired in port-v2-platform
-        updateRingBonuses: () => {},         // stub — wired in port-v2-platform
-        equipItem: () => {},                 // stub — wired in port-v2-platform
+        updateEncumbrance: () => updateEncumbranceFn(buildEquipState()),
+        updateRingBonuses: () => { const s = buildEquipState(); updateRingBonusesFn(s); syncEquipBonuses(s); },
+        equipItem: (item, force, hint) => {
+            const s = buildEquipState();
+            equipItemFn(item, force, hint, { state: s, message: io.message, itemName: () => "item",
+                updateRingBonuses: () => { updateRingBonusesFn(s); syncEquipBonuses(s); }, updateEncumbrance: () => updateEncumbranceFn(s) });
+            syncEquipBonuses(s);
+        },
         recalculateEquipmentBonuses: () => {},
         itemMagicPolarity: (item) => itemMagicPolarityFn(item),
 
@@ -289,7 +295,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         haste(target, duration) {
             hasteFn(target, duration, {
                 player,
-                updateEncumbrance: () => {},  // stub — wired in port-v2-platform
+                updateEncumbrance: () => updateEncumbranceFn(buildEquipState()),
                 message: io.message,
             });
         },
@@ -591,5 +597,4 @@ export function buildItemHandlerContext(): ItemHandlerContext {
     };
 }
 
-// buildItemHelperContext is in items/item-helper-context.ts (split for file-size limit)
-export { buildItemHelperContext } from "./items/item-helper-context.js";
+export { buildItemHelperContext } from "./items/item-helper-context.js"; // split for file-size limit

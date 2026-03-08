@@ -65,8 +65,9 @@ import { populateMonsters } from "./monsters/monster-spawning.js";
 import { generateItem } from "./items/item-generation.js";
 import { addItemToPack, numberOfMatchingPackItems, itemAtLoc as itemAtLocFn, deleteItem as deleteItemFn } from "./items/item-inventory.js";
 import { identify, shuffleFlavors } from "./items/item-naming.js";
-import { equipItem, recalculateEquipmentBonuses } from "./items/item-usage.js";
-import type { EquipmentState, EquipContext } from "./items/item-usage.js";
+import { equipItem, recalculateEquipmentBonuses, updateRingBonuses as updateRingBonusesFn, updateEncumbrance as updateEncumbranceFn } from "./items/item-usage.js";
+import type { EquipContext } from "./items/item-usage.js";
+import { buildEquipState, syncEquipBonuses } from "./items/equip-helpers.js";
 import type { MachineItem } from "./architect/machines.js";
 import { initializeGender, initializeStatus, generateMonster } from "./monsters/monster-creation.js";
 import { createMonsterOps, toggleMonsterDormancy } from "./monsters/monster-ops.js";
@@ -154,27 +155,6 @@ function makeCalcDistCtx(): CalculateDistancesContext {
     };
 }
 
-function syncEquipBonuses(state: EquipmentState): void {
-    const { rogue } = getGameState();
-    rogue.clairvoyance = state.clairvoyance;
-    rogue.stealthBonus = state.stealthBonus;
-    rogue.regenerationBonus = state.regenerationBonus;
-    rogue.lightMultiplier = state.lightMultiplier;
-    rogue.transference = state.transference;
-    rogue.wisdomBonus = state.wisdomBonus;
-    rogue.reaping = state.reaping;
-}
-
-function buildEquipState(rogue: ReturnType<typeof getGameState>["rogue"], player: Creature): EquipmentState {
-    return {
-        player, weapon: rogue.weapon, armor: rogue.armor,
-        ringLeft: rogue.ringLeft, ringRight: rogue.ringRight,
-        strength: rogue.strength, clairvoyance: rogue.clairvoyance,
-        stealthBonus: rogue.stealthBonus, regenerationBonus: rogue.regenerationBonus,
-        lightMultiplier: rogue.lightMultiplier, awarenessBonus: 0,
-        transference: rogue.transference, wisdomBonus: rogue.wisdomBonus, reaping: rogue.reaping,
-    };
-}
 
 // =============================================================================
 // buildGameInitContext
@@ -220,19 +200,19 @@ export function buildGameInitContext(): GameInitContext {
         addItemToPack(item) { return addItemToPack(item, packItems); },
         identify(item) { identify(item, gameConst); },
         equipItem(item, willUnequip, swapItem) {
-            const state = buildEquipState(rogue, player);
+            const state = buildEquipState();
             const equipCtx: EquipContext = {
                 state,
                 message: (text, _ack) => message(text, 0),
-                updateRingBonuses: () => {},
-                updateEncumbrance: () => {},
+                updateRingBonuses: () => { updateRingBonusesFn(state); syncEquipBonuses(state); },
+                updateEncumbrance: () => updateEncumbranceFn(state),
                 itemName: (i) => i.displayChar ? String.fromCharCode(i.displayChar) : "?",
             };
             equipItem(item, willUnequip, swapItem, equipCtx);
             syncEquipBonuses(state);
         },
         recalculateEquipmentBonuses() {
-            const state = buildEquipState(rogue, player);
+            const state = buildEquipState();
             recalculateEquipmentBonuses(state);
             syncEquipBonuses(state);
         },
@@ -484,7 +464,7 @@ export function buildLevelContext(): LevelContext {
         updateVision: () => {},
         discoverCell: (x, y) => { pmap[x][y].flags |= TileFlag.DISCOVERED; },
         updateMapToShore() { rogue.mapToShore = updateMapToShore(pmap); },
-        updateRingBonuses: () => {},
+        updateRingBonuses: () => { const s = buildEquipState(); updateRingBonusesFn(s); syncEquipBonuses(s); },
         displayLevel() {
             const getCellApp = (loc: { x: number; y: number }) => getCellAppearance(
                 loc, pmap, tmap, displayBuffer, rogue, player,

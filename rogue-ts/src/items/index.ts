@@ -96,10 +96,11 @@ export {
     strengthCheck,
     equipItem,
     unequipItem,
-    enchantItem,
 } from "./item-usage.js";
 
 export type { EquipmentState, EquipContext } from "./item-usage.js";
+
+export { enchantItem } from "./item-enchant.js";
 
 export {
     getLineCoordinates,

@@ -128,19 +128,19 @@ Branch: feat/port-v2-playtest
 
 ---
 
-## Phase 5a: Equipment lifecycle wiring
+## Phase 5a: Equipment lifecycle wiring ✓ DONE
 
 *Wire updateEncumbrance, updateRingBonuses, and equipItem into context builders.*
 *After this sub-phase: encumbrance correct, ring bonuses applied, equip/unequip wired.*
 
-Note: `items/item-usage.ts` is 608 lines — split it when first touched here.
-
-- [ ] Wire `updateEncumbrance` → `src/items/item-usage.ts` → `movement.ts`, `items.ts`, `combat.ts`
-      (split `item-usage.ts` to stay under 600 lines when touched)
-- [ ] Wire `updateRingBonuses` → `src/items/item-usage.ts` → `lifecycle.ts`, `items.ts`
-- [ ] Wire `equipItem` → `src/items/item-usage.ts` → `combat.ts`, `items.ts`
-- [ ] All files under 600 lines; tests pass
-- [ ] Commit; generate handoff
+- [x] Split `item-usage.ts` (608→556 lines): extracted `enchantItem` to `items/item-enchant.ts`
+- [x] Created `items/equip-helpers.ts` with `buildEquipState()` + `syncEquipBonuses()` shared helpers
+- [x] Wire `updateEncumbrance` → `combat.ts`, `items.ts`, `turn.ts` (movement.ts had no stub)
+- [x] Wire `updateRingBonuses` → `lifecycle.ts` (equipItem closure + buildLevelContext), `items.ts`
+- [x] Wire `equipItem` → `combat.ts`, `items.ts`
+- [x] Removed stub test.skip for updateEncumbrance from items.test.ts
+- [x] All files under 600 lines; tests pass (87 files, 2179 pass, 125 skip)
+- [x] Commit; generate handoff
 
 ---
 
@@ -189,6 +189,10 @@ Note: depends on Phase 7a button infrastructure; if buttons are not yet wired, d
       wire into `monsters.ts` buildMonsterStateContext
 - [ ] Wire `openPathBetween` → `src/items/bolt-geometry.ts` → `monsters.ts`
 - [ ] Wire `updateMonsterCorpseAbsorption` → `src/monsters/monster-actions.ts`
+- [ ] Port `anyoneWantABite` from `Combat.c:1401` — depends on `canAbsorb`; wire into
+      `combat.ts`, `turn.ts` (currently `() => false` stub from Phase 4)
+- [ ] Upgrade `wakeUp` in `buildWakeUpFn` (`io-wiring.ts`) to call `updateMonsterState(teammate)` —
+      currently skips this call; requires `MonsterStateContext` to be fully wired first
 - [ ] Wire `monsterDetails` → `src/io/sidebar-monsters.ts` → SidebarContext
 - [ ] Port `drawManacles` from `IO.c` (manacle decoration) or no-op with note
 - [ ] Remove or activate test.skip entries now unblocked
@@ -207,6 +211,9 @@ Note: depends on Phase 7a button infrastructure; if buttons are not yet wired, d
 - [ ] Wire `buttonInputLoop`, `initializeButtonState` → `src/io/buttons.ts` → `ui.ts`, `io/input-context.ts`
 - [ ] Wire `shuffleTerrainColors` → `src/time/` or `src/light/`
 - [ ] Implement `printSeed` — display rogue.seed on screen (trivial)
+- [ ] Wire `waitForAcknowledgment`, `flashTemporaryAlert`, `updateFlavorText` →
+      check `src/io/`; deferred from Phase 3b due to circular dep via `ui.ts`; resolve circular
+      dep first, then wire into display/lifecycle contexts
 - [ ] All files under 600 lines; tests pass
 - [ ] Commit; generate handoff
 
@@ -246,6 +253,10 @@ Note: depends on Phase 7a button infrastructure; if buttons are not yet wired, d
 This phase is inherently multi-session. Each session = build + playtest + fix 1–3 bugs.
 Stop and commit after each bug-fix batch; generate a handoff listing what was fixed and what is next.
 
+- [ ] Fix `nextBrogueEvent` in travel context — sync/async mismatch deferred from Phase 3b;
+      requires async refactor of travel confirm dialog in `movement.ts`
+- [ ] Fix `confirm` in `PlayerMoveContext` — currently sync stub; needs cascading async
+      change in movement context; deferred from Phase 3b
 - [ ] Build the TS bundle: `npm run build` (or equivalent)
 - [ ] Serve locally: navigate to the game in a browser
 - [ ] New game: verify dungeon renders, player visible, sidebar shows stats

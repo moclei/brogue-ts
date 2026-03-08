@@ -38,6 +38,8 @@ import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { AttackContext } from "./combat/combat-attack.js";
 import type { Creature, Pos } from "./types/types.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
+import { updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, equipItem as equipItemFn } from "./items/item-usage.js";
+import { buildEquipState, syncEquipBonuses } from "./items/equip-helpers.js";
 
 // =============================================================================
 // Private helpers
@@ -138,8 +140,8 @@ export function buildCombatDamageContext(): CombatDamageContext {
 
         monsterCatalog,
 
-        // ── Status clear stubs (wired in items.ts / ui.ts) ───────────────────
-        updateEncumbrance: () => {},
+        // ── Equipment updates ─────────────────────────────────────────────────
+        updateEncumbrance: () => updateEncumbranceFn(buildEquipState()),
         updateMinersLightRadius: () => {},
         updateVision: () => {},
 
@@ -226,10 +228,16 @@ export function buildCombatAttackContext(): AttackContext {
         messageColorFromVictim: (defender) =>
             defender === player ? badMessageColor : goodMessageColor,
 
-        // ── Item / weapon ops stubs (wired in items.ts) ───────────────────────
+        // ── Item / weapon ops ─────────────────────────────────────────────────
         decrementWeaponAutoIDTimer: () => {},
         rechargeItemsIncrementally: () => {},
-        equipItem: () => {},
+        equipItem: (item, force) => {
+            const s = buildEquipState();
+            equipItemFn(item, force, null, { state: s, message: () => {}, itemName: () => "item",
+                updateRingBonuses: () => { updateRingBonusesFn(s); syncEquipBonuses(s); },
+                updateEncumbrance: () => updateEncumbranceFn(s) });
+            syncEquipBonuses(s);
+        },
         itemName: () => "item",
         checkForDisenchantment: () => {},
         strengthCheck: () => {},
