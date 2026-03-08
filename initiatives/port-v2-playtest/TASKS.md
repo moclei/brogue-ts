@@ -262,6 +262,9 @@ Branch: feat/port-v2-playtest
       wrap `waitForAcknowledgment` from `io/input-keystrokes.ts` with a minimal InputContext
       (only needs `rogue.autoPlayingLevel`, `rogue.playbackMode`, `rogue.playbackOOS`,
       `nonInteractivePlayback`, `flashTemporaryAlert`, `nextBrogueEvent`)
+- [ ] Wire `waitForKeystrokeOrMouseClick` in `overlay-screens.ts` — deferred from Phase 7b;
+      currently a no-op comment in `printDiscoveriesScreen` and `displayFeatsScreen`; requires
+      the same async event bridge as `waitForAcknowledgment`
 - [ ] Wire `flashTemporaryAlert` into `buildMessageContext()` — deferred from Phase 3b/7a;
       requires `EffectsContext` (getCellAppearance, hiliteCell, pauseAnimation, etc.)
 - [ ] Wire `updateFlavorText` — deferred from Phase 3b/7a; needs `CreatureEffectsContext`
@@ -289,6 +292,9 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
       `MonsterStateContext`; upgrade after monster AI is verified working in playtest
 - [ ] Fix `nextBrogueEvent` in travel context — sync/async mismatch deferred from Phase 3b;
       requires async refactor of travel confirm dialog in `movement.ts`
+- [ ] Wire `nextStep` in `buildMonstersTurnContext` (`turn-monster-ai.ts`) — stub `() => -1`
+      deferred from Phase 2a; requires full `TravelExploreContext` (~40 fields); wire after
+      auto-explore is verified working in playtest
 - [ ] Fix `confirm` in `PlayerMoveContext` — currently sync stub; needs cascading async
       change in movement context; deferred from Phase 3b
 - [ ] Build the TS bundle: `npm run build` (or equivalent)
