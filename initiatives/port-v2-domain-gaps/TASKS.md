@@ -171,33 +171,38 @@ Note: disentangle completed in Phase 2c; perimeterCoords completed in Phase 3b.
 - [x] movement.ts: 599 lines (under 600 limit)
 - [x] Committed
 
-## Phase 6: throwItem + hitMonsterWithProjectileWeapon
+## Phase 6: throwItem + hitMonsterWithProjectileWeapon ✅
 
 Bolt system (Phase 1d) is complete — this dependency is now resolved.
 
-- [ ] Implement `hitMonsterWithProjectileWeapon` (Items.c:5999, ~80 lines) — new file
+- [x] Implement `hitMonsterWithProjectileWeapon` (Items.c:5999, ~80 lines) — new file
       items/throw-item.ts; HitMonsterContext; projectile weapon combat math
-- [ ] Implement `throwItem` (Items.c:6080, ~197 lines) — same file; ThrowItemContext;
+- [x] Implement `throwItem` (Items.c:6080, ~197 lines) — same file; ThrowItemContext;
       path computation via getLineCoordinates, hit detection, item effects on impact
-      (potions shatter, incendiary darts ignite, etc.), place or delete item after landing
-- [ ] Add tests; wire into items context; remove test.skip entries
-- [ ] Commit; generate handoff
+      (potions shatter, incendiary darts ignite, etc.), place or delete item after landing;
+      async due to pauseAnimation in flight loop; ThrowItemRenderContext stubs
+- [x] 24 new tests in tests/items/throw-item.test.ts (all pass)
+- [x] Exported from items/index.ts; no test.skip entries existed for these functions
+- [x] 75 test files, 1910 pass, 121 skip
+- [x] Committed (db2779e)
 
 Note: `throwCommand` (the targeting wrapper, Items.c:6282) belongs to port-v2-platform —
 only the domain logic goes here.
 
-## Phase 7: Enchant-swap group
+## Phase 7: Enchant-swap group ✅
 
 Self-contained mechanic; no IO dependencies for core logic. All 4 functions call each other.
 
-- [ ] Implement `enchantLevelKnown` (Items.c:1142, ~10 lines) — pure predicate
-- [ ] Implement `effectiveEnchantLevel` (Items.c:1152, ~8 lines) — pure accessor
-- [ ] Implement `swapItemToEnchantLevel` (Items.c:1085, ~55 lines) — mutates item enchant;
-      message + refreshDungeonCell stubbed via context
-- [ ] Implement `swapItemEnchants` (Items.c:1160, ~30 lines) — machine-activation entry point;
-      scans pmap for TM_SWAP_ENCHANTS_ACTIVATION cells, swaps two locked items
-- [ ] Add tests; wire into items context; remove test.skip entries
-- [ ] Commit; generate handoff
+- [x] Implement `enchantLevelKnown` (Items.c:1142) — pure predicate added to item-inventory.ts
+- [x] Implement `effectiveEnchantLevel` (Items.c:1152) — pure accessor added to item-inventory.ts
+- [x] Implement `swapItemToEnchantLevel` (Items.c:1085) — new file items/item-enchant-swap.ts;
+      SwapItemToEnchantLevelContext; shatter path + enchant update path; charm recharge scaling
+- [x] Implement `swapItemEnchants` (Items.c:1160) — same file; SwapItemEnchantsContext;
+      scans pmap for TM_SWAP_ENCHANTS_ACTIVATION cells; WAND excluded from CAN_BE_SWAPPED
+- [x] 46 new tests in item-enchant-swap.test.ts; 1 test.skip removed from floor-items.test.ts
+- [x] Exported from items/index.ts; STUB comment removed from UpdateFloorItemsContext
+- [x] 76 test files, 1947 pass, 120 skip
+- [x] Committed (4930fa6)
 
 ---
 
