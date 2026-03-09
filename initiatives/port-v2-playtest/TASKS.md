@@ -357,6 +357,31 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
   (1) add console logs to the lifecycle path from `startLevel()` through `displayLevel`;
   (2) confirm the stub is the cause; (3) implement `displayLevel`.
 
+### Session 2026-03-08b — wire updateVision; dungeon should now render
+
+- **Observed:** (analysis from code) displayLevel IS already implemented in
+  `io/cell-appearance.ts` and wired in `lifecycle.ts:buildLevelContext`. However
+  `updateVision` was stubbed (`() => {}`). Without updateVision, no cells receive
+  `DISCOVERED` or `VISIBLE` flags. getCellAppearance returns maxLayer=0 (black) for
+  undiscovered cells; only the player cell (@) has HAS_PLAYER flag which bypasses
+  terrain rendering. All dungeon tiles appear as black.
+- **Diagnosed:** `updateVision: () => {}` stub in `buildLevelContext()` (lifecycle.ts:485).
+  Tracked: yes — test.skip entry in `ui.test.ts` references `displayLevel` stubs in
+  items.ts/input-context.ts (tangential); `updateVision` itself had no test.skip (audit gap).
+- **Fixed:** Created `src/vision-wiring.ts` with `buildUpdateVisionFn()` factory that
+  assembles LightingContext + CostMapFovContext + SafetyMapsContext from live game state.
+  Wired into `lifecycle.ts:buildLevelContext()`. Added console.log checkpoints in
+  updateVision and displayLevel for browser-side confirmation. Commit: 96c5c14.
+  Tests: 87 files, 2206 pass, 97 skip (no regressions).
+- **Untracked stubs found:** `updateVision` was stubbed with no test.skip entry.
+  Also stubbed (same issue) in `turn.ts:254` and `movement.ts:541,543` — those
+  affect per-turn vision updates. Not fixed this session (turn-loop not yet reached).
+- **Next blocker:** Launch browser, verify dungeon renders. If renders: move to
+  Movement checklist item. If still blank: check console for [updateVision] logs
+  to confirm it's being called and player cell flags are non-zero after the call.
+  Likely follow-up fix: wire `updateVision` in `buildTurnProcessingContext()` (turn.ts)
+  so vision updates per turn.
+
 ---
 
 ## Phase 9: Final stub cleanup
