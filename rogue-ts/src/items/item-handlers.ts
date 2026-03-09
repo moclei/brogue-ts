@@ -267,7 +267,7 @@ export function autoIdentify(
     const theTable = getTableForCategory(theItem.category);
 
     if (theTable && !theTable[theItem.kind].identified) {
-        identifyItemKindNaming(theItem, ctx.gc);
+        identifyItemKindNaming(theItem, ctx.gc, ctx.namingCtx);
         const quantityBackup = theItem.quantity;
         theItem.quantity = 1;
         const newName = itemName(theItem, false, true, ctx.namingCtx);
@@ -466,7 +466,7 @@ export async function readScroll(theItem: Item, ctx: ItemHandlerContext): Promis
 
     switch (theItem.kind) {
         case ScrollKind.Identify:
-            identify(theItem, ctx.gc);
+            identify(theItem, ctx.gc, ctx.namingCtx);
             updateIdentifiableItems(ctx);
             ctx.messageWithColor(
                 "this is a scroll of identify.",
@@ -505,7 +505,7 @@ export async function readScroll(theItem: Item, ctx: ItemHandlerContext): Promis
 
                 ctx.recordKeystroke(chosen.inventoryLetter.charCodeAt(0), false, false);
                 ctx.confirmMessages();
-                identify(chosen, ctx.gc);
+                identify(chosen, ctx.gc, ctx.namingCtx);
                 const identifiedName = itemName(chosen, true, true, ctx.namingCtx);
                 const verb = chosen.quantity === 1 ? "this is" : "these are";
                 ctx.messageWithColor(`${verb} ${identifiedName}.`, ctx.itemMessageColor, 0);
@@ -529,7 +529,7 @@ export async function readScroll(theItem: Item, ctx: ItemHandlerContext): Promis
             break;
 
         case ScrollKind.Enchanting:
-            identify(theItem, ctx.gc);
+            identify(theItem, ctx.gc, ctx.namingCtx);
             ctx.messageWithColor(
                 "this is a scroll of enchanting.",
                 ctx.itemMessageColor,
@@ -969,7 +969,7 @@ export function drinkPotion(theItem: Item, ctx: ItemHandlerContext): boolean {
             }
 
             if (hadEffectOnLevel || hadEffectOnPack) {
-                tryIdentifyLastItemKinds(HAS_INTRINSIC_POLARITY, ctx.gc);
+                tryIdentifyLastItemKinds(HAS_INTRINSIC_POLARITY, ctx.gc, ctx.namingCtx);
                 if (hadEffectOnLevel && hadEffectOnPack) {
                     ctx.message("you can somehow feel the presence of magic on the level and in your pack.", 0);
                 } else if (hadEffectOnLevel) {

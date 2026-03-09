@@ -199,7 +199,7 @@ export function buildGameInitContext(): GameInitContext {
             });
         },
         addItemToPack(item) { return addItemToPack(item, packItems); },
-        identify(item) { identify(item, gameConst); },
+        identify(item) { identify(item, gameConst, { scrollTable: mutableScrollTable, potionTable: mutablePotionTable }); },
         equipItem(item, willUnequip, swapItem) {
             const state = buildEquipState();
             const equipCtx: EquipContext = {

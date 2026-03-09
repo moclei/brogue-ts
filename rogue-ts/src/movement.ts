@@ -255,7 +255,7 @@ export function buildMovementContext(): PlayerMoveContext {
         gameConst,
         tileCatalog,
         itemAtLoc: (loc: Pos) => itemAtLocFn(loc, floorItems),
-        identifyItemKind: (item: any) => identifyItemKindFn(item, gameConst),
+        identifyItemKind: (item: any) => identifyItemKindFn(item, gameConst, { scrollTable: mutableScrollTable, potionTable: mutablePotionTable }),
         wandKindData: (kind: number) => wandTable[kind] ?? null,
         numberOfItemsInPack: () => numberOfItemsInPackFn(packItems),
         itemWillStackWithPack: (item: any) => itemWillStackWithPackFn(item, packItems),

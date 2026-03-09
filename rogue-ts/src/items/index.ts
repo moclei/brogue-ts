@@ -51,7 +51,7 @@ export {
     itemTitles,
 } from "./item-naming.js";
 
-export type { ItemNamingContext } from "./item-naming.js";
+export type { ItemNamingContext, MutableFlavorTables } from "./item-naming.js";
 
 export {
     removeItemFromArray,

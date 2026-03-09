@@ -522,6 +522,29 @@ describe("identify", () => {
             expect(item.flags & ItemFlag.ITEM_RUNIC_HINTED).toBeTruthy();
         });
     });
+
+    it("syncs identified to mutableTables when provided (B11 fix)", () => {
+        withCleanTables(() => {
+            const mutablePotion: ItemTable = { identified: false } as ItemTable;
+            const item = makeItem({ category: ItemCategory.POTION, kind: PotionKind.Life });
+            identify(item, gc, { potionTable: [mutablePotion] as ItemTable[] });
+            expect(mutablePotion.identified).toBe(true);
+        });
+    });
+});
+
+describe("identifyItemKind — mutableTables sync", () => {
+    const gc = makeGC();
+
+    it("syncs identified to mutableScrollTable when provided (B11 fix)", () => {
+        withCleanTables(() => {
+            const mutableScroll: ItemTable = { identified: false } as ItemTable;
+            // ScrollKind.Enchanting = 0 — index matches single-entry mutable array
+            const item = makeItem({ category: ItemCategory.SCROLL, kind: ScrollKind.Enchanting });
+            identifyItemKind(item, gc, { scrollTable: [mutableScroll] as ItemTable[] });
+            expect(mutableScroll.identified).toBe(true);
+        });
+    });
 });
 
 // =============================================================================
