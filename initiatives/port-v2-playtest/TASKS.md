@@ -322,17 +322,13 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
         needs `chooseTarget`)
       — if call/inscribe is broken: port `call` dialog (deferred Phase 7c;
         needs `getInputTextString`)
-- [ ] Stair descent: verify prompt appears and new level generates + renders
-      — if stair prompt missing: fix `confirm` in `PlayerMoveContext` (deferred Phase 3b;
-        needs cascading async change in `movement.ts`)
-      — if descent itself is broken: wire `dropItem`/`playerFalls` (deferred Phase 5b;
-        requires `startLevel()` in `buildTurnProcessingContext()`)
-- [ ] Travel / auto-explore: click a distant cell to travel; press `x` to auto-explore
-      — if travel confirm dialog is broken: fix `nextBrogueEvent` in travel context
-        (deferred Phase 3b; requires async refactor of confirm dialog in `movement.ts`)
-      — if auto-explore never moves: wire `nextStep` in `buildMonstersTurnContext`
-        (`turn-monster-ai.ts`) (deferred Phase 2a; requires full `TravelExploreContext` ~40 fields)
-- [ ] Help screen: press `?`; verify overlay renders and dismisses on any keypress
+- [x] Stair descent: `startLevel` and `useStairs` wired (cfdbde1); descent now generates
+      new level. `confirm` still `() => true` (no prompt) but descent works.
+- [x] Travel / auto-explore: `exploreKey` and `autoPlayLevel` wired (9081a89); `commitDraws`
+      wired in `buildTravelContext` so travel animation visible. Auto-explore uses `explore`
+      from travel-explore.ts (module-local `nextStep`, not turn-monster-ai stub).
+- [x] Help screen: `overlayWaitFn` now calls `commitDraws()` before `waitForEvent()` (51e1631);
+      overlay is visible before keypress. Applies to feats + discoveries screens too.
 - [ ] Win/die: complete the game loop; verify game-over or victory screen
 - [ ] For each failure: fix, add regression test, commit; generate handoff with remaining failures
 
@@ -636,6 +632,38 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
   with item name AND action buttons; (b) press action key or click button, verify action fires;
   (c) press `t`, verify "Throwing not yet implemented." message appears; (d) continue Phase 8
   checklist (combat, stair descent, travel/auto-explore, help screen).
+
+### Session 2026-03-09 — wire stair descent, auto-explore, overlay flush
+
+- **Observed:** (code analysis from prior session logs) Prior verified: item detail panel
+  renders with action buttons, throw message appears, potion messages immediate.
+  Remaining checklist: combat, items, stair descent, travel/auto-explore, help screen.
+- **Diagnosed (stair descent):** Two stubs blocked descent:
+  (1) `buildMovementContext().useStairs: () => {}` — walking into stair cell did nothing;
+  (2) `buildTravelContext().startLevel: () => {}` — `useStairsFn` called but new level never
+  generated. Both were untracked (no test.skip). Also `commitDraws: () => {}` in
+  `buildTravelContext` meant travel animation was invisible (player teleported to destination).
+- **Diagnosed (auto-explore):** `exploreKey: async () => {}` and `autoPlayLevel: async () => {}`
+  were stubs in `buildInputContext()`. Pressing `x` did nothing. Untracked.
+- **Diagnosed (help screen):** `printHelpScreenFn` renders overlay to displayBuffer then awaits
+  `waitForEvent`. But `commitDraws()` was never called before the await — overlay was invisible.
+  The overlayWaitFn was missing `commitDraws()`. Untracked.
+- **Fixed (stair descent):** Imported `useStairs as useStairsFn` from `travel-explore.ts` and
+  `startLevel as startLevelFn` from `lifecycle.ts` into `movement.ts`. Wired
+  `buildMovementContext().useStairs` and `buildTravelContext().startLevel + commitDraws`.
+  Added console.log checkpoints at both call sites. Commit: cfdbde1.
+- **Fixed (auto-explore):** Imported `explore` and `autoPlayLevel` from `travel-explore.ts`
+  into `input-context.ts`. Wired `exploreKey` and `autoPlayLevel`. Commit: 9081a89.
+- **Fixed (help screen):** Added `commitDraws()` before `waitForEvent()` in `overlayWaitFn`
+  in `input-context.ts`. Applies to help/feats/discoveries overlays. Commit: 51e1631.
+- **Untracked stubs found:** All three issues were untracked. Pattern continues:
+  `buildInputContext()` and `buildTravelContext()` had stubs with no test.skip entries.
+- **Next blocker:** Browser playtest needed for:
+  (a) Combat — fight a monster; verify messages, death, drops (looks wired but untested);
+  (b) Items — verify pickup from floor and inventory usage work (looks wired but untested);
+  (c) Stair descent — verify new level generates and renders (startLevel now wired);
+  (d) `confirm: () => true` means no stair prompt — acceptable for now but note;
+  (e) `attackVerb: () => "hits"` — all attacks say "hits" (cosmetic; deferred).
 
 ---
 
