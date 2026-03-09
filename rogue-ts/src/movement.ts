@@ -112,7 +112,10 @@ import {
 import { INVALID_POS } from "./types/types.js";
 import type { CalculateDistancesContext } from "./dijkstra/dijkstra.js";
 import type { PlayerMoveContext } from "./movement/player-movement.js";
+import { useStairs as useStairsFn } from "./movement/travel-explore.js";
 import type { TravelExploreContext } from "./movement/travel-explore.js";
+import { startLevel as startLevelFn } from "./lifecycle.js";
+import { commitDraws } from "./platform.js";
 import type { Creature, Pos, RogueEvent } from "./types/types.js";
 import type { EnvironmentContext } from "./time/environment.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
@@ -365,7 +368,10 @@ export function buildMovementContext(): PlayerMoveContext {
         discoverCell: (x, y) => { if (coordinatesAreInMap(x, y)) { pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY; pmap[x][y].flags |= TileFlag.DISCOVERED; } },
         spawnDungeonFeature: spawnFeature,
         dungeonFeatureCatalog,
-        useStairs: () => {},                 // stub — wired in port-v2-platform
+        useStairs: (delta) => {
+            console.log("[playerMoves] useStairs called delta=%d", delta);
+            useStairsFn(delta, buildTravelContext());
+        },
 
         // ── Game flow ────────────────────────────────────────────────────────
         playerTurnEnded: () => playerTurnEndedFn(buildTurnProcessingContext()),
@@ -530,7 +536,7 @@ export function buildTravelContext(): TravelExploreContext {
         clearCursorPath: () => clearCursorPathFn(pathHighlightCtx),
         hilitePath: (path, steps, remove) => hilitePathFn(path, steps, remove, pathHighlightCtx),
         getPlayerPathOnMap: () => 0,
-        commitDraws: () => {},
+        commitDraws: () => commitDraws(),
         pauseAnimation: async (ms, _behavior) => platformPauseAndCheckForEvent(ms),
         recordMouseClick: () => {},
         mapToWindowX: (x) => mapToWindowXFn(x),
@@ -554,8 +560,11 @@ export function buildTravelContext(): TravelExploreContext {
         lightBlue,
         backgroundMessageColor,
 
-        // ── Level transitions (stubs — wired in port-v2-platform) ────────────
-        startLevel: () => {},
+        // ── Level transitions ─────────────────────────────────────────────────
+        startLevel: (oldLevel, dir) => {
+            console.log("[useStairs] startLevel called oldLevel=%d dir=%d", oldLevel, dir);
+            startLevelFn(oldLevel, dir);
+        },
         victory: () => {},
 
         // ── FP math ───────────────────────────────────────────────────────────
