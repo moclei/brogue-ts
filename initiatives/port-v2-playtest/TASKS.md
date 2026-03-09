@@ -487,6 +487,40 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
   (b) `waitForAcknowledgment` still stubbed (`--MORE--` never blocks);
   (c) `updateFlavorText` still stubbed (flavor text blank).
 
+### Session 2026-03-08g — wire all missing InventoryContext fields in buildInventoryContext
+
+- **Observed:** (code analysis) `buildInventoryContext()` in `ui.ts` returned a narrow
+  `ui.ts:InventoryContext` type containing only ~15 fields. The actual `io/inventory.ts:InventoryContext`
+  used by `displayInventory()` requires 32 fields. The `buildPromptForItemOfTypeFn()` in
+  `io-wiring.ts` bridged the gap using `as unknown as PromptItemContext`, bypassing TypeScript's
+  check. At runtime, pressing `e` (equip) called `displayInventory()` which immediately crashed
+  on `ctx.clearCursorPath is not a function` (line 62). Subsequent fields would have also crashed:
+  `encodeMessageColor`, `applyColorAverage`, `drawButton`, `plotCharToBuffer`, `printStringWithWrapping`,
+  `wrapText`, `storeColorComponents`, `upperCase`, `strLenWithoutEscapes`, `itemColor`, `goodMessageColor`,
+  `badMessageColor`, `interfaceBoxColor`, `G_GOOD_MAGIC`, `G_BAD_MAGIC`, `printCarriedItemDetails`.
+- **Diagnosed:** Root cause: `ui.ts:InventoryContext` was a narrower interface than
+  `io/inventory.ts:InventoryContext`. Both had the same name but `ui.ts` version was never
+  updated as `displayInventory()` grew. `buildInventoryContext()` was typed against the narrow
+  one; callers cast with `as unknown as` to suppress errors. Audit gap — no test.skip entries
+  tracked any of the 17 missing fields.
+- **Fixed:** Changed `buildInventoryContext()` return type to `FullInventoryContext` (from
+  `io/inventory.ts`) and added all 17 missing fields: color ops (applyColorAverage, encodeMessageColor,
+  storeColorComponents), text ops (upperCase, strLenWithoutEscapes, wrapText, printStringWithWrapping),
+  rendering (plotCharToBuffer, drawButton via closure over buildButtonContext()), cursor ops
+  (clearCursorPath — clears IS_IN_PATH flags inline without refreshDungeonCell, safe since
+  inventory overlay covers dungeon), item detail panel (printCarriedItemDetails — stubbed
+  `async () => -1` pending SidebarContext wiring), colors (itemColor, goodMessageColor,
+  badMessageColor, interfaceBoxColor), glyphs (G_GOOD_MAGIC, G_BAD_MAGIC).
+  Removed the `as unknown as InventoryContext` cast in `menus.ts:printTextBox` (no longer needed).
+  Commit: 221a6f8. Tests: 87 files, 2206 pass, 97 skip.
+- **Untracked stubs found:** All 17 missing fields were untracked (no test.skip entries).
+  Pattern: two parallel `InventoryContext` interfaces diverged silently over multiple phases.
+- **Next blocker:** Launch browser, press `e` to open inventory — should no longer crash.
+  Likely next issues: (a) inventory display renders correctly (button layout, item list);
+  (b) equip/unequip/drop actions work; (c) `printCarriedItemDetails` stub returns -1 so
+  item detail panel won't show (Phase 8 follow-up); (d) movement messages and flavor text
+  (`waitForAcknowledgment`, `updateFlavorText` still stubbed).
+
 ---
 
 ## Phase 9: Final stub cleanup
