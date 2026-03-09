@@ -176,6 +176,30 @@ export function overlayDisplayBuffer(
 }
 
 /**
+ * Apply an overlay buffer onto displayBuffer, blending and writing results back.
+ * This is the side-effecting version of overlayDisplayBuffer — use this when you
+ * need the canvas to reflect the overlay (all context builders, menus, etc.).
+ *
+ * overlayDisplayBuffer itself is side-effect-free (returns results only) for
+ * testability; this wrapper is the correct call for rendering paths.
+ */
+export function applyOverlay(
+    displayBuffer: ScreenDisplayBuffer,
+    dbuf: Readonly<ScreenDisplayBuffer>,
+): void {
+    for (const r of overlayDisplayBuffer(displayBuffer, dbuf)) {
+        const cell = displayBuffer.cells[r.x][r.y];
+        cell.character = r.character;
+        cell.foreColorComponents[0] = clamp(r.foreColor.red, 0, 100);
+        cell.foreColorComponents[1] = clamp(r.foreColor.green, 0, 100);
+        cell.foreColorComponents[2] = clamp(r.foreColor.blue, 0, 100);
+        cell.backColorComponents[0] = clamp(r.backColor.red, 0, 100);
+        cell.backColorComponents[1] = clamp(r.backColor.green, 0, 100);
+        cell.backColorComponents[2] = clamp(r.backColor.blue, 0, 100);
+    }
+}
+
+/**
  * Plot a character with fore/back color into a ScreenDisplayBuffer at (x, y).
  * Bakes random color components using the RNG.
  *

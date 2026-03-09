@@ -82,7 +82,7 @@ import {
     clearDisplayBuffer as clearDisplayBufferFn,
     saveDisplayBuffer as saveDisplayBufferFn,
     restoreDisplayBuffer as restoreDisplayBufferFn,
-    overlayDisplayBuffer as overlayDisplayBufferFn,
+    applyOverlay as applyOverlayFn,
     plotCharWithColor as plotCharWithColorFn,
 } from "./display.js";
 import { buttonInputLoop as buttonInputLoopFn, initializeButton as initializeButtonFn } from "./buttons.js";
@@ -367,7 +367,7 @@ export function buildInputContext(): InputContext {
         commitDraws,
         saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
         restoreDisplayBuffer: (saved) => restoreDisplayBufferFn(displayBuffer, saved),
-        overlayDisplayBuffer: (dbuf) => { overlayDisplayBufferFn(displayBuffer, dbuf); },
+        overlayDisplayBuffer: (dbuf) => { applyOverlayFn(displayBuffer, dbuf); },
         clearDisplayBuffer: clearDisplayBufferFn,
         createScreenDisplayBuffer: createScreenDisplayBufferFn,
 

@@ -44,7 +44,7 @@ import {
     plotCharToBuffer as plotCharToBufferFn,
     saveDisplayBuffer as saveDisplayBufferFn,
     restoreDisplayBuffer as restoreDisplayBufferFn,
-    overlayDisplayBuffer as overlayDisplayBufferFn,
+    applyOverlay as applyOverlayFn,
     clearDisplayBuffer as clearDisplayBufferFn,
     createScreenDisplayBuffer as createScreenDisplayBufferFn,
     locIsInWindow as locIsInWindowFn,
@@ -237,7 +237,7 @@ export function buildDisplayContext(): DisplayContext {
         refreshSideBar: () => {},                             // stub — needs appearance system
         plotCharWithColor: (ch, pos, fg, bg) =>
             { plotCharWithColorFn(ch, pos, fg, bg, displayBuffer); },
-        overlayDisplayBuffer: (dbuf) => overlayDisplayBufferFn(displayBuffer, dbuf),
+        overlayDisplayBuffer: (dbuf) => applyOverlayFn(displayBuffer, dbuf),
         saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
         restoreDisplayBuffer: (saved) => restoreDisplayBufferFn(displayBuffer, saved),
         clearDisplayBuffer: clearDisplayBufferFn,
@@ -266,7 +266,7 @@ export function buildMessageContext(): MessageContext {
         displayBuffer,
         plotCharWithColor: (ch, pos, fg, bg) =>
             { plotCharWithColorFn(ch, pos, fg, bg, displayBuffer); },
-        overlayDisplayBuffer: (dbuf) => overlayDisplayBufferFn(displayBuffer, dbuf),
+        overlayDisplayBuffer: (dbuf) => applyOverlayFn(displayBuffer, dbuf),
         saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
         restoreDisplayBuffer: (saved) => restoreDisplayBufferFn(displayBuffer, saved),
         refreshSideBar: () => {},                             // stub — needs appearance system
@@ -324,7 +324,7 @@ export function buildInventoryContext(): FullInventoryContext {
         })(),
         buttonInputLoop: (buttons, count, winX, winY, winWidth, winHeight) =>
             buttonInputLoopFn(buttons, count, winX, winY, winWidth, winHeight, buildButtonContext()),
-        overlayDisplayBuffer: (dbuf) => overlayDisplayBufferFn(displayBuffer, dbuf),
+        overlayDisplayBuffer: (dbuf) => applyOverlayFn(displayBuffer, dbuf),
         saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
         restoreDisplayBuffer: (saved) => restoreDisplayBufferFn(displayBuffer, saved),
         clearDisplayBuffer: clearDisplayBufferFn,
@@ -410,7 +410,7 @@ export function buildButtonContext(): ButtonContext {
         locIsInWindow: locIsInWindowFn,
         createScreenDisplayBuffer: createScreenDisplayBufferFn,
         clearDisplayBuffer: clearDisplayBufferFn,
-        overlayDisplayBuffer: (dbuf) => overlayDisplayBufferFn(displayBuffer, dbuf),
+        overlayDisplayBuffer: (dbuf) => applyOverlayFn(displayBuffer, dbuf),
         saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
         restoreDisplayBuffer: (saved) => restoreDisplayBufferFn(displayBuffer, saved),
         // -- Async bridge: these MUST return Promises -------------------------
