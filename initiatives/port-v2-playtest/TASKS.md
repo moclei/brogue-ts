@@ -690,6 +690,31 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
   (c) Items — pick up from floor, use potion/scroll;
   (d) Win/die — game-over or victory screen.
 
+### Session 2026-03-09c — fix randomMatchingLocation stub; monsters should now spawn
+
+- **Observed:** (code analysis from prior session handoff) No monsters spawn on any level.
+  `spawnHorde` calls `ctx.randomMatchingLocation(FLOOR, liquidType, -1)` to find a floor cell.
+  The stub returned `null` unconditionally, so the 50-iteration failsafe exhausted on every
+  horde — all hordes silently failed to place.
+- **Diagnosed:** `randomMatchingLocation: () => null` stub in `buildMonsterSpawningContext()`
+  (`monsters.ts:186`). Untracked — no test.skip entry.
+  Also: `passableArcCount: () => 0` in same context (`monsters.ts:187`) and in
+  `buildMonsterStateContext()` (`monsters.ts:256`) — both stubs. The spawning stub always
+  returned 0, so `passableArcCount(foundLoc) > 1` was never true; all candidate locations
+  accepted regardless of arc count. Minor gameplay correctness issue (monsters could spawn
+  in hallways where they shouldn't) but not a blocker.
+- **Fixed:** Imported `passableArcCount` and `randomMatchingLocation` from
+  `./architect/helpers.js`; imported `tileCatalog` from `./globals/tile-catalog.js`.
+  Wired both in `buildMonsterSpawningContext()` and `passableArcCount` in
+  `buildMonsterStateContext()`. Commit: eee9a74.
+  Tests: 87 files, 2206 pass, 97 skip (no regressions).
+- **Untracked stubs found:** All three stubs were untracked. Same audit gap pattern.
+- **Next blocker:** Browser playtest needed:
+  (a) Verify monsters spawn on level start — should see enemies on the dungeon;
+  (b) Combat — fight a monster; verify combat messages, death, item drops;
+  (c) Items — pick up from floor, use potion/scroll;
+  (d) Win/die — game-over or victory screen.
+
 ---
 
 ## Phase 9: Final stub cleanup
