@@ -521,6 +521,27 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
   item detail panel won't show (Phase 8 follow-up); (d) movement messages and flavor text
   (`waitForAcknowledgment`, `updateFlavorText` still stubbed).
 
+### Session 2026-03-08h — wire displayInventory in buildInputContext; silence mouse-move logs
+
+- **Observed:** User playtested — pressing `i` (inventory) and `e` (equip) did nothing.
+  No errors in devtools console. Mouse-move events (type=5 = MouseEnteredCell) were flooding
+  the console log on every mouse drag, making it hard to read.
+- **Diagnosed:** `displayInventory` in `buildInputContext()` was stubbed as `async () => {}`
+  (input-context.ts:397). Pressing `i` dispatched to this stub and returned immediately.
+  Pressing `e` with an empty pack is correct silent behavior (promptForItemOfType returns
+  null immediately if no items match). The mouse-move log was at platform.ts:205 — fired
+  for ALL event types including MouseEnteredCell.
+- **Fixed:** (1) Imported `displayInventory` from `./inventory-display.js` and
+  `buildInventoryContext` from `../ui.js` in input-context.ts; replaced stub with real call.
+  (2) Wrapped in `async () => { await ... }` to fix `Promise<string>` vs `void | Promise<void>`
+  type mismatch. (3) Added EventType guard in platform.ts processEvent to skip log for
+  MouseEnteredCell events. Commit: 8d9af1b. Tests: 87 files, 2206 pass, 97 skip.
+- **Untracked stubs found:** `displayInventory` stub in `buildInputContext` had no test.skip
+  entry. Audit gap — same pattern as other input-context stubs.
+- **Next blocker:** Test inventory in browser: press `i` — should open inventory overlay.
+  If it opens but is blank/broken: likely display buffer issue or button rendering.
+  If it opens and works: test `e` with items in pack (pick something up first).
+
 ---
 
 ## Phase 9: Final stub cleanup
