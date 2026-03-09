@@ -38,7 +38,7 @@ New sessions: read the Bug Tracker table first, then the last session entry.
   Earlier fix attempt (785c941) only addressed #2 (which was a no-op since loop ran 0 times).
 - **Player-reported findings (requires re-test):** B9 (water visual effect — displayLevel stub, deferred),
   B10 (inventory equipped items missing).
-- **Commit:** TBD — 87 files, 2206 pass, 98 skip (+1 for makeMonsterDropItem test.skip).
+- **Commit:** 729bcb2 — 87 files, 2206 pass, 98 skip (+1 for makeMonsterDropItem test.skip).
 - **Next:** Re-test B3+B6 in browser. Then B10 (inventory equipped items). Then B8 or B1.
 
 ---
