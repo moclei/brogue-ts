@@ -11,13 +11,33 @@ New sessions: read the Bug Tracker table first, then the last session entry.
 |----|-------------|----------|--------|-------|
 | B1 | Vegetation (grass/foliage/fungus) not visible on dungeon floors | Medium | Open | `runAutogenerators` is implemented; likely drawPriority mismatch — either `fillSpawnMap` DFF_BLOCKED_BY_OTHER_LAYERS check fails, or grass written to pmap but loses to FLOOR in getCellAppearance rendering loop. Check drawPriority for FLOOR vs GRASS in `globals/tile-catalog.ts` vs C source. |
 | B2 | Monsters can't hit player — no damage, no incoming combat messages | HIGH | Fixed (61beabf) | Root: `attack: () => {}` stub in `MoveMonsterContext` (turn-monster-ai.ts line 286). Wired `attackFn`+`buildHitListFn` from `combat/combat-attack.ts` via `buildCombatAttackContext()`. |
-| B3 | All potions appear yellow; "it must have been a yellow potion" on use | Medium | Open | Potion effects do work (telepathic status observed). Likely `shuffleFlavors` not running or the shuffled table isn't the one `itemName` reads. Check `shuffleFlavors` call in `buildGameInitContext()` (`lifecycle.ts`) and verify `mutablePotionTable` is consistent end-to-end. |
+| B3 | All potions appear yellow AND are all telepathy potions | Medium | Open | `shuffleFlavors` not running — all potions resolve to kind 0 (telepathy) with unshuffled color. Check `shuffleFlavors` call in `buildGameInitContext()` (`lifecycle.ts`) and verify `mutablePotionTable` is the table `itemName` reads. Fix B3+B6 together (same root). |
 | B4 | Pickup message says "You now have item (e)" regardless of item type | Medium | Fixed (61beabf) | Root: `itemName: () => buf[0]="item"` stubs in `movement.ts` (×2) and `turn.ts` (×1). Wired real `itemNameFn` from `items/item-naming.ts` with proper `ItemNamingContext`. |
-| B5 | Player cannot fall down chasms | Low | Deferred | `applyInstantTileEffectsToCreature` stubbed. Same root cause as monster-on-chasm note (session 2026-03-09d). Permanent defer this initiative. |
+| B5 | Player cannot fall down chasms — vision freezes, game enters broken state | Low | Deferred | `applyInstantTileEffectsToCreature` stubbed. Player can still move but vision stops updating (unseen areas stay unseen permanently). Permanent defer this initiative. |
+| B6 | All scrolls display as 'A scroll entitled ""' (empty faux-word title) | Medium | Open | Same root as B3 — `shuffleFlavors` not running for scroll table. Unshuffled scroll titles are empty strings. Fix together with B3. |
+| B7 | Player can walk on water as if it were normal ground | Medium | Open | Water terrain effects not applying. Check `T_IS_DEEP_WATER` / `T_ENTANGLES` flags in `tile-catalog.ts`; also `applyGradualTileEffectsToCreature` context in movement — likely unwired or missing water-check branch. |
+| B8 | Pit bloat explosion does not open a chasm in the ground | Low | Open | Monster death dungeon feature (DF) spawn not triggering. When a bloat dies/explodes its `DFType` should call `spawnDungeonFeature`; either the death-DF path in `killCreature`/`combat-damage.ts` is stubbed, or the bloat's DF catalog entry is wrong. |
 
 ---
 
 ## Session Log
+
+### Session 2026-03-09h — player playtest report; B6–B8 added
+
+- **Player-reported findings after B2/B4 fixes:**
+  - B3 clarified: all potions are specifically *telepathy* (kind 0) — confirms shuffleFlavors not
+    running at all; unshuffled table used throughout.
+  - B6 (new): all scrolls show empty title `'A scroll entitled ""'` — same shuffleFlavors root.
+  - B7 (new): water walkable as normal ground — tile effects not applied on water tiles.
+  - B5 extended: walking onto chasm puts game in broken state — player can still move but vision
+    stops updating permanently; unseen areas never reveal. Root is still applyInstantTileEffectsToCreature
+    stubbed; deferred.
+  - B8 (new): pit bloat explosion doesn't open a chasm — monster death DF spawn not triggering.
+- **Fixed:** Nothing this session — documenting findings.
+- **Next:** Fix B3+B6 together (shuffleFlavors root). Then B7 (water walkability). Then B8
+  (monster death DF). Then B1 (vegetation).
+
+---
 
 ### Session 2026-03-09g — fix B2 (monster attack) + B4 (itemName)
 

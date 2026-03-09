@@ -306,14 +306,17 @@ Branch: feat/port-v2-playtest
 - [x] Monsters spawn — `randomMatchingLocation` + `passableArcCount` wired (eee9a74); spawn locations correct (a80213f)
 - [x] Monsters move and hunt player — `currentStealthRange` fixed (a80213f)
 - [x] Combat messages — `displayCombatText` wired (a80213f)
+- [x] Monsters hit player; player can die — `attack` stub wired in `MoveMonsterContext` (61beabf)
+- [x] Pickup message shows item name — `itemName` stub wired in `movement.ts`+`turn.ts` (61beabf)
 
 ### Still to verify (see SESSIONS.md bug tracker for open bugs)
 
 - [ ] Vegetation visible on dungeon floors (B1)
-- [ ] Monsters hit player back; player can die; death screen shown (B2 — HIGH)
-- [ ] Potion/scroll appearances randomized; pickup message shows item name (B3, B4)
+- [ ] Potion/scroll flavors randomized — all potions yellow+telepathy; all scrolls empty title (B3, B6)
+- [ ] Water terrain blocks / applies effects to player (B7)
+- [ ] Monster death dungeon features spawn — pit bloat opens chasm (B8)
+- [ ] Death screen shown after player dies (unblocked by B2 fix — needs browser verify)
 - [ ] `--MORE--` prompt blocks until keypress (`waitForAcknowledgment` still deferred)
-- [ ] Win/die full loop — death screen added but untested (blocked by B2)
 
 ### Known deferred (acceptable stubs for this initiative — do not fix)
 
@@ -326,7 +329,7 @@ Branch: feat/port-v2-playtest
 - `attackVerb: () => "hits"` — all attacks say "hits"; cosmetic
 - `anyoneWantABite` — stub `() => false`; needs full CombatHelperContext
 - `wakeUp` upgrade in `buildWakeUpFn` — partial impl; needs full MonsterStateContext
-- `applyInstantTileEffectsToCreature` — player/monster cannot fall into chasms (B5)
+- `applyInstantTileEffectsToCreature` — player/monster cannot fall into chasms; entering chasm freezes vision (B5); permanent defer
 - `printCarriedItemDetails` item description — shows name only, not full stats; `itemDetails()` stub
 
 
