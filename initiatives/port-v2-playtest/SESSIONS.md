@@ -11,16 +11,35 @@ New sessions: read the Bug Tracker table first, then the last session entry.
 |----|-------------|----------|--------|-------|
 | B1 | Vegetation (grass/foliage/fungus) not visible on dungeon floors | Medium | Open | `runAutogenerators` is implemented; likely drawPriority mismatch — either `fillSpawnMap` DFF_BLOCKED_BY_OTHER_LAYERS check fails, or grass written to pmap but loses to FLOOR in getCellAppearance rendering loop. Check drawPriority for FLOOR vs GRASS in `globals/tile-catalog.ts` vs C source. |
 | B2 | Monsters can't hit player — no damage, no incoming combat messages | HIGH | Fixed (61beabf) | Root: `attack: () => {}` stub in `MoveMonsterContext` (turn-monster-ai.ts line 286). Wired `attackFn`+`buildHitListFn` from `combat/combat-attack.ts` via `buildCombatAttackContext()`. |
-| B3 | All potions appear yellow AND are all telepathy potions | Medium | Open | `shuffleFlavors` not running — all potions resolve to kind 0 (telepathy) with unshuffled color. Check `shuffleFlavors` call in `buildGameInitContext()` (`lifecycle.ts`) and verify `mutablePotionTable` is the table `itemName` reads. Fix B3+B6 together (same root). |
+| B3 | All potions appear yellow AND are all telepathy potions | Medium | Fixed (this session) | Root: `shuffleFlavors` updated `potionTable`/`scrollTable` module-level arrays but `mutablePotionTable`/`mutableScrollTable` are shallow copies made before the shuffle. Fixed by syncing flavors back to mutable copies in the `shuffleFlavors` closure (`lifecycle.ts:223`). |
 | B4 | Pickup message says "You now have item (e)" regardless of item type | Medium | Fixed (61beabf) | Root: `itemName: () => buf[0]="item"` stubs in `movement.ts` (×2) and `turn.ts` (×1). Wired real `itemNameFn` from `items/item-naming.ts` with proper `ItemNamingContext`. |
 | B5 | Player cannot fall down chasms — vision freezes, game enters broken state | Low | Deferred | `applyInstantTileEffectsToCreature` stubbed. Player can still move but vision stops updating (unseen areas stay unseen permanently). Permanent defer this initiative. |
-| B6 | All scrolls display as 'A scroll entitled ""' (empty faux-word title) | Medium | Open | Same root as B3 — `shuffleFlavors` not running for scroll table. Unshuffled scroll titles are empty strings. Fix together with B3. |
-| B7 | Player can walk on water as if it were normal ground | Medium | Open | Water terrain effects not applying. Check `T_IS_DEEP_WATER` / `T_ENTANGLES` flags in `tile-catalog.ts`; also `applyGradualTileEffectsToCreature` context in movement — likely unwired or missing water-check branch. |
+| B6 | All scrolls display as 'A scroll entitled ""' (empty faux-word title) | Medium | Fixed (this session) | Same root as B3 — fixed by same lifecycle.ts change (scroll flavor sync). |
+| B7 | Player can walk on water as if it were normal ground | Medium | Fixed (this session) | Root: `applyGradualTileEffectsToCreature: () => {}` stub in `turn.ts:325`. Built partial `CreatureEffectsContext` (`gradualCtx`) inline in `buildTurnProcessingContext`; wired `dropItemFn`, `numberOfMatchingPackItemsFn`, `autoIdentifyFn`, `inflictDamageFn`, `killCreatureFn`. Water item loss and terrain damage now active. |
 | B8 | Pit bloat explosion does not open a chasm in the ground | Low | Open | Monster death dungeon feature (DF) spawn not triggering. When a bloat dies/explodes its `DFType` should call `spawnDungeonFeature`; either the death-DF path in `killCreature`/`combat-damage.ts` is stubbed, or the bloat's DF catalog entry is wrong. |
 
 ---
 
 ## Session Log
+
+### Session 2026-03-09i — fix B3+B6 (shuffleFlavors flavor sync) + B7 (water gradual effects)
+
+- **Fixed B3+B6:** `shuffleFlavors()` in `item-naming.ts` mutates the module-level `potionTable[i].flavor`
+  and `scrollTable[i].flavor` arrays. But `mutablePotionTable`/`mutableScrollTable` in `core.ts` are
+  shallow copies created before the shuffle runs, so flavor mutations didn't propagate.
+  Fix: after calling `shuffleFlavors()` in the `GameInitContext.shuffleFlavors` closure (`lifecycle.ts:223`),
+  explicitly copy the shuffled flavor strings from `potionTable[i]`/`scrollTable[i]` into the mutable copies.
+  Potions should now show random colors; scrolls should show generated phoneme titles.
+- **Fixed B7:** `applyGradualTileEffectsToCreature: () => {}` stub in `turn.ts:325` (TurnProcessingContext).
+  Built inline `gradualCtx` (partial `CreatureEffectsContext`) inside `buildTurnProcessingContext()` covering
+  all 3 branches: deep-water item loss, terrain damage (lava/acid), terrain healing. New imports:
+  `numberOfMatchingPackItemsFn`, `itemAtLocFn`, `dropItemFn`, `autoIdentifyFn`, `itemMagicPolarityFn`,
+  `applyGradualTileEffectsFn`. Turn.ts: 452 lines (up from 386; well under 600).
+- **Commit:** TBD — 87 files, 2206 pass, 97 skip.
+- **Next:** B8 (pit bloat death DF — monster death spawnDungeonFeature stub in combat-damage.ts).
+  Then B1 (vegetation drawPriority mismatch).
+
+---
 
 ### Session 2026-03-09h — player playtest report; B6–B8 added
 

@@ -16,7 +16,7 @@
  */
 
 import { getGameState, gameOver } from "./core.js";
-import { deleteItem as deleteItemFn } from "./items/item-inventory.js";
+import { deleteItem as deleteItemFn, numberOfMatchingPackItems as numberOfMatchingPackItemsFn, itemAtLoc as itemAtLocFn } from "./items/item-inventory.js";
 import {
     inflictDamage as inflictDamageFn,
     killCreature as killCreatureFn,
@@ -41,10 +41,12 @@ import {
 } from "./globals/colors.js";
 import { DCOLS, DROWS } from "./types/constants.js";
 import { TileFlag, MonsterBookkeepingFlag, TerrainFlag, T_OBSTRUCTS_SCENT } from "./types/flags.js";
-import { CreatureState, GameMode } from "./types/enums.js";
+import { CreatureState, GameMode, ALL_ITEMS } from "./types/enums.js";
 import type { TurnProcessingContext } from "./time/turn-processing.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
-import type { Creature, Pcell, Pos, PlayerCharacter } from "./types/types.js";
+import type { CreatureEffectsContext } from "./time/creature-effects.js";
+import { applyGradualTileEffectsToCreature as applyGradualTileEffectsFn } from "./time/creature-effects.js";
+import type { Creature, Pcell, Pos, PlayerCharacter, Color, Item } from "./types/types.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
 import { displayCombatText as displayCombatTextFn } from "./io/messages.js";
 import { buildMessageContext } from "./ui.js";
@@ -59,6 +61,9 @@ import { buildEquipState } from "./items/equip-helpers.js";
 import { getFOVMask as getFOVMaskFn } from "./light/fov.js";
 import { scentDistance } from "./time/turn-processing.js";
 import { itemName as itemNameFn } from "./items/item-naming.js";
+import { autoIdentify as autoIdentifyFn } from "./items/item-handlers.js";
+import { dropItem as dropItemFn } from "./items/floor-items.js";
+import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
 import { wandTable, staffTable, ringTable, charmTable } from "./globals/item-catalog.js";
 import type { ItemTable } from "./types/types.js";
 
@@ -155,6 +160,67 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
     };
 
     const combatCtx = buildMinimalCombatContext(player, rogue, pmap, monsters);
+
+    // ── Gradual tile effects context (for water item loss, terrain damage/healing) ──
+    const _ctf = (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags);
+    const gradualCtx = {
+        player, pmap,
+        rogue,
+        cellHasTerrainFlag: _ctf,
+        HAS_ITEM: TileFlag.HAS_ITEM,
+        ALL_ITEMS,
+        rand_percent: randPercent,
+        rand_range: randRange,
+        packItems,
+        numberOfMatchingPackItems: (cat: number, _kind: number, flags: number) =>
+            numberOfMatchingPackItemsFn(packItems, cat, 0, flags),
+        dropItem: (theItem: Item) => dropItemFn(theItem, {
+            pmap, floorItems,
+            tileCatalog: tileCatalog as never,
+            dungeonFeatureCatalog: dungeonFeatureCatalog as never,
+            packItems, player,
+            rogue: { swappedIn: rogue.swappedIn, swappedOut: rogue.swappedOut },
+            itemMagicPolarity: itemMagicPolarityFn,
+            cellHasTerrainFlag: _ctf,
+            cellHasTMFlag: (pos: Pos, flags: number) => cellHasTMFlagFn(pmap, pos, flags),
+            playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+            itemName: (i: Item, buf: string[]) => { buf[0] = itemNameFn(i, false, true, namingCtx); },
+            message: io.message,
+            spawnDungeonFeature: () => {}, promoteTile: () => {}, discover: () => {},
+            refreshDungeonCell,
+            REQUIRE_ACKNOWLEDGMENT: 1,
+            itemAtLoc: (loc: Pos) => itemAtLocFn(loc, floorItems),
+            pickUpItemAt: () => {},
+        }),
+        itemName: (i: Item, buf: string[], details: boolean, article: boolean) => {
+            buf[0] = itemNameFn(i, details, article, namingCtx);
+        },
+        messageWithColor: (msg: string, color: Color, flags: number) => io.messageWithColor(msg, color, flags),
+        itemMessageColor,
+        makeMonsterDropItem: () => {},
+        max: Math.max, min: Math.min,
+        tileCatalog,
+        autoIdentify: (item: Item) => autoIdentifyFn(item, {
+            gc: gameConst,
+            messageWithColor: (msg: string, color: Color, flags: number) => io.messageWithColor(msg, color, flags),
+            itemMessageColor, namingCtx,
+        }),
+        message: io.message,
+        badMessageColor, goodMessageColor,
+        inflictDamage: (attacker: Creature | null, defender: Creature, damage: number, flashColor: Color, showDamage: boolean) =>
+            inflictDamageFn(attacker, defender, damage, flashColor, showDamage, combatCtx),
+        killCreature: (monst: Creature, adminDeath: boolean) => killCreatureFn(monst, adminDeath, combatCtx),
+        gameOver: (msg: string) => gameOver(msg),
+        canSeeMonster: (m: Creature) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+        monsterName: (buf: string[], m: Creature, includeArticle: boolean) => {
+            if (m === player) { buf[0] = "you"; return; }
+            const pfx = includeArticle ? (m.creatureState === CreatureState.Ally ? "your " : "the ") : "";
+            buf[0] = `${pfx}${m.info.monsterName}`;
+        },
+        messageColorFromVictim: (monst: Creature): Color =>
+            (monst === player || monst.creatureState === CreatureState.Ally) ? badMessageColor : goodMessageColor,
+        refreshDungeonCell,
+    } as unknown as CreatureEffectsContext;
 
     function pmapAt(loc: Pos): Pcell { return pmap[loc.x][loc.y]; }
 
@@ -322,7 +388,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
 
         // ── Tile effects (stubs — wired in port-v2-platform) ─────────────────
         applyInstantTileEffectsToCreature: () => {},
-        applyGradualTileEffectsToCreature: () => {},
+        applyGradualTileEffectsToCreature: (monst, ticks) => applyGradualTileEffectsFn(monst, ticks, gradualCtx),
         monsterShouldFall: () => false,
         monstersFall: () => {},
         decrementPlayerStatus: () => {},

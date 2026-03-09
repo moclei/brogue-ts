@@ -220,7 +220,18 @@ export function buildGameInitContext(): GameInitContext {
         initializeGender(monst) { initializeGender(monst, { randRange, randPercent }); },
         initializeStatus(monst) { initializeStatus(monst, monst === player); },
         initRecording: () => {},
-        shuffleFlavors() { shuffleFlavors(gameConst, randRange, randPercent); },
+        shuffleFlavors() {
+            shuffleFlavors(gameConst, randRange, randPercent);
+            // shuffleFlavors mutates the catalog arrays (potionTable[i].flavor etc.) but
+            // mutablePotionTable/mutableScrollTable are shallow copies made before the shuffle.
+            // Sync the flavors so itemName reads the shuffled values.
+            for (let i = 0; i < mutablePotionTable.length; i++) {
+                mutablePotionTable[i].flavor = potionTable[i].flavor;
+            }
+            for (let i = 0; i < mutableScrollTable.length; i++) {
+                mutableScrollTable[i].flavor = scrollTable[i].flavor;
+            }
+        },
         resetDFMessageEligibility() { resetDFMessageEligibility(dungeonFeatureCatalog); },
         deleteMessages() {
             for (let i = 0; i < messageState.displayedMessage.length; i++) {
