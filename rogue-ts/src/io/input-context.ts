@@ -399,6 +399,10 @@ export function buildInputContext(): InputContext {
         displayInventory: async (categoryMask, requiredFlags, forbiddenFlags, waitForAcknowledge, includeButtons) => {
             await displayInventoryFn(categoryMask, requiredFlags, forbiddenFlags, waitForAcknowledge, includeButtons,
                 buildInventoryContext());
+            // displayInventory restores the display buffer at the end, which wipes any
+            // messages written during item actions (e.g. potion effects). Re-render so
+            // commitDraws() in mainGameLoop flushes the correct message area.
+            io.updateMessageDisplay();
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         displayMessageArchive: () => { displayMessageArchiveFn(buildMessageContext() as any); },

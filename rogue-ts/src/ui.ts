@@ -33,6 +33,7 @@ import { wandTable, staffTable, ringTable, charmTable } from "./globals/item-cat
 import { mapToWindowX, mapToWindowY } from "./globals/tables.js";
 import { white, gray, black, itemColor, goodMessageColor, badMessageColor, interfaceBoxColor } from "./globals/colors.js";
 import { EventType, DisplayGlyph } from "./types/enums.js";
+import { COLS, ROWS, INTERFACE_OPACITY } from "./types/constants.js";
 import type { ItemTable } from "./types/types.js";
 import type {
     MessageState, ScreenDisplayBuffer, SavedDisplayBuffer,
@@ -335,7 +336,10 @@ export function buildInventoryContext(): FullInventoryContext {
         equip: (item) => equipFn(item),
         unequip: (item) => unequipFn(item),
         drop: (item) => dropFn(item),
-        throwCommand: async () => {},                         // stub — Phase 8 (needs chooseTarget)
+        throwCommand: async () => {                           // stub — Phase 8 (needs chooseTarget)
+            const mc = buildMessageContext() as unknown as SyncMessageContext;
+            messageFn(mc, "Throwing not yet implemented.", 0);
+        },
         relabel: (item) => relabelFn(item),
         call: async () => {},                                 // stub — Phase 8 (needs getInputTextString)
         white,
@@ -358,7 +362,15 @@ export function buildInventoryContext(): FullInventoryContext {
             const textBuf = itemNameFn(theItem, true, true, namingCtx);
             const dbuf = createScreenDisplayBufferFn();
             clearDisplayBufferFn(dbuf);
-            printStringWithWrappingFn(textBuf, x, y, width, white, { ...black, red: 5, green: 5, blue: 20 }, dbuf);
+            const bgColor = { ...black, red: 5, green: 5, blue: 20 };
+            const lastY = printStringWithWrappingFn(textBuf, x, y, width, white, bgColor, dbuf);
+            // Set opacity on text box cells so overlayDisplayBuffer renders them.
+            // Equivalent to C's rectangularShading() call in printTextBox().
+            for (let ci = x; ci < x + width && ci < COLS; ci++) {
+                for (let cj = y; cj <= lastY && cj < ROWS; cj++) {
+                    dbuf.cells[ci][cj].opacity = INTERFACE_OPACITY;
+                }
+            }
             applyOverlayFn(displayBuffer, dbuf);
             commitDraws();
             const event = await waitForEvent();
