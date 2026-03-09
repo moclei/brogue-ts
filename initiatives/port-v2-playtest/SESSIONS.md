@@ -16,7 +16,7 @@ New sessions: read the Bug Tracker table first, then the last session entry.
 | B5 | Player cannot fall down chasms — vision freezes, game enters broken state | Low | Deferred | `applyInstantTileEffectsToCreature` stubbed. Player can still move but vision stops updating (unseen areas stay unseen permanently). Permanent defer this initiative. |
 | B6 | All scrolls display as 'A scroll entitled ""' (empty faux-word title) | Medium | Fixed (729bcb2, verified) | Same root as B3 (both causes fixed together). |
 | B7 | Player can walk on water as if it were normal ground | Medium | Fixed (785c941) | Root: `applyGradualTileEffectsToCreature: () => {}` stub in `turn.ts`. Wired real impl with `gradualCtx`. NOTE: visual water-entry effect (light dimming) depends on `displayLevel` stub — see B9. |
-| B8 | Pit bloat explosion does not open a chasm in the ground | Low | Open | Monster death dungeon feature (DF) spawn not triggering. Check `spawnDungeonFeature: () => {}` stub in `buildMinimalCombatContext` (turn.ts); also check bloat DFType in monster-catalog. |
+| B8 | Pit bloat explosion does not open a chasm in the ground | Low | Fixed (cd6dfcc) | Wired real `spawnDungeonFeatureFn` into all four stubs: `combat.ts:buildCombatDamageContext` (CombatDamageContext featureIndex-based), `turn.ts:buildMinimalCombatContext` (same), `turn.ts:buildTurnProcessingContext` (TurnProcessingContext DungeonFeature-based), `turn-monster-ai.ts:buildMonstersTurnContext` (MonstersTurnContext dfType-based). |
 | B9 | Water entry has no visual effect (light change / level re-render) | Low | Deferred | `updatePlayerUnderwaterness` sets `rogue.inWater` correctly but calls `displayLevel()` which is a permanent stub. Deferred same class as B5. |
 | B10 | Inventory only shows pack items; equipped items section missing | Medium | Fixed (95bb5ac) | Root: `equipItem` wrappers in lifecycle.ts/combat.ts/items.ts/input-context.ts called `syncEquipBonuses` after `equipItemFn` — only syncs ring bonuses, not weapon/armor/ring refs. `rogue.weapon` etc. always null. Fix: all four wrappers now call `syncEquipState` instead. |
 | B11 | Using a scroll/potion shows unidentified name in "It must have been..." message | Medium | Fixed (b373f3e) | Root: `identifyItemKind` wrote `identified=true` to catalog tables but `itemName` reads mutable copies. Fix: added optional `MutableFlavorTables` param to `identifyItemKind`/`identify`/`tryIdentifyLastItemKind`/`tryIdentifyLastItemKinds`; syncs `identified` to mutable entry after writing catalog. All call sites updated. |
@@ -24,6 +24,22 @@ New sessions: read the Bug Tracker table first, then the last session entry.
 ---
 
 ## Session Log
+
+### Session 2026-03-09k — fix B8 (monster death DF not spawning)
+
+- **Fixed B8 (cd6dfcc):** Wired real `spawnDungeonFeatureFn` (from `architect/machines.ts`) into
+  all four `spawnDungeonFeature: () => {}` stubs across `combat.ts`, `turn.ts` (×2), and
+  `turn-monster-ai.ts`. Primary fix path: `killCreature` in `combat-damage.ts` checks
+  `MA_DF_ON_DEATH` and calls `ctx.spawnDungeonFeature(DFType, 100, false)` — was a no-op.
+  CombatDamageContext interface uses featureIndex + probability (scales `startProbability` for
+  blood; probability=100 passes catalog feature unchanged for death DFs).
+  Also wired TurnProcessingContext (DungeonFeature object) and MonstersTurnContext (dfType index)
+  for per-turn `DFChance` features.
+- **Commit:** cd6dfcc — 87 files, 2208 pass, 98 skip (no change in counts).
+- **Next:** B9 (water visual effect — displayLevel stub) remains deferred. No other open bugs.
+  Phase 9 (stub cleanup) is next.
+
+---
 
 ### Session 2026-03-09j — fix B11 (identified name in autoIdentify message)
 
