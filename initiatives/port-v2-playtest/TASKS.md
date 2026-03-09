@@ -715,6 +715,50 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
   (c) Items — pick up from floor, use potion/scroll;
   (d) Win/die — game-over or victory screen.
 
+### Session 2026-03-09d — fix combat messages, monster movement, spawn locations
+
+- **Observed:** (user playtest) Monsters now spawn. Walking into a monster gets some response
+  but no combat messages appear. Monsters don't move. Monsters spawn over chasms and
+  presumably over water.
+- **Diagnosed (combat messages):** `displayCombatText: () => {}` stub in `turn.ts:230`.
+  `combatMessage()` buffers text; `displayCombatText` flushes it. The flush is called at
+  the end of `monstersTurn()` in `time/turn-processing.ts:779` via `ctx.displayCombatText()`.
+  With the stub, combat messages buffered but never displayed. Untracked.
+- **Diagnosed (monsters don't move):** `currentStealthRange: () => 0` in `turn.ts:336`.
+  After each turn, `rogue.stealthRange = ctx.currentStealthRange() = 0`. In `awareOfTarget`,
+  `awareness = stealthRange * 2 = 0`. The check `perceived > awareness * 3 = 0` is always
+  true for any monster not on the player's cell → returns false immediately. All non-special
+  monsters (no `MONST_ALWAYS_HUNTING`) can never become aware → stay sleeping forever.
+  Other context builders (lifecycle.ts, items.ts) correctly stub this as `() => 14`.
+  `currentStealthRange` is already implemented in `time/creature-effects.ts`. Untracked.
+- **Diagnosed (spawn over water):** `spawnHorde` in `monster-spawning.ts:442` passed args
+  in wrong order. C source: `randomMatchingLocation(FLOOR, NOTHING, spawnsIn ? spawnsIn : -1)`.
+  TS port had `(FLOOR, spawnsIn ? spawnsIn : -1, -1)`. With `spawnsIn = 0` (most monsters):
+  C passes `liquidType=NOTHING (0)` → rejects cells with liquid; TS passed `liquidType=-1` →
+  skipped liquid check → monsters could spawn in deep water or lava cells.
+  Chasms: not excluded by `T_OBSTRUCTS_ITEMS` (chasm only has `T_AUTO_DESCENT`). In C Brogue,
+  monsters CAN spawn on chasms but fall immediately via `applyInstantTileEffectsToCreature`.
+  Since that function is stubbed, chasm-spawned monsters remain visible on the chasm tile.
+- **Fixed (combat messages):** Imported `displayCombatText` from `io/messages.ts` and
+  `buildMessageContext` from `ui.ts` in `turn.ts`. Replaced stub with
+  `() => displayCombatTextFn(buildMessageContext() as any)`. Cast needed: `ui.ts` MessageContext
+  has async `pauseBrogue` (for `--MORE--`), while `io/messages-state.ts` expects sync.
+- **Fixed (monsters don't move):** Changed `currentStealthRange: () => 0` to `() => 14`
+  in `buildTurnProcessingContext()`. The real `currentStealthRange` function (which applies
+  armor/darkness modifiers) can be wired later; 14 is the correct base value.
+- **Fixed (spawn over water):** Changed `spawnHorde` to pass `liquidType=TileType.NOTHING`
+  and `terrainType=spawnsIn ? spawnsIn : -1`, matching the C source argument order.
+- Commit: a80213f. Tests: 87 files, 2206 pass, 97 skip (no regressions).
+- **Untracked stubs found:** All three issues were untracked. Same pattern as previous sessions.
+- **Known remaining issue:** Monsters still spawn on chasms (chasm has only `T_AUTO_DESCENT`,
+  not `T_OBSTRUCTS_ITEMS`, so `randomMatchingLocation` accepts them, matching C behavior).
+  Real fix requires `applyInstantTileEffectsToCreature` for monsters — deferred.
+- **Next blocker:** Browser playtest:
+  (a) Combat messages should now appear when attacking/being attacked;
+  (b) Monsters should now move and hunt the player;
+  (c) Items — pick up from floor, use potion/scroll;
+  (d) Win/die — game-over or victory screen.
+
 ---
 
 ## Phase 9: Final stub cleanup
