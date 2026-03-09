@@ -77,6 +77,14 @@ import {
 } from "./overlay-screens.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "../light/light.js";
 import { encodeMessageColor } from "./color.js";
+import {
+    createScreenDisplayBuffer as createScreenDisplayBufferFn,
+    clearDisplayBuffer as clearDisplayBufferFn,
+    saveDisplayBuffer as saveDisplayBufferFn,
+    restoreDisplayBuffer as restoreDisplayBufferFn,
+    overlayDisplayBuffer as overlayDisplayBufferFn,
+    plotCharWithColor as plotCharWithColorFn,
+} from "./display.js";
 import { buttonInputLoop as buttonInputLoopFn, initializeButton as initializeButtonFn } from "./buttons.js";
 import { equip as equipFn, unequip as unequipFn, drop as dropFn, relabel as relabelFn } from "./inventory-actions.js";
 import { buildButtonContext } from "../ui.js";
@@ -345,7 +353,7 @@ export function buildInputContext(): InputContext {
         encodeMessageColor,
         strLenWithoutEscapes: (s) => s.length,
         printString: () => {},
-        plotCharWithColor: () => {},
+        plotCharWithColor: (ch, pos, fg, bg) => { plotCharWithColorFn(ch, pos, fg, bg, displayBuffer); },
 
         // ── Messages ──────────────────────────────────────────────────────────
         message: (msg, flags) => io.message(msg, flags),
@@ -356,14 +364,11 @@ export function buildInputContext(): InputContext {
 
         // ── Display buffers ───────────────────────────────────────────────────
         commitDraws,
-        saveDisplayBuffer: () => ({ savedScreen: displayBuffer }),
-        restoreDisplayBuffer: () => {},
-        overlayDisplayBuffer: () => {},
-        clearDisplayBuffer: () => {},
-        createScreenDisplayBuffer: () => {
-            // minimal blank buffer — real rendering wired in Phase 5
-            return { cells: [] };
-        },
+        saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
+        restoreDisplayBuffer: (saved) => restoreDisplayBufferFn(displayBuffer, saved),
+        overlayDisplayBuffer: (dbuf) => { overlayDisplayBufferFn(displayBuffer, dbuf); },
+        clearDisplayBuffer: clearDisplayBufferFn,
+        createScreenDisplayBuffer: createScreenDisplayBufferFn,
 
         // ── Buttons ───────────────────────────────────────────────────────────
         initializeButton: () => initializeButtonFn(),
