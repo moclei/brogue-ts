@@ -35,7 +35,7 @@ New sessions: read the Bug Tracker table first, then the last session entry.
   all 3 branches: deep-water item loss, terrain damage (lava/acid), terrain healing. New imports:
   `numberOfMatchingPackItemsFn`, `itemAtLocFn`, `dropItemFn`, `autoIdentifyFn`, `itemMagicPolarityFn`,
   `applyGradualTileEffectsFn`. Turn.ts: 452 lines (up from 386; well under 600).
-- **Commit:** TBD — 87 files, 2206 pass, 97 skip.
+- **Commit:** 785c941 — 87 files, 2206 pass, 97 skip.
 - **Next:** B8 (pit bloat death DF — monster death spawnDungeonFeature stub in combat-damage.ts).
   Then B1 (vegetation drawPriority mismatch).
 
