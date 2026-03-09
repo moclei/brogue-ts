@@ -378,13 +378,13 @@ export async function executeKeystroke(
                 ctx.displayMessageArchive();
                 break;
             case BROGUE_HELP_KEY:
-                ctx.printHelpScreen();
+                await ctx.printHelpScreen();
                 break;
             case FEATS_KEY:
-                ctx.displayFeatsScreen();
+                await ctx.displayFeatsScreen();
                 break;
             case DISCOVERIES_KEY:
-                ctx.printDiscoveriesScreen();
+                await ctx.printDiscoveriesScreen();
                 break;
             case CREATE_ITEM_MONSTER_KEY:
                 if (ctx.DEBUG) ctx.dialogCreateItemOrMonster();

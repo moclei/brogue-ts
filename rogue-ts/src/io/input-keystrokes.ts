@@ -144,9 +144,9 @@ export interface InputContext {
     refreshSideBar(x: number, y: number, justClearing: boolean): void;
     displayInventory(categoryMask: number, titleFlags: number, focusFlags: number, includeDetails: boolean, includeButtons: boolean): void | Promise<void>;
     displayMessageArchive(): void;
-    printHelpScreen(): void;
-    displayFeatsScreen(): void;
-    printDiscoveriesScreen(): void;
+    printHelpScreen(): void | Promise<void>;
+    displayFeatsScreen(): void | Promise<void>;
+    printDiscoveriesScreen(): void | Promise<void>;
     flashTemporaryAlert(msg: string, time: number): void;
     displayMonsterFlashes(flashAll: boolean): void;
     setGraphicsMode(mode: number): number;

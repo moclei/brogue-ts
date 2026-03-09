@@ -19,6 +19,7 @@
  */
 
 import { getGameState } from "../core.js";
+import { commitDraws } from "../platform.js";
 import {
     createScreenDisplayBuffer, clearDisplayBuffer,
     overlayDisplayBuffer, saveDisplayBuffer, restoreDisplayBuffer,
@@ -181,6 +182,7 @@ export async function printHelpScreen(waitFn?: () => Promise<void>): Promise<voi
     applyOverlay(displayBuffer, dbuf);
     if (waitFn) await waitFn();
     restoreDisplayBuffer(displayBuffer, rbuf);
+    commitDraws();
 }
 
 // =============================================================================
@@ -247,6 +249,7 @@ export async function displayFeatsScreen(waitFn?: () => Promise<void>): Promise<
     applyOverlay(displayBuffer, dbuf);
     if (waitFn) await waitFn();
     restoreDisplayBuffer(displayBuffer, rbuf);
+    commitDraws();
 }
 
 // =============================================================================
@@ -307,4 +310,5 @@ export async function printDiscoveriesScreen(waitFn?: () => Promise<void>): Prom
     applyOverlay(displayBuffer, dbuf);
     if (waitFn) await waitFn();
     restoreDisplayBuffer(displayBuffer, rbuf);
+    commitDraws();
 }
