@@ -90,6 +90,7 @@ import type { LevelContext } from "./game/game-level.js";
 import type { CleanupContext } from "./game/game-cleanup.js";
 import type { LifecycleContext } from "./game/game-lifecycle.js";
 import { buildRefreshSideBarFn, buildMessageFns } from "./io-wiring.js";
+import { buildUpdateVisionFn } from "./vision-wiring.js";
 
 // =============================================================================
 // Module-level lifecycle state (not in core.ts)
@@ -482,11 +483,12 @@ export function buildLevelContext(): LevelContext {
             cell.rememberedTerrainFlags = tf(pmap, { x, y });
             cell.rememberedCellFlags = cell.flags;
         },
-        updateVision: () => {},
+        updateVision: buildUpdateVisionFn(),
         discoverCell: (x, y) => { pmap[x][y].flags |= TileFlag.DISCOVERED; },
         updateMapToShore() { rogue.mapToShore = updateMapToShore(pmap); },
         updateRingBonuses: () => { const s = buildEquipState(); updateRingBonusesFn(s); syncEquipBonuses(s); },
         displayLevel() {
+            console.log("[displayLevel/buildLevelContext] called");
             const getCellApp = (loc: { x: number; y: number }) => getCellAppearance(
                 loc, pmap, tmap, displayBuffer, rogue, player,
                 monsters, dormantMonsters, floorItems,
@@ -494,6 +496,7 @@ export function buildLevelContext(): LevelContext {
                 terrainRandomValues, displayDetail, scentMap ?? [],
             );
             displayLevelFn(DCOLS, DROWS, (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer));
+            console.log("[displayLevel/buildLevelContext] done");
         },
         refreshSideBar: () => {},
         messageWithColor: () => {},
