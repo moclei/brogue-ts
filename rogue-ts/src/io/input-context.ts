@@ -63,7 +63,7 @@ import { ringTable } from "../globals/item-catalog.js";
 import { randPercent, randClumpedRange } from "../math/rng.js";
 import { autoRest as autoRestFn, manualSearch as manualSearchFn } from "../time/misc-helpers.js";
 import { equipItem as equipItemFn, updateRingBonuses as updateRingBonusesFn, updateEncumbrance as updateEncumbranceFn } from "../items/item-usage.js";
-import { buildEquipState, syncEquipBonuses } from "../items/equip-helpers.js";
+import { buildEquipState, syncEquipBonuses, syncEquipState } from "../items/equip-helpers.js";
 import type { MiscHelpersContext } from "../time/misc-helpers.js";
 import type { ItemHelperContext } from "../movement/item-helpers.js";
 import { dijkstraScan as dijkstraScanFn } from "../dijkstra/dijkstra.js";
@@ -450,7 +450,7 @@ export function buildInputContext(): InputContext {
                 updateEncumbrance: () => updateEncumbranceFn(s),
             });
             if (!swapped) return;  // cursed — can't swap
-            syncEquipBonuses(s);
+            syncEquipState(s);
             const tmp = rogue.swappedIn;
             rogue.swappedIn = rogue.swappedOut;
             rogue.swappedOut = tmp;

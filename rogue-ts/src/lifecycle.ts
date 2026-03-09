@@ -69,7 +69,7 @@ import { addItemToPack, numberOfMatchingPackItems, itemAtLoc as itemAtLocFn, del
 import { identify, shuffleFlavors, itemColors, itemTitles } from "./items/item-naming.js";
 import { equipItem, recalculateEquipmentBonuses, updateRingBonuses as updateRingBonusesFn, updateEncumbrance as updateEncumbranceFn } from "./items/item-usage.js";
 import type { EquipContext } from "./items/item-usage.js";
-import { buildEquipState, syncEquipBonuses } from "./items/equip-helpers.js";
+import { buildEquipState, syncEquipBonuses, syncEquipState } from "./items/equip-helpers.js";
 import type { MachineItem } from "./architect/machines.js";
 import { initializeGender, initializeStatus, generateMonster } from "./monsters/monster-creation.js";
 import { createMonsterOps, toggleMonsterDormancy } from "./monsters/monster-ops.js";
@@ -210,7 +210,7 @@ export function buildGameInitContext(): GameInitContext {
                 itemName: (i) => i.displayChar ? String.fromCharCode(i.displayChar) : "?",
             };
             equipItem(item, willUnequip, swapItem, equipCtx);
-            syncEquipBonuses(state);
+            syncEquipState(state);
         },
         recalculateEquipmentBonuses() {
             const state = buildEquipState();

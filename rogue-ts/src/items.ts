@@ -35,7 +35,7 @@ import {
     numberOfMatchingPackItems as numberOfMatchingPackItemsFn,
 } from "./items/item-inventory.js";
 import { enchantMagnitude, netEnchant as netEnchantFn, updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, equipItem as equipItemFn } from "./items/item-usage.js";
-import { buildEquipState, syncEquipBonuses } from "./items/equip-helpers.js";
+import { buildEquipState, syncEquipBonuses, syncEquipState } from "./items/equip-helpers.js";
 import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
 import {
     heal as healFn,
@@ -281,7 +281,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
             const s = buildEquipState();
             equipItemFn(item, force, hint, { state: s, message: (text, req) => io.message(text, req ? 1 : 0), itemName: () => "item",
                 updateRingBonuses: () => { updateRingBonusesFn(s); syncEquipBonuses(s); }, updateEncumbrance: () => updateEncumbranceFn(s) });
-            syncEquipBonuses(s);
+            syncEquipState(s);
         },
         recalculateEquipmentBonuses: () => {},
         itemMagicPolarity: (item) => itemMagicPolarityFn(item),

@@ -39,7 +39,7 @@ import type { AttackContext } from "./combat/combat-attack.js";
 import type { Creature, Pos } from "./types/types.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
 import { updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, equipItem as equipItemFn } from "./items/item-usage.js";
-import { buildEquipState, syncEquipBonuses } from "./items/equip-helpers.js";
+import { buildEquipState, syncEquipBonuses, syncEquipState } from "./items/equip-helpers.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
 
 // =============================================================================
@@ -237,7 +237,7 @@ export function buildCombatAttackContext(): AttackContext {
             equipItemFn(item, force, null, { state: s, message: () => {}, itemName: () => "item",
                 updateRingBonuses: () => { updateRingBonusesFn(s); syncEquipBonuses(s); },
                 updateEncumbrance: () => updateEncumbranceFn(s) });
-            syncEquipBonuses(s);
+            syncEquipState(s);
         },
         itemName: () => "item",
         checkForDisenchantment: () => {},
