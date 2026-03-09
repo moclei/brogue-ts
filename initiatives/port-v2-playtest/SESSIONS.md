@@ -10,14 +10,28 @@ New sessions: read the Bug Tracker table first, then the last session entry.
 | ID | Description | Priority | Status | Notes |
 |----|-------------|----------|--------|-------|
 | B1 | Vegetation (grass/foliage/fungus) not visible on dungeon floors | Medium | Open | `runAutogenerators` is implemented; likely drawPriority mismatch — either `fillSpawnMap` DFF_BLOCKED_BY_OTHER_LAYERS check fails, or grass written to pmap but loses to FLOOR in getCellAppearance rendering loop. Check drawPriority for FLOOR vs GRASS in `globals/tile-catalog.ts` vs C source. |
-| B2 | Monsters can't hit player — no damage, no incoming combat messages | HIGH | Open | Blocks death screen verification. Monsters wake, move toward player, player can kill them. Attack path from monster → player is broken. Trace `monstersTurn()` in `turn-processing.ts` to find what context fn handles monster→player melee; check if stubbed in `turn.ts`. |
+| B2 | Monsters can't hit player — no damage, no incoming combat messages | HIGH | Fixed (61beabf) | Root: `attack: () => {}` stub in `MoveMonsterContext` (turn-monster-ai.ts line 286). Wired `attackFn`+`buildHitListFn` from `combat/combat-attack.ts` via `buildCombatAttackContext()`. |
 | B3 | All potions appear yellow; "it must have been a yellow potion" on use | Medium | Open | Potion effects do work (telepathic status observed). Likely `shuffleFlavors` not running or the shuffled table isn't the one `itemName` reads. Check `shuffleFlavors` call in `buildGameInitContext()` (`lifecycle.ts`) and verify `mutablePotionTable` is consistent end-to-end. |
-| B4 | Pickup message says "You now have item (e)" regardless of item type | Medium | Open | Pack letter correct; name wrong. `itemName` likely stubbed in `movement.ts` `buildMovementContext` / `buildPlayerMoveContext`. Inventory dialog correctly differentiates types — only pickup message path broken. |
+| B4 | Pickup message says "You now have item (e)" regardless of item type | Medium | Fixed (61beabf) | Root: `itemName: () => buf[0]="item"` stubs in `movement.ts` (×2) and `turn.ts` (×1). Wired real `itemNameFn` from `items/item-naming.ts` with proper `ItemNamingContext`. |
 | B5 | Player cannot fall down chasms | Low | Deferred | `applyInstantTileEffectsToCreature` stubbed. Same root cause as monster-on-chasm note (session 2026-03-09d). Permanent defer this initiative. |
 
 ---
 
 ## Session Log
+
+### Session 2026-03-09g — fix B2 (monster attack) + B4 (itemName)
+
+- **Fixed B2:** `attack: () => {}` stub in `MoveMonsterContext` (turn-monster-ai.ts). Wired
+  `attackFn` + `buildHitListFn` from `combat/combat-attack.ts` via `buildCombatAttackContext()`.
+  Monsters can now deal damage to player; death screen path unblocked.
+- **Fixed B4:** `itemName` stubs in `movement.ts` (×2) and `turn.ts` (×1) all returning "item".
+  Wired real `itemNameFn` with full `ItemNamingContext` (mutablePotionTable, mutableScrollTable,
+  wandTable, staffTable, ringTable, charmTable, monsterCatalog). Pickup message now shows item name.
+- **Commit:** 61beabf — 87 files, 2206 pass, 97 skip.
+- **Next:** B3 (all potions yellow — shuffleFlavors not wired or mutablePotionTable mismatch).
+  Then B1 (vegetation missing — drawPriority/tile-catalog issue).
+
+---
 
 ### Session 2026-03-09f — browser playtest; 5 bugs found (B1–B5)
 
