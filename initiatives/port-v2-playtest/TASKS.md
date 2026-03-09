@@ -598,6 +598,45 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
   goes back to inventory list; (d) continue Phase 8 checklist (combat, stair descent,
   travel/auto-explore, help screen).
 
+### Session 2026-03-08k — fix item detail panel invisible; throw stub; potion message delay
+
+- **Observed:** Three user-reported bugs from playtest: (a) pressing `i` → item letter shows
+  action text box according to key-presses working (apply works) but the box doesn't render
+  visually; (b) pressing `t` from inventory does nothing; (c) after drinking a potion the
+  message appears only on the next move.
+- **Diagnosed (a):** `printCarriedItemDetails` creates a temp `dbuf`, writes text via
+  `printStringWithWrappingFn`, then calls `applyOverlayFn`. But `plotCharToBuffer` does not
+  set `opacity` — cells stay at `opacity=0` from `clearDisplayBufferFn`. `overlayDisplayBuffer`
+  skips all cells with `opacity=0`, so the text box is computed but never applied to the canvas.
+  Root cause: the TS implementation was missing the `rectangularShading()` call that C's
+  `printTextBox()` uses to set opacity on the text box rectangle.
+- **Diagnosed (b):** `throwCommand` in `buildInventoryContext()` was `async () => {}` — a
+  completely silent no-op. User gets no feedback when pressing `t`.
+- **Diagnosed (c):** `displayInventory` calls `ctx.restoreDisplayBuffer(rbuf)` at the end,
+  restoring the displayBuffer to the pre-inventory state saved before the overlay was applied.
+  Any messages written during item actions (e.g. potion effects) are in this pre-save state
+  only via `messageState`, not in the restored buffer. `commitDraws()` in `mainGameLoop`
+  then flushes the wiped buffer. On the next turn, `updateMessageDisplay` re-renders and
+  the message finally appears.
+- **Fixed (a):** After `printStringWithWrappingFn`, added a loop to set `opacity =
+  INTERFACE_OPACITY` on all cells in the text box rectangle `(x..x+width, y..lastY)`.
+  Added `COLS`, `ROWS`, `INTERFACE_OPACITY` imports to `ui.ts`. Commit: 20afeec.
+- **Fixed (b):** Replaced silent stub with `messageFn(mc, "Throwing not yet implemented.", 0)`.
+  Commit: 20afeec.
+- **Fixed (c):** Added `io.updateMessageDisplay()` call in `input-context.ts` after
+  `displayInventoryFn` returns — re-renders the message archive onto the restored buffer
+  before `commitDraws()` flushes. Commit: 20afeec.
+- Tests: 87 files, 2206 pass, 97 skip (no regressions).
+- **Follow-up fix (ea7467e):** Playtest revealed text box visible but action buttons absent.
+  `_includeButtons` was ignored — no `[a]pply [e]quip [d]rop` list rendered. Ported the
+  button-building logic from C's `printCarriedItemDetails` + `printTextBox`: build action
+  buttons per item category/flags, position them below text (bx/by/padLines layout), extend
+  opacity rectangle to cover button rows, run `buttonInputLoopFn` for interactive buttons.
+- **Next steps:** Build and playtest — (a) press `i`, select item, verify text box renders
+  with item name AND action buttons; (b) press action key or click button, verify action fires;
+  (c) press `t`, verify "Throwing not yet implemented." message appears; (d) continue Phase 8
+  checklist (combat, stair descent, travel/auto-explore, help screen).
+
 ---
 
 ## Phase 9: Final stub cleanup
