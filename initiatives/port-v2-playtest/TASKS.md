@@ -382,6 +382,30 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
   Likely follow-up fix: wire `updateVision` in `buildTurnProcessingContext()` (turn.ts)
   so vision updates per turn.
 
+### Session 2026-03-08c — wire updateVision in turn.ts and movement.ts
+
+- **Observed:** (code analysis) `updateVision` wired in `buildLevelContext` (level start)
+  but still `() => {}` stub in `buildTurnProcessingContext` (turn.ts) and
+  `buildPlayerMoveContext` (movement.ts). Vision would only update once per level load,
+  not per turn or per move — dungeon would appear static after initial render.
+- **Diagnosed:** Two remaining stubs in turn.ts:254 and movement.ts:541,543. Untracked
+  (no test.skip entries — same audit gap pattern as buildLevelContext stub).
+  Also: `vision-wiring.ts` imported `getScentMap` from `lifecycle.ts`, creating a
+  circular dep `lifecycle → turn → vision-wiring → lifecycle` if turn.ts imported
+  vision-wiring.ts. Fixed by moving `scentMap` state to `core.ts` (getScentMap/setScentMap
+  exported from core.ts; all callers updated).
+- **Fixed:** Moved `scentMap`/`getScentMap`/`setScentMap` to `core.ts`; updated
+  `lifecycle.ts`, `io-wiring.ts`, `io/input-context.ts`, `vision-wiring.ts` to use
+  `core.ts` imports. Wired `buildUpdateVisionFn()` into `buildTurnProcessingContext()`
+  (turn.ts) and `buildPlayerMoveContext()` (movement.ts — both the standalone slot and
+  the `updatePlayerUnderwaterness` closure). Commit: 4dfe768.
+  Tests: 87 files, 2206 pass, 97 skip (no regressions).
+- **Untracked stubs found:** same pattern — per-turn and per-move updateVision had no
+  test.skip entries. Three instances fixed.
+- **Next blocker:** Launch browser, verify dungeon renders AND updates on player movement.
+  Check console for `[updateVision] called` logs on each turn. If movement renders
+  correctly: move to Movement checklist item and check messages/flavor text.
+
 ---
 
 ## Phase 9: Final stub cleanup
