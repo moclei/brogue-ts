@@ -193,7 +193,7 @@ export function buildMenuContext(): MenuContext {
 
         printTextBox: async (textBuf, x, y, width, foreColor, backColor, buttons, buttonCount) =>
             printTextBox(textBuf, x, y, width, foreColor, backColor,
-                invCtx() as unknown as import("./io/inventory.js").InventoryContext,
+                invCtx(),
                 buttons, buttonCount),
 
         // -- Events / timing -------------------------------------------------

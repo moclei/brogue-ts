@@ -22,7 +22,7 @@
 
 import { getGameState } from "./core.js";
 import { waitForEvent } from "./platform.js";
-import { buttonInputLoop as buttonInputLoopFn } from "./io/buttons.js";
+import { buttonInputLoop as buttonInputLoopFn, drawButton as drawButtonFn } from "./io/buttons.js";
 import { equip as equipFn, unequip as unequipFn, drop as dropFn, relabel as relabelFn } from "./io/inventory-actions.js";
 import { itemName as itemNameFn } from "./items/item-naming.js";
 import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
@@ -31,8 +31,8 @@ import { apply as applyFn } from "./items/item-handlers.js";
 import { buildItemHandlerContext } from "./items.js";
 import { wandTable, staffTable, ringTable, charmTable } from "./globals/item-catalog.js";
 import { mapToWindowX, mapToWindowY } from "./globals/tables.js";
-import { white, gray, black } from "./globals/colors.js";
-import { EventType } from "./types/enums.js";
+import { white, gray, black, itemColor, goodMessageColor, badMessageColor, interfaceBoxColor } from "./globals/colors.js";
+import { EventType, DisplayGlyph } from "./types/enums.js";
 import type { ItemTable } from "./types/types.js";
 import type {
     MessageState, ScreenDisplayBuffer, SavedDisplayBuffer,
@@ -53,17 +53,22 @@ import {
     applyColorAverage as applyColorAverageFn,
     bakeColor as bakeColorFn,
     separateColors as separateColorsFn,
-} from "./io/color.js";
-import {
+    storeColorComponents as storeColorComponentsFn,
     encodeMessageColor as encodeMessageColorFn,
     decodeMessageColor as decodeMessageColorFn,
 } from "./io/color.js";
-import { strLenWithoutEscapes as strLenWithoutEscapesFn } from "./io/text.js";
+import {
+    strLenWithoutEscapes as strLenWithoutEscapesFn,
+    printStringWithWrapping as printStringWithWrappingFn,
+    wrapText as wrapTextFn,
+    upperCase as upperCaseFn,
+} from "./io/text.js";
 import {
     message as messageFn,
     confirmMessages as confirmMessagesFn,
 } from "./io/messages.js";
 import type { MessageContext as SyncMessageContext } from "./io/messages-state.js";
+import type { InventoryContext as FullInventoryContext } from "./io/inventory.js";
 
 // =============================================================================
 // Private helpers
@@ -287,8 +292,8 @@ export function buildMessageContext(): MessageContext {
  * throw/relabel/call dialogs remain stubbed until the button and dialog
  * systems are fully wired in Phase 7.
  */
-export function buildInventoryContext(): InventoryContext {
-    const { rogue, packItems, displayBuffer, mutablePotionTable, mutableScrollTable, gameConst } = getGameState();
+export function buildInventoryContext(): FullInventoryContext {
+    const { rogue, pmap, packItems, displayBuffer, mutablePotionTable, mutableScrollTable, gameConst } = getGameState();
     const namingCtx = {
         gameConstants: gameConst,
         depthLevel: rogue.depthLevel,
@@ -336,6 +341,38 @@ export function buildInventoryContext(): InventoryContext {
         white,
         gray,
         black,
+        // ── Color / text ops ─────────────────────────────────────────────────
+        applyColorAverage: applyColorAverageFn,
+        encodeMessageColor: encodeMessageColorFn,
+        storeColorComponents: storeColorComponentsFn,
+        upperCase: upperCaseFn,
+        strLenWithoutEscapes: strLenWithoutEscapesFn,
+        wrapText: wrapTextFn,
+        printStringWithWrapping: printStringWithWrappingFn,
+        // ── Rendering ops ────────────────────────────────────────────────────
+        plotCharToBuffer: plotCharToBufferFn,
+        drawButton: (button, highlight, dbuf) =>
+            drawButtonFn(button, highlight, dbuf, buildButtonContext()),
+        // ── Item detail panel ────────────────────────────────────────────────
+        printCarriedItemDetails: async () => -1,              // stub — needs SidebarContext (Phase 8)
+        // ── Cursor path ──────────────────────────────────────────────────────
+        clearCursorPath: () => {
+            if (!rogue.playbackMode) {
+                for (let i = 0; i < pmap.length; i++) {
+                    for (let j = 0; j < pmap[i].length; j++) {
+                        pmap[i][j].flags &= ~0x100000;        // IS_IN_PATH = Fl(20)
+                    }
+                }
+            }
+        },
+        // ── Colors ───────────────────────────────────────────────────────────
+        itemColor,
+        goodMessageColor,
+        badMessageColor,
+        interfaceBoxColor,
+        // ── Glyphs ───────────────────────────────────────────────────────────
+        G_GOOD_MAGIC: DisplayGlyph.G_GOOD_MAGIC,
+        G_BAD_MAGIC: DisplayGlyph.G_BAD_MAGIC,
     };
 }
 
