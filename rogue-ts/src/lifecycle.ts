@@ -66,7 +66,7 @@ import { populateMonsters } from "./monsters/monster-spawning.js";
 import { generateItem, itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
 import { placeItemAt as placeItemAtFn } from "./items/floor-items.js";
 import { addItemToPack, numberOfMatchingPackItems, itemAtLoc as itemAtLocFn, deleteItem as deleteItemFn } from "./items/item-inventory.js";
-import { identify, shuffleFlavors } from "./items/item-naming.js";
+import { identify, shuffleFlavors, itemColors, itemTitles } from "./items/item-naming.js";
 import { equipItem, recalculateEquipmentBonuses, updateRingBonuses as updateRingBonusesFn, updateEncumbrance as updateEncumbranceFn } from "./items/item-usage.js";
 import type { EquipContext } from "./items/item-usage.js";
 import { buildEquipState, syncEquipBonuses } from "./items/equip-helpers.js";
@@ -222,15 +222,10 @@ export function buildGameInitContext(): GameInitContext {
         initRecording: () => {},
         shuffleFlavors() {
             shuffleFlavors(gameConst, randRange, randPercent);
-            // shuffleFlavors mutates the catalog arrays (potionTable[i].flavor etc.) but
-            // mutablePotionTable/mutableScrollTable are shallow copies made before the shuffle.
-            // Sync the flavors so itemName reads the shuffled values.
-            for (let i = 0; i < mutablePotionTable.length; i++) {
-                mutablePotionTable[i].flavor = potionTable[i].flavor;
-            }
-            for (let i = 0; i < mutableScrollTable.length; i++) {
-                mutableScrollTable[i].flavor = scrollTable[i].flavor;
-            }
+            // itemName reads mutablePotionTable/mutableScrollTable (shallow copies of catalog
+            // arrays). Sync the shuffled flavor values so itemName sees the randomized strings.
+            for (let i = 0; i < mutablePotionTable.length; i++) mutablePotionTable[i].flavor = itemColors[i];
+            for (let i = 0; i < mutableScrollTable.length; i++) mutableScrollTable[i].flavor = itemTitles[i];
         },
         resetDFMessageEligibility() { resetDFMessageEligibility(dungeonFeatureCatalog); },
         deleteMessages() {

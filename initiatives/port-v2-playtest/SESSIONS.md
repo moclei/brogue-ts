@@ -11,33 +11,35 @@ New sessions: read the Bug Tracker table first, then the last session entry.
 |----|-------------|----------|--------|-------|
 | B1 | Vegetation (grass/foliage/fungus) not visible on dungeon floors | Medium | Open | `runAutogenerators` is implemented; likely drawPriority mismatch — either `fillSpawnMap` DFF_BLOCKED_BY_OTHER_LAYERS check fails, or grass written to pmap but loses to FLOOR in getCellAppearance rendering loop. Check drawPriority for FLOOR vs GRASS in `globals/tile-catalog.ts` vs C source. |
 | B2 | Monsters can't hit player — no damage, no incoming combat messages | HIGH | Fixed (61beabf) | Root: `attack: () => {}` stub in `MoveMonsterContext` (turn-monster-ai.ts line 286). Wired `attackFn`+`buildHitListFn` from `combat/combat-attack.ts` via `buildCombatAttackContext()`. |
-| B3 | All potions appear yellow AND are all telepathy potions | Medium | Fixed (this session) | Root: `shuffleFlavors` updated `potionTable`/`scrollTable` module-level arrays but `mutablePotionTable`/`mutableScrollTable` are shallow copies made before the shuffle. Fixed by syncing flavors back to mutable copies in the `shuffleFlavors` closure (`lifecycle.ts:223`). |
+| B3 | All potions appear yellow AND are all telepathy potions | Medium | Fixed (this session — requires re-test) | Root: TWO bugs: (1) `initializeGameVariant` is a no-op stub in menus.ts so `numberPotionKinds=0` when `shuffleFlavors` runs (loop does nothing); (2) `mutablePotionTable` is a shallow copy — flavors don't propagate from `potionTable`. Fix: call `initializeGameVariant(ctx)` inside `game-init.ts:initializeRogue`; sync `itemColors[i]`/`itemTitles[i]` to mutableXxxTable in `lifecycle.ts shuffleFlavors` closure. |
 | B4 | Pickup message says "You now have item (e)" regardless of item type | Medium | Fixed (61beabf) | Root: `itemName: () => buf[0]="item"` stubs in `movement.ts` (×2) and `turn.ts` (×1). Wired real `itemNameFn` from `items/item-naming.ts` with proper `ItemNamingContext`. |
 | B5 | Player cannot fall down chasms — vision freezes, game enters broken state | Low | Deferred | `applyInstantTileEffectsToCreature` stubbed. Player can still move but vision stops updating (unseen areas stay unseen permanently). Permanent defer this initiative. |
-| B6 | All scrolls display as 'A scroll entitled ""' (empty faux-word title) | Medium | Fixed (this session) | Same root as B3 — fixed by same lifecycle.ts change (scroll flavor sync). |
-| B7 | Player can walk on water as if it were normal ground | Medium | Fixed (this session) | Root: `applyGradualTileEffectsToCreature: () => {}` stub in `turn.ts:325`. Built partial `CreatureEffectsContext` (`gradualCtx`) inline in `buildTurnProcessingContext`; wired `dropItemFn`, `numberOfMatchingPackItemsFn`, `autoIdentifyFn`, `inflictDamageFn`, `killCreatureFn`. Water item loss and terrain damage now active. |
+| B6 | All scrolls display as 'A scroll entitled ""' (empty faux-word title) | Medium | Fixed (this session — requires re-test) | Same root as B3 (both causes). |
+| B7 | Player can walk on water as if it were normal ground | Medium | Fixed (785c941) | Root: `applyGradualTileEffectsToCreature: () => {}` stub in `turn.ts:325`. Wired real impl with `gradualCtx`. NOTE: visual water-entry effect (light dimming) depends on `displayLevel` which is still stubbed. |
 | B8 | Pit bloat explosion does not open a chasm in the ground | Low | Open | Monster death dungeon feature (DF) spawn not triggering. When a bloat dies/explodes its `DFType` should call `spawnDungeonFeature`; either the death-DF path in `killCreature`/`combat-damage.ts` is stubbed, or the bloat's DF catalog entry is wrong. |
+| B9 | Water entry has no visual effect (light change / level re-render) | Low | Open | `updatePlayerUnderwaterness` sets `rogue.inWater` correctly but calls `displayLevel()` which is a permanent stub. Deferred with `applyInstantTileEffectsToCreature`. |
+| B10 | Inventory only shows pack items; equipped items section missing | Medium | Open | Inventory dialog should show equipped weapon/armor/rings in a separate section at top. Either not being drawn or z-order issue. Investigate `printCarriedItemDetails` / inventory display in `io/inventory-display.ts`. |
 
 ---
 
 ## Session Log
 
-### Session 2026-03-09i — fix B3+B6 (shuffleFlavors flavor sync) + B7 (water gradual effects)
+### Session 2026-03-09i — fix B3+B6 (two-root bug) + B7 (water gradual effects); new B9+B10
 
-- **Fixed B3+B6:** `shuffleFlavors()` in `item-naming.ts` mutates the module-level `potionTable[i].flavor`
-  and `scrollTable[i].flavor` arrays. But `mutablePotionTable`/`mutableScrollTable` in `core.ts` are
-  shallow copies created before the shuffle runs, so flavor mutations didn't propagate.
-  Fix: after calling `shuffleFlavors()` in the `GameInitContext.shuffleFlavors` closure (`lifecycle.ts:223`),
-  explicitly copy the shuffled flavor strings from `potionTable[i]`/`scrollTable[i]` into the mutable copies.
-  Potions should now show random colors; scrolls should show generated phoneme titles.
-- **Fixed B7:** `applyGradualTileEffectsToCreature: () => {}` stub in `turn.ts:325` (TurnProcessingContext).
-  Built inline `gradualCtx` (partial `CreatureEffectsContext`) inside `buildTurnProcessingContext()` covering
-  all 3 branches: deep-water item loss, terrain damage (lava/acid), terrain healing. New imports:
-  `numberOfMatchingPackItemsFn`, `itemAtLocFn`, `dropItemFn`, `autoIdentifyFn`, `itemMagicPolarityFn`,
-  `applyGradualTileEffectsFn`. Turn.ts: 452 lines (up from 386; well under 600).
-- **Commit:** 785c941 — 87 files, 2206 pass, 97 skip.
-- **Next:** B8 (pit bloat death DF — monster death spawnDungeonFeature stub in combat-damage.ts).
-  Then B1 (vegetation drawPriority mismatch).
+- **Fixed B7 (785c941):** `applyGradualTileEffectsToCreature: () => {}` stub in `turn.ts`. Built inline
+  `gradualCtx` covering deep-water item loss, terrain damage, terrain healing. Wired `dropItemFn`,
+  `numberOfMatchingPackItemsFn`, `autoIdentifyFn`, `inflictDamageFn`, `killCreatureFn`.
+  NOTE: `makeMonsterDropItem` stub remains — tracked in `test.skip` in `turn.test.ts`.
+- **Fixed B3+B6 (this commit):** Two-root bug: (1) `initializeGameVariant` is a no-op stub in menus.ts
+  so `gameConst.numberPotionKinds/numberScrollKinds = 0` when `shuffleFlavors` runs — loop does nothing.
+  Fix: call `initializeGameVariant(ctx)` inside `game-init.ts:initializeRogue` before shuffleFlavors.
+  (2) `mutablePotionTable`/`mutableScrollTable` are shallow copies — mutations to catalog arrays don't
+  propagate. Fix: sync `itemColors[i]`/`itemTitles[i]` to mutableXxxTable in `lifecycle.ts` after shuffle.
+  Earlier fix attempt (785c941) only addressed #2 (which was a no-op since loop ran 0 times).
+- **Player-reported findings (requires re-test):** B9 (water visual effect — displayLevel stub, deferred),
+  B10 (inventory equipped items missing).
+- **Commit:** TBD — 87 files, 2206 pass, 98 skip (+1 for makeMonsterDropItem test.skip).
+- **Next:** Re-test B3+B6 in browser. Then B10 (inventory equipped items). Then B8 or B1.
 
 ---
 

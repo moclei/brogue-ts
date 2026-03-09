@@ -484,6 +484,11 @@ export function initializeRogue(ctx: GameInitContext, seed: bigint): void {
     rogue.cautiousMode = false;
     rogue.milliseconds = 0;
 
+    // Set variant-specific game constants (numberPotionKinds, numberScrollKinds,
+    // deepestLevel, etc.). In C this is called from MainMenu before initializeRogue;
+    // in TS the menu-level call is a no-op stub, so we call it here.
+    initializeGameVariant(ctx);
+
     // Allocate metered items and feat records
     rogue.meteredItems = [];
     for (let i = 0; i < gc.numberMeteredItems; i++) {

@@ -223,3 +223,12 @@ it.skip("stub: dropItem() not yet wired into playerFalls context (startLevel dep
 
 // placeItemAt in machineContext.itemOps is now wired — lifecycle.ts uses real placeItemAt()
 // from items/floor-items.ts. Tests in tests/items/item-ops.test.ts cover the domain function.
+
+it.skip("stub: makeMonsterDropItem() is () => {} in gradualCtx (turn.ts) — monsters don't drop carried items in deep water", () => {
+    // C: Time.c:457 applyGradualTileEffectsToCreature — monster branch: if carriedItem and in
+    // deep water, calls makeMonsterDropItem(monst). Domain function tested in creature-effects.test.ts.
+    // Wiring gap: gradualCtx in buildTurnProcessingContext() (turn.ts) has makeMonsterDropItem: () => {}.
+    // To fix: implement makeMonsterDropItem in gradualCtx using placeItemAt + removeItemFromArray.
+    // Impact: monsters standing in deep water will never drop their carried item.
+});
+
