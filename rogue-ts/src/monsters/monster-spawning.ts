@@ -436,10 +436,12 @@ export function spawnHorde(
     if (!ctx.isPosInMap(loc)) {
         let i = 0;
         do {
-            const liquidType = ctx.hordeCatalog[hordeID].spawnsIn
+            // C: randomMatchingLocation(FLOOR, NOTHING, spawnsIn ? spawnsIn : -1)
+            // liquidType=NOTHING (0) rejects water/lava cells; terrainType used for special spawners
+            const terrainType: number = ctx.hordeCatalog[hordeID].spawnsIn
                 ? ctx.hordeCatalog[hordeID].spawnsIn
-                : -1 as TileType | -1;
-            const foundLoc = ctx.randomMatchingLocation(TileType.FLOOR, liquidType, -1);
+                : -1;
+            const foundLoc = ctx.randomMatchingLocation(TileType.FLOOR, TileType.NOTHING, terrainType);
             if (!foundLoc || ctx.passableArcCount(foundLoc.x, foundLoc.y) > 1) {
                 if (!--failsafe) {
                     return null;

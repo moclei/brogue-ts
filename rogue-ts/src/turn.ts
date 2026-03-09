@@ -46,6 +46,8 @@ import type { TurnProcessingContext } from "./time/turn-processing.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { Creature, Pcell, Pos, PlayerCharacter } from "./types/types.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
+import { displayCombatText as displayCombatTextFn } from "./io/messages.js";
+import { buildMessageContext } from "./ui.js";
 import { buildUpdateVisionFn } from "./vision-wiring.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
 import { shuffleTerrainColors as shuffleTerrainColorsFn } from "./render-state.js";
@@ -227,7 +229,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
             inflictDamageFn(attacker, defender, damage, flashColor, showDamage, combatCtx),
         killCreature: (monst, adminDeath) => killCreatureFn(monst, adminDeath, combatCtx),
         combatMessage: io.combatMessage,
-        displayCombatText: () => {},                        // stub
+        displayCombatText: () => displayCombatTextFn(buildMessageContext() as any),
         messageColorFromVictim: () => badMessageColor,
         addPoison: (monst, total, conc) => addPoisonFn(monst, total, conc, combatCtx),
         flashMonster: (monst, color, strength) => flashMonsterFn(monst, color, strength, combatCtx),
@@ -333,7 +335,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
             const val0 = rogue.scentTurnNumber & 0xFFFF;
             sm[px][py] = Math.max(val0, sm[px][py] & 0xFFFF);
         },
-        currentStealthRange: () => 0,
+        currentStealthRange: () => 14, // base value; stealth system (armor/darkness) wired later
 
         // ── Movement / search (stubs) ─────────────────────────────────────────
         search: () => false,
