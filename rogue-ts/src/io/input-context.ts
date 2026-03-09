@@ -320,7 +320,7 @@ export function buildInputContext(): InputContext {
     // Overlay screens await a single event; falls back to no-op when platform
     // not initialised (tests).
     const overlayWaitFn = async (): Promise<void> => {
-        try { await waitForEvent(); } catch {}
+        try { commitDraws(); await waitForEvent(); } catch {}
     };
 
     const refreshSideBarFn = buildRefreshSideBarFn();
