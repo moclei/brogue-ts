@@ -40,6 +40,8 @@ import { hordeCatalog } from "./globals/horde-catalog.js";
 import { mutationCatalog } from "./globals/mutation-catalog.js";
 import { allocGrid, fillGrid } from "./grid/grid.js";
 import { openPathBetween as openPathBetweenFn } from "./items/bolt-geometry.js";
+import { passableArcCount as passableArcCountFn, randomMatchingLocation as randomMatchingLocationFn } from "./architect/helpers.js";
+import { tileCatalog } from "./globals/tile-catalog.js";
 import { randRange, randPercent } from "./math/rng.js";
 import { coordinatesAreInMap } from "./globals/tables.js";
 import { DCOLS, DROWS, MAX_WAYPOINT_COUNT } from "./types/constants.js";
@@ -183,8 +185,8 @@ export function buildMonsterSpawningContext(): SpawnContext {
 
         // ── Complex pathfinding stubs (wired in port-v2-platform) ─────────────
         getQualifyingPathLocNear: (loc) => ({ x: loc.x, y: loc.y }),
-        randomMatchingLocation: () => null,
-        passableArcCount: () => 0,
+        randomMatchingLocation: (dt, lt, tt) => randomMatchingLocationFn(pmap, tileCatalog, dt, lt, tt),
+        passableArcCount: (x, y) => passableArcCountFn(pmap, x, y),
 
         // ── Cell flags ────────────────────────────────────────────────────────
         getPmapFlags: (loc) => pmap[loc.x]?.[loc.y]?.flags ?? 0,
@@ -253,7 +255,7 @@ export function buildMonsterStateContext(): MonsterStateContext {
         // ── Terrain analysis ──────────────────────────────────────────────────
         burnedTerrainFlagsAtLoc: (loc) => burnedTerrainFlagsAtLocFn(pmap, loc),
         discoveredTerrainFlagsAtLoc: () => 0,   // stub — secrets awareness not yet wired
-        passableArcCount: () => 0,              // stub
+        passableArcCount: (x, y) => passableArcCountFn(pmap, x, y),
 
         // ── Awareness ────────────────────────────────────────────────────────
         awareOfTarget: (observer, target) => {
