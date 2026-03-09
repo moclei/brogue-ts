@@ -327,8 +327,10 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
 - [x] Travel / auto-explore: `exploreKey` and `autoPlayLevel` wired (9081a89); `commitDraws`
       wired in `buildTravelContext` so travel animation visible. Auto-explore uses `explore`
       from travel-explore.ts (module-local `nextStep`, not turn-monster-ai stub).
-- [x] Help screen: `overlayWaitFn` now calls `commitDraws()` before `waitForEvent()` (51e1631);
-      overlay is visible before keypress. Applies to feats + discoveries screens too.
+- [x] Help screen: overlay visible on keypress (51e1631); ghost-after-dismiss fixed (6ab58e4):
+      await added in executeKeystroke + commitDraws after restoreDisplayBuffer in overlay-screens.ts.
+      Also applies to discoveries (D). Note: `\` key is true-colors toggle, not feats — feats
+      screen is dead code in BrogueCE v1.15.1.
 - [ ] Win/die: complete the game loop; verify game-over or victory screen
 - [ ] For each failure: fix, add regression test, commit; generate handoff with remaining failures
 
