@@ -27,6 +27,8 @@ import {
     travelRoute as travelRouteFn,
     useStairs as useStairsFn,
     proposeOrConfirmLocation as proposeOrConfirmLocationFn,
+    explore as exploreFn,
+    autoPlayLevel as autoPlayLevelFn,
 } from "../movement/travel-explore.js";
 import { apply as applyFn } from "../items/item-handlers.js";
 import { itemIsCarried as itemIsCarriedFn } from "../items/item-naming.js";
@@ -460,8 +462,8 @@ export function buildInputContext(): InputContext {
         printSeed: () => { buildMessageFns().message(`Seed: ${rogue.seed}`, 0); },
         showCursor: () => {},                       // stub — cursor display (Phase 5)
         hideCursor: () => {},                       // stub — cursor display (Phase 5)
-        exploreKey: async () => {},                 // stub — explore display hooks (Phase 5)
-        autoPlayLevel: async () => {},              // stub — display hooks (Phase 5)
+        exploreKey: async (ctrl) => { await exploreFn(ctrl ? 1 : 50, travelCtx()); },
+        autoPlayLevel: async (ctrl) => { await autoPlayLevelFn(ctrl, travelCtx()); },
         takeScreenshot: () => false,                // stub — screenshot not yet ported
         dialogCreateItemOrMonster: () => {},        // stub — debug only
 
