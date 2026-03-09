@@ -406,6 +406,35 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
   Check console for `[updateVision] called` logs on each turn. If movement renders
   correctly: move to Movement checklist item and check messages/flavor text.
 
+### Session 2026-03-08d — wire commitDraws in mainGameLoop; wire refreshSideBar in InputContext
+
+- **Observed:** (code analysis) After the initial level render (committed by `main-menu.ts:394`
+  after `startLevel()`), `mainGameLoop()` in `platform.ts` never calls `commitDraws()`.
+  Every keystroke updates the display buffer via `refreshDungeonCell` but the canvas
+  never flushes — the dungeon stays frozen at the initial render.
+  Also: `refreshSideBar` was `() => {}` in `buildInputContext()` — after each move,
+  `executeKeystroke` calls `ctx.refreshSideBar(-1, -1, false)` which was a no-op.
+- **Diagnosed:** `mainGameLoop()` calls `processEvent(event)` then immediately awaits
+  the next event. No `commitDraws()` between events. The menu's `nextBrogueEvent` calls
+  `commitDraws()` before each event, but once `mainGameLoop()` takes over, that path
+  is never hit. `refreshSideBar` was tracked (Phase 1 TODO) but never wired in
+  `buildInputContext` (only wired in movement/combat/items context builders).
+- **Fixed:** Added `commitDraws()` call in `mainGameLoop()` after `processEvent()`.
+  Imported `buildRefreshSideBarFn` in `input-context.ts`; replaced stub with
+  `(_x, _y, _justClearing) => refreshSideBarFn()`. Commit: f6e50b5.
+  Tests: 87 files, 2206 pass, 97 skip (no regressions).
+- **Untracked stubs found:** `refreshSideBar` in `buildInputContext` was never wired despite
+  Phase 1 noting it as a WIRE target. The stub comment said "wired in Phase 5" but it was
+  missed. Audit gap: `buildInputContext` refreshSideBar had no test.skip entry.
+- **Next blocker:** Launch browser, verify dungeon renders AND updates on player movement.
+  Likely next issues:
+  (a) Messages: `message`/`messageWithColor`/`temporaryMessage` stubs in `buildInputContext`
+      (lines 345–349) — combat and movement messages won't display;
+  (b) `--MORE--` prompt: `waitForAcknowledgment` is still stubbed in `buildMessageContext`;
+  (c) Flavor text: `updateFlavorText` still stubbed.
+  Check console for `[mainGameLoop] started` and `[processEvent]` logs to confirm
+  event dispatch is working.
+
 ---
 
 ## Phase 9: Final stub cleanup
