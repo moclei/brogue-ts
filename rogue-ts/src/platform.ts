@@ -202,7 +202,9 @@ export async function processEvent(event: RogueEvent): Promise<void> {
     const { rogue } = getGameState();
     if (rogue.gameHasEnded) return;
 
-    console.log("[processEvent] type=%s param1=%s", event.eventType, event.param1);
+    if (event.eventType !== EventType.MouseEnteredCell) {
+        console.log("[processEvent] type=%s param1=%s", event.eventType, event.param1);
+    }
 
     switch (event.eventType) {
         case EventType.Keystroke:

@@ -87,7 +87,8 @@ import {
 } from "./display.js";
 import { buttonInputLoop as buttonInputLoopFn, initializeButton as initializeButtonFn } from "./buttons.js";
 import { equip as equipFn, unequip as unequipFn, drop as dropFn, relabel as relabelFn } from "./inventory-actions.js";
-import { buildButtonContext } from "../ui.js";
+import { buildButtonContext, buildInventoryContext } from "../ui.js";
+import { displayInventory as displayInventoryFn } from "./inventory-display.js";
 import { TURNS_FOR_FULL_REGEN, REST_KEY, SEARCH_KEY, DCOLS, DROWS } from "../types/constants.js";
 import { moveCursor as moveCursorFn, nextTargetAfter as nextTargetAfterFn } from "./cursor-move.js";
 import { commitDraws, waitForEvent } from "../platform.js";
@@ -394,7 +395,10 @@ export function buildInputContext(): InputContext {
         // ── Display ───────────────────────────────────────────────────────────
         displayLevel: () => {},
         refreshSideBar: (_x, _y, _justClearing) => refreshSideBarFn(),
-        displayInventory: async () => {},
+        displayInventory: async (categoryMask, requiredFlags, forbiddenFlags, waitForAcknowledge, includeButtons) => {
+            await displayInventoryFn(categoryMask, requiredFlags, forbiddenFlags, waitForAcknowledge, includeButtons,
+                buildInventoryContext());
+        },
         displayMessageArchive: () => {},
         printHelpScreen: () => printHelpScreenFn(overlayWaitFn),
         displayFeatsScreen: () => displayFeatsScreenFn(overlayWaitFn),
