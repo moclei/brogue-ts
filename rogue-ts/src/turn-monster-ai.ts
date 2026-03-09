@@ -22,6 +22,7 @@ import { randRange, randPercent } from "./math/rng.js";
 import { nbDirs, coordinatesAreInMap } from "./globals/tables.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
+import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
 import { boltCatalog } from "./globals/bolt-catalog.js";
 import { monsterCatalog } from "./globals/monster-catalog.js";
 import { hordeCatalog } from "./globals/horde-catalog.js";
@@ -566,7 +567,10 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         monsterSummons: (monst, alwaysUse) => monsterSummonsFn(monst, alwaysUse, summonsCtx),
         monsterCanShootWebs: (monst) => monsterCanShootWebsFn(monst, boltCatalog, tileCatalog, dungeonFeatureCatalog),
         updateMonsterCorpseAbsorption: () => false,
-        spawnDungeonFeature: () => {},
+        spawnDungeonFeature(x, y, dfType, isVolatile, ignoreBlocking) {
+            const feat = dungeonFeatureCatalog[dfType];
+            if (feat) spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, isVolatile, ignoreBlocking);
+        },
         applyInstantTileEffectsToCreature: () => {},
         makeMonsterDropItem: () => {},
 

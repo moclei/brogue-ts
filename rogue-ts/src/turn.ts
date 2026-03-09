@@ -35,6 +35,7 @@ import { randRange, randPercent } from "./math/rng.js";
 import { nbDirs, coordinatesAreInMap } from "./globals/tables.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
+import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
 import {
     goodMessageColor, badMessageColor, advancementMessageColor, itemMessageColor,
     orange, green, red, yellow, darkRed, darkGreen, poisonColor,
@@ -91,7 +92,14 @@ function buildMinimalCombatContext(
         canSeeMonster,
         canDirectlySeeMonster: canSeeMonster,
         wakeUp: buildWakeUpFn(player, monsters),
-        spawnDungeonFeature: () => {},              // stub
+        spawnDungeonFeature(x, y, featureIndex, probability, _isGas) {
+            const feat = dungeonFeatureCatalog[featureIndex];
+            if (!feat) return;
+            const scaled = probability === 100
+                ? feat
+                : { ...feat, startProbability: Math.floor(feat.startProbability * probability / 100) };
+            spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, scaled as never, true, false);
+        },
         refreshSideBar,
         combatMessage: io.combatMessage,
         messageWithColor: (text, color) => io.messageWithColor(text, color, 0),
@@ -424,8 +432,9 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
         playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
 
-        // ── Spawn (stub) ──────────────────────────────────────────────────────
-        spawnDungeonFeature: () => {},
+        spawnDungeonFeature: (x, y, feat, isVolatile, overrideProtection) => {
+            spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, isVolatile, overrideProtection);
+        },
 
         // ── Constants ─────────────────────────────────────────────────────────
         nbDirs,

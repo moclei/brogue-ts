@@ -41,6 +41,9 @@ import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buil
 import { updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, equipItem as equipItemFn } from "./items/item-usage.js";
 import { buildEquipState, syncEquipBonuses, syncEquipState } from "./items/equip-helpers.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
+import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
+import { tileCatalog } from "./globals/tile-catalog.js";
+import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
 
 // =============================================================================
 // Private helpers
@@ -86,8 +89,14 @@ export function buildCombatDamageContext(): CombatDamageContext {
 
         wakeUp: buildWakeUpFn(player, monsters),
 
-        // ── Platform stubs (wired in port-v2-platform) ────────────────────────
-        spawnDungeonFeature: () => {},
+        spawnDungeonFeature(x, y, featureIndex, probability, _isGas) {
+            const feat = dungeonFeatureCatalog[featureIndex];
+            if (!feat) return;
+            const scaled = probability === 100
+                ? feat
+                : { ...feat, startProbability: Math.floor(feat.startProbability * probability / 100) };
+            spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, scaled as never, true, false);
+        },
         refreshSideBar,
         combatMessage: io.combatMessage,
         messageWithColor: (text, color) => io.messageWithColor(text, color, 0),
