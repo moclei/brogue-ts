@@ -19,11 +19,24 @@ New sessions: read the Bug Tracker table first, then the last session entry.
 | B8 | Pit bloat explosion does not open a chasm in the ground | Low | Open | Monster death dungeon feature (DF) spawn not triggering. Check `spawnDungeonFeature: () => {}` stub in `buildMinimalCombatContext` (turn.ts); also check bloat DFType in monster-catalog. |
 | B9 | Water entry has no visual effect (light change / level re-render) | Low | Deferred | `updatePlayerUnderwaterness` sets `rogue.inWater` correctly but calls `displayLevel()` which is a permanent stub. Deferred same class as B5. |
 | B10 | Inventory only shows pack items; equipped items section missing | Medium | Open | Inventory dialog should show equipped weapon/armor/rings in a separate section at top. Investigate `printCarriedItemDetails` / inventory display in `io/inventory-display.ts`. |
-| B11 | Using a scroll/potion shows unidentified name in "It must have been..." message | Medium | Open | Root: `identifyItemKindNaming` marks `kind.identified = true` on the module-level catalog table (e.g. `scrollTable[kind]`), but `itemName` reads `mutableScrollTable[kind].identified` (shallow copy that still has `identified: false`). Same shallow-copy mismatch as B3/B6 but on the `identified` field. Fix: sync `identified`/`called`/`callTitle` from catalog to mutable tables when identification happens, or route identification through mutable tables exclusively. |
+| B11 | Using a scroll/potion shows unidentified name in "It must have been..." message | Medium | Fixed (b373f3e) | Root: `identifyItemKind` wrote `identified=true` to catalog tables but `itemName` reads mutable copies. Fix: added optional `MutableFlavorTables` param to `identifyItemKind`/`identify`/`tryIdentifyLastItemKind`/`tryIdentifyLastItemKinds`; syncs `identified` to mutable entry after writing catalog. All call sites updated. |
 
 ---
 
 ## Session Log
+
+### Session 2026-03-09j — fix B11 (identified name in autoIdentify message)
+
+- **Fixed B11 (b373f3e):** `identifyItemKind` wrote `identified=true` to catalog tables but
+  `itemName` reads mutable copies (same architectural split as B3/B6). Added optional
+  `MutableFlavorTables` param to `identifyItemKind`, `identify`, `tryIdentifyLastItemKinds`,
+  `tryIdentifyLastItemKind` in `item-naming.ts`. After writing `identified=true` to catalog
+  entry, `syncIdentifiedToMutable()` mirrors it to the mutable entry. Updated all call sites
+  in `item-handlers.ts` (5 sites), `lifecycle.ts` (1), `movement.ts` (1). Two new tests added.
+- **Commit:** b373f3e — 87 files, 2208 pass, 98 skip.
+- **Next:** B10 (inventory equipped items missing). Then B8 (pit bloat DF stub).
+
+---
 
 ### Session 2026-03-09i — fix B3+B6 (two-root bug) + B7 (water gradual effects); new B9+B10
 
