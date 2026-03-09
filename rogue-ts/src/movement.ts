@@ -16,7 +16,7 @@
  *  License, or (at your option) any later version.
  */
 
-import { getGameState } from "./core.js";
+import { getGameState, setVictory } from "./core.js";
 import { buildCombatAttackContext } from "./combat.js";
 import { buildMonsterStateContext } from "./monsters.js";
 import { buildTurnProcessingContext } from "./turn.js";
@@ -565,7 +565,7 @@ export function buildTravelContext(): TravelExploreContext {
             console.log("[useStairs] startLevel called oldLevel=%d dir=%d", oldLevel, dir);
             startLevelFn(oldLevel, dir);
         },
-        victory: () => {},
+        victory: (isDescending) => setVictory(isDescending),
 
         // ── FP math ───────────────────────────────────────────────────────────
         fpFactor: Number(FP_FACTOR),

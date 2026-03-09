@@ -244,8 +244,11 @@ let messageState: MessageState = createMessageState();
 let displayBuffer: ScreenDisplayBuffer = createDisplayBuffer();
 let scentMap: number[][] | null = null;
 
-/** Pending death info set by gameOver(); consumed by the async death screen in platform.ts. */
+/** Pending death info set by gameOver(); consumed by the async death screen in menus.ts. */
 let pendingDeathMessage: string | null = null;
+
+/** Pending victory type set by setVictory(); consumed by the async victory screen in menus.ts. */
+let pendingVictoryType: 'none' | 'normal' | 'super' = 'none';
 
 // =============================================================================
 // Game lifecycle
@@ -278,6 +281,7 @@ export function initGameState(): void {
     displayBuffer = createDisplayBuffer();
     scentMap = null;
     pendingDeathMessage = null;
+    pendingVictoryType = 'none';
 }
 
 /**
@@ -305,6 +309,26 @@ export function takePendingDeathMessage(): string | null {
     const msg = pendingDeathMessage;
     pendingDeathMessage = null;
     return msg;
+}
+
+/**
+ * Synchronous phase of victory: set terminal flags and record victory type.
+ *
+ * The async victory screen is handled in menus.ts after the main game loop exits.
+ * superVictory = true means the player retrieved the Amulet and escaped.
+ */
+export function setVictory(superVictory: boolean): void {
+    rogue.autoPlayingLevel = false;
+    rogue.gameInProgress = false;
+    rogue.gameHasEnded = true;
+    pendingVictoryType = superVictory ? 'super' : 'normal';
+}
+
+/** Return and clear the pending victory type (consumed by the victory screen). */
+export function takePendingVictory(): 'none' | 'normal' | 'super' {
+    const v = pendingVictoryType;
+    pendingVictoryType = 'none';
+    return v;
 }
 
 // =============================================================================

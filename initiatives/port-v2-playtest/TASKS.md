@@ -759,6 +759,32 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
   (c) Items — pick up from floor, use potion/scroll;
   (d) Win/die — game-over or victory screen.
 
+### Session 2026-03-09e — wire death/victory screen; verify runAutogenerators already implemented
+
+- **Investigated:** Handoff claimed `runAutogenerators` was "never ported." Code review shows
+  it IS implemented in `src/architect/machines.ts` (line 1902) and called from
+  `src/architect/architect.ts:digDungeon()` at lines 268 and 280 (once for non-machine
+  autogenerators, once for machine autogenerators). The autogenerator catalog entries for
+  grass (depth 0–10), dead grass, foliage (depth 0–8), luminescent fungus, etc. exist
+  and the `spawnDungeonFeature` + `fillSpawnMap` chain places tiles on the Surface layer.
+  Vegetation SHOULD appear; the handoff was incorrect about this being unimplemented.
+- **Fixed (death screen):** Player death previously returned silently to the main menu with no
+  screen. `core.ts:gameOver()` set `rogue.gameHasEnded = true` but no death display existed.
+  Added `setVictory(superVictory: boolean)` + `takePendingVictory()` to `core.ts` (parallel
+  to `gameOver`/`takePendingDeathMessage`). Wired `victory(isDescending)` in `movement.ts`
+  to call `setVictory(isDescending)` (was `() => {}`). Added async `showGameEndScreen()`
+  in `menus.ts` — blacks out screen, prints death/victory message + depth + "Press any key",
+  calls `commitDraws()`, awaits `waitForEvent()`. Updated `mainInputLoop` to call it after
+  `mainGameLoop()` exits. Commit: (this session).
+- **Untracked stubs found:** `victory: () => {}` in `movement.ts` had no test.skip entry.
+  Audit gap — same pattern as previous sessions.
+- **Tests:** 87 files, 2206 pass, 97 skip (no regressions).
+- **Next blocker:** Browser playtest:
+  (a) Verify vegetation appears on dungeon floors (autogenerators should be working);
+  (b) Verify death screen appears when player dies (fight a monster);
+  (c) Items — pick up from floor, use potion/scroll (should be wired but untested);
+  (d) Victory — would require getting amulet (deep dungeon); deferred for now.
+
 ---
 
 ## Phase 9: Final stub cleanup
