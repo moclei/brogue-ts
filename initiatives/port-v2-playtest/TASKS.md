@@ -276,516 +276,59 @@ Branch: feat/port-v2-playtest
 
 ---
 
-## Phase 8: Browser smoke test + bug fixes
+## Phase 8: Browser smoke test + bug fixes (iterating — in progress)
 
-*Full interactive playtest in the browser. Fix everything that breaks.*
-
-This phase is inherently multi-session. Each session = build + playtest + fix 1–3 bugs.
-Stop and commit after each bug-fix batch; generate a handoff listing what was fixed and what is next.
-
-**Build clean (`tsc --noEmit` must pass before serving)** ✓ DONE (a54ed43)
-- [x] Fix unused imports (~12 errors, trivial): `TS6133/TS6192/TS6196` in `movement.ts`,
-      `turn.ts`, `turn-monster-ai.ts`, `monsters/monster-awareness.ts`, `time/environment.ts`
-- [x] Add `scentMap` to `PlayerCharacter` type (~10 errors): added to `types/types.ts` + `core.ts`
-- [x] Fix interface/signature mismatches (~13 errors):
-      - `PromptItemContext` in `io-wiring.ts:435` — `as unknown as PromptItemContext` cast
-      - `ItemHelperContext` missing `keyOnTileAt` — added to `input-context.ts` + `item-helper-context.ts`
-      - `keyMatchesLocationFn` 2→4 args — pass `rogue.depthLevel` + `machineNumber`
-      - `hitProbability` missing ctx — pass minimal `CombatMathContext`
-      - `combatMessage` mismatch — wrap as `(text) => io.combatMessage(text, null)`
-      - `waypointDistanceMap` null — `?? []` fallback
-      - `io.message` flags/boolean — `(text, req) => io.message(text, req ? 1 : 0)`
-      - `buildCostMapFovContext` — import from `movement-cost-map.ts`
-- [x] Confirm `npm run build` exits clean (0 errors); tests: 87 files, 2206 pass, 97 skip
-
-**Launch**
-- [x] Serve locally: navigate to the game in a browser — title screen works; new game starts
-
-**Playtest — work through in order; apply the noted deferred fix when each step fails**
-- [ ] New game: verify dungeon renders, player visible, sidebar shows stats
-- [ ] Movement: walk around; verify cell updates, messages
-      — if flavor text line is blank: wire `updateFlavorText` (deferred Phase 7c;
-        needs `CreatureEffectsContext` — `flavorMessage`, `describeLocation`, `tileFlavor` etc.)
-- [ ] Messages: trigger a `--MORE--` prompt; verify it blocks until keypress
-      — if `--MORE--` never appears: wire `waitForAcknowledgment` into `buildMessageContext()`
-        (deferred Phase 7c; requires async cascade through `messages.ts`)
-      — if temporary overlay alerts are missing: wire `flashTemporaryAlert` into
-        `buildMessageContext()` (deferred Phase 7c; needs `EffectsContext` —
-        `getCellAppearance`, `hiliteCell`, `pauseAnimation` etc.)
-- [ ] Combat: fight a monster; verify combat messages, death, item drops
-      — if bite/acid spread is broken: port `anyoneWantABite` (deferred Phase 6;
-        needs full `CombatHelperContext` with `monsterAvoids`)
-      — if monsters don't wake on hearing: upgrade `wakeUp` in `buildWakeUpFn`
-        (`io-wiring.ts`) (deferred Phase 6; needs full `MonsterStateContext`)
-- [ ] Items: pick up, equip, unequip, use a potion/scroll; verify effects + messages
-      — if throw is broken: port `throwCommand` / throw dialog (deferred Phase 7c;
-        needs `chooseTarget`)
-      — if call/inscribe is broken: port `call` dialog (deferred Phase 7c;
-        needs `getInputTextString`)
-- [x] Stair descent: `startLevel` and `useStairs` wired (cfdbde1); descent now generates
-      new level. `confirm` still `() => true` (no prompt) but descent works.
-- [x] Travel / auto-explore: `exploreKey` and `autoPlayLevel` wired (9081a89); `commitDraws`
-      wired in `buildTravelContext` so travel animation visible. Auto-explore uses `explore`
-      from travel-explore.ts (module-local `nextStep`, not turn-monster-ai stub).
-- [x] Help screen: overlay visible on keypress (51e1631); ghost-after-dismiss fixed (6ab58e4):
-      await added in executeKeystroke + commitDraws after restoreDisplayBuffer in overlay-screens.ts.
-      Also applies to discoveries (D). Note: `\` key is true-colors toggle, not feats — feats
-      screen is dead code in BrogueCE v1.15.1.
-- [ ] Win/die: complete the game loop; verify game-over or victory screen
-- [ ] For each failure: fix, add regression test, commit; generate handoff with remaining failures
+*Bug tracker and per-session details live in `SESSIONS.md`. Read that first.*
 
 ---
 
-## Phase 8: Playtest Log
+### Session protocol — REQUIRED for every session in this phase
 
-*One entry per session. Bottom entry = current state. See PLAN.md for entry format.*
-
-### Session 2026-03-08 — build clean; first browser run; level not rendering
-
-- **Observed:** Title screen loads. Clicked New Game. Screen goes black, then shows
-  welcome message and `@` player character. The dungeon level (walls, floor, items)
-  does not render. No JS errors at first; an error appears after ~1 minute of waiting.
-- **Diagnosed:** Not yet investigated. Likely cause is `displayLevel` being stubbed —
-  this is a known tracked stub (`test.skip` in `lifecycle.test.ts`; noted in MEMORY.md
-  and TASKS.md Phase 8 checklist). Requires investigation with console logs to confirm.
-- **Fixed:** Nothing yet — this is the opening entry. Build-clean fixes committed this
-  session (a54ed43, ddc7754): 35 tsc errors resolved, `npm run build` exits clean.
-- **Untracked stubs found:** None confirmed yet.
-- **Next blocker:** `displayLevel` not rendering the dungeon. Next session should:
-  (1) add console logs to the lifecycle path from `startLevel()` through `displayLevel`;
-  (2) confirm the stub is the cause; (3) implement `displayLevel`.
-
-### Session 2026-03-08b — wire updateVision; dungeon should now render
-
-- **Observed:** (analysis from code) displayLevel IS already implemented in
-  `io/cell-appearance.ts` and wired in `lifecycle.ts:buildLevelContext`. However
-  `updateVision` was stubbed (`() => {}`). Without updateVision, no cells receive
-  `DISCOVERED` or `VISIBLE` flags. getCellAppearance returns maxLayer=0 (black) for
-  undiscovered cells; only the player cell (@) has HAS_PLAYER flag which bypasses
-  terrain rendering. All dungeon tiles appear as black.
-- **Diagnosed:** `updateVision: () => {}` stub in `buildLevelContext()` (lifecycle.ts:485).
-  Tracked: yes — test.skip entry in `ui.test.ts` references `displayLevel` stubs in
-  items.ts/input-context.ts (tangential); `updateVision` itself had no test.skip (audit gap).
-- **Fixed:** Created `src/vision-wiring.ts` with `buildUpdateVisionFn()` factory that
-  assembles LightingContext + CostMapFovContext + SafetyMapsContext from live game state.
-  Wired into `lifecycle.ts:buildLevelContext()`. Added console.log checkpoints in
-  updateVision and displayLevel for browser-side confirmation. Commit: 96c5c14.
-  Tests: 87 files, 2206 pass, 97 skip (no regressions).
-- **Untracked stubs found:** `updateVision` was stubbed with no test.skip entry.
-  Also stubbed (same issue) in `turn.ts:254` and `movement.ts:541,543` — those
-  affect per-turn vision updates. Not fixed this session (turn-loop not yet reached).
-- **Next blocker:** Launch browser, verify dungeon renders. If renders: move to
-  Movement checklist item. If still blank: check console for [updateVision] logs
-  to confirm it's being called and player cell flags are non-zero after the call.
-  Likely follow-up fix: wire `updateVision` in `buildTurnProcessingContext()` (turn.ts)
-  so vision updates per turn.
-
-### Session 2026-03-08c — wire updateVision in turn.ts and movement.ts
-
-- **Observed:** (code analysis) `updateVision` wired in `buildLevelContext` (level start)
-  but still `() => {}` stub in `buildTurnProcessingContext` (turn.ts) and
-  `buildPlayerMoveContext` (movement.ts). Vision would only update once per level load,
-  not per turn or per move — dungeon would appear static after initial render.
-- **Diagnosed:** Two remaining stubs in turn.ts:254 and movement.ts:541,543. Untracked
-  (no test.skip entries — same audit gap pattern as buildLevelContext stub).
-  Also: `vision-wiring.ts` imported `getScentMap` from `lifecycle.ts`, creating a
-  circular dep `lifecycle → turn → vision-wiring → lifecycle` if turn.ts imported
-  vision-wiring.ts. Fixed by moving `scentMap` state to `core.ts` (getScentMap/setScentMap
-  exported from core.ts; all callers updated).
-- **Fixed:** Moved `scentMap`/`getScentMap`/`setScentMap` to `core.ts`; updated
-  `lifecycle.ts`, `io-wiring.ts`, `io/input-context.ts`, `vision-wiring.ts` to use
-  `core.ts` imports. Wired `buildUpdateVisionFn()` into `buildTurnProcessingContext()`
-  (turn.ts) and `buildPlayerMoveContext()` (movement.ts — both the standalone slot and
-  the `updatePlayerUnderwaterness` closure). Commit: 4dfe768.
-  Tests: 87 files, 2206 pass, 97 skip (no regressions).
-- **Untracked stubs found:** same pattern — per-turn and per-move updateVision had no
-  test.skip entries. Three instances fixed.
-- **Next blocker:** Launch browser, verify dungeon renders AND updates on player movement.
-  Check console for `[updateVision] called` logs on each turn. If movement renders
-  correctly: move to Movement checklist item and check messages/flavor text.
-
-### Session 2026-03-08d — wire commitDraws in mainGameLoop; wire refreshSideBar in InputContext
-
-- **Observed:** (code analysis) After the initial level render (committed by `main-menu.ts:394`
-  after `startLevel()`), `mainGameLoop()` in `platform.ts` never calls `commitDraws()`.
-  Every keystroke updates the display buffer via `refreshDungeonCell` but the canvas
-  never flushes — the dungeon stays frozen at the initial render.
-  Also: `refreshSideBar` was `() => {}` in `buildInputContext()` — after each move,
-  `executeKeystroke` calls `ctx.refreshSideBar(-1, -1, false)` which was a no-op.
-- **Diagnosed:** `mainGameLoop()` calls `processEvent(event)` then immediately awaits
-  the next event. No `commitDraws()` between events. The menu's `nextBrogueEvent` calls
-  `commitDraws()` before each event, but once `mainGameLoop()` takes over, that path
-  is never hit. `refreshSideBar` was tracked (Phase 1 TODO) but never wired in
-  `buildInputContext` (only wired in movement/combat/items context builders).
-- **Fixed:** Added `commitDraws()` call in `mainGameLoop()` after `processEvent()`.
-  Imported `buildRefreshSideBarFn` in `input-context.ts`; replaced stub with
-  `(_x, _y, _justClearing) => refreshSideBarFn()`. Commit: f6e50b5.
-  Tests: 87 files, 2206 pass, 97 skip (no regressions).
-- **Untracked stubs found:** `refreshSideBar` in `buildInputContext` was never wired despite
-  Phase 1 noting it as a WIRE target. The stub comment said "wired in Phase 5" but it was
-  missed. Audit gap: `buildInputContext` refreshSideBar had no test.skip entry.
-- **Next blocker:** Launch browser, verify dungeon renders AND updates on player movement.
-  Likely next issues:
-  (a) Messages: `message`/`messageWithColor`/`temporaryMessage` stubs in `buildInputContext`
-      (lines 345–349) — combat and movement messages won't display;
-  (b) `--MORE--` prompt: `waitForAcknowledgment` is still stubbed in `buildMessageContext`;
-  (c) Flavor text: `updateFlavorText` still stubbed.
-  Check console for `[mainGameLoop] started` and `[processEvent]` logs to confirm
-  event dispatch is working.
-
-### Session 2026-03-08e — wire updateMinersLightRadius; fog of war and lighting fixed
-
-- **Observed:** Moving around the dungeon: newly entered cells stay black (fog of war
-  never clears). Already-discovered cells visible but appear abnormally dark.
-- **Diagnosed:** `updateMinersLightRadius()` stubbed as `() => {}` in all context
-  builders (combat.ts, turn.ts, items.ts, movement.ts, io/input-context.ts).
-  This function syncs `rogue.minersLight.lightRadius` from the separately-computed
-  `rogue.minersLightRadius` (set in game-level.ts per depth level). With the stub,
-  `lightRadius` stayed at `{lowerBound:0, upperBound:0}` (initial catalog value)
-  forever. `paintLight()` used a zero-radius FOV — only the player's own cell
-  received light above `VISIBILITY_THRESHOLD (50)`. Cells in FOV never became
-  `VISIBLE`; fog of war never cleared.
-- **Fixed:** Added `updateMinersLightRadius()` to `LevelContext` interface; call it
-  in `game-level.ts` after `updateRingBonuses` (matching C source position).
-  Wired `updateMinersLightRadiusFn(rogue, player)` in lifecycle.ts, combat.ts,
-  turn.ts, items.ts, movement.ts (CreatureEffectsContext), io/input-context.ts.
-  Commit: f8e4c66. Tests: 87 files, 2206 pass, 97 skip.
-- **Untracked stubs found:** All six `updateMinersLightRadius` stubs had no test.skip
-  entries. Audit gap — the stubs were added without tracking.
-- **Next blocker:** Launch browser; verify fog of war clears as player moves and
-  dungeon illuminates correctly. Then check: (a) sidebar stats visible, (b) messages
-  display on movement/combat, (c) check Phase 8 checklist item "New game: verify
-  dungeon renders, player visible, sidebar shows stats".
-
-### Session 2026-03-08f — wire messages and display buffer ops in buildInputContext
-
-- **Observed:** (code analysis) `buildInputContext()` had 6 message stubs and 5 display
-  buffer stubs that were never wired despite being flagged "Phase 5 TODO". Messages
-  (message/messageWithColor/temporaryMessage/confirmMessages/updateMessageDisplay) were
-  all `() => {}` no-ops — no movement or combat message would display. `encodeMessageColor`
-  returned `""`. `createScreenDisplayBuffer` returned `{ cells: [] }` (broken — would crash
-  on `cells[x][y]` access in any overlay screen). `saveDisplayBuffer`/`restoreDisplayBuffer`/
-  `overlayDisplayBuffer`/`clearDisplayBuffer` were all no-ops.
-- **Diagnosed:** Two separate omissions in `buildInputContext()`: (a) `buildMessageFns()` was
-  imported and used in sub-context builders (`buildMiscHelpersContext`) but never called in
-  the main context; (b) display buffer functions from `io/display.ts` were implemented but
-  never imported. Both are audit gaps — no test.skip entries tracked them.
-- **Fixed:** (1) Added `updateMessageDisplay` to `buildMessageFns()` return (io-wiring.ts).
-  (2) Called `buildMessageFns()` in `buildInputContext()` and wired all 5 message functions.
-  (3) Imported `encodeMessageColor` from `io/color.ts` and wired it. (4) Imported 6 display
-  buffer functions from `io/display.ts` and replaced all stubs with real implementations.
-  Commits: 5aee730, 3903845. Tests: 87 files, 2206 pass, 97 skip.
-- **Untracked stubs found:** All 11 stubs fixed were untracked (no test.skip entries).
-  Pattern: `buildInputContext()` was treated as "wire later" but the later never came.
-- **Next blocker:** Confirmed browser crash: pressing `e` (equip) throws
-  `TypeError: ctx.clearCursorPath is not a function` in `displayInventory` →
-  `promptForItemOfType` → `equip` → `executeKeystroke`. `clearCursorPath` is missing
-  from the context passed to `displayInventory`. Fix this first.
-  After that: (a) verify movement messages appear (wall-bump text confirmed working);
-  (b) `waitForAcknowledgment` still stubbed (`--MORE--` never blocks);
-  (c) `updateFlavorText` still stubbed (flavor text blank).
-
-### Session 2026-03-08g — wire all missing InventoryContext fields in buildInventoryContext
-
-- **Observed:** (code analysis) `buildInventoryContext()` in `ui.ts` returned a narrow
-  `ui.ts:InventoryContext` type containing only ~15 fields. The actual `io/inventory.ts:InventoryContext`
-  used by `displayInventory()` requires 32 fields. The `buildPromptForItemOfTypeFn()` in
-  `io-wiring.ts` bridged the gap using `as unknown as PromptItemContext`, bypassing TypeScript's
-  check. At runtime, pressing `e` (equip) called `displayInventory()` which immediately crashed
-  on `ctx.clearCursorPath is not a function` (line 62). Subsequent fields would have also crashed:
-  `encodeMessageColor`, `applyColorAverage`, `drawButton`, `plotCharToBuffer`, `printStringWithWrapping`,
-  `wrapText`, `storeColorComponents`, `upperCase`, `strLenWithoutEscapes`, `itemColor`, `goodMessageColor`,
-  `badMessageColor`, `interfaceBoxColor`, `G_GOOD_MAGIC`, `G_BAD_MAGIC`, `printCarriedItemDetails`.
-- **Diagnosed:** Root cause: `ui.ts:InventoryContext` was a narrower interface than
-  `io/inventory.ts:InventoryContext`. Both had the same name but `ui.ts` version was never
-  updated as `displayInventory()` grew. `buildInventoryContext()` was typed against the narrow
-  one; callers cast with `as unknown as` to suppress errors. Audit gap — no test.skip entries
-  tracked any of the 17 missing fields.
-- **Fixed:** Changed `buildInventoryContext()` return type to `FullInventoryContext` (from
-  `io/inventory.ts`) and added all 17 missing fields: color ops (applyColorAverage, encodeMessageColor,
-  storeColorComponents), text ops (upperCase, strLenWithoutEscapes, wrapText, printStringWithWrapping),
-  rendering (plotCharToBuffer, drawButton via closure over buildButtonContext()), cursor ops
-  (clearCursorPath — clears IS_IN_PATH flags inline without refreshDungeonCell, safe since
-  inventory overlay covers dungeon), item detail panel (printCarriedItemDetails — stubbed
-  `async () => -1` pending SidebarContext wiring), colors (itemColor, goodMessageColor,
-  badMessageColor, interfaceBoxColor), glyphs (G_GOOD_MAGIC, G_BAD_MAGIC).
-  Removed the `as unknown as InventoryContext` cast in `menus.ts:printTextBox` (no longer needed).
-  Commit: 221a6f8. Tests: 87 files, 2206 pass, 97 skip.
-- **Untracked stubs found:** All 17 missing fields were untracked (no test.skip entries).
-  Pattern: two parallel `InventoryContext` interfaces diverged silently over multiple phases.
-- **Next blocker:** Launch browser, press `e` to open inventory — should no longer crash.
-  Likely next issues: (a) inventory display renders correctly (button layout, item list);
-  (b) equip/unequip/drop actions work; (c) `printCarriedItemDetails` stub returns -1 so
-  item detail panel won't show (Phase 8 follow-up); (d) movement messages and flavor text
-  (`waitForAcknowledgment`, `updateFlavorText` still stubbed).
-
-### Session 2026-03-08h — wire displayInventory in buildInputContext; silence mouse-move logs
-
-- **Observed:** User playtested — pressing `i` (inventory) and `e` (equip) did nothing.
-  No errors in devtools console. Mouse-move events (type=5 = MouseEnteredCell) were flooding
-  the console log on every mouse drag, making it hard to read.
-- **Diagnosed:** `displayInventory` in `buildInputContext()` was stubbed as `async () => {}`
-  (input-context.ts:397). Pressing `i` dispatched to this stub and returned immediately.
-  Pressing `e` with an empty pack is correct silent behavior (promptForItemOfType returns
-  null immediately if no items match). The mouse-move log was at platform.ts:205 — fired
-  for ALL event types including MouseEnteredCell.
-- **Fixed:** (1) Imported `displayInventory` from `./inventory-display.js` and
-  `buildInventoryContext` from `../ui.js` in input-context.ts; replaced stub with real call.
-  (2) Wrapped in `async () => { await ... }` to fix `Promise<string>` vs `void | Promise<void>`
-  type mismatch. (3) Added EventType guard in platform.ts processEvent to skip log for
-  MouseEnteredCell events. Commit: 8d9af1b. Tests: 87 files, 2206 pass, 97 skip.
-- **Untracked stubs found:** `displayInventory` stub in `buildInputContext` had no test.skip
-  entry. Audit gap — same pattern as other input-context stubs.
-- **Next blocker:** Test inventory in browser: press `i` — should open inventory overlay.
-  If it opens but is blank/broken: likely display buffer issue or button rendering.
-  If it opens and works: test `e` with items in pack (pick something up first).
-
-### Session 2026-03-08i — fix overlay write-back; inventory now visible
-
-- **Observed:** User reports pressing `i`/`e` shows "equip what" text, blocks input
-  (Esc restores movement), but no inventory overlay renders on screen.
-- **Diagnosed:** `overlayDisplayBuffer()` in `io/display.ts` is side-effect-free — it
-  computes blended cells and returns `OverlayResult[]` but does NOT write back to
-  `displayBuffer`. `menus.ts` and `overlay-screens.ts` correctly do the write-back after
-  calling it. `ui.ts` (4 closures) and `input-context.ts` (1 closure) discarded the
-  return value entirely — so all overlays were computed but never applied to the buffer
-  that `commitDraws()` reads. Audit gap: no test.skip entries tracked this.
-- **Fixed:** Added `applyOverlay()` to `io/display.ts` — wraps `overlayDisplayBuffer()`
-  and writes blended results back. Updated `ui.ts` (all 4 overlay closures in
-  buildDisplayContext/buildMessageContext/buildInventoryContext/buildButtonContext) and
-  `input-context.ts` to use `applyOverlay()` instead. Commit: 78d4b11.
-  Tests: 87 files, 2206 pass, 97 skip.
-- **Untracked stubs found:** Audit gap — `overlayDisplayBuffer` write-back was missing in
-  5 places. The pure/side-effect split was intentional for testability but the rendering
-  path callers in ui.ts/input-context.ts were never updated.
-- **Next blocker:** Rebuild and test — press `i`, inventory overlay should now render.
-  Expected remaining issues: (a) item detail panel (`printCarriedItemDetails` stub → `async () => -1`);
-  (b) `waitForAcknowledgment` still stubbed; (c) `updateFlavorText` still stubbed.
-
-### Session 2026-03-08j — wire printCarriedItemDetails; wire displayMessageArchive
-
-- **Observed:** (a) Pressing `i`, then selecting an item does nothing — item detail panel never
-  shows and actions are not available. (b) Pressing `M` (message archive) shows nothing.
-- **Diagnosed (a):** `printCarriedItemDetails` in `buildInventoryContext()` (`ui.ts:357`) was
-  stubbed as `async () => -1`. In `displayInventory` (`inventory-display.ts:342`), returning
-  -1 sets `repeatDisplay = true` and immediately loops back to the inventory list without
-  showing the detail panel or waiting for user input. Actions from the item detail screen are
-  never triggered.
-  Root cause: the stub never shows a text box and never waits for a keypress.
-- **Diagnosed (b):** `displayMessageArchive` in `buildInputContext()` (`input-context.ts:402`)
-  was stubbed as `() => {}`. The real function is in `io/messages.ts`.
-- **Fixed (a):** Replaced the `printCarriedItemDetails` stub with an inline implementation that:
-  (1) gets item description via `itemNameFn(theItem, true, true, namingCtx)`;
-  (2) renders the text into a temp buffer at the given position via `printStringWithWrappingFn`;
-  (3) applies the buffer to `displayBuffer` via `applyOverlayFn`;
-  (4) calls `commitDraws()` to flush to canvas;
-  (5) waits for a keystroke via `waitForEvent()`;
-  (6) returns `event.param1` for keystrokes, -1 otherwise.
-  This enables item actions (a=apply, e=equip, r=unequip, d=drop, etc.) from the `i` screen.
-  Note: item description text is currently the item name — `itemDetails()` is still a stub.
-  Full item details (stats, runic description) deferred to Phase 9.
-- **Fixed (b):** Added `displayMessageArchive as displayMessageArchiveFn` import from
-  `./messages.js` and `buildMessageContext` import from `../ui.js` to `input-context.ts`.
-  Wired: `displayMessageArchive: () => { displayMessageArchiveFn(buildMessageContext() as any); }`.
-  Note: `buildMessageContext()` has async stubs for `pauseBrogue`/`nextBrogueEvent` (needed
-  for scroll animations). Archive animation/scrolling may not work; the early-return guard
-  (`length <= MESSAGE_LINES`) fires for small archives. Full async bridging deferred to Phase 9.
-- Tests: 87 files, 2206 pass, 97 skip.
-- **Next steps:** Build and playtest — (a) press `i`, select item, press action key;
-  (b) press `M` with several messages in archive; (c) verify Escape from item detail
-  goes back to inventory list; (d) continue Phase 8 checklist (combat, stair descent,
-  travel/auto-explore, help screen).
-
-### Session 2026-03-08k — fix item detail panel invisible; throw stub; potion message delay
-
-- **Observed:** Three user-reported bugs from playtest: (a) pressing `i` → item letter shows
-  action text box according to key-presses working (apply works) but the box doesn't render
-  visually; (b) pressing `t` from inventory does nothing; (c) after drinking a potion the
-  message appears only on the next move.
-- **Diagnosed (a):** `printCarriedItemDetails` creates a temp `dbuf`, writes text via
-  `printStringWithWrappingFn`, then calls `applyOverlayFn`. But `plotCharToBuffer` does not
-  set `opacity` — cells stay at `opacity=0` from `clearDisplayBufferFn`. `overlayDisplayBuffer`
-  skips all cells with `opacity=0`, so the text box is computed but never applied to the canvas.
-  Root cause: the TS implementation was missing the `rectangularShading()` call that C's
-  `printTextBox()` uses to set opacity on the text box rectangle.
-- **Diagnosed (b):** `throwCommand` in `buildInventoryContext()` was `async () => {}` — a
-  completely silent no-op. User gets no feedback when pressing `t`.
-- **Diagnosed (c):** `displayInventory` calls `ctx.restoreDisplayBuffer(rbuf)` at the end,
-  restoring the displayBuffer to the pre-inventory state saved before the overlay was applied.
-  Any messages written during item actions (e.g. potion effects) are in this pre-save state
-  only via `messageState`, not in the restored buffer. `commitDraws()` in `mainGameLoop`
-  then flushes the wiped buffer. On the next turn, `updateMessageDisplay` re-renders and
-  the message finally appears.
-- **Fixed (a):** After `printStringWithWrappingFn`, added a loop to set `opacity =
-  INTERFACE_OPACITY` on all cells in the text box rectangle `(x..x+width, y..lastY)`.
-  Added `COLS`, `ROWS`, `INTERFACE_OPACITY` imports to `ui.ts`. Commit: 20afeec.
-- **Fixed (b):** Replaced silent stub with `messageFn(mc, "Throwing not yet implemented.", 0)`.
-  Commit: 20afeec.
-- **Fixed (c):** Added `io.updateMessageDisplay()` call in `input-context.ts` after
-  `displayInventoryFn` returns — re-renders the message archive onto the restored buffer
-  before `commitDraws()` flushes. Commit: 20afeec.
-- Tests: 87 files, 2206 pass, 97 skip (no regressions).
-- **Follow-up fix (ea7467e):** Playtest revealed text box visible but action buttons absent.
-  `_includeButtons` was ignored — no `[a]pply [e]quip [d]rop` list rendered. Ported the
-  button-building logic from C's `printCarriedItemDetails` + `printTextBox`: build action
-  buttons per item category/flags, position them below text (bx/by/padLines layout), extend
-  opacity rectangle to cover button rows, run `buttonInputLoopFn` for interactive buttons.
-- **Next steps:** Build and playtest — (a) press `i`, select item, verify text box renders
-  with item name AND action buttons; (b) press action key or click button, verify action fires;
-  (c) press `t`, verify "Throwing not yet implemented." message appears; (d) continue Phase 8
-  checklist (combat, stair descent, travel/auto-explore, help screen).
-
-### Session 2026-03-09 — wire stair descent, auto-explore, overlay flush
-
-- **Observed:** (code analysis from prior session logs) Prior verified: item detail panel
-  renders with action buttons, throw message appears, potion messages immediate.
-  Remaining checklist: combat, items, stair descent, travel/auto-explore, help screen.
-- **Diagnosed (stair descent):** Two stubs blocked descent:
-  (1) `buildMovementContext().useStairs: () => {}` — walking into stair cell did nothing;
-  (2) `buildTravelContext().startLevel: () => {}` — `useStairsFn` called but new level never
-  generated. Both were untracked (no test.skip). Also `commitDraws: () => {}` in
-  `buildTravelContext` meant travel animation was invisible (player teleported to destination).
-- **Diagnosed (auto-explore):** `exploreKey: async () => {}` and `autoPlayLevel: async () => {}`
-  were stubs in `buildInputContext()`. Pressing `x` did nothing. Untracked.
-- **Diagnosed (help screen):** `printHelpScreenFn` renders overlay to displayBuffer then awaits
-  `waitForEvent`. But `commitDraws()` was never called before the await — overlay was invisible.
-  The overlayWaitFn was missing `commitDraws()`. Untracked.
-- **Fixed (stair descent):** Imported `useStairs as useStairsFn` from `travel-explore.ts` and
-  `startLevel as startLevelFn` from `lifecycle.ts` into `movement.ts`. Wired
-  `buildMovementContext().useStairs` and `buildTravelContext().startLevel + commitDraws`.
-  Added console.log checkpoints at both call sites. Commit: cfdbde1.
-- **Fixed (auto-explore):** Imported `explore` and `autoPlayLevel` from `travel-explore.ts`
-  into `input-context.ts`. Wired `exploreKey` and `autoPlayLevel`. Commit: 9081a89.
-- **Fixed (help screen):** Added `commitDraws()` before `waitForEvent()` in `overlayWaitFn`
-  in `input-context.ts`. Applies to help/feats/discoveries overlays. Commit: 51e1631.
-- **Untracked stubs found:** All three issues were untracked. Pattern continues:
-  `buildInputContext()` and `buildTravelContext()` had stubs with no test.skip entries.
-- **Next blocker:** Browser playtest needed for:
-  (a) Combat — fight a monster; verify messages, death, drops (looks wired but untested);
-  (b) Items — verify pickup from floor and inventory usage work (looks wired but untested);
-  (c) Stair descent — verify new level generates and renders (startLevel now wired);
-  (d) `confirm: () => true` means no stair prompt — acceptable for now but note;
-  (e) `attackVerb: () => "hits"` — all attacks say "hits" (cosmetic; deferred).
-
-### Session 2026-03-09b — fix auto-explore step animation
-
-- **Observed:** Auto-explore (`x` key) works but jumps directly to destination with no
-  per-step animation. Each step should be briefly visible before the next one.
-- **Diagnosed:** `buildTravelContext().pauseAnimation` was wired to
-  `platformPauseAndCheckForEvent(ms)` — but `commitDraws()` was never called first. So each
-  `playerMoves()` call updated `displayBuffer` correctly, but the changes were never flushed
-  to canvas during the pause. Only the final state was flushed by `mainGameLoop` after all
-  steps completed. Affects `explore()`, `travelRoute()`, `travelMap()`, and `startFighting()`
-  — all automation loops that interleave `playerMoves` + `pauseAnimation`.
-- **Fixed:** Changed `pauseAnimation` in `buildTravelContext()` from
-  `async (ms) => platformPauseAndCheckForEvent(ms)` to
-  `async (ms) => { commitDraws(); return platformPauseAndCheckForEvent(ms); }`.
-  One-line change in `movement.ts`. Commit: a54151a.
-- **Untracked stubs found:** Not a stub — `pauseAnimation` was correctly wired. The bug was
-  a missing `commitDraws()` call before the async pause. Not previously tracked anywhere.
-- **Tests:** 87 files, 2206 pass, 97 skip (no regressions).
-- **Next blocker:** Browser playtest needed for:
-  (a) Auto-explore animation — verify each step is now visible;
-  (b) Combat — fight a monster; verify messages, death, drops;
-  (c) Items — pick up from floor, use potion/scroll;
-  (d) Win/die — game-over or victory screen.
-
-### Session 2026-03-09c — fix randomMatchingLocation stub; monsters should now spawn
-
-- **Observed:** (code analysis from prior session handoff) No monsters spawn on any level.
-  `spawnHorde` calls `ctx.randomMatchingLocation(FLOOR, liquidType, -1)` to find a floor cell.
-  The stub returned `null` unconditionally, so the 50-iteration failsafe exhausted on every
-  horde — all hordes silently failed to place.
-- **Diagnosed:** `randomMatchingLocation: () => null` stub in `buildMonsterSpawningContext()`
-  (`monsters.ts:186`). Untracked — no test.skip entry.
-  Also: `passableArcCount: () => 0` in same context (`monsters.ts:187`) and in
-  `buildMonsterStateContext()` (`monsters.ts:256`) — both stubs. The spawning stub always
-  returned 0, so `passableArcCount(foundLoc) > 1` was never true; all candidate locations
-  accepted regardless of arc count. Minor gameplay correctness issue (monsters could spawn
-  in hallways where they shouldn't) but not a blocker.
-- **Fixed:** Imported `passableArcCount` and `randomMatchingLocation` from
-  `./architect/helpers.js`; imported `tileCatalog` from `./globals/tile-catalog.js`.
-  Wired both in `buildMonsterSpawningContext()` and `passableArcCount` in
-  `buildMonsterStateContext()`. Commit: eee9a74.
-  Tests: 87 files, 2206 pass, 97 skip (no regressions).
-- **Untracked stubs found:** All three stubs were untracked. Same audit gap pattern.
-- **Next blocker:** Browser playtest needed:
-  (a) Verify monsters spawn on level start — should see enemies on the dungeon;
-  (b) Combat — fight a monster; verify combat messages, death, item drops;
-  (c) Items — pick up from floor, use potion/scroll;
-  (d) Win/die — game-over or victory screen.
-
-### Session 2026-03-09d — fix combat messages, monster movement, spawn locations
-
-- **Observed:** (user playtest) Monsters now spawn. Walking into a monster gets some response
-  but no combat messages appear. Monsters don't move. Monsters spawn over chasms and
-  presumably over water.
-- **Diagnosed (combat messages):** `displayCombatText: () => {}` stub in `turn.ts:230`.
-  `combatMessage()` buffers text; `displayCombatText` flushes it. The flush is called at
-  the end of `monstersTurn()` in `time/turn-processing.ts:779` via `ctx.displayCombatText()`.
-  With the stub, combat messages buffered but never displayed. Untracked.
-- **Diagnosed (monsters don't move):** `currentStealthRange: () => 0` in `turn.ts:336`.
-  After each turn, `rogue.stealthRange = ctx.currentStealthRange() = 0`. In `awareOfTarget`,
-  `awareness = stealthRange * 2 = 0`. The check `perceived > awareness * 3 = 0` is always
-  true for any monster not on the player's cell → returns false immediately. All non-special
-  monsters (no `MONST_ALWAYS_HUNTING`) can never become aware → stay sleeping forever.
-  Other context builders (lifecycle.ts, items.ts) correctly stub this as `() => 14`.
-  `currentStealthRange` is already implemented in `time/creature-effects.ts`. Untracked.
-- **Diagnosed (spawn over water):** `spawnHorde` in `monster-spawning.ts:442` passed args
-  in wrong order. C source: `randomMatchingLocation(FLOOR, NOTHING, spawnsIn ? spawnsIn : -1)`.
-  TS port had `(FLOOR, spawnsIn ? spawnsIn : -1, -1)`. With `spawnsIn = 0` (most monsters):
-  C passes `liquidType=NOTHING (0)` → rejects cells with liquid; TS passed `liquidType=-1` →
-  skipped liquid check → monsters could spawn in deep water or lava cells.
-  Chasms: not excluded by `T_OBSTRUCTS_ITEMS` (chasm only has `T_AUTO_DESCENT`). In C Brogue,
-  monsters CAN spawn on chasms but fall immediately via `applyInstantTileEffectsToCreature`.
-  Since that function is stubbed, chasm-spawned monsters remain visible on the chasm tile.
-- **Fixed (combat messages):** Imported `displayCombatText` from `io/messages.ts` and
-  `buildMessageContext` from `ui.ts` in `turn.ts`. Replaced stub with
-  `() => displayCombatTextFn(buildMessageContext() as any)`. Cast needed: `ui.ts` MessageContext
-  has async `pauseBrogue` (for `--MORE--`), while `io/messages-state.ts` expects sync.
-- **Fixed (monsters don't move):** Changed `currentStealthRange: () => 0` to `() => 14`
-  in `buildTurnProcessingContext()`. The real `currentStealthRange` function (which applies
-  armor/darkness modifiers) can be wired later; 14 is the correct base value.
-- **Fixed (spawn over water):** Changed `spawnHorde` to pass `liquidType=TileType.NOTHING`
-  and `terrainType=spawnsIn ? spawnsIn : -1`, matching the C source argument order.
-- Commit: a80213f. Tests: 87 files, 2206 pass, 97 skip (no regressions).
-- **Untracked stubs found:** All three issues were untracked. Same pattern as previous sessions.
-- **Known remaining issue:** Monsters still spawn on chasms (chasm has only `T_AUTO_DESCENT`,
-  not `T_OBSTRUCTS_ITEMS`, so `randomMatchingLocation` accepts them, matching C behavior).
-  Real fix requires `applyInstantTileEffectsToCreature` for monsters — deferred.
-- **Next blocker:** Browser playtest:
-  (a) Combat messages should now appear when attacking/being attacked;
-  (b) Monsters should now move and hunt the player;
-  (c) Items — pick up from floor, use potion/scroll;
-  (d) Win/die — game-over or victory screen.
-
-### Session 2026-03-09e — wire death/victory screen; verify runAutogenerators already implemented
-
-- **Investigated:** Handoff claimed `runAutogenerators` was "never ported." Code review shows
-  it IS implemented in `src/architect/machines.ts` (line 1902) and called from
-  `src/architect/architect.ts:digDungeon()` at lines 268 and 280 (once for non-machine
-  autogenerators, once for machine autogenerators). The autogenerator catalog entries for
-  grass (depth 0–10), dead grass, foliage (depth 0–8), luminescent fungus, etc. exist
-  and the `spawnDungeonFeature` + `fillSpawnMap` chain places tiles on the Surface layer.
-  Vegetation SHOULD appear; the handoff was incorrect about this being unimplemented.
-- **Fixed (death screen):** Player death previously returned silently to the main menu with no
-  screen. `core.ts:gameOver()` set `rogue.gameHasEnded = true` but no death display existed.
-  Added `setVictory(superVictory: boolean)` + `takePendingVictory()` to `core.ts` (parallel
-  to `gameOver`/`takePendingDeathMessage`). Wired `victory(isDescending)` in `movement.ts`
-  to call `setVictory(isDescending)` (was `() => {}`). Added async `showGameEndScreen()`
-  in `menus.ts` — blacks out screen, prints death/victory message + depth + "Press any key",
-  calls `commitDraws()`, awaits `waitForEvent()`. Updated `mainInputLoop` to call it after
-  `mainGameLoop()` exits. Commit: (this session).
-- **Untracked stubs found:** `victory: () => {}` in `movement.ts` had no test.skip entry.
-  Audit gap — same pattern as previous sessions.
-- **Tests:** 87 files, 2206 pass, 97 skip (no regressions).
-- **Next blocker:** Browser playtest:
-  (a) Verify vegetation appears on dungeon floors (autogenerators should be working);
-  (b) Verify death screen appears when player dies (fight a monster);
-  (c) Items — pick up from floor, use potion/scroll (should be wired but untested);
-  (d) Victory — would require getting amulet (deep dungeon); deferred for now.
+1. **Read `SESSIONS.md` first** — scan the Bug Tracker table, then read the last session entry.
+2. **Pick the highest-priority open bug** — work on at most 1–2 bugs per session.
+3. **Stop at ~60% context window usage** — do not push on; partial progress is fine.
+4. **Before ending:** update `SESSIONS.md` (mark fixed bugs, add any new bugs found from playtest).
+5. **Commit all changes** — `npm run build` must be clean; tests must not regress.
+6. **Generate a handoff prompt** referencing `TASKS.md`, `SESSIONS.md`, and the latest commit hash.
 
 ---
+
+### Verified working
+
+- [x] Build clean — `npm run build` exits clean (a54ed43)
+- [x] Launch — title screen loads; new game starts
+- [x] Stair descent — `startLevel` + `useStairs` wired (cfdbde1); no confirm prompt (`() => true`) but descent works
+- [x] Travel / auto-explore — `exploreKey` + `autoPlayLevel` wired (9081a89); per-step animation works (a54151a)
+- [x] Help screen (`?`) — overlay visible, no ghost-after-dismiss (51e1631, 6ab58e4)
+- [x] Discoveries screen (`D`) — overlay works
+- [x] Inventory dialog — `i`/`e` opens inventory; item detail panel with action buttons (ea7467e)
+- [x] Death/victory screen — shows text + waits for keypress on game end (4caf6aa); untested in browser (blocked by B2)
+- [x] Monsters spawn — `randomMatchingLocation` + `passableArcCount` wired (eee9a74); spawn locations correct (a80213f)
+- [x] Monsters move and hunt player — `currentStealthRange` fixed (a80213f)
+- [x] Combat messages — `displayCombatText` wired (a80213f)
+
+### Still to verify (see SESSIONS.md bug tracker for open bugs)
+
+- [ ] Vegetation visible on dungeon floors (B1)
+- [ ] Monsters hit player back; player can die; death screen shown (B2 — HIGH)
+- [ ] Potion/scroll appearances randomized; pickup message shows item name (B3, B4)
+- [ ] `--MORE--` prompt blocks until keypress (`waitForAcknowledgment` still deferred)
+- [ ] Win/die full loop — death screen added but untested (blocked by B2)
+
+### Known deferred (acceptable stubs for this initiative — do not fix)
+
+- `waitForAcknowledgment` — `--MORE--` never blocks; needs async cascade through `messages.ts`
+- `flashTemporaryAlert` — no temporary overlays; needs EffectsContext
+- `updateFlavorText` — flavor text line blank; needs CreatureEffectsContext
+- `throwCommand` / throw dialog — shows "Throwing not yet implemented."; needs `chooseTarget`
+- `call` / inscribe dialog — needs `getInputTextString`
+- `confirm: () => true` — stair descent has no prompt
+- `attackVerb: () => "hits"` — all attacks say "hits"; cosmetic
+- `anyoneWantABite` — stub `() => false`; needs full CombatHelperContext
+- `wakeUp` upgrade in `buildWakeUpFn` — partial impl; needs full MonsterStateContext
+- `applyInstantTileEffectsToCreature` — player/monster cannot fall into chasms (B5)
+- `printCarriedItemDetails` item description — shows name only, not full stats; `itemDetails()` stub
+
 
 ## Phase 9: Final stub cleanup
 
