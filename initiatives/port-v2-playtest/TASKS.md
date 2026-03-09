@@ -667,6 +667,29 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
   (d) `confirm: () => true` means no stair prompt — acceptable for now but note;
   (e) `attackVerb: () => "hits"` — all attacks say "hits" (cosmetic; deferred).
 
+### Session 2026-03-09b — fix auto-explore step animation
+
+- **Observed:** Auto-explore (`x` key) works but jumps directly to destination with no
+  per-step animation. Each step should be briefly visible before the next one.
+- **Diagnosed:** `buildTravelContext().pauseAnimation` was wired to
+  `platformPauseAndCheckForEvent(ms)` — but `commitDraws()` was never called first. So each
+  `playerMoves()` call updated `displayBuffer` correctly, but the changes were never flushed
+  to canvas during the pause. Only the final state was flushed by `mainGameLoop` after all
+  steps completed. Affects `explore()`, `travelRoute()`, `travelMap()`, and `startFighting()`
+  — all automation loops that interleave `playerMoves` + `pauseAnimation`.
+- **Fixed:** Changed `pauseAnimation` in `buildTravelContext()` from
+  `async (ms) => platformPauseAndCheckForEvent(ms)` to
+  `async (ms) => { commitDraws(); return platformPauseAndCheckForEvent(ms); }`.
+  One-line change in `movement.ts`. Commit: a54151a.
+- **Untracked stubs found:** Not a stub — `pauseAnimation` was correctly wired. The bug was
+  a missing `commitDraws()` call before the async pause. Not previously tracked anywhere.
+- **Tests:** 87 files, 2206 pass, 97 skip (no regressions).
+- **Next blocker:** Browser playtest needed for:
+  (a) Auto-explore animation — verify each step is now visible;
+  (b) Combat — fight a monster; verify messages, death, drops;
+  (c) Items — pick up from floor, use potion/scroll;
+  (d) Win/die — game-over or victory screen.
+
 ---
 
 ## Phase 9: Final stub cleanup
