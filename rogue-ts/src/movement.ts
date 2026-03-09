@@ -537,7 +537,7 @@ export function buildTravelContext(): TravelExploreContext {
         hilitePath: (path, steps, remove) => hilitePathFn(path, steps, remove, pathHighlightCtx),
         getPlayerPathOnMap: () => 0,
         commitDraws: () => commitDraws(),
-        pauseAnimation: async (ms, _behavior) => platformPauseAndCheckForEvent(ms),
+        pauseAnimation: async (ms, _behavior) => { commitDraws(); return platformPauseAndCheckForEvent(ms); },
         recordMouseClick: () => {},
         mapToWindowX: (x) => mapToWindowXFn(x),
         mapToWindowY: (y) => mapToWindowYFn(y),
