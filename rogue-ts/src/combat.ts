@@ -40,6 +40,7 @@ import type { Creature, Pos } from "./types/types.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
 import { updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, equipItem as equipItemFn } from "./items/item-usage.js";
 import { buildEquipState, syncEquipBonuses } from "./items/equip-helpers.js";
+import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
 
 // =============================================================================
 // Private helpers
@@ -142,7 +143,7 @@ export function buildCombatDamageContext(): CombatDamageContext {
 
         // ── Equipment updates ─────────────────────────────────────────────────
         updateEncumbrance: () => updateEncumbranceFn(buildEquipState()),
-        updateMinersLightRadius: () => {},
+        updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
         updateVision: () => {},
 
         badMessageColor,

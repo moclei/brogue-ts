@@ -198,6 +198,7 @@ export interface LevelContext {
     discoverCell(x: number, y: number): void;
     updateMapToShore(): void;
     updateRingBonuses(): void;
+    updateMinersLightRadius(): void;
 
     // -- Display & recording --------------------------------------------------
 
@@ -404,6 +405,7 @@ export function startLevel(
     rogue.minersLightRadius += fpFactor * 225n / 100n;
     updateColors(ctx);
     ctx.updateRingBonuses();
+    ctx.updateMinersLightRadius();
 
     let timeAway: number;
 

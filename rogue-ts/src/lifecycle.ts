@@ -91,6 +91,7 @@ import type { CleanupContext } from "./game/game-cleanup.js";
 import type { LifecycleContext } from "./game/game-lifecycle.js";
 import { buildRefreshSideBarFn, buildMessageFns } from "./io-wiring.js";
 import { buildUpdateVisionFn } from "./vision-wiring.js";
+import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
 
 // =============================================================================
 // Module-level lifecycle state (not in core.ts)
@@ -484,6 +485,7 @@ export function buildLevelContext(): LevelContext {
         discoverCell: (x, y) => { pmap[x][y].flags |= TileFlag.DISCOVERED; },
         updateMapToShore() { rogue.mapToShore = updateMapToShore(pmap); },
         updateRingBonuses: () => { const s = buildEquipState(); updateRingBonusesFn(s); syncEquipBonuses(s); },
+        updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
         displayLevel() {
             console.log("[displayLevel/buildLevelContext] called");
             const getCellApp = (loc: { x: number; y: number }) => getCellAppearance(

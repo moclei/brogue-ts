@@ -118,6 +118,7 @@ import type { ItemHandlerContext } from "./items/item-handlers.js";
 import type { ItemTable, Creature, Pos } from "./types/types.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn, buildExposeCreatureToFireFn, buildPromptForItemOfTypeFn } from "./io-wiring.js";
 import { buildResolvePronounEscapesFn } from "./io/text.js";
+import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
 
 // =============================================================================
 // Private helpers
@@ -509,7 +510,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         displayLevel: () => {},              // stub — wired in port-v2-platform
 
         // ── Vision / light stubs ────────────────────────────────────────────
-        updateMinersLightRadius: () => {},   // stub — wired in port-v2-platform
+        updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
         updateVision: () => {},              // stub — wired in port-v2-platform
         updateClairvoyance: () => {},        // stub — wired in port-v2-platform
         updatePlayerRegenerationDelay() {

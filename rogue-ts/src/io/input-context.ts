@@ -75,6 +75,7 @@ import {
     displayFeatsScreen as displayFeatsScreenFn,
     printDiscoveriesScreen as printDiscoveriesScreenFn,
 } from "./overlay-screens.js";
+import { updateMinersLightRadius as updateMinersLightRadiusFn } from "../light/light.js";
 import { buttonInputLoop as buttonInputLoopFn, initializeButton as initializeButtonFn } from "./buttons.js";
 import { equip as equipFn, unequip as unequipFn, drop as dropFn, relabel as relabelFn } from "./inventory-actions.js";
 import { buildButtonContext } from "../ui.js";
@@ -253,7 +254,7 @@ function buildMiscHelpersContext(): MiscHelpersContext {
 
         ringTable: ringTable as unknown as Array<{ identified: boolean }>,
         displayLevel: () => {},                   // stub
-        updateMinersLightRadius: () => {},        // stub
+        updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
         itemMessageColor: null,
         red: null,
         REST_KEY: String.fromCharCode(REST_KEY),

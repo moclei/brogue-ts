@@ -47,6 +47,7 @@ import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { Creature, Pcell, Pos, PlayerCharacter } from "./types/types.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
 import { buildUpdateVisionFn } from "./vision-wiring.js";
+import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
 import { shuffleTerrainColors as shuffleTerrainColorsFn } from "./render-state.js";
 import { checkForContinuedLeadership as checkForContinuedLeadershipFn, demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "./monsters/monster-ally-ops.js";
 import { buildResolvePronounEscapesFn, getMonsterDFMessage as getMonsterDFMessageFn } from "./io/text.js";
@@ -110,7 +111,7 @@ function buildMinimalCombatContext(
         message: io.message,
         monsterCatalog: [],                         // stub — real catalog via core.ts
         updateEncumbrance: () => updateEncumbranceFn(buildEquipState()),
-        updateMinersLightRadius: () => {},          // stub
+        updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
         updateVision: () => {},                     // stub
         badMessageColor,
         poisonColor,
