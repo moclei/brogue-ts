@@ -18,7 +18,7 @@ New sessions: read the Bug Tracker table first, then the last session entry.
 | B7 | Player can walk on water as if it were normal ground | Medium | Fixed (785c941) | Root: `applyGradualTileEffectsToCreature: () => {}` stub in `turn.ts`. Wired real impl with `gradualCtx`. NOTE: visual water-entry effect (light dimming) depends on `displayLevel` stub — see B9. |
 | B8 | Pit bloat explosion does not open a chasm in the ground | Low | Open | Monster death dungeon feature (DF) spawn not triggering. Check `spawnDungeonFeature: () => {}` stub in `buildMinimalCombatContext` (turn.ts); also check bloat DFType in monster-catalog. |
 | B9 | Water entry has no visual effect (light change / level re-render) | Low | Deferred | `updatePlayerUnderwaterness` sets `rogue.inWater` correctly but calls `displayLevel()` which is a permanent stub. Deferred same class as B5. |
-| B10 | Inventory only shows pack items; equipped items section missing | Medium | Open | Inventory dialog should show equipped weapon/armor/rings in a separate section at top. Investigate `printCarriedItemDetails` / inventory display in `io/inventory-display.ts`. |
+| B10 | Inventory only shows pack items; equipped items section missing | Medium | Fixed (95bb5ac) | Root: `equipItem` wrappers in lifecycle.ts/combat.ts/items.ts/input-context.ts called `syncEquipBonuses` after `equipItemFn` — only syncs ring bonuses, not weapon/armor/ring refs. `rogue.weapon` etc. always null. Fix: all four wrappers now call `syncEquipState` instead. |
 | B11 | Using a scroll/potion shows unidentified name in "It must have been..." message | Medium | Fixed (b373f3e) | Root: `identifyItemKind` wrote `identified=true` to catalog tables but `itemName` reads mutable copies. Fix: added optional `MutableFlavorTables` param to `identifyItemKind`/`identify`/`tryIdentifyLastItemKind`/`tryIdentifyLastItemKinds`; syncs `identified` to mutable entry after writing catalog. All call sites updated. |
 
 ---
@@ -33,8 +33,13 @@ New sessions: read the Bug Tracker table first, then the last session entry.
   `tryIdentifyLastItemKind` in `item-naming.ts`. After writing `identified=true` to catalog
   entry, `syncIdentifiedToMutable()` mirrors it to the mutable entry. Updated all call sites
   in `item-handlers.ts` (5 sites), `lifecycle.ts` (1), `movement.ts` (1). Two new tests added.
-- **Commit:** b373f3e — 87 files, 2208 pass, 98 skip.
-- **Next:** B10 (inventory equipped items missing). Then B8 (pit bloat DF stub).
+- **Fixed B10 (95bb5ac):** `equipItem` wrappers in lifecycle.ts/combat.ts/items.ts/input-context.ts
+  called `syncEquipBonuses` after `equipItemFn` — only syncs ring bonuses, never writes
+  `rogue.weapon`/`rogue.armor`/rings back. `displayInventory` reads `ctx.rogue.weapon` etc.
+  to build the equipped section, so it was always null/empty. Fix: all four wrappers now call
+  `syncEquipState` instead.
+- **Commit:** b373f3e (B11) + 95bb5ac (B10) — 87 files, 2208 pass, 98 skip.
+- **Next:** B8 (pit bloat DF stub in buildMinimalCombatContext). B9 remains deferred.
 
 ---
 
