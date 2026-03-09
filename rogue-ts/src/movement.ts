@@ -73,7 +73,7 @@ import { useKeyAt as useKeyAtFn, checkForMissingKeys as checkForMissingKeysFn } 
 import { getQualifyingPathLocNear as getQualifyingPathLocNearFn } from "./movement/path-qualifying.js";
 import { pickUpItemAt as pickUpItemAtFn } from "./items/pickup.js";
 import { removeItemAt as removeItemAtFn } from "./items/floor-items.js";
-import { identifyItemKind as identifyItemKindFn } from "./items/item-naming.js";
+import { identifyItemKind as identifyItemKindFn, itemName as itemNameFn } from "./items/item-naming.js";
 import {
     numberOfItemsInPack as numberOfItemsInPackFn,
     itemWillStackWithPack as itemWillStackWithPackFn,
@@ -81,7 +81,8 @@ import {
     addItemToPack as addItemToPackFn,
     deleteItem as deleteItemFn,
 } from "./items/item-inventory.js";
-import { wandTable } from "./globals/item-catalog.js";
+import { wandTable, staffTable, ringTable, charmTable } from "./globals/item-catalog.js";
+import type { ItemTable } from "./types/types.js";
 import { keyMatchesLocation as keyMatchesLocationFn } from "./items/item-utils.js";
 import { layerWithTMFlag as layerWithTMFlagFn, layerWithFlag as layerWithFlagFn } from "./movement/map-queries.js";
 import {
@@ -158,7 +159,20 @@ function buildMonsterNameHelper(player: Creature) {
  * are stubbed — wired in port-v2-platform.
  */
 export function buildMovementContext(): PlayerMoveContext {
-    const { player, rogue, pmap, monsters, packItems, floorItems, gameConst } = getGameState();
+    const { player, rogue, pmap, monsters, packItems, floorItems, gameConst,
+        mutableScrollTable, mutablePotionTable, monsterCatalog } = getGameState();
+    const namingCtx = {
+        gameConstants: gameConst,
+        depthLevel: rogue.depthLevel,
+        potionTable: mutablePotionTable,
+        scrollTable: mutableScrollTable,
+        wandTable: wandTable as unknown as ItemTable[],
+        staffTable: staffTable as unknown as ItemTable[],
+        ringTable: ringTable as unknown as ItemTable[],
+        charmTable: charmTable as unknown as ItemTable[],
+        playbackOmniscience: rogue.playbackOmniscience,
+        monsterClassName: (classId: number) => monsterCatalog[classId]?.monsterName ?? "creature",
+    };
     const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn();
 
     const cellHasTerrainFlag = (pos: Pos, flags: number) =>
@@ -221,7 +235,7 @@ export function buildMovementContext(): PlayerMoveContext {
             return null;
         },
         initializeItem: () => ({}) as any,
-        itemName: (_item: any, buf: string[]) => { buf[0] = "item"; },  // stub
+        itemName: (item: any, buf: string[], inclDetails: boolean, inclArticle: boolean) => { buf[0] = itemNameFn(item, inclDetails, inclArticle, namingCtx); },
         describeHallucinatedItem: (buf: string[]) => { buf[0] = "something"; },
     } as unknown as import("./movement/item-helpers.js").ItemHelperContext;
 
@@ -253,7 +267,7 @@ export function buildMovementContext(): PlayerMoveContext {
         numberOfMatchingPackItems: (cat: number, req: number, forb: number) => numberOfMatchingPackItemsFn(packItems, cat, req, forb),
         getRandomMonsterSpawnLocation: (): Pos => ({ x: 0, y: 0 }),  // stub — DEFER: port-v2-platform
         generateMonster: () => ({}) as any,                           // stub — DEFER: port-v2-platform
-        itemName: (_item: any, buf: string[]) => { buf[0] = "item"; },  // stub
+        itemName: (item: any, buf: string[], inclDetails: boolean, inclArticle: boolean) => { buf[0] = itemNameFn(item, inclDetails, inclArticle, namingCtx); },
         messageWithColor: io.messageWithColor,
         message: io.message,
         itemMessageColor: { red: 100, green: 100, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false },

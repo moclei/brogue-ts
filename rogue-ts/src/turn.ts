@@ -58,6 +58,9 @@ import { updateEncumbrance as updateEncumbranceFn } from "./items/item-usage.js"
 import { buildEquipState } from "./items/equip-helpers.js";
 import { getFOVMask as getFOVMaskFn } from "./light/fov.js";
 import { scentDistance } from "./time/turn-processing.js";
+import { itemName as itemNameFn } from "./items/item-naming.js";
+import { wandTable, staffTable, ringTable, charmTable } from "./globals/item-catalog.js";
+import type { ItemTable } from "./types/types.js";
 
 // =============================================================================
 // Minimal combat context — used by inflictDamage/killCreature/addPoison calls
@@ -135,8 +138,21 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
     const {
         player, rogue, pmap, monsters, dormantMonsters,
         packItems, floorItems, levels, gameConst,
+        mutableScrollTable, mutablePotionTable, monsterCatalog,
     } = getGameState();
     const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn(), refreshSideBar = buildRefreshSideBarFn();
+    const namingCtx = {
+        gameConstants: gameConst,
+        depthLevel: rogue.depthLevel,
+        potionTable: mutablePotionTable,
+        scrollTable: mutableScrollTable,
+        wandTable: wandTable as unknown as ItemTable[],
+        staffTable: staffTable as unknown as ItemTable[],
+        ringTable: ringTable as unknown as ItemTable[],
+        charmTable: charmTable as unknown as ItemTable[],
+        playbackOmniscience: rogue.playbackOmniscience,
+        monsterClassName: (classId: number) => monsterCatalog[classId]?.monsterName ?? "creature",
+    };
 
     const combatCtx = buildMinimalCombatContext(player, rogue, pmap, monsters);
 
@@ -221,7 +237,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         prependCreature(list, monst) { list.unshift(monst); },
 
         // ── Item helpers ──────────────────────────────────────────────────────
-        itemName(_, buf) { buf[0] = "item"; },              // stub
+        itemName(item, buf, inclDetails, inclArticle) { buf[0] = itemNameFn(item, inclDetails, inclArticle, namingCtx); },
         numberOfMatchingPackItems: () => 0,                 // stub
 
         // ── Combat helpers ────────────────────────────────────────────────────

@@ -89,6 +89,11 @@ import {
 } from "./monsters/monster-blink-ai.js";
 import type { MonsterBlinkContext, MonsterBlinkToSafetyContext } from "./monsters/monster-blink-ai.js";
 import { diagonalBlocked as diagonalBlockedFn } from "./combat/combat-math.js";
+import {
+    attack as attackFn,
+    buildHitList as buildHitListFn,
+} from "./combat/combat-attack.js";
+import { buildCombatAttackContext } from "./combat.js";
 import { passableArcCount } from "./architect/helpers.js";
 import { buildRefreshDungeonCellFn, buildMessageFns } from "./io-wiring.js";
 import { buildResolvePronounEscapesFn } from "./io/text.js";
@@ -113,6 +118,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
     const io = buildMessageFns();
     const refreshDungeonCell = buildRefreshDungeonCellFn();
     const resolvePronounEscapes = buildResolvePronounEscapesFn(player, pmap, rogue);
+    const attackCtx = buildCombatAttackContext();
 
     // Ensure scentMap is allocated — shared between turn and monster AI
     if (!rogue.scentMap) rogue.scentMap = allocGrid();
@@ -282,8 +288,12 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         handleWhipAttacks: () => false,                 // stub — Phase 3b weapon-attacks
         handleSpearAttacks: () => false,                // stub — Phase 3b weapon-attacks
         monsterSwarmDirection: (monst, target) => monsterSwarmDirectionFn(monst, target, swarmCtx),
-        buildHitList: (hitList) => { hitList.fill(null); },   // stub — Phase 4
-        attack: () => {},                               // stub — Phase 4 combat.ts
+        buildHitList: (hitList, attacker, defender, allAdj) => {
+            const result = buildHitListFn(attacker, defender, allAdj, attackCtx);
+            for (let i = 0; i < result.length; i++) hitList[i] = result[i];
+        },
+        attack: (attacker, defender, lunge) =>
+            attackFn(attacker, defender, lunge, attackCtx),
         getQualifyingPathLocNear: (target) => target,   // stub — Phase 3a
         surfaceLayerAt: (loc) => pmap[loc.x]?.[loc.y]?.layers[DungeonLayer.Surface] ?? 0,
         clearSurfaceLayer: (loc) => { if (coordinatesAreInMap(loc.x, loc.y)) pmap[loc.x][loc.y].layers[DungeonLayer.Surface] = 0; },
