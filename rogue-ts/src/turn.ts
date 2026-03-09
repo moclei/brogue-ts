@@ -46,6 +46,7 @@ import type { TurnProcessingContext } from "./time/turn-processing.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { Creature, Pcell, Pos, PlayerCharacter } from "./types/types.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
+import { buildUpdateVisionFn } from "./vision-wiring.js";
 import { shuffleTerrainColors as shuffleTerrainColorsFn } from "./render-state.js";
 import { checkForContinuedLeadership as checkForContinuedLeadershipFn, demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "./monsters/monster-ally-ops.js";
 import { buildResolvePronounEscapesFn, getMonsterDFMessage as getMonsterDFMessageFn } from "./io/text.js";
@@ -249,9 +250,9 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         goodMessageColor, badMessageColor, advancementMessageColor, itemMessageColor,
         orange, green, red, yellow, darkRed, darkGreen,
 
-        // ── Environment / vision (stubs) ──────────────────────────────────────
+        // ── Environment / vision ──────────────────────────────────────────────
         updateEnvironment: () => {},
-        updateVision: () => {},
+        updateVision: buildUpdateVisionFn(),
         updateMapToShore: () => {},
         updateSafetyMap: () => {},
         refreshWaypoint: () => {},

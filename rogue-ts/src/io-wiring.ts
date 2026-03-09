@@ -14,7 +14,7 @@
  *  License, or (at your option) any later version.
  */
 
-import { getGameState } from "./core.js";
+import { getGameState, getScentMap } from "./core.js";
 import { alertMonster as alertMonsterFn } from "./monsters/monster-state.js";
 import { monstersAreTeammates, monstersAreEnemies as monstersAreEnemiesFn } from "./monsters/monster-queries.js";
 import { CreatureState, CreatureMode, StatusEffect } from "./types/enums.js";
@@ -29,7 +29,6 @@ import { statusEffectCatalog } from "./globals/status-effects.js";
 import { mutationCatalog } from "./globals/mutation-catalog.js";
 import { monsterText } from "./globals/monster-text.js";
 import { terrainRandomValues, displayDetail } from "./render-state.js";
-import { getScentMap } from "./lifecycle.js";
 import {
     getCellAppearance,
     refreshDungeonCell as refreshDungeonCellFn,

@@ -15,7 +15,7 @@
  *  License, or (at your option) any later version.
  */
 
-import { getGameState } from "./core.js";
+import { getGameState, getScentMap } from "./core.js";
 import { updateVision as updateVisionFn } from "./time/safety-maps.js";
 import type { SafetyMapsContext } from "./time/safety-maps.js";
 import { updateLighting as updateLightingFn } from "./light/light.js";
@@ -56,7 +56,6 @@ import { TileFlag } from "./types/flags.js";
 import { DCOLS, DROWS } from "./types/constants.js";
 import { FP_FACTOR } from "./math/fixpt.js";
 import type { Pos } from "./types/types.js";
-import { getScentMap } from "./lifecycle.js";
 
 // =============================================================================
 // buildUpdateVisionFn

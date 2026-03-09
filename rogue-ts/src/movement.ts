@@ -58,6 +58,7 @@ import {
     windowToMapY as windowToMapYFn,
 } from "./io/display.js";
 import { platformPauseAndCheckForEvent } from "./platform-bridge.js";
+import { buildUpdateVisionFn } from "./vision-wiring.js";
 import {
     playerRecoversFromAttacking as playerRecoversFromAttackingFn,
     playerTurnEnded as playerTurnEndedFn,
@@ -538,9 +539,9 @@ export function buildTravelContext(): TravelExploreContext {
         updatePlayerUnderwaterness: () => updatePlayerUnderwaternessFn({
             player, rogue: rogue as unknown as CreatureEffectsContext["rogue"], pmap,
             cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
-            updateMinersLightRadius: () => {}, updateVision: () => {}, displayLevel: () => {},
+            updateMinersLightRadius: () => {}, updateVision: buildUpdateVisionFn(), displayLevel: () => {},
         } as unknown as CreatureEffectsContext),
-        updateVision: () => {},
+        updateVision: buildUpdateVisionFn(),
         nextBrogueEvent: (_event: RogueEvent) => {},   // stub — wired in port-v2-platform
         executeMouseClick: () => {},
         printString: () => {},

@@ -19,7 +19,7 @@
  *  License, or (at your option) any later version.
  */
 
-import { getGameState, setMonsters, setDormantMonsters, setLevels } from "./core.js";
+import { getGameState, setMonsters, setDormantMonsters, setLevels, getScentMap, setScentMap } from "./core.js";
 import { initializeRogue as initializeRogueFn } from "./game/game-init.js";
 import { startLevel as startLevelFn } from "./game/game-level.js";
 import { freeEverything as freeEverythingFn } from "./game/game-cleanup.js";
@@ -101,9 +101,6 @@ let dynamicColors: Color[] = dynamicColorsBounds.map(([start]) => ({ ...start })
 let safetyMap: number[][] | null = allocGrid();
 let allySafetyMap: number[][] | null = allocGrid();
 let chokeMap: number[][] | null = allocGrid();
-let scentMap: number[][] | null = null;
-/** Expose the current scent map for rendering helpers. */
-export function getScentMap(): number[][] | null { return scentMap; }
 let purgatory: Creature[] = [];
 let previousGameSeed: bigint = 0n;
 
@@ -188,8 +185,8 @@ export function buildGameInitContext(): GameInitContext {
         safetyMap: safetyMap!,
         allySafetyMap: allySafetyMap!,
         chokeMap: chokeMap!,
-        scentMap,
-        setScentMap(map) { scentMap = map; },
+        scentMap: getScentMap(),
+        setScentMap,
         seedRandomGenerator, rand_range: randRange, rand_64bits: rand64bits,
         allocGrid, fillGrid, zeroOutGrid, freeGrid, distanceBetween,
         generateItem(category, kind) {
@@ -381,7 +378,7 @@ export function buildLevelContext(): LevelContext {
         rogue, player, gameConst, FP_FACTOR,
         levels: getGameState().levels, pmap,
         monsters, dormantMonsters, floorItems, setMonsters, setDormantMonsters,
-        scentMap, setScentMap(map) { scentMap = map; },
+        scentMap: getScentMap(), setScentMap,
         dynamicColors, dynamicColorsBounds,
         levelFeelings: [
             { message: "You sense a very powerful presence on this level.", color: goodMessageColor },
@@ -493,7 +490,7 @@ export function buildLevelContext(): LevelContext {
                 loc, pmap, tmap, displayBuffer, rogue, player,
                 monsters, dormantMonsters, floorItems,
                 tileCatalog, dungeonFeatureCatalog, monsterCatalog,
-                terrainRandomValues, displayDetail, scentMap ?? [],
+                terrainRandomValues, displayDetail, getScentMap() ?? [],
             );
             displayLevelFn(DCOLS, DROWS, (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer));
             console.log("[displayLevel/buildLevelContext] done");
@@ -518,11 +515,11 @@ export function buildCleanupContext(): CleanupContext {
     return {
         rogue, player, gameConst, levels, setLevels,
         monsters, dormantMonsters, floorItems, packItems, monsterItemsHopper,
-        purgatory, safetyMap, allySafetyMap, chokeMap, scentMap,
+        purgatory, safetyMap, allySafetyMap, chokeMap, scentMap: getScentMap(),
         setSafetyMap(map) { safetyMap = map; },
         setAllySafetyMap(map) { allySafetyMap = map; },
         setChokeMap(map) { chokeMap = map; },
-        setScentMap(map) { scentMap = map; },
+        setScentMap,
         freeGrid,
         deleteItem: deleteItemFn,
         deleteAllFlares() { deleteAllFlares(rogue); },
@@ -540,7 +537,7 @@ export function buildLifecycleContext(): LifecycleContext {
     const refreshSideBar = buildRefreshSideBarFn();
     const getCellApp = (loc: { x: number; y: number }) => getCellAppearance(
         loc, pmap, tmap, displayBuffer, rogue, player, monsters, dormantMonsters, floorItems,
-        tileCatalog, dungeonFeatureCatalog, monsterCatalog, terrainRandomValues, displayDetail, scentMap ?? []);
+        tileCatalog, dungeonFeatureCatalog, monsterCatalog, terrainRandomValues, displayDetail, getScentMap() ?? []);
     return {
         rogue, player, gameConst, packItems, featTable: featCatalog,
         serverMode: false, nonInteractivePlayback: false,

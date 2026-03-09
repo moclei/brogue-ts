@@ -242,6 +242,7 @@ let mutableScrollTable: ItemTable[] = scrollTable.map(t => ({ ...t }));
 let mutablePotionTable: ItemTable[] = potionTable.map(t => ({ ...t }));
 let messageState: MessageState = createMessageState();
 let displayBuffer: ScreenDisplayBuffer = createDisplayBuffer();
+let scentMap: number[][] | null = null;
 
 /** Pending death info set by gameOver(); consumed by the async death screen in platform.ts. */
 let pendingDeathMessage: string | null = null;
@@ -275,6 +276,7 @@ export function initGameState(): void {
     mutablePotionTable = potionTable.map(t => ({ ...t }));
     messageState = createMessageState();
     displayBuffer = createDisplayBuffer();
+    scentMap = null;
     pendingDeathMessage = null;
 }
 
@@ -334,8 +336,15 @@ export function getGameState() {
         mutablePotionTable,
         messageState,
         displayBuffer,
+        scentMap,
     };
 }
+
+/** Get the current scent map (null until first level). */
+export function getScentMap(): number[][] | null { return scentMap; }
+
+/** Set the scent map (called by lifecycle context builders). */
+export function setScentMap(map: number[][] | null): void { scentMap = map; }
 
 // =============================================================================
 // Setters for reassignable arrays

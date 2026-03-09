@@ -13,7 +13,7 @@
  *  License, or (at your option) any later version.
  */
 
-import { getGameState } from "../core.js";
+import { getGameState, getScentMap } from "../core.js";
 import { buildMovementContext, buildTravelContext } from "../movement.js";
 import { buildItemHandlerContext } from "../items.js";
 import { buildMonsterStateContext } from "../monsters.js";
@@ -64,7 +64,6 @@ import { equipItem as equipItemFn, updateRingBonuses as updateRingBonusesFn, upd
 import { buildEquipState, syncEquipBonuses } from "../items/equip-helpers.js";
 import type { MiscHelpersContext } from "../time/misc-helpers.js";
 import type { ItemHelperContext } from "../movement/item-helpers.js";
-import { getScentMap } from "../lifecycle.js";
 import { dijkstraScan as dijkstraScanFn } from "../dijkstra/dijkstra.js";
 import {
     buildMessageFns,
