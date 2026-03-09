@@ -459,6 +459,32 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
   display on movement/combat, (c) check Phase 8 checklist item "New game: verify
   dungeon renders, player visible, sidebar shows stats".
 
+### Session 2026-03-08f — wire messages and display buffer ops in buildInputContext
+
+- **Observed:** (code analysis) `buildInputContext()` had 6 message stubs and 5 display
+  buffer stubs that were never wired despite being flagged "Phase 5 TODO". Messages
+  (message/messageWithColor/temporaryMessage/confirmMessages/updateMessageDisplay) were
+  all `() => {}` no-ops — no movement or combat message would display. `encodeMessageColor`
+  returned `""`. `createScreenDisplayBuffer` returned `{ cells: [] }` (broken — would crash
+  on `cells[x][y]` access in any overlay screen). `saveDisplayBuffer`/`restoreDisplayBuffer`/
+  `overlayDisplayBuffer`/`clearDisplayBuffer` were all no-ops.
+- **Diagnosed:** Two separate omissions in `buildInputContext()`: (a) `buildMessageFns()` was
+  imported and used in sub-context builders (`buildMiscHelpersContext`) but never called in
+  the main context; (b) display buffer functions from `io/display.ts` were implemented but
+  never imported. Both are audit gaps — no test.skip entries tracked them.
+- **Fixed:** (1) Added `updateMessageDisplay` to `buildMessageFns()` return (io-wiring.ts).
+  (2) Called `buildMessageFns()` in `buildInputContext()` and wired all 5 message functions.
+  (3) Imported `encodeMessageColor` from `io/color.ts` and wired it. (4) Imported 6 display
+  buffer functions from `io/display.ts` and replaced all stubs with real implementations.
+  Commits: 5aee730, 3903845. Tests: 87 files, 2206 pass, 97 skip.
+- **Untracked stubs found:** All 11 stubs fixed were untracked (no test.skip entries).
+  Pattern: `buildInputContext()` was treated as "wire later" but the later never came.
+- **Next blocker:** Launch browser; verify messages appear on movement/combat. Check
+  `--MORE--` prompt behavior. Also verify sidebar renders (stats, depth, turn counter).
+  Next likely issues: (a) `waitForAcknowledgment` still stubbed (messages queue up but
+  `--MORE--` never blocks); (b) `updateFlavorText` still stubbed (flavor text blank);
+  (c) `displayInventory` still stubbed in input context (right-click opens nothing).
+
 ---
 
 ## Phase 9: Final stub cleanup
