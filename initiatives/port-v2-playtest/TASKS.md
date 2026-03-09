@@ -479,11 +479,13 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
   Commits: 5aee730, 3903845. Tests: 87 files, 2206 pass, 97 skip.
 - **Untracked stubs found:** All 11 stubs fixed were untracked (no test.skip entries).
   Pattern: `buildInputContext()` was treated as "wire later" but the later never came.
-- **Next blocker:** Launch browser; verify messages appear on movement/combat. Check
-  `--MORE--` prompt behavior. Also verify sidebar renders (stats, depth, turn counter).
-  Next likely issues: (a) `waitForAcknowledgment` still stubbed (messages queue up but
-  `--MORE--` never blocks); (b) `updateFlavorText` still stubbed (flavor text blank);
-  (c) `displayInventory` still stubbed in input context (right-click opens nothing).
+- **Next blocker:** Confirmed browser crash: pressing `e` (equip) throws
+  `TypeError: ctx.clearCursorPath is not a function` in `displayInventory` →
+  `promptForItemOfType` → `equip` → `executeKeystroke`. `clearCursorPath` is missing
+  from the context passed to `displayInventory`. Fix this first.
+  After that: (a) verify movement messages appear (wall-bump text confirmed working);
+  (b) `waitForAcknowledgment` still stubbed (`--MORE--` never blocks);
+  (c) `updateFlavorText` still stubbed (flavor text blank).
 
 ---
 
