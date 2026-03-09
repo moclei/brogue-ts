@@ -40,6 +40,7 @@ import {
     confirmMessages as confirmMessagesFn,
     temporaryMessage as temporaryMessageFn,
     combatMessage as combatMessageFn,
+    updateMessageDisplay as updateMessageDisplayFn,
 } from "./io/messages.js";
 import { buildMessageContext, buildInventoryContext } from "./ui.js";
 import {
@@ -350,6 +351,7 @@ export function buildMessageFns(): {
     confirmMessages: () => void;
     temporaryMessage: (msg: string, flags: number) => void;
     combatMessage: (msg: string, color: Readonly<Color> | null) => void;
+    updateMessageDisplay: () => void;
 } {
     const ctx = buildMessageContext() as unknown as SyncMessageContext;
     return {
@@ -358,6 +360,7 @@ export function buildMessageFns(): {
         confirmMessages: () => confirmMessagesFn(ctx),
         temporaryMessage: (msg, flags) => temporaryMessageFn(ctx, msg, flags),
         combatMessage: (msg, color) => combatMessageFn(ctx, msg, color),
+        updateMessageDisplay: () => updateMessageDisplayFn(ctx),
     };
 }
 

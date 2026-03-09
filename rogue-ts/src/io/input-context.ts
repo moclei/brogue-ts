@@ -76,6 +76,7 @@ import {
     printDiscoveriesScreen as printDiscoveriesScreenFn,
 } from "./overlay-screens.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "../light/light.js";
+import { encodeMessageColor } from "./color.js";
 import { buttonInputLoop as buttonInputLoopFn, initializeButton as initializeButtonFn } from "./buttons.js";
 import { equip as equipFn, unequip as unequipFn, drop as dropFn, relabel as relabelFn } from "./inventory-actions.js";
 import { buildButtonContext } from "../ui.js";
@@ -311,6 +312,7 @@ export function buildInputContext(): InputContext {
     };
 
     const refreshSideBarFn = buildRefreshSideBarFn();
+    const io = buildMessageFns();
 
     return {
         // ── State ─────────────────────────────────────────────────────────────
@@ -339,18 +341,18 @@ export function buildInputContext(): InputContext {
         windowToMapX,
         distanceBetween,
 
-        // ── Color / text helpers (stubs — wired in Phase 5) ──────────────────
-        encodeMessageColor: () => "",
+        // ── Color / text helpers ──────────────────────────────────────────────
+        encodeMessageColor,
         strLenWithoutEscapes: (s) => s.length,
         printString: () => {},
         plotCharWithColor: () => {},
 
-        // ── Messages (stubs — wired in Phase 5) ──────────────────────────────
-        message: () => {},
-        messageWithColor: () => {},
-        temporaryMessage: () => {},
-        confirmMessages: () => {},
-        updateMessageDisplay: () => {},
+        // ── Messages ──────────────────────────────────────────────────────────
+        message: (msg, flags) => io.message(msg, flags),
+        messageWithColor: (msg, color, flags) => io.messageWithColor(msg, color, flags),
+        temporaryMessage: (msg, flags) => io.temporaryMessage(msg, flags),
+        confirmMessages: () => io.confirmMessages(),
+        updateMessageDisplay: () => io.updateMessageDisplay(),
 
         // ── Display buffers ───────────────────────────────────────────────────
         commitDraws,
