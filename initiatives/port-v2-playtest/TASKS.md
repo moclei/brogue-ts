@@ -435,6 +435,30 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
   Check console for `[mainGameLoop] started` and `[processEvent]` logs to confirm
   event dispatch is working.
 
+### Session 2026-03-08e — wire updateMinersLightRadius; fog of war and lighting fixed
+
+- **Observed:** Moving around the dungeon: newly entered cells stay black (fog of war
+  never clears). Already-discovered cells visible but appear abnormally dark.
+- **Diagnosed:** `updateMinersLightRadius()` stubbed as `() => {}` in all context
+  builders (combat.ts, turn.ts, items.ts, movement.ts, io/input-context.ts).
+  This function syncs `rogue.minersLight.lightRadius` from the separately-computed
+  `rogue.minersLightRadius` (set in game-level.ts per depth level). With the stub,
+  `lightRadius` stayed at `{lowerBound:0, upperBound:0}` (initial catalog value)
+  forever. `paintLight()` used a zero-radius FOV — only the player's own cell
+  received light above `VISIBILITY_THRESHOLD (50)`. Cells in FOV never became
+  `VISIBLE`; fog of war never cleared.
+- **Fixed:** Added `updateMinersLightRadius()` to `LevelContext` interface; call it
+  in `game-level.ts` after `updateRingBonuses` (matching C source position).
+  Wired `updateMinersLightRadiusFn(rogue, player)` in lifecycle.ts, combat.ts,
+  turn.ts, items.ts, movement.ts (CreatureEffectsContext), io/input-context.ts.
+  Commit: f8e4c66. Tests: 87 files, 2206 pass, 97 skip.
+- **Untracked stubs found:** All six `updateMinersLightRadius` stubs had no test.skip
+  entries. Audit gap — the stubs were added without tracking.
+- **Next blocker:** Launch browser; verify fog of war clears as player moves and
+  dungeon illuminates correctly. Then check: (a) sidebar stats visible, (b) messages
+  display on movement/combat, (c) check Phase 8 checklist item "New game: verify
+  dungeon renders, player visible, sidebar shows stats".
+
 ---
 
 ## Phase 9: Final stub cleanup
