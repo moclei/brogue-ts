@@ -542,6 +542,28 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
   If it opens but is blank/broken: likely display buffer issue or button rendering.
   If it opens and works: test `e` with items in pack (pick something up first).
 
+### Session 2026-03-08i — fix overlay write-back; inventory now visible
+
+- **Observed:** User reports pressing `i`/`e` shows "equip what" text, blocks input
+  (Esc restores movement), but no inventory overlay renders on screen.
+- **Diagnosed:** `overlayDisplayBuffer()` in `io/display.ts` is side-effect-free — it
+  computes blended cells and returns `OverlayResult[]` but does NOT write back to
+  `displayBuffer`. `menus.ts` and `overlay-screens.ts` correctly do the write-back after
+  calling it. `ui.ts` (4 closures) and `input-context.ts` (1 closure) discarded the
+  return value entirely — so all overlays were computed but never applied to the buffer
+  that `commitDraws()` reads. Audit gap: no test.skip entries tracked this.
+- **Fixed:** Added `applyOverlay()` to `io/display.ts` — wraps `overlayDisplayBuffer()`
+  and writes blended results back. Updated `ui.ts` (all 4 overlay closures in
+  buildDisplayContext/buildMessageContext/buildInventoryContext/buildButtonContext) and
+  `input-context.ts` to use `applyOverlay()` instead. Commit: 78d4b11.
+  Tests: 87 files, 2206 pass, 97 skip.
+- **Untracked stubs found:** Audit gap — `overlayDisplayBuffer` write-back was missing in
+  5 places. The pure/side-effect split was intentional for testability but the rendering
+  path callers in ui.ts/input-context.ts were never updated.
+- **Next blocker:** Rebuild and test — press `i`, inventory overlay should now render.
+  Expected remaining issues: (a) item detail panel (`printCarriedItemDetails` stub → `async () => -1`);
+  (b) `waitForAcknowledgment` still stubbed; (c) `updateFlavorText` still stubbed.
+
 ---
 
 ## Phase 9: Final stub cleanup
