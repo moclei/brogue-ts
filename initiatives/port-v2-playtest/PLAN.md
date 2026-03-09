@@ -182,16 +182,88 @@ All PORT (or significant wiring):
 
 **Goal:** A complete run of the game in the browser, from title screen to win or death.
 
-1. Build the TS project (`npm run build` or equivalent)
-2. Serve the browser bundle
-3. Start a new game — verify: dungeon renders, sidebar shows player stats
-4. Walk around — verify: cells update, flavor text, messages for terrain events
-5. Fight a monster — verify: combat messages, monster death, item drops
-6. Pick up and use an item — verify: correct effect, messages, encumbrance
-7. Descend a level — verify: level transition, new dungeon generates
-8. Win or die — verify: game-over/victory screen
+Phase 8 is iterative and open-ended. It does not end when a checklist is complete —
+it ends when the game is playable end-to-end. Each session works through one or two
+bugs, commits the fix, updates the playtest log, and stops.
 
-For each failure: fix the bug, add a regression test if possible, continue.
+---
+
+### Phase 8 session protocol
+
+Every Phase 8 session follows this exact structure:
+
+1. **Orient.** Read the Phase 8 playtest log in TASKS.md (bottom entry = current state).
+   Read the Phase 8 checklist in TASKS.md to see what area to test next.
+
+2. **Add console logs first.** Before fixing anything, add targeted `console.log`
+   checkpoints at the lifecycle transitions relevant to today's failure — the places
+   where "did we get here?" is the question. Key transitions to instrument:
+   - Game init / seed selection → level gen start
+   - Level gen complete → `displayLevel` call
+   - `displayLevel` entry and exit
+   - Per-turn loop start
+   - Player input received → movement/action dispatch
+   Do not retrofit the whole codebase. Add logs only where they help diagnose the
+   current session's failure. Leave them in — they accumulate into a useful trace.
+
+3. **Diagnose.** Launch the browser, open devtools, reproduce the failure, read the
+   console. Identify the exact function/stub that is blocking progress.
+
+4. **Check if it was tracked.** If the blocker is a stub with a `test.skip` entry,
+   note that. If it is a stub with no test.skip and no prior mention in TASKS.md,
+   that is an audit gap — add a note explaining what was missed and why alongside
+   the fix entry.
+
+5. **Fix one blocker per session.** Implement the fix. If it is a significant port
+   (>50 lines of new C translation), treat it as its own sub-task and commit it
+   separately before the session ends. Keep all files under 600 lines.
+
+6. **Test.** Run `npx vitest run` after fixing. Record pass/skip counts. Fix any
+   regressions before committing.
+
+7. **Commit.** One commit per fix. Message format: `fix: [short description]`.
+
+8. **Update TASKS.md.** Check off the relevant item in the Phase 8 checklist.
+   Add a new entry to the Phase 8 playtest log (see format below).
+
+9. **Generate handoff.** The handoff prompt for a Phase 8 session is:
+   ```
+   Continue port-v2-playtest Phase 8 (browser playtest). Branch: feat/port-v2-playtest.
+   Read: .context/PROJECT.md, initiatives/port-v2-playtest/PLAN.md, TASKS.md.
+   Current state is at the bottom of the Phase 8 playtest log in TASKS.md.
+   ```
+
+---
+
+### Playtest log entry format
+
+Add one entry per session to the bottom of the playtest log in TASKS.md:
+
+```
+### Session [date] — [one-line summary]
+- **Observed:** what failed in the browser
+- **Diagnosed:** which function/stub was the cause; whether it was tracked
+- **Fixed:** what was changed; commit hash
+- **Untracked stubs found:** any audit gaps discovered (or "none")
+- **Next blocker:** what to investigate in the next session
+```
+
+---
+
+### Untracked stub rule
+
+When a fix reveals something that should have been caught in a prior phase but
+wasn't, add a note to the TASKS.md playtest log entry under "Untracked stubs found"
+explaining what was missed. This is the audit trail. Do not silently fix things —
+name the gap so the pattern is visible across sessions.
+
+---
+
+### What counts as done for Phase 8
+
+Phase 8 is done when all items in the TASKS.md Phase 8 checklist are checked off
+and the playtest log confirms each one was verified in the browser. It is not done
+when the code compiles cleanly.
 
 ---
 

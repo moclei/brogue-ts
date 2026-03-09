@@ -299,7 +299,7 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
 - [x] Confirm `npm run build` exits clean (0 errors); tests: 87 files, 2206 pass, 97 skip
 
 **Launch**
-- [ ] Serve locally: navigate to the game in a browser
+- [x] Serve locally: navigate to the game in a browser — title screen works; new game starts
 
 **Playtest — work through in order; apply the noted deferred fix when each step fails**
 - [ ] New game: verify dungeon renders, player visible, sidebar shows stats
@@ -335,6 +335,27 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
 - [ ] Help screen: press `?`; verify overlay renders and dismisses on any keypress
 - [ ] Win/die: complete the game loop; verify game-over or victory screen
 - [ ] For each failure: fix, add regression test, commit; generate handoff with remaining failures
+
+---
+
+## Phase 8: Playtest Log
+
+*One entry per session. Bottom entry = current state. See PLAN.md for entry format.*
+
+### Session 2026-03-08 — build clean; first browser run; level not rendering
+
+- **Observed:** Title screen loads. Clicked New Game. Screen goes black, then shows
+  welcome message and `@` player character. The dungeon level (walls, floor, items)
+  does not render. No JS errors at first; an error appears after ~1 minute of waiting.
+- **Diagnosed:** Not yet investigated. Likely cause is `displayLevel` being stubbed —
+  this is a known tracked stub (`test.skip` in `lifecycle.test.ts`; noted in MEMORY.md
+  and TASKS.md Phase 8 checklist). Requires investigation with console logs to confirm.
+- **Fixed:** Nothing yet — this is the opening entry. Build-clean fixes committed this
+  session (a54ed43, ddc7754): 35 tsc errors resolved, `npm run build` exits clean.
+- **Untracked stubs found:** None confirmed yet.
+- **Next blocker:** `displayLevel` not rendering the dungeon. Next session should:
+  (1) add console logs to the lifecycle path from `startLevel()` through `displayLevel`;
+  (2) confirm the stub is the cause; (3) implement `displayLevel`.
 
 ---
 
