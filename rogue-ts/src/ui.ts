@@ -21,7 +21,7 @@
  */
 
 import { getGameState } from "./core.js";
-import { waitForEvent } from "./platform.js";
+import { waitForEvent, commitDraws } from "./platform.js";
 import { buttonInputLoop as buttonInputLoopFn, drawButton as drawButtonFn } from "./io/buttons.js";
 import { equip as equipFn, unequip as unequipFn, drop as dropFn, relabel as relabelFn } from "./io/inventory-actions.js";
 import { itemName as itemNameFn } from "./items/item-naming.js";
@@ -417,7 +417,7 @@ export function buildButtonContext(): ButtonContext {
         // waitForEvent() throws when platform not initialised (tests); fall back
         // to an escape keystroke so button loops terminate cleanly.
         nextBrogueEvent: async () => {
-            try { return await waitForEvent(); } catch {
+            try { commitDraws(); return await waitForEvent(); } catch {
                 return { eventType: EventType.Keystroke, param1: 0x1b, param2: 0, controlKey: false, shiftKey: false };
             }
         },
