@@ -68,6 +68,7 @@ import { dijkstraScan as dijkstraScanFn } from "../dijkstra/dijkstra.js";
 import {
     buildMessageFns,
     buildRefreshDungeonCellFn,
+    buildRefreshSideBarFn,
 } from "../io-wiring.js";
 import {
     printHelpScreen as printHelpScreenFn,
@@ -308,6 +309,8 @@ export function buildInputContext(): InputContext {
         try { await waitForEvent(); } catch {}
     };
 
+    const refreshSideBarFn = buildRefreshSideBarFn();
+
     return {
         // ── State ─────────────────────────────────────────────────────────────
         rogue,
@@ -380,9 +383,9 @@ export function buildInputContext(): InputContext {
         pauseForMilliseconds: () => false,
         locIsInWindow: () => false,
 
-        // ── Display (stubs — wired in Phase 5) ───────────────────────────────
+        // ── Display ───────────────────────────────────────────────────────────
         displayLevel: () => {},
-        refreshSideBar: () => {},
+        refreshSideBar: (_x, _y, _justClearing) => refreshSideBarFn(),
         displayInventory: async () => {},
         displayMessageArchive: () => {},
         printHelpScreen: () => printHelpScreenFn(overlayWaitFn),

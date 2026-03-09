@@ -202,6 +202,8 @@ export async function processEvent(event: RogueEvent): Promise<void> {
     const { rogue } = getGameState();
     if (rogue.gameHasEnded) return;
 
+    console.log("[processEvent] type=%s param1=%s", event.eventType, event.param1);
+
     switch (event.eventType) {
         case EventType.Keystroke:
             await handleKeystroke(event);
@@ -279,9 +281,12 @@ async function handleKeystroke(event: RogueEvent): Promise<void> {
  * Never synchronously blocks — all waiting is done via await.
  */
 export async function mainGameLoop(): Promise<void> {
+    console.log("[mainGameLoop] started");
     const { rogue } = getGameState();
     while (!rogue.gameHasEnded) {
         const event = await waitForEvent();
         await processEvent(event);
+        commitDraws();
     }
+    console.log("[mainGameLoop] ended");
 }
