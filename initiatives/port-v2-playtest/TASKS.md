@@ -564,6 +564,40 @@ Stop and commit after each bug-fix batch; generate a handoff listing what was fi
   Expected remaining issues: (a) item detail panel (`printCarriedItemDetails` stub → `async () => -1`);
   (b) `waitForAcknowledgment` still stubbed; (c) `updateFlavorText` still stubbed.
 
+### Session 2026-03-08j — wire printCarriedItemDetails; wire displayMessageArchive
+
+- **Observed:** (a) Pressing `i`, then selecting an item does nothing — item detail panel never
+  shows and actions are not available. (b) Pressing `M` (message archive) shows nothing.
+- **Diagnosed (a):** `printCarriedItemDetails` in `buildInventoryContext()` (`ui.ts:357`) was
+  stubbed as `async () => -1`. In `displayInventory` (`inventory-display.ts:342`), returning
+  -1 sets `repeatDisplay = true` and immediately loops back to the inventory list without
+  showing the detail panel or waiting for user input. Actions from the item detail screen are
+  never triggered.
+  Root cause: the stub never shows a text box and never waits for a keypress.
+- **Diagnosed (b):** `displayMessageArchive` in `buildInputContext()` (`input-context.ts:402`)
+  was stubbed as `() => {}`. The real function is in `io/messages.ts`.
+- **Fixed (a):** Replaced the `printCarriedItemDetails` stub with an inline implementation that:
+  (1) gets item description via `itemNameFn(theItem, true, true, namingCtx)`;
+  (2) renders the text into a temp buffer at the given position via `printStringWithWrappingFn`;
+  (3) applies the buffer to `displayBuffer` via `applyOverlayFn`;
+  (4) calls `commitDraws()` to flush to canvas;
+  (5) waits for a keystroke via `waitForEvent()`;
+  (6) returns `event.param1` for keystrokes, -1 otherwise.
+  This enables item actions (a=apply, e=equip, r=unequip, d=drop, etc.) from the `i` screen.
+  Note: item description text is currently the item name — `itemDetails()` is still a stub.
+  Full item details (stats, runic description) deferred to Phase 9.
+- **Fixed (b):** Added `displayMessageArchive as displayMessageArchiveFn` import from
+  `./messages.js` and `buildMessageContext` import from `../ui.js` to `input-context.ts`.
+  Wired: `displayMessageArchive: () => { displayMessageArchiveFn(buildMessageContext() as any); }`.
+  Note: `buildMessageContext()` has async stubs for `pauseBrogue`/`nextBrogueEvent` (needed
+  for scroll animations). Archive animation/scrolling may not work; the early-return guard
+  (`length <= MESSAGE_LINES`) fires for small archives. Full async bridging deferred to Phase 9.
+- Tests: 87 files, 2206 pass, 97 skip.
+- **Next steps:** Build and playtest — (a) press `i`, select item, press action key;
+  (b) press `M` with several messages in archive; (c) verify Escape from item detail
+  goes back to inventory list; (d) continue Phase 8 checklist (combat, stair descent,
+  travel/auto-explore, help screen).
+
 ---
 
 ## Phase 9: Final stub cleanup

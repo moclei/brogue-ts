@@ -354,7 +354,16 @@ export function buildInventoryContext(): FullInventoryContext {
         drawButton: (button, highlight, dbuf) =>
             drawButtonFn(button, highlight, dbuf, buildButtonContext()),
         // ── Item detail panel ────────────────────────────────────────────────
-        printCarriedItemDetails: async () => -1,              // stub — needs SidebarContext (Phase 8)
+        printCarriedItemDetails: async (theItem, x, y, width, _includeButtons) => {
+            const textBuf = itemNameFn(theItem, true, true, namingCtx);
+            const dbuf = createScreenDisplayBufferFn();
+            clearDisplayBufferFn(dbuf);
+            printStringWithWrappingFn(textBuf, x, y, width, white, { ...black, red: 5, green: 5, blue: 20 }, dbuf);
+            applyOverlayFn(displayBuffer, dbuf);
+            commitDraws();
+            const event = await waitForEvent();
+            return event.eventType === EventType.Keystroke ? event.param1 : -1;
+        },
         // ── Cursor path ──────────────────────────────────────────────────────
         clearCursorPath: () => {
             if (!rogue.playbackMode) {

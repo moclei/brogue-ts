@@ -75,6 +75,7 @@ import {
     displayFeatsScreen as displayFeatsScreenFn,
     printDiscoveriesScreen as printDiscoveriesScreenFn,
 } from "./overlay-screens.js";
+import { displayMessageArchive as displayMessageArchiveFn } from "./messages.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "../light/light.js";
 import { encodeMessageColor } from "./color.js";
 import {
@@ -87,7 +88,7 @@ import {
 } from "./display.js";
 import { buttonInputLoop as buttonInputLoopFn, initializeButton as initializeButtonFn } from "./buttons.js";
 import { equip as equipFn, unequip as unequipFn, drop as dropFn, relabel as relabelFn } from "./inventory-actions.js";
-import { buildButtonContext, buildInventoryContext } from "../ui.js";
+import { buildButtonContext, buildInventoryContext, buildMessageContext } from "../ui.js";
 import { displayInventory as displayInventoryFn } from "./inventory-display.js";
 import { TURNS_FOR_FULL_REGEN, REST_KEY, SEARCH_KEY, DCOLS, DROWS } from "../types/constants.js";
 import { moveCursor as moveCursorFn, nextTargetAfter as nextTargetAfterFn } from "./cursor-move.js";
@@ -399,7 +400,8 @@ export function buildInputContext(): InputContext {
             await displayInventoryFn(categoryMask, requiredFlags, forbiddenFlags, waitForAcknowledge, includeButtons,
                 buildInventoryContext());
         },
-        displayMessageArchive: () => {},
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        displayMessageArchive: () => { displayMessageArchiveFn(buildMessageContext() as any); },
         printHelpScreen: () => printHelpScreenFn(overlayWaitFn),
         displayFeatsScreen: () => displayFeatsScreenFn(overlayWaitFn),
         printDiscoveriesScreen: () => printDiscoveriesScreenFn(overlayWaitFn),
