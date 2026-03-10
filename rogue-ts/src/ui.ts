@@ -348,7 +348,7 @@ export function buildInventoryContext(): FullInventoryContext {
             const deps = {
                 message: (msg: string, flags: number) => messageFn(mc, msg, flags),
                 messageWithColor: (msg: string, color: Readonly<Color> | null, flags: number) =>
-                    messageWithColorFn(mc, msg, color ?? { red: 100, green: 100, blue: 100 }, flags),
+                    messageWithColorFn(mc, msg, color ?? white, flags),
                 confirmMessages: () => confirmMessagesFn(mc),
             };
             return buildThrowCommandFn(deps);
@@ -359,7 +359,7 @@ export function buildInventoryContext(): FullInventoryContext {
             const deps = {
                 message: (msg: string, flags: number) => messageFn(mc, msg, flags),
                 messageWithColor: (msg: string, color: Readonly<Color> | null, flags: number) =>
-                    messageWithColorFn(mc, msg, color ?? { red: 100, green: 100, blue: 100 }, flags),
+                    messageWithColorFn(mc, msg, color ?? white, flags),
                 confirmMessages: () => confirmMessagesFn(mc),
             };
             return buildCallCommandFn(deps);

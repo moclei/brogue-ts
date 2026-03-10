@@ -70,12 +70,10 @@ import { charmRechargeDelay as charmRechargeDelayFn } from "../power/power-table
 import { itemMagicPolarity as itemMagicPolarityFn } from "./item-generation.js";
 import { coordinatesAreInMap, mapToWindowX, windowToMapX, windowToMapY } from "../globals/tables.js";
 import { randClump, randPercent } from "../math/rng.js";
-import { playerTurnEnded as playerTurnEndedFn } from "../time/turn-processing.js";
-import { goodMessageColor, badMessageColor, red, itemMessageColor } from "../globals/colors.js";
-import {
-    AutoTargetMode, CreatureState, GameMode, StatusEffect,
-    TerrainFlag, TileFlag,
-} from "../types/enums.js";
+import { playerTurnEnded as playerTurnEndedFn } from "../turn.js";
+import { badMessageColor, red, itemMessageColor } from "../globals/colors.js";
+import { AutoTargetMode, CreatureState, GameMode, StatusEffect } from "../types/enums.js";
+import { TerrainFlag, TileFlag } from "../types/flags.js";
 import { DCOLS } from "../types/constants.js";
 import type { Color, Creature, Item, ItemTable, Pos, RogueEvent } from "../types/types.js";
 
@@ -184,8 +182,11 @@ function buildMinCombatDamageCtx(deps: ItemCommandDeps): CombatDamageContext {
  * Returns an async function implementing the throw command.
  * Wire into buildInputContext().throwCommand and buildInventoryContext().throwCommand.
  *
- * If item is null returns immediately — caller should show inventory first
- * (input-context.ts wraps with displayInventory for the THROW_KEY case).
+ * If item is null returns immediately (silent no-op).
+ * C behaviour: pressing 't' with no lastItemThrown opens the inventory to
+ * pick an item — that picker is not yet wired; the THROW_KEY → null path
+ * is currently a silent no-op.  Wire displayInventory call in input-dispatch.ts
+ * to restore the C behaviour when needed.
  *
  * NOTE: Interactive targeting cursor requires Phase 2 async bridge.
  * In the browser, waitForEvent() drives the targeting loop event-by-event.
@@ -202,15 +203,6 @@ export function buildThrowCommandFn(
         const cellHasTMFlag = (loc: Pos, flag: number) => cellHasTMFlagFn(pmap, loc, flag);
         const monsterAtLoc = buildMonsterAtLoc(player, monsters);
         const namingCtx = buildNamingCtx();
-
-        const mqCtx = {
-            player,
-            cellHasTerrainFlag,
-            cellHasGas: () => false,
-            playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-            playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-            playbackOmniscience: rogue.playbackOmniscience,
-        };
 
         // ── ChooseTargetContext ──────────────────────────────────────────────
         const chooseCtx = {
@@ -350,6 +342,9 @@ export function buildThrowCommandFn(
             playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
             itemName: () => {},
             message: deps.message,
+            discover: () => {},             // stub — discovery display
+            refreshDungeonCell: () => {},   // stub — cell rendering
+            REQUIRE_ACKNOWLEDGMENT: 1,
             spawnDungeonFeature: (x, y, feat, isV, oP) =>
                 spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y,
                     feat as never, isV, oP),

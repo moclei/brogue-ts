@@ -328,7 +328,7 @@ export function buildInputContext(): InputContext {
     const io = buildMessageFns();
     const itemCmdDeps = {
         message: (msg: string, flags: number) => io.message(msg, flags),
-        messageWithColor: (msg: string, color: Readonly<Color> | null, flags: number) => io.messageWithColor(msg, color, flags),
+        messageWithColor: (msg: string, color: Readonly<Color> | null, flags: number) => io.messageWithColor(msg, color!, flags),
         confirmMessages: () => io.confirmMessages(),
     };
 
