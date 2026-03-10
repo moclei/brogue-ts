@@ -93,13 +93,13 @@ Too large for one session. Start a dedicated Phase 2a sub-session with this anal
 ### Phase 2 closing tasks
 
 - [x] Run `npx vitest run` — 87 files, 2222 pass, 84 skip — no regressions (+2 activated)
-- [ ] Commit all changes
-- [ ] Generate handoff prompt:
+- [x] Commit all changes — commit `97dfb00`
+- [x] Generate handoff prompt:
   ```
   Continue port-v2-close-out. Read: .context/PROJECT.md, initiatives/port-v2-close-out/BRIEF.md, PLAN.md, TASKS.md
   Resume at: Phase 2a sub-session — waitForAcknowledgment async cascade
   Branch: feat/port-v2-playtest
-  Last commit: [hash]
+  Last commit: 97dfb00
   ```
 
 ---
