@@ -210,9 +210,9 @@ export function buildItemHandlerContext(): ItemHandlerContext {
             rogue.playbackOmniscience,
             (a, b) => monstersAreEnemiesFn(a, b, player, cellHasTerrainFlag),
         ),
-        extinguishFireOnCreature: () => {},  // stub — wired in port-v2-platform
+        extinguishFireOnCreature: () => {},  // permanent-defer — requires full CreatureEffectsContext
         refreshDungeonCell,
-        applyInstantTileEffectsToCreature: () => {},  // stub — wired in port-v2-platform
+        applyInstantTileEffectsToCreature: () => {},  // permanent-defer — chasms/tile effects (see TASKS.md)
         resolvePronounEscapes: buildResolvePronounEscapesFn(player, pmap, rogue),
     };
 
@@ -351,7 +351,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
             });
         },
         exposeCreatureToFire: buildExposeCreatureToFireFn(),
-        extinguishFireOnCreature: () => {},  // stub — wired in port-v2-platform
+        extinguishFireOnCreature: () => {},  // permanent-defer — requires full CreatureEffectsContext
         makePlayerTelepathic(duration) {
             makePlayerTelepathicFn(duration, {
                 player,
@@ -368,12 +368,12 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 monsterRevealed: (m) => monsterRevealedFn(m, player),
                 refreshDungeonCell,
                 refreshSideBar,
-                flashMonster: () => {},        // stub — wired in port-v2-platform
+                flashMonster: () => {},        // permanent-defer — visual flash effect only
             });
         },
         wakeUp: buildWakeUpFn(player, monsters),
-        fadeInMonster: () => {},             // stub — wired in port-v2-platform
-        flashMonster: () => {},              // stub — wired in port-v2-platform
+        fadeInMonster: () => {},             // permanent-defer — visual fade-in effect only
+        flashMonster: () => {},              // permanent-defer — visual flash effect only
         aggravateMonsters(range, x, y, color) {
             aggravateMonstersFn(range, x, y, color, {
                 player,
@@ -384,15 +384,15 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                     fillGrid(g, 0);             // distance 0: all cells qualify; correct for full-map range
                     return g;
                 },
-                refreshWaypoint: () => {},      // stub — wired in port-v2-platform
+                refreshWaypoint: () => {},      // permanent-defer — requires waypoint grid context
                 wakeUp: buildWakeUpFn(player, monsters),
                 alertMonster: (m) => alertMonsterFn(m, player),
-                addScentToCell: () => {},       // stub — needs MapQueryContext with scentTurnNumber
+                addScentToCell: () => {},       // permanent-defer — needs MapQueryContext with scentTurnNumber
                 setStealthRange: (r) => { rogue.stealthRange = r; },
-                currentStealthRange: () => 14,  // stub — wired in port-v2-platform
-                discover: () => {},             // stub — wired in port-v2-platform
-                discoverCell: () => {},         // stub — wired in port-v2-platform
-                colorFlash: () => {},           // stub — wired in port-v2-platform
+                currentStealthRange: () => rogue.stealthRange, // was hardcoded 14; use live value
+                discover: () => {},             // permanent-defer — needs full MapQueryContext (wired in lifecycle)
+                discoverCell: () => {},         // permanent-defer — requires CreatureEffectsContext
+                colorFlash: () => {},           // permanent-defer — visual flash effect only
                 playerCanSee: (px, py) => !!(pmap[px]?.[py]?.flags & TileFlag.VISIBLE),
                 message: io.message,
             });
@@ -412,7 +412,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 generateMonster: (kind, itemPossible, mutationPossible) =>
                     generateMonsterFn(kind, itemPossible, mutationPossible, spawnCtx.genCtx),
                 getQualifyingPathLocNear: (loc, _useDiags, _forbidTerrain, _forbidFlags,
-                    _adjTerrain, _adjFlags, _forbidLit) => ({ ...loc }),  // stub — wired in port-v2-platform
+                    _adjTerrain, _adjFlags, _forbidLit) => ({ ...loc }),  // permanent-defer — requires Dijkstra pathfinding
                 charmGuardianLifespan: (enchant) =>
                     charmGuardianLifespanFn(
                         enchant,
@@ -420,7 +420,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                         charmEffectTable[CharmKind.Guardian].effectMagnitudeMultiplier,
                     ),
                 netEnchant: (item) => netEnchantFn(item, rogue.strength, player.weaknessAmount),
-                fadeInMonster: () => {},        // stub — wired in port-v2-platform
+                fadeInMonster: () => {},        // permanent-defer — visual fade-in effect only
             });
         },
 
@@ -430,7 +430,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         },
         cellHasTMFlag,
         cellHasTerrainFlag,
-        discover: () => {},                  // stub — wired in port-v2-platform
+        discover: () => {},                  // permanent-defer — needs full MapQueryContext (wired in lifecycle)
         refreshDungeonCell,
         crystalize(radius) {
             const combatCtx = buildCombatDamageContext();
@@ -447,15 +447,16 @@ export function buildItemHandlerContext(): ItemHandlerContext {
             crystalizeFn(radius, {
                 player,
                 pmap,
-                spawnDungeonFeature: () => {},  // stub — wired in port-v2-platform
+                spawnDungeonFeature: (x, y, feat, vol, abo) =>
+                    spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, vol, abo),
                 monsterAtLoc,
                 inflictLethalDamage: (attacker, defender) =>
                     inflictLethalDamageFn(attacker, defender, combatCtx),
                 killCreature: (monst, admin) => killCreatureFn(monst, admin, combatCtx),
                 freeCaptivesEmbeddedAt: (x, y) => freeCaptivesEmbeddedAtFn(x, y, allyCtx),
-                updateVision: () => {},         // stub — wired in port-v2-platform
-                colorFlash: () => {},           // stub — wired in port-v2-platform
-                displayLevel: () => {},         // stub — wired in port-v2-platform
+                updateVision: () => {},         // permanent-defer — visual update (wired in turn/lifecycle contexts)
+                colorFlash: () => {},           // permanent-defer — visual flash effect only
+                displayLevel: () => {},         // permanent-defer — lifecycle.ts impl is wired; this context is unused
                 refreshSideBar,
                 forceFieldColor,
             });
@@ -474,8 +475,8 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 pmap,
                 itemMessageColor,
                 negate: (m) => negateCreature(m, negateCtx),
-                colorFlash: () => {},        // stub — wired in port-v2-platform
-                flashMonster: () => {},      // stub — wired in port-v2-platform
+                colorFlash: () => {},        // permanent-defer — visual flash effect only
+                flashMonster: () => {},      // permanent-defer — visual flash effect only
                 canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
                 messageWithColor: io.messageWithColor,
                 identify: (item) => identifyFn(item, gameConst),
@@ -497,22 +498,22 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 pmap,
                 itemMessageColor,
                 canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
-                colorFlash: () => {},        // stub — wired in port-v2-platform
-                flashMonster: () => {},      // stub — wired in port-v2-platform
+                colorFlash: () => {},        // permanent-defer — visual flash effect only
+                flashMonster: () => {},      // permanent-defer — visual flash effect only
                 messageWithColor: io.messageWithColor,
                 IN_FIELD_OF_VIEW: TileFlag.IN_FIELD_OF_VIEW,
             });
         },
 
         // ── Visual effects stubs ────────────────────────────────────────────
-        colorFlash: () => {},                // stub — wired in port-v2-platform
-        createFlare: () => {},               // stub — wired in port-v2-platform
-        displayLevel: () => {},              // stub — wired in port-v2-platform
+        colorFlash: () => {},                // permanent-defer — visual flash effect only
+        createFlare: () => {},               // permanent-defer — visual flare effect only
+        displayLevel: () => {},              // permanent-defer — lifecycle.ts impl is wired; this context is unused
 
         // ── Vision / light stubs ────────────────────────────────────────────
         updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
-        updateVision: () => {},              // stub — wired in port-v2-platform
-        updateClairvoyance: () => {},        // stub — wired in port-v2-platform
+        updateVision: () => {},              // permanent-defer — visual update (wired in turn/lifecycle contexts)
+        updateClairvoyance: () => {},        // permanent-defer — requires SafetyMapsContext
         updatePlayerRegenerationDelay() {
             updatePlayerRegenerationDelayFn({
                 player,
@@ -521,9 +522,9 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         },
 
         // ── Targeting stubs ─────────────────────────────────────────────────
-        chooseTarget: async () => ({ confirmed: false, target: { ...INVALID_POS } }), // stub — wired in port-v2-platform
+        chooseTarget: async () => ({ confirmed: false, target: { ...INVALID_POS } }), // permanent-defer — blink/zap targeting needs dedicated context
         staffBlinkDistance: (enchant) => staffBlinkDistanceFn(enchant),
-        playerCancelsBlinking: async () => true,   // stub — wired in port-v2-platform
+        playerCancelsBlinking: async () => true,   // permanent-defer — requires async player input loop
 
         // ── Turn management ─────────────────────────────────────────────────
         async playerTurnEnded() {

@@ -27,7 +27,10 @@ import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
     cellHasTMFlag as cellHasTMFlagFn,
     terrainFlags as terrainFlagsFn,
+    discoveredTerrainFlagsAtLoc as discoveredTerrainFlagsAtLocFn,
 } from "./state/helpers.js";
+import { anyoneWantABite as anyoneWantABiteFn } from "./combat/combat-helpers.js";
+import type { CombatHelperContext } from "./combat/combat-helpers.js";
 import { allocGrid } from "./grid/grid.js";
 import { zeroOutGrid } from "./architect/helpers.js";
 import { FP_FACTOR } from "./math/fixpt.js";
@@ -121,7 +124,13 @@ function buildMinimalCombatContext(
         applyInstantTileEffectsToCreature: () => {},// stub
         fadeInMonster: () => {},                    // stub
         refreshDungeonCell,
-        anyoneWantABite: () => false,               // stub — depends on canAbsorb (Phase 6)
+        anyoneWantABite: (decedent) => anyoneWantABiteFn(decedent, {
+            player,
+            iterateAllies: () => monsters.filter(m => m.creatureState === CreatureState.Ally),
+            randRange: (lo, hi) => randRange(lo, hi),
+            isPosInMap: (loc) => coordinatesAreInMap(loc.x, loc.y),
+            monsterAvoids: () => false,
+        } as unknown as CombatHelperContext),
         demoteMonsterFromLeadership: (monst) => demoteMonsterFromLeadershipFn(monst, monsters),
         checkForContinuedLeadership: (monst) => checkForContinuedLeadershipFn(monst, monsters),
         getMonsterDFMessage: (id) => getMonsterDFMessageFn(id),
@@ -276,7 +285,13 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         cellHasTerrainFlag: (pos, flags) => cellHasTerrainFlagFn(pmap, pos, flags),
         cellHasTMFlag: (pos, flags) => cellHasTMFlagFn(pmap, pos, flags),
         terrainFlags: (pos) => terrainFlagsFn(pmap, pos),
-        discoveredTerrainFlagsAtLoc: () => 0,               // stub
+        discoveredTerrainFlagsAtLoc: (pos) => discoveredTerrainFlagsAtLocFn(
+            pmap, pos, tileCatalog,
+            (tileType) => {
+                const df = tileCatalog[tileType]?.discoverType ?? 0;
+                return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
+            },
+        ),
         coordinatesAreInMap,
         pmapAt,
 

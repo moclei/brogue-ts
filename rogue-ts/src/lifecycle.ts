@@ -81,7 +81,12 @@ import {
 } from "./io/cell-appearance.js";
 import { clearMessageArchive } from "./io/messages.js";
 import { deleteAllFlares } from "./light/flares.js";
-import { cellHasTerrainFlag as ctf, cellHasTMFlag as ctmf, terrainFlags as tf } from "./state/helpers.js";
+import {
+    cellHasTerrainFlag as ctf,
+    cellHasTMFlag as ctmf,
+    terrainFlags as tf,
+    discoveredTerrainFlagsAtLoc as discoveredTerrainFlagsAtLocFn,
+} from "./state/helpers.js";
 import { passableArcCount, cellIsPassableOrDoor, randomMatchingLocation } from "./architect/helpers.js";
 import { synchronizePlayerTimeState } from "./time/turn-processing.js";
 import type { Creature, Color, Item, LevelData } from "./types/types.js";
@@ -136,7 +141,13 @@ function makeCostMapCtx() {
     return {
         cellHasTerrainFlag: (pos: { x: number; y: number }, flags: number) => ctf(pmap, pos, flags),
         cellHasTMFlag: (pos: { x: number; y: number }, flags: number) => ctmf(pmap, pos, flags),
-        discoveredTerrainFlagsAtLoc: (_pos: { x: number; y: number }) => 0,
+        discoveredTerrainFlagsAtLoc: (pos: { x: number; y: number }) => discoveredTerrainFlagsAtLocFn(
+            pmap, pos, tileCatalog,
+            (tileType) => {
+                const df = tileCatalog[tileType]?.discoverType ?? 0;
+                return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
+            },
+        ),
     } as unknown as import("./movement/cost-maps-fov.js").CostMapFovContext;
 }
 
@@ -150,7 +161,13 @@ function makeCalcDistCtx(): CalculateDistancesContext {
             return monsters.find(m => m.loc.x === pos.x && m.loc.y === pos.y) ?? null;
         },
         monsterAvoids: () => false,
-        discoveredTerrainFlagsAtLoc: () => 0,
+        discoveredTerrainFlagsAtLoc: (pos) => discoveredTerrainFlagsAtLocFn(
+            pmap, pos, tileCatalog,
+            (tileType) => {
+                const df = tileCatalog[tileType]?.discoverType ?? 0;
+                return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
+            },
+        ),
         isPlayer: (m: Creature) => m === player,
         getCellFlags: (x: number, y: number) => pmap[x][y].flags,
     };

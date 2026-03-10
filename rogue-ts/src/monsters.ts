@@ -23,7 +23,9 @@ import {
     terrainFlags as terrainFlagsFn,
     cellHasTerrainType as cellHasTerrainTypeFn,
     burnedTerrainFlagsAtLoc as burnedTerrainFlagsAtLocFn,
+    discoveredTerrainFlagsAtLoc as discoveredTerrainFlagsAtLocFn,
 } from "./state/helpers.js";
+import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
 import {
     awareOfTarget as awareOfTargetFn,
     closestWaypointIndex as closestWaypointIndexFn,
@@ -125,7 +127,7 @@ export function buildMonsterSpawningContext(): SpawnContext {
         // ── Map mutation ──────────────────────────────────────────────────────
         monsterAtLoc,
         killCreature: (creature, quiet) => killCreatureFn(creature, quiet, combatCtx),
-        buildMachine: () => {},         // stub — wired in port-v2-platform
+        buildMachine: () => {},         // permanent-defer — machine building requires full architect context
         setCellFlag(loc, flag) {
             if (coordinatesAreInMap(loc.x, loc.y)) {
                 pmap[loc.x][loc.y].flags |= flag;
@@ -177,7 +179,7 @@ export function buildMonsterSpawningContext(): SpawnContext {
         },
 
         // ── Decorative stubs ──────────────────────────────────────────────────
-        drawManacles: () => {},         // stub — wired in port-v2-platform
+        drawManacles: () => {},         // permanent-defer — visual rendering only (no gameplay effect)
 
         // ── Grid ops ─────────────────────────────────────────────────────────
         allocGrid,
@@ -254,7 +256,13 @@ export function buildMonsterStateContext(): MonsterStateContext {
 
         // ── Terrain analysis ──────────────────────────────────────────────────
         burnedTerrainFlagsAtLoc: (loc) => burnedTerrainFlagsAtLocFn(pmap, loc),
-        discoveredTerrainFlagsAtLoc: () => 0,   // stub — secrets awareness not yet wired
+        discoveredTerrainFlagsAtLoc: (pos) => discoveredTerrainFlagsAtLocFn(
+            pmap, pos, tileCatalog,
+            (tileType) => {
+                const df = tileCatalog[tileType]?.discoverType ?? 0;
+                return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
+            },
+        ),
         passableArcCount: (x, y) => passableArcCountFn(pmap, x, y),
 
         // ── Awareness ────────────────────────────────────────────────────────
@@ -283,7 +291,7 @@ export function buildMonsterStateContext(): MonsterStateContext {
         inflictDamage: (attacker, defender, damage) =>
             inflictDamageFn(attacker, defender, damage, null, false, combatCtx),
         killCreature: (monst, quiet) => killCreatureFn(monst, quiet, combatCtx),
-        extinguishFireOnCreature: () => {},     // stub — wired in port-v2-platform
+        extinguishFireOnCreature: () => {},     // permanent-defer — requires full CreatureEffectsContext
         makeMonsterDropItem(monst) {
             if (monst.carriedItem) {
                 floorItems.push(monst.carriedItem);

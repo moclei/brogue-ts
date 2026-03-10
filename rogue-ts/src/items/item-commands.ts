@@ -69,9 +69,11 @@ import { itemName as itemNameFn } from "./item-naming.js";
 import { charmRechargeDelay as charmRechargeDelayFn } from "../power/power-tables.js";
 import { itemMagicPolarity as itemMagicPolarityFn } from "./item-generation.js";
 import { coordinatesAreInMap, mapToWindowX, windowToMapX, windowToMapY } from "../globals/tables.js";
-import { randClump, randPercent } from "../math/rng.js";
+import { randClump, randPercent, randRange } from "../math/rng.js";
 import { playerTurnEnded as playerTurnEndedFn } from "../turn.js";
 import { badMessageColor, red, itemMessageColor } from "../globals/colors.js";
+import { anyoneWantABite as anyoneWantABiteFn } from "../combat/combat-helpers.js";
+import type { CombatHelperContext } from "../combat/combat-helpers.js";
 import { AutoTargetMode, CreatureState, GameMode, StatusEffect } from "../types/enums.js";
 import { TerrainFlag, TileFlag } from "../types/flags.js";
 import { DCOLS } from "../types/constants.js";
@@ -160,7 +162,13 @@ function buildMinCombatDamageCtx(deps: ItemCommandDeps): CombatDamageContext {
             }
         },
         prependCreature(monst) { monsters.unshift(monst); },
-        anyoneWantABite: () => false,
+        anyoneWantABite: (decedent) => anyoneWantABiteFn(decedent, {
+            player,
+            iterateAllies: () => monsters.filter(m => m.creatureState === CreatureState.Ally),
+            randRange: (lo, hi) => randRange(lo, hi),
+            isPosInMap: (loc) => coordinatesAreInMap(loc.x, loc.y),
+            monsterAvoids: () => false,
+        } as unknown as CombatHelperContext),
         demoteMonsterFromLeadership: () => {},
         checkForContinuedLeadership: () => {},
         getMonsterDFMessage: () => "",

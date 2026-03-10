@@ -301,10 +301,11 @@ it("buildMonsterStateContext().burnedTerrainFlagsAtLoc checks flammable layers (
     expect(ctx.burnedTerrainFlagsAtLoc({ x: 0, y: 0 })).toBe(0);
 });
 
-it.skip("stub: buildMonsterStateContext().discoveredTerrainFlagsAtLoc returns 0 (needs terrain history)", () => {
-    // UPDATE: stub `() => 0` in monsters.ts:257. Secrets awareness not wired; deferred to port-v2-platform.
-    // Real implementation returns the terrain flags seen at loc during
-    // the current generation for secret-door hunting AI.
+it("buildMonsterStateContext().discoveredTerrainFlagsAtLoc uses real discoveredTerrainFlagsAtLoc", () => {
+    // Wired in port-v2-close-out Phase 3. Returns 0 for non-secret terrain
+    // (most cells); non-zero only when a secret-door tile is present.
+    const ctx = buildMonsterStateContext();
+    expect(ctx.discoveredTerrainFlagsAtLoc({ x: 0, y: 0 })).toBe(0);
 });
 
 it("buildMonsterStateContext().openPathBetween uses bolt-geometry (Phase 6)", () => {

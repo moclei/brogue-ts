@@ -260,8 +260,8 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         monsterAtLoc,
         refreshDungeonCell,
         discover: (x, y) => { if (coordinatesAreInMap(x, y)) pmap[x][y].flags |= TileFlag.DISCOVERED; },
-        applyInstantTileEffectsToCreature: () => {},    // stub — wired in port-v2-platform
-        updateVision: () => {},                         // stub — wired in movement.ts
+        applyInstantTileEffectsToCreature: () => {},    // permanent-defer — chasms/tile effects (see TASKS.md)
+        updateVision: () => {},                         // permanent-defer — visual update (wired in turn/lifecycle)
         pickUpItemAt: () => {},                         // stub — Phase 3a
         shuffleList: (list) => {
             for (let i = list.length - 1; i > 0; i--) {

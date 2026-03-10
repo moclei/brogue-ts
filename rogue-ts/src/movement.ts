@@ -496,7 +496,7 @@ export function buildTravelContext(): TravelExploreContext {
         // ── Creature helpers ──────────────────────────────────────────────────
         monsterAtLoc,
         canSeeMonster,
-        canPass: (_m, blocker) => !!(blocker.info?.flags & 0), // stub — wired in port-v2-platform
+        canPass: (_m, blocker) => !!(blocker.info?.flags & 0), // permanent-defer — pass-through logic not yet ported
         monstersAreTeammates: (a, b) => a.leader === b || b.leader === a,
         monstersAreEnemies: (a, b) => monstersAreEnemiesFn(a, b, player, cellHasTerrainFlag),
         monsterDamageAdjustmentAmount: (m) =>
@@ -563,7 +563,7 @@ export function buildTravelContext(): TravelExploreContext {
             updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); }, updateVision: buildUpdateVisionFn(), displayLevel: () => {},
         } as unknown as CreatureEffectsContext),
         updateVision: buildUpdateVisionFn(),
-        nextBrogueEvent: (_event: RogueEvent) => {},   // stub — wired in port-v2-platform
+        nextBrogueEvent: (_event: RogueEvent) => {},   // permanent-defer — cursor event loop not needed in movement context
         executeMouseClick: () => {},
         printString: () => {},
 

@@ -110,7 +110,7 @@ export function buildWeaponAttackContext(): WeaponAttackContext {
 
         boltCatalog: boltCatalog as unknown as readonly BoltInfo[],
         getImpactLoc: (_origin, target) => ({ ...target }),  // stub
-        zap: () => {},                       // stub — wired in port-v2-platform
+        zap: () => {},                       // permanent-defer — zap is the keystone bolt function (port-v2-persistence)
 
         confirm: () => true,                 // stub — sync context; no async confirm available
         playerCanSeeOrSense: (x, y) =>

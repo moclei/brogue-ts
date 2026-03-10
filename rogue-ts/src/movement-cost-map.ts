@@ -19,9 +19,10 @@ import {
     terrainFlags as terrainFlagsFn,
     terrainMechFlags as terrainMechFlagsFn,
     discoveredTerrainFlagsAtLoc as discoveredTerrainFlagsAtLocFn,
+    highestPriorityLayer as highestPriorityLayerFn,
 } from "./state/helpers.js";
+import { storeMemories as storeMemoriesFn, layerWithTMFlag as layerWithTMFlagFn } from "./movement/map-queries.js";
 import { monsterAvoids as monsterAvoidsFn, distanceBetween } from "./monsters/monster-state.js";
-import { layerWithTMFlag as layerWithTMFlagFn } from "./movement/map-queries.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
 import { itemAtLoc as itemAtLocFn } from "./items/item-inventory.js";
@@ -119,7 +120,12 @@ export function buildCostMapFovContext(): CostMapFovContext {
                 pmap[x][y].flags |= TileFlag.DISCOVERED;
             }
         },
-        storeMemories: () => {},             // stub — wired in port-v2-platform
+        storeMemories: (x, y) => storeMemoriesFn(
+            pmap, x, y,
+            (pos) => terrainFlagsFn(pmap, pos),
+            (pos) => terrainMechFlagsFn(pmap, pos),
+            highestPriorityLayerFn,
+        ),
         layerWithTMFlag: (x, y, flag) =>
             layerWithTMFlagFn(pmap, x, y, flag) as DungeonLayer,
 

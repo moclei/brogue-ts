@@ -44,6 +44,12 @@ import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/li
 import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
+import {
+    attackVerb as attackVerbFn,
+    anyoneWantABite as anyoneWantABiteFn,
+} from "./combat/combat-helpers.js";
+import type { CombatHelperContext } from "./combat/combat-helpers.js";
+import { monsterText } from "./globals/monster-text.js";
 
 // =============================================================================
 // Private helpers
@@ -140,7 +146,13 @@ export function buildCombatDamageContext(): CombatDamageContext {
         prependCreature(monst) { monsters.unshift(monst); },
 
         // ── Leadership ────────────────────────────────────────────────────────
-        anyoneWantABite: () => false,   // stub — depends on canAbsorb (Phase 6)
+        anyoneWantABite: (decedent) => anyoneWantABiteFn(decedent, {
+            player,
+            iterateAllies: () => monsters.filter(m => m.creatureState === CreatureState.Ally),
+            randRange: (lo, hi) => randRange(lo, hi),
+            isPosInMap: (loc) => coordinatesAreInMap(loc.x, loc.y),
+            monsterAvoids: () => false,
+        } as unknown as CombatHelperContext),
         demoteMonsterFromLeadership: (monst) => demoteMonsterFromLeadershipFn(monst, monsters),
         checkForContinuedLeadership: (monst) => checkForContinuedLeadershipFn(monst, monsters),
 
@@ -234,7 +246,11 @@ export function buildCombatAttackContext(): AttackContext {
         splitMonster: () => {},
 
         // ── Display ───────────────────────────────────────────────────────────
-        attackVerb: () => "hits",   // stub — needs attacker + monster text table
+        attackVerb: (attacker, damagePercent) => attackVerbFn(attacker, damagePercent, monsterText, {
+            player,
+            weapon: rogue.weapon,
+            canSeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+        } as unknown as CombatHelperContext),
         messageColorFromVictim: (defender) =>
             defender === player ? badMessageColor : goodMessageColor,
 

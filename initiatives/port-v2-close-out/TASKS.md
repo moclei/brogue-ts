@@ -112,39 +112,31 @@ that must become async. If both cascades together would exceed 60% context, comp
 
 ---
 
-## Phase 3: Remaining wireable stubs
+## Phase 3: Remaining wireable stubs ✓ DONE
 
 **Wiring only. Do not port any new functions.**
 
-For each candidate: search `src/` for the real implementation first. If it exists,
-wire it and activate/update the test.skip. If it does not exist, update the comment
-to explain the gap clearly and move on — do not spend time porting in this phase.
-
-- [ ] `discoveredTerrainFlagsAtLoc` in `turn.ts`
-      Domain fn `discoveredTerrainFlagsAtLocFn` in `src/state/helpers.ts` confirmed correct
-      (verify-mechanics Phase 3a). Replace `() => 0` stub; update or remove paired test.skip.
-
-- [ ] `discoveredTerrainFlagsAtLoc` in `monsters.ts`
-      Same fn. Replace stub; update paired test.skip.
-
-- [ ] `discoveredTerrainFlagsAtLoc` in `lifecycle.ts`
-      Same fn. Replace stub; update paired test.skip.
-
-- [ ] `attackVerb` in `combat.ts` (currently `() => "hits"`)
-      Check if a monsterText lookup is feasible with available context; wire if straightforward.
-      If attacker context is insufficient, retag as `// permanent-defer — attacker text
-      lookup needs full MonsterTextContext` and leave as-is.
-
-- [ ] `anyoneWantABite` in `combat.ts` + `turn.ts` (currently `() => false`)
-      Check if `canAbsorb` is now implemented and if `CombatHelperContext` has enough
-      context to wire it. Wire if feasible; document as permanent-defer if not.
-
-- [ ] Grep `src/` for remaining `// stub — wired in port-v2-platform` entries.
-      For each: check if the implementation exists and wire it. If not, retag:
-      `// permanent-defer — [reason]` (remove the stale port-v2-platform reference).
-
-- [ ] Run `npx vitest run` — confirm no regressions; record pass/skip counts
-- [ ] Commit all changes
+- [x] `discoveredTerrainFlagsAtLoc` in `turn.ts` — wired via discoveredTerrainFlagsAtLocFn
+      (import added; real closure with tileCatalog + dungeonFeatureCatalog)
+- [x] `discoveredTerrainFlagsAtLoc` in `monsters.ts` — same; dungeonFeatureCatalog import added
+      Activated test.skip in monsters.test.ts as real passing test.
+- [x] `discoveredTerrainFlagsAtLoc` in `lifecycle.ts` — wired in makeCostMapCtx() + makeCalcDistCtx()
+- [x] `attackVerb` in `combat.ts` — WIRED. Changed AttackContext interface to pass attacker;
+      updated call site in combat-attack.ts; wired real attackVerbFn with monsterText + minimal context.
+      Updated test mocks in combat-attack.test.ts + combat-runics.test.ts.
+- [x] `anyoneWantABite` in `combat.ts` + `turn.ts` — WIRED. Wired via anyoneWantABiteFn with
+      partial CombatHelperContext (iterateAllies, randRange, isPosInMap, monsterAvoids).
+      Also wired in item-commands.ts (throwItem context).
+- [x] `storeMemories` in `movement-cost-map.ts` — WIRED (bonus: highestPriorityLayer imported)
+- [x] Grep `src/` for remaining `// stub — wired in port-v2-platform` entries — ALL RETAGGED.
+      Visual effects → permanent-defer — visual effect only
+      Complex contexts → permanent-defer — requires [Context]
+      Async input → permanent-defer — requires async player input
+      `currentStealthRange: () => 14` improved to `() => rogue.stealthRange` (live value)
+      `spawnDungeonFeature` inside crystalize() wired with real spawnDungeonFeatureFn
+      No remaining "wired in port-v2-platform" stubs.
+- [x] Run `npx vitest run` — 87 files, 2224 pass, 82 skip (+2 activated vs Phase 2)
+- [x] Commit all changes
 - [ ] Generate handoff prompt:
   ```
   Continue port-v2-close-out. Read: .context/PROJECT.md, initiatives/port-v2-close-out/BRIEF.md, PLAN.md, TASKS.md

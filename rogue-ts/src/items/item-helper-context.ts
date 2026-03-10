@@ -102,7 +102,7 @@ export function buildItemHelperContext(): ItemHelperContext {
         },
 
         describeHallucinatedItem(buf) {
-            buf[0] = "something strange";  // stub — wired in port-v2-platform
+            buf[0] = "something strange";  // permanent-defer — hallucination item names require flavor catalog
         },
 
         removeItemFromChain: (item, chain) => removeItemFromArray(item, chain),
@@ -114,16 +114,16 @@ export function buildItemHelperContext(): ItemHelperContext {
 
         monsterAtLoc,
 
-        promoteTile: () => {},              // stub — wired in port-v2-platform
+        promoteTile: () => {},              // permanent-defer — requires EnvironmentContext
 
-        messageWithColor: () => {},         // stub — wired in port-v2-platform
+        messageWithColor: () => {},         // permanent-defer — this context is for non-message item ops
 
         cellHasTerrainFlag: (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags),
         cellHasTMFlag: (loc, flags) => cellHasTMFlagFn(pmap, loc, flags),
         coordinatesAreInMap: (x, y) => coordinatesAreInMap(x, y),
         playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
         distanceBetween: (p1, p2) => distanceBetween(p1, p2),
-        discover: () => {},                 // stub — wired in port-v2-platform
+        discover: () => {},                 // permanent-defer — needs full MapQueryContext (wired in lifecycle)
         randPercent: (pct) => randPercent(pct),
         posEq: (a, b) => a.x === b.x && a.y === b.y,
         keyOnTileAt: (loc: Pos) => {
