@@ -165,7 +165,10 @@ export function buildUpdateVisionFn(): (refreshDisplay: boolean) => void {
 
             messageWithColor: () => {},
             refreshDungeonCell: (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer),
-            discoverCell: (x, y) => { pmap[x][y].flags |= TileFlag.DISCOVERED; },
+            discoverCell: (x, y) => {
+                pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY;
+                pmap[x][y].flags |= TileFlag.DISCOVERED;
+            },
             storeMemories: (x, y) => storeMemoriesFn(
                 pmap, x, y,
                 (pos) => terrainFlagsFn(pmap, pos),
@@ -243,7 +246,10 @@ export function buildUpdateVisionFn(): (refreshDisplay: boolean) => void {
             updateLighting: () => updateLightingFn(lightCtx),
             updateFieldOfViewDisplay: (dancing, refresh) =>
                 updateFieldOfViewDisplayFn(dancing, refresh, fovDisplayCtx),
-            discoverCell: (x, y) => { pmap[x][y].flags |= TileFlag.DISCOVERED; },
+            discoverCell: (x, y) => {
+                pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY;
+                pmap[x][y].flags |= TileFlag.DISCOVERED;
+            },
             refreshDungeonCell: (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer),
 
             allocGrid: () => {

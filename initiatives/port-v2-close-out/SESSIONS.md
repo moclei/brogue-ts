@@ -12,7 +12,7 @@ New sessions: read the Bug Tracker table first, then the last session entry.
 | B1 | --MORE-- never appears when message log fills | P1 | OPEN | Phase 2a wired waitForAcknowledgment; display/render step may not be firing |
 | B2 | Item not removed from inventory after throwing | P1 | FIXED | buildThrowCommandFn: added packItems destructure + removeItemFromArray after throwItem returns |
 | B3 | "Call" label shows "Relabel" for unidentified items | P2 | FIXED | ui.ts actionButtons missing CALL_KEY button; added with itemCanBeCalled guard |
-| B4 | Fog ghost — picked-up item stays visible under fog of war | P3 | OPEN | Dungeon memory not updated on item pickup; clears on direct LOS |
+| B4 | Fog ghost — picked-up item stays visible under fog of war | P3 | FIXED | discoverCell closures missing ~STABLE_MEMORY clear; matched C's Time.c:733 |
 | B5 | "Call" dialog does nothing — keystrokes fall through to game | P2 | FIXED | asyncGetInputTextString in item-commands.ts; inscribeItem made async; tests updated |
 
 ---
@@ -55,5 +55,28 @@ New sessions: read the Bug Tracker table first, then the last session entry.
 - Tests (`item-call.test.ts`): all `it()` callbacks made async, all `inscribeItem()` calls awaited.
 
 **Open bugs:** B1 (--MORE-- — needs further in-game testing), B4 (fog ghost)
+
+**State at end:** 88 files, 2242 pass, 82 skip — no regressions.
+
+---
+
+### Session 3 — 2026-03-10
+
+**B4 fixed (fog ghost):**
+- Root cause: `discoverCell` closures in `vision-wiring.ts`, `lifecycle.ts`, `turn.ts`,
+  and `movement-cost-map.ts` only set `DISCOVERED` without clearing `STABLE_MEMORY`.
+  In C, `discoverCell` (Time.c:732) clears `~STABLE_MEMORY` first. When a cell becomes
+  visible, `discoverCell` is called in `updateFieldOfViewDisplay` — without that clear,
+  `getCellAppearance` would use the stale `rememberedAppearance` (which still had the item
+  glyph from when the cell was last non-visible) instead of recomputing the cell.
+- Fix: added `pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY` to all 5 `discoverCell` closures.
+  The existing `movement.ts` closure was already correct; all others updated to match.
+
+**B1 status (--MORE--):**
+- Code analysis confirms implementation is correct (Phase 5 Session 2).
+- Only fires for REQUIRE_ACKNOWLEDGMENT messages (hunger warning ~1500 turns, trap messages).
+- Needs in-game verification — generate a hunger warning or step on a trap.
+
+**Open bugs:** B1 (--MORE-- — needs in-game testing)
 
 **State at end:** 88 files, 2242 pass, 82 skip — no regressions.

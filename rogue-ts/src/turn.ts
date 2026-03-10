@@ -401,8 +401,8 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         getFOVMask: (grid, cx, cy, radius, blockFlags, blockTMFlags, ignoreWalls) =>
             getFOVMaskFn(grid, cx, cy, radius, blockFlags, blockTMFlags, ignoreWalls, fovCtxForScent),
         zeroOutGrid,
-        discoverCell: (x, y) => { if (coordinatesAreInMap(x, y)) pmap[x][y].flags |= TileFlag.DISCOVERED; },
-        discover: (x, y) => { if (coordinatesAreInMap(x, y)) pmap[x][y].flags |= TileFlag.DISCOVERED; },
+        discoverCell: (x, y) => { if (coordinatesAreInMap(x, y)) { pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY; pmap[x][y].flags |= TileFlag.DISCOVERED; } },
+        discover: (x, y) => { if (coordinatesAreInMap(x, y)) { pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY; pmap[x][y].flags |= TileFlag.DISCOVERED; } },
         storeMemories: () => {},
 
         // ── Items / recharging (stubs) ────────────────────────────────────────

@@ -505,7 +505,7 @@ export function buildLevelContext(): LevelContext {
             cell.rememberedCellFlags = cell.flags;
         },
         updateVision: buildUpdateVisionFn(),
-        discoverCell: (x, y) => { pmap[x][y].flags |= TileFlag.DISCOVERED; },
+        discoverCell: (x, y) => { pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY; pmap[x][y].flags |= TileFlag.DISCOVERED; },
         updateMapToShore() { rogue.mapToShore = updateMapToShore(pmap); },
         updateRingBonuses: () => { const s = buildEquipState(); updateRingBonusesFn(s); syncEquipBonuses(s); },
         updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },

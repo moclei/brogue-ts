@@ -117,6 +117,7 @@ export function buildCostMapFovContext(): CostMapFovContext {
         refreshDungeonCell,
         discoverCell: (x, y) => {
             if (x >= 0 && x < DCOLS && y >= 0 && y < DROWS) {
+                pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY;
                 pmap[x][y].flags |= TileFlag.DISCOVERED;
             }
         },
