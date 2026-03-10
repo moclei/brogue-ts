@@ -149,8 +149,8 @@ export function buildCombatDamageContext(): CombatDamageContext {
         anyoneWantABite: (decedent) => anyoneWantABiteFn(decedent, {
             player,
             iterateAllies: () => monsters.filter(m => m.creatureState === CreatureState.Ally),
-            randRange: (lo, hi) => randRange(lo, hi),
-            isPosInMap: (loc) => coordinatesAreInMap(loc.x, loc.y),
+            randRange: (lo: number, hi: number) => randRange(lo, hi),
+            isPosInMap: (loc: Pos) => coordinatesAreInMap(loc.x, loc.y),
             monsterAvoids: () => false,
         } as unknown as CombatHelperContext),
         demoteMonsterFromLeadership: (monst) => demoteMonsterFromLeadershipFn(monst, monsters),
@@ -249,7 +249,7 @@ export function buildCombatAttackContext(): AttackContext {
         attackVerb: (attacker, damagePercent) => attackVerbFn(attacker, damagePercent, monsterText, {
             player,
             weapon: rogue.weapon,
-            canSeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+            canSeeMonster: (m: Creature) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
         } as unknown as CombatHelperContext),
         messageColorFromVictim: (defender) =>
             defender === player ? badMessageColor : goodMessageColor,

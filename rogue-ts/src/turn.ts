@@ -127,8 +127,8 @@ function buildMinimalCombatContext(
         anyoneWantABite: (decedent) => anyoneWantABiteFn(decedent, {
             player,
             iterateAllies: () => monsters.filter(m => m.creatureState === CreatureState.Ally),
-            randRange: (lo, hi) => randRange(lo, hi),
-            isPosInMap: (loc) => coordinatesAreInMap(loc.x, loc.y),
+            randRange: (lo: number, hi: number) => randRange(lo, hi),
+            isPosInMap: (loc: Pos) => coordinatesAreInMap(loc.x, loc.y),
             monsterAvoids: () => false,
         } as unknown as CombatHelperContext),
         demoteMonsterFromLeadership: (monst) => demoteMonsterFromLeadershipFn(monst, monsters),
