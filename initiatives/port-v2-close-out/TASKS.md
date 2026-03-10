@@ -137,12 +137,12 @@ that must become async. If both cascades together would exceed 60% context, comp
       No remaining "wired in port-v2-platform" stubs.
 - [x] Run `npx vitest run` — 87 files, 2224 pass, 82 skip (+2 activated vs Phase 2)
 - [x] Commit all changes
-- [ ] Generate handoff prompt:
+- [x] Generate handoff prompt:
   ```
   Continue port-v2-close-out. Read: .context/PROJECT.md, initiatives/port-v2-close-out/BRIEF.md, PLAN.md, TASKS.md
   Resume at: Phase 4 — Light.c audit
   Branch: feat/port-v2-playtest
-  Last commit: [hash]
+  Last commit: 143533a
   ```
 
 ---
