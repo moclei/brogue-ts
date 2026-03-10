@@ -14,6 +14,7 @@ import {
     buildTravelContext,
     buildCostMapFovContext,
 } from "../src/movement.js";
+import { buildInputContext } from "../src/io/input-context.js";
 import { playerMoves } from "../src/movement/player-movement.js";
 import { populateCreatureCostMap } from "../src/movement/cost-maps-fov.js";
 import { buildTurnProcessingContext } from "../src/turn.js";
@@ -208,39 +209,47 @@ describe("buildCostMapFovContext — populateCreatureCostMap", () => {
 // Stub audit: known-incomplete behaviours in buildMovementContext
 // =============================================================================
 
-it.skip("stub: recordKeystroke() is a no-op (should record player input for replay)", () => {
-    // buildMovementContext().recordKeystroke() does nothing.
-    // Real implementation should call the recording system to store the directional
-    // keystroke for playback/seed-verification.
+it.skip("DEFER: recordKeystroke() — port-v2-persistence (input recording layer)", () => {
+    // DEFER: port-v2-persistence
+    // buildMovementContext().recordKeystroke() is a permanent no-op stub.
+    // Real implementation belongs to the recordings layer (Recordings.c).
 });
 
-it.skip("stub: confirm() always returns true (should prompt player for y/n)", () => {
-    // buildMovementContext().confirm() returns true unconditionally.
-    // Real implementation should display a yes/no prompt and wait for keypress.
-    // Affects lava/chasm/fire/trap safety checks in playerMoves.
+it.skip("DEFER: confirm() always returns true — deferred Phase 3b (sync/async cascade)", () => {
+    // DEFER: deferred Phase 3b — sync/async cascade
+    // PlayerMoveContext.confirm is synchronous; making it async requires a cascading
+    // refactor of playerMoves() and all callers. Deferred to a future initiative.
 });
 
-it.skip("stub: pickUpItemAt() is a no-op (should pick up items from floor cell)", () => {
-    // buildMovementContext().pickUpItemAt() does nothing.
-    // Real implementation should transfer the item from floorItems to packItems
-    // and display an inventory message.
+it("wired: pickUpItemAt() delegates to pickup domain function (no item on empty cell)", () => {
+    // pickUpItemAt is wired Phase 3a: movement.ts → items/pickup.ts pickUpItemAtFn.
+    // Calling on a cell with no floor item should complete without throwing.
+    setupPlayer();
+    const ctx = buildMovementContext();
+    expect(() => ctx.pickUpItemAt({ x: 5, y: 5 })).not.toThrow();
 });
 
-it.skip("stub: checkForMissingKeys() is a no-op (should warn about missing keys)", () => {
-    // buildMovementContext().checkForMissingKeys() does nothing.
-    // Real implementation should check if the cell was a key-locked area and
-    // the player no longer has the required key.
+it("wired: checkForMissingKeys() delegates to item-helper domain function", () => {
+    // checkForMissingKeys is wired Phase 3a: movement.ts → movement/item-helpers.ts checkForMissingKeysFn.
+    // Calling on a plain floor cell (no key requirement) should complete without throwing.
+    setupPlayer();
+    const ctx = buildMovementContext();
+    expect(() => ctx.checkForMissingKeys(5, 5)).not.toThrow();
 });
 
-it.skip("stub: promoteTile() is a no-op (should change terrain type on interaction)", () => {
-    // buildMovementContext().promoteTile() does nothing.
-    // Real implementation should call the architect's tile promotion logic,
-    // e.g. opening a door or triggering a pressure plate.
+it("wired: promoteTile() delegates to environment domain function", () => {
+    // promoteTile is wired Phase 3a: movement.ts → time/environment.ts promoteTileFn.
+    // Calling on a plain floor cell (no promotion defined) should complete without throwing.
+    setupPlayer();
+    const ctx = buildMovementContext();
+    expect(() => ctx.promoteTile(5, 5, DungeonLayer.Dungeon, false)).not.toThrow();
 });
 
-it.skip("stub: refreshDungeonCell() is a no-op (should redraw a cell on screen)", () => {
-    // buildMovementContext().refreshDungeonCell() does nothing.
-    // Real implementation should trigger a cell redraw via the platform renderer.
+it.skip("UPDATE: refreshDungeonCell() wired via buildRefreshDungeonCellFn — IO integration test not feasible", () => {
+    // refreshDungeonCell is wired Phase 1: movement.ts → io/cell-appearance.ts buildRefreshDungeonCellFn().
+    // The wired function calls getCellAppearance(), which reads tmap/pmap/displayBuffer.
+    // In unit tests getCellAppearance crashes (display system not initialized).
+    // Verified functional in browser; unit test requires full IO integration setup.
 });
 
 it("spawnDungeonFeature() places a gas tile on the pmap (architect spawner wired)", () => {
@@ -269,14 +278,19 @@ it("spawnDungeonFeature() places a gas tile on the pmap (architect spawner wired
     expect(pmap[5][5].volume).toBe(before + 10);
 });
 
-it.skip("stub: getQualifyingPathLocNear() returns target as-is (should pathfind)", () => {
-    // buildMovementContext().getQualifyingPathLocNear() returns the target unchanged.
-    // Real implementation should search for a nearby passable cell matching the
-    // given blocking/forbidden flag constraints.
+it("wired: getQualifyingPathLocNear() delegates to path-qualifying domain function", () => {
+    // getQualifyingPathLocNear is wired Phase 3a: movement.ts → movement/path-qualifying.ts.
+    // Should return a Pos or null — not a raw pass-through of the target.
+    setupPlayer();
+    const ctx = buildMovementContext();
+    const result = ctx.getQualifyingPathLocNear({ x: 5, y: 5 }, true, 0, 0, 0, 0, false);
+    // Result is either a valid Pos or null (no qualifying cell found)
+    expect(result === null || (typeof result === "object" && "x" in result!)).toBe(true);
 });
 
-it.skip("deferred: nextBrogueEvent() sync/async mismatch — travel confirm dialog needs refactor", () => {
-    // The travel context's nextBrogueEvent(event, ...) is called synchronously in travel-explore.ts.
+it.skip("DEFER: nextBrogueEvent() sync/async mismatch — travel dialog async refactor required", () => {
+    // DEFER: sync/async mismatch — travel dialog async refactor
+    // The travel context's nextBrogueEvent is called synchronously in travel-explore.ts.
     // In the browser, all input is async (waitForEvent from platform.ts).
     // Wiring requires making the travel confirm dialog loop async — a larger refactor.
     // Left as no-op until the travel loop architecture is revisited.
@@ -303,90 +317,100 @@ it("hilitePath() sets IS_IN_PATH flags; clearCursorPath() clears them", () => {
     expect(pmap[6][5].flags & TileFlag.IS_IN_PATH).toBeFalsy();
 });
 
-it.skip("stub: buildMovementContext().getImpactLoc returns target as-is (should trace bolt path)", () => {
-    // buildMovementContext().getImpactLoc(origin, target) returns target unchanged.
+it.skip("UPDATE: getImpactLoc still stub — returns target as-is, no bolt path trace", () => {
+    // getImpactLoc is still stub `(_origin, target) => ({...target})` in movement-weapon-context.ts.
     // Real implementation should trace the bolt trajectory through the dungeon,
     // stopping at the first wall or blocking creature hit.
+    // Remains a stub pending full bolt-geometry wiring.
 });
 
-it.skip("stub: buildCostMapFovContext().canPass returns false (should query monster traversal rules)", () => {
-    // buildCostMapFovContext().canPass(monster, blocker) returns false always.
-    // Real implementation should check if the monster type can pass through
-    // or over the blocker creature (e.g. incorporeal, same team).
+it.skip("UPDATE: canPass still stub () => false — monster traversal rules not yet wired", () => {
+    // canPass is still stub `() => false` in movement.ts (comment: wired in port-v2-platform).
+    // Real implementation should check if a monster can pass through or over a blocker
+    // (e.g. incorporeal, same team). Deliberate stub — traversal safety fallback is conservative.
 });
 
-it.skip("stub: buildCostMapFovContext().itemName writes 'item' (should name the actual item)", () => {
-    // buildCostMapFovContext().itemName(item, buf) writes 'item' to buf[0].
-    // Real implementation should call the full item naming pipeline and write
-    // the formatted name so the cursor tooltip shows the correct item name.
+it("wired: buildCostMapFovContext().itemName() delegates to itemNameFn and writes to buffer", () => {
+    // itemName wired in buildCostMapFovContext → items/item-naming.ts itemNameFn via namingCtx.
+    // Should write a non-empty string to buf[0] for a valid item (was stub writing "item").
+    setupPlayer();
+    const ctx = buildCostMapFovContext();
+    const buf: string[] = [""];
+    // Minimal weapon-like item (category 1 = WEAPON, kind 0)
+    const fakeItem = { category: 1, kind: 0, flags: 0, enchant1: 0, enchant2: 0,
+                       charges: 0, quantity: 1, quiverNumber: 0, keyLoc: [] };
+    ctx.itemName(fakeItem as any, buf, false, false, null);
+    expect(typeof buf[0]).toBe("string");
+    expect(buf[0].length).toBeGreaterThan(0);
 });
 
 // =============================================================================
 // Stub registry — IO.c movement-context domain stubs (Phase 3b, port-v2-audit)
 // =============================================================================
 
-it.skip("stub: plotForegroundChar() needs display buffer cell content to verify (IO integration)", () => {
-    // plotForegroundChar wired in movement-weapon-context.ts to plotCharWithColor + displayBuffer.
-    // Functional in browser; test verification requires a rendered dungeon cell.
+it.skip("UPDATE: plotForegroundChar() wired in browser — IO integration test not feasible in unit tests", () => {
+    // plotForegroundChar is wired in movement-weapon-context.ts to plotCharWithColor + displayBuffer.
+    // Functional in browser; unit test verification requires a rendered dungeon cell (IO integration).
     // C: IO.c:1836 — plotForegroundChar() — draws glyph using existing cell background.
 });
 
-it.skip("stub: exploreKey() is a no-op (should execute one step of auto-explore)", () => {
-    // C: IO.c:2313 — exploreKey()
-    // io/input-context.ts:209 has an `async () => {}` stub with comment "explore display hooks (Phase 5)".
-    // Real implementation should advance the player one step toward the nearest
-    // unexplored cell and update the display, halting on danger or player input.
+it("wired: buildInputContext().exploreKey() delegates to exploreFn (async, resolves cleanly)", async () => {
+    // exploreKey is wired Phase 2b: input-context.ts → movement/travel-explore.ts exploreFn.
+    // With no unexplored cells reachable, explore exits immediately without error.
+    setupPlayer();
+    const ctx = buildInputContext();
+    await expect(ctx.exploreKey(false)).resolves.toBeUndefined();
 });
 
 // =============================================================================
 // Stub registry — Recordings.c domain stubs (Phase 3c, port-v2-audit)
 // =============================================================================
 
-it.skip("stub: cancelKeystroke() is a no-op (should remove the last recorded keystroke from the buffer)", () => {
+it.skip("DEFER: cancelKeystroke() — port-v2-persistence (input recording layer)", () => {
+    // DEFER: port-v2-persistence
     // C: Recordings.c:147 — cancelKeystroke()
-    // movement.ts:322 has a `() => {}` context stub.
-    // Real implementation should pop the most recently appended keystroke from the
-    // recording buffer when the player cancels an action mid-sequence.
+    // buildMovementContext().cancelKeystroke() is a permanent no-op stub.
+    // Real implementation belongs to the recordings layer.
 });
 
 // =============================================================================
 // Stub registry — wiring stubs (Phase 3d, port-v2-audit)
 // =============================================================================
 
-it.skip("stub: dijkstraScan() is a no-op in input context (should delegate to dijkstra/dijkstraScan)", () => {
-    // C: Dijkstra.c:202 — dijkstraScan()
-    // io/input-context.ts:240 has a `() => {}` context stub.
-    // Domain function is IMPLEMENTED and tested in dijkstra.test.ts.
-    // Real wiring should call dijkstraScan() from dijkstra/dijkstra.ts; pathfinding is not
-    // needed in the keyboard input context, so this slot may remain a deliberate no-op.
+it("wired: buildInputContext().dijkstraScan() delegates to dijkstraScanFn", () => {
+    // dijkstraScan is wired Phase 2b: input-context.ts → dijkstra/dijkstra.ts dijkstraScanFn.
+    // After a scan from a seeded source cell, adjacent floor cells should have non-infinite distance.
+    setupPlayer();
+    const ctx = buildInputContext();
+    const INFINITY = 30000;
+    const distMap: number[][] = Array.from({ length: 80 }, () => new Array(34).fill(INFINITY));
+    const costMap: number[][] = Array.from({ length: 80 }, () => new Array(34).fill(1));
+    distMap[5][5] = 0;  // source cell
+    expect(() => ctx.dijkstraScan(distMap, costMap, false)).not.toThrow();
+    // Adjacent cells should be reachable (distance < INFINITY)
+    expect(distMap[6][5]).toBeLessThan(INFINITY);
 });
 
-it.skip("stub: terrainFlags() returns 0 in input context (should delegate to state/helpers terrainFlags)", () => {
+it.skip("UPDATE: terrainFlags() in buildInputContext deliberate () => 0 — not needed for keyboard input", () => {
     // C: Globals.c:581 — terrainFlags()
-    // io/input-context.ts:247 has a `() => 0` context stub.
-    // Domain function is IMPLEMENTED at state/helpers.ts:36 and tested in movement/map-queries.test.ts.
-    // Real wiring should call terrainFlags() from state/helpers.ts to return the terrain flag bitmask
-    // for a given cell — used by movement collision and traversal checks.
+    // io/input-context.ts has `() => 0` — a deliberate stub, not a wiring gap.
+    // Domain function IS implemented at state/helpers.ts and tested in movement/map-queries.test.ts.
+    // terrainFlags is wired in cursor/misc contexts; buildInputContext does not need it.
+    // Stub is intentional and safe; no fix needed.
 });
 
-it.skip("divergence: knownToPlayerAsPassableOrSecretDoor returns false for undiscovered cells (C uses actual terrain flags)", () => {
-    // C (Monsters.c:3668): getLocationFlags(loc, &tFlags, &TMFlags, NULL, true)
-    // For undiscovered cells (!DISCOVERED && !MAGIC_MAPPED), C's getLocationFlags falls
-    // through to the else branch and returns actual terrain flags. An undiscovered passable
-    // cell returns true (no known obstruction).
-    //
-    // TS (movement.ts:431): checks (DISCOVERED | MAGIC_MAPPED) first and returns false if
-    // neither is set — so undiscovered cells are always considered impassable.
-    //
-    // In practice this divergence is harmless: populateCreatureCostMap marks undiscovered
-    // cells as PDS_OBSTRUCTION, so pathfinding never routes through them. The TS extra
-    // guard is a safe over-approximation — keep as-is, no fix needed.
+it.skip("UPDATE: knownToPlayerAsPassableOrSecretDoor — safe over-approximation, no fix needed", () => {
+    // C (Monsters.c:3668): getLocationFlags falls through to actual terrain flags for undiscovered cells.
+    // TS (movement.ts): checks (DISCOVERED | MAGIC_MAPPED) first — returns false for undiscovered cells.
+    // In practice harmless: populateCreatureCostMap marks undiscovered cells as PDS_OBSTRUCTION,
+    // so pathfinding never routes through them. The TS extra guard is a safe over-approximation.
+    // Deliberate divergence — keep as-is, no fix needed.
 });
 
-it.skip("stub: terrainMechFlags() returns 0 in input context (should delegate to state/helpers terrainMechFlags)", () => {
+it.skip("UPDATE: terrainMechFlags() in buildInputContext deliberate () => 0 — same as terrainFlags", () => {
     // C: Globals.c:590 — terrainMechFlags()
-    // io/input-context.ts:248 has a `() => 0` context stub.
-    // Domain function is IMPLEMENTED at state/helpers.ts:51 and tested in movement/map-queries.test.ts.
-    // Real wiring should call terrainMechFlags() from state/helpers.ts to return the tile-mechanic
-    // flag bitmask for a given cell — used by movement interaction checks.
+    // io/input-context.ts has `() => 0` — a deliberate stub, not a wiring gap.
+    // Domain function IS implemented at state/helpers.ts and tested in movement/map-queries.test.ts.
+    // Same rationale as terrainFlags: buildInputContext does not use these for keyboard dispatch.
+    // Stub is intentional and safe; no fix needed.
 });

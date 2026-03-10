@@ -25,6 +25,8 @@ import { layerWithTMFlag as layerWithTMFlagFn } from "./movement/map-queries.js"
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
 import { itemAtLoc as itemAtLocFn } from "./items/item-inventory.js";
+import { itemName as itemNameFn } from "./items/item-naming.js";
+import { wandTable, staffTable, ringTable, charmTable } from "./globals/item-catalog.js";
 import { backgroundMessageColor } from "./globals/colors.js";
 import { buildMessageFns, buildRefreshDungeonCellFn } from "./io-wiring.js";
 import { TileFlag } from "./types/flags.js";
@@ -45,8 +47,22 @@ import type { CostMapFovContext } from "./movement/cost-maps-fov.js";
  * are stubbed — wired in port-v2-platform.
  */
 export function buildCostMapFovContext(): CostMapFovContext {
-    const { player, rogue, pmap, tmap, floorItems } = getGameState();
+    const { player, rogue, pmap, tmap, floorItems,
+        gameConst, mutablePotionTable, mutableScrollTable, monsterCatalog } = getGameState();
     const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn();
+
+    const namingCtx = {
+        gameConstants: gameConst,
+        depthLevel: rogue.depthLevel,
+        potionTable: mutablePotionTable,
+        scrollTable: mutableScrollTable,
+        wandTable: wandTable as unknown as import("./types/types.js").ItemTable[],
+        staffTable: staffTable as unknown as import("./types/types.js").ItemTable[],
+        ringTable: ringTable as unknown as import("./types/types.js").ItemTable[],
+        charmTable: charmTable as unknown as import("./types/types.js").ItemTable[],
+        playbackOmniscience: rogue.playbackOmniscience,
+        monsterClassName: (classId: number) => monsterCatalog[classId]?.monsterName ?? "creature",
+    };
 
     const cellHasTerrainFlag = (pos: Pos, flags: number) =>
         cellHasTerrainFlagFn(pmap, pos, flags);
@@ -91,7 +107,9 @@ export function buildCostMapFovContext(): CostMapFovContext {
 
         // ── Item helpers ──────────────────────────────────────────────────────
         itemAtLoc: (loc) => itemAtLocFn(loc, floorItems),
-        itemName: (_item, buf) => { buf[0] = "item"; },  // stub
+        itemName: (item, buf, inclDetails, inclArticle) => {
+            buf[0] = itemNameFn(item, inclDetails, inclArticle, namingCtx);
+        },
 
         // ── UI stubs (wired in port-v2-platform) ─────────────────────────────
         messageWithColor: io.messageWithColor,
