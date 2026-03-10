@@ -270,52 +270,54 @@ import type { Color } from "../src/types/types.js";
 // Stub registry — behaviors deferred to port-v2-platform
 // =============================================================================
 
-it.skip("stub: refreshDungeonCell() is a no-op (should redraw one dungeon cell on screen)", () => {
-    // buildDisplayContext().refreshDungeonCell(loc) does nothing.
-    // Real implementation should recompute the cell's appearance and push it
-    // to the canvas/terminal at the correct window coordinates.
+it.skip("stub: refreshDungeonCell() is a no-op in buildDisplayContext() (needs getCellAppearance)", () => {
+    // ui.ts:242 still has () => {} stub.
+    // Real implementation requires the getCellAppearance / dungeon appearance system
+    // to recompute cell visuals; wired via buildRefreshDungeonCellFn() in movement/combat/items.
+    // Deferred until port-v2-platform wires full appearance system into buildDisplayContext().
 });
 
-it.skip("stub: refreshSideBar() is a no-op (should redraw the right-hand entity sidebar)", () => {
-    // buildDisplayContext().refreshSideBar(-1, -1, false) does nothing.
-    // Real implementation should enumerate nearby monsters/items and render
-    // their health bars and names in the 20-column sidebar region.
+it.skip("stub: refreshSideBar() is a no-op in buildDisplayContext() (needs appearance system)", () => {
+    // ui.ts:243 still has () => {} stub.
+    // Wired in combat/movement/items via buildRefreshSideBarFn(); buildDisplayContext() deferred
+    // until port-v2-platform provides the full appearance system.
 });
 
-it.skip("stub: plotCharWithColor() is a no-op (should write a char+colors to screen buffer)", () => {
-    // buildDisplayContext().plotCharWithColor(ch, pos, fg, bg) does nothing.
-    // Real implementation should set the glyph and color at the given window
-    // position in the live display buffer and mark the cell dirty.
+it.skip("stub: plotCharWithColor() requires a rendered display buffer (IO integration)", () => {
+    // C: IO.c plotCharWithColor() — wired in ui.ts:244 via plotCharWithColorFn.
+    // Functional in browser; unit tests lack a rendered display buffer with proper cell state.
+    // IO integration test only; deferred to port-v2-platform.
 });
 
-it.skip("stub: overlayDisplayBuffer() is a no-op (should merge an overlay onto screen)", () => {
-    // buildDisplayContext().overlayDisplayBuffer(dbuf) does nothing.
-    // Real implementation should alpha-blend the overlay cells over the current
-    // screen buffer, applying the opacity field from each cell.
+it.skip("stub: overlayDisplayBuffer() requires a rendered display buffer (IO integration)", () => {
+    // C: IO.c overlayDisplayBuffer() — wired in ui.ts:246 via applyOverlayFn.
+    // Functional in browser; unit tests lack a rendered display buffer for meaningful assertions.
+    // IO integration test only; deferred to port-v2-platform.
 });
 
-it.skip("stub: clearDisplayBuffer() is a no-op (should blank all cells in a buffer)", () => {
-    // buildDisplayContext().clearDisplayBuffer(dbuf) does nothing.
-    // Real implementation should set every cell's character to ' ', zero all
-    // color components, and zero opacity.
+it.skip("stub: clearDisplayBuffer() wired to io/display; full integration test deferred", () => {
+    // C: IO.c clearDisplayBuffer() — wired in ui.ts:249 via clearDisplayBufferFn.
+    // Functional in browser; basic clear already exercised via buildButtonContext smoke tests.
+    // Full integration test (verify all cells blanked) deferred to port-v2-platform.
 });
 
-it.skip("stub: updateFlavorText() is a no-op (should render flavor text at ROWS-2)", () => {
-    // buildDisplayContext().updateFlavorText() does nothing.
-    // Real implementation should recompute the terrain/item flavor string for
-    // the cell under the cursor and render it in the flavor line.
+it.skip("stub: updateFlavorText() is a no-op (deferred — needs CreatureEffectsContext)", () => {
+    // DEFER: port-v2-platform — needs CreatureEffectsContext (getCellAppearance, creature lookup).
+    // buildDisplayContext().updateFlavorText() at ui.ts:251 remains () => {}.
+    // Deferred Phase 7c; flavor text line stays blank until appearance system is wired.
 });
 
-it.skip("stub: waitForAcknowledgment() is a no-op (should block until keypress)", () => {
-    // buildMessageContext().waitForAcknowledgment() does nothing.
-    // Real implementation should await nextBrogueEvent and discard the result,
-    // used to make the player acknowledge --MORE-- before continuing.
+it.skip("stub: waitForAcknowledgment() is a no-op (deferred — async cascade through messages.ts)", () => {
+    // DEFER: port-v2-platform — async cascade through messages.ts required.
+    // Would need nextBrogueEvent wired into buildMessageContext() to function.
+    // buildMessageContext().waitForAcknowledgment() at ui.ts:280 remains () => {}.
+    // --MORE-- prompt never blocks; deferred Phase 7c.
 });
 
-it.skip("stub: flashTemporaryAlert() is a no-op (should show a brief overlay alert)", () => {
-    // buildMessageContext().flashTemporaryAlert(msg, ms) does nothing.
-    // Real implementation should render msg in the message area for `ms`
-    // milliseconds, then restore the previous display state.
+it.skip("stub: flashTemporaryAlert() is a no-op (deferred — needs EffectsContext)", () => {
+    // DEFER: port-v2-platform — needs EffectsContext (getCellAppearance, hiliteCell, pauseAnimation).
+    // buildMessageContext().flashTemporaryAlert() at ui.ts:283 remains () => {}.
+    // Deferred Phase 7c; no temporary overlays until appearance system is wired.
 });
 
 it("buildInventoryContext().message() queues message in archive (Phase 7a)", () => {
@@ -345,21 +347,26 @@ it("buildInventoryContext() item actions wired (Phase 7c)", () => {
     expect(result).toBeInstanceOf(Promise);
 });
 
-it.skip("stub: buildButtonContext().strLenWithoutEscapes() returns s.length (should skip escapes)", () => {
-    // Currently returns the raw string length.
-    // Real implementation should subtract 4 bytes per COLOR_ESCAPE sequence
-    // so that button widths are computed without counting escape chars.
+it("buildButtonContext().strLenWithoutEscapes() skips COLOR_ESCAPE sequences (Phase 9b-4)", () => {
+    // C: Combat.c strLenWithoutEscapes — each escape is 4 bytes (char 25 + 3 data bytes).
+    // Wired via strLenWithoutEscapesFn in ui.ts:530.
+    const ctx = buildButtonContext();
+    expect(ctx.strLenWithoutEscapes("hello")).toBe(5);
+    const esc4 = String.fromCharCode(25, 0, 0, 0);
+    expect(ctx.strLenWithoutEscapes(esc4 + "hello")).toBe(5);
+    expect(ctx.strLenWithoutEscapes("ab" + esc4 + "cd")).toBe(4);
 });
 
 // =============================================================================
 // Stub registry — Buttons.c wiring stubs (Phase 3d, port-v2-audit)
 // =============================================================================
 
-it.skip("stub: initializeButtonState() is a no-op in input context (should delegate to io/buttons initializeButtonState)", () => {
+it.skip("stub: initializeButtonState() is a no-op in input context (permanent — signature mismatch)", () => {
     // C: Buttons.c:175 — initializeButtonState()
-    // io/input-context.ts has a `() => {}` stub; the domain function returns a new
-    // ButtonState rather than mutating the passed state (signature mismatch).
-    // Deferred until the cursor/dialog system needs it explicitly.
+    // io/input-context.ts has () => {} stub. The TS domain function (io/buttons.ts) returns a new
+    // ButtonState rather than mutating a passed-in struct (TS/C signature mismatch).
+    // buttonInputLoop calls it directly so this context slot is never needed.
+    // Permanently acceptable stub — documented in TASKS.md ## Deferred.
 });
 
 it("buttonInputLoop() wired in input context — delegates to io/buttons (Phase 7c)", async () => {
@@ -385,21 +392,32 @@ it("buttonInputLoop() wired in ui/inventory context — delegates to io/buttons 
     expect(chosenButton).toBe(-1);
 });
 
-it.skip("stub: buildButtonContext() color ops are no-ops (should compute button gradients)", () => {
-    // applyColorAverage(), bakeColor(), separateColors(), decodeMessageColor(),
-    // encodeMessageColor() and plotCharToBuffer() are all no-ops or minimal stubs.
-    // Real implementations should use the io-color / io-display math so that
-    // buttons render with correct gradient highlights and hover states.
+it("buildButtonContext() color ops are wired to real io/ implementations (Phase 9b-4)", () => {
+    // applyColorAverage, bakeColor, separateColors, encodeMessageColor, decodeMessageColor,
+    // plotCharToBuffer all wired in ui.ts:527–534.
+    const ctx = buildButtonContext();
+    // applyColorAverage blends base toward target
+    const base: Color = { red: 100, green: 0, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false };
+    const target: Color = { red: 0, green: 0, blue: 100, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false };
+    ctx.applyColorAverage(base, target, 50);
+    expect(base.red).toBe(50);
+    expect(base.blue).toBe(50);
+    // encodeMessageColor produces a 4-byte escape sequence starting with char 25
+    const encoded = ctx.encodeMessageColor(target);
+    expect(encoded.length).toBe(4);
+    expect(encoded.charCodeAt(0)).toBe(25); // COLOR_ESCAPE
+    // strLenWithoutEscapes strips the escape — 4-byte prefix not counted
+    expect(ctx.strLenWithoutEscapes(encoded + "hi")).toBe(2);
 });
 
 // =============================================================================
 // Stub registry — IO.c domain stubs (Phase 3b, port-v2-audit)
 // =============================================================================
 
-it.skip("stub: displayLevel() is a no-op in items.ts and input-context.ts", () => {
-    // C: IO.c:910 — displayLevel()
-    // lifecycle.ts: IMPLEMENTED (Phase 1c). items.ts and input-context.ts still
-    // have `() => {}` stubs — wired in port-v2-platform.
+it.skip("stub: displayLevel() is a no-op in items.ts and input-context.ts (deferred)", () => {
+    // DEFER: port-v2-platform — stubs remain in items.ts and input-context.ts.
+    // C: IO.c:910 — displayLevel(). lifecycle.ts implementation is complete.
+    // Wiring in remaining call sites requires the appearance system to be available.
 });
 
 it("shuffleTerrainColors() populates terrainRandomValues (Phase 7a)", () => {
@@ -455,51 +473,44 @@ it("printSeed() wired: displays seed via message system (Phase 7a)", async () =>
     expect(() => ctx.printSeed()).not.toThrow();
 });
 
-it.skip("stub: displayGrid() is a no-op (should render a debug grid overlay)", () => {
+it.skip("stub: displayGrid() is a no-op (debug overlay — port-v2-platform)", () => {
     // C: IO.c:4339 — displayGrid()
-    // io/input-context.ts:260 has a `() => {}` stub.
-    // Real implementation should draw a visual debug grid over the dungeon map.
+    // input-context.ts:260 has () => {} stub. Debug-only overlay; no gameplay effect.
+    // Deferred to port-v2-platform when full display buffer rendering is available.
 });
 
-it.skip("stub: displayWaypoints() is a no-op (should render waypoint debug overlay)", () => {
+it.skip("stub: displayWaypoints() is a no-op (debug overlay — port-v2-platform)", () => {
     // C: IO.c:2206 — displayWaypoints()
-    // io/input-context.ts:264 has a `() => {}` stub.
-    // Real implementation should draw all waypoint nodes on the dungeon map for
-    // debugging monster pathfinding.
+    // input-context.ts:264 has () => {} stub. Debug-only overlay for pathfinding inspection.
+    // Deferred to port-v2-platform.
 });
 
-it.skip("stub: displayMachines() is a no-op (should render machine region debug overlay)", () => {
+it.skip("stub: displayMachines() is a no-op (debug overlay — port-v2-platform)", () => {
     // C: IO.c:2226 — displayMachines()
-    // io/input-context.ts:263 has a `() => {}` stub.
-    // Real implementation should colour-code dungeon cells by machine membership
-    // for debugging level generation.
+    // input-context.ts:263 has () => {} stub. Debug-only overlay for machine region inspection.
+    // Deferred to port-v2-platform.
 });
 
-it.skip("stub: displayChokeMap() is a no-op (should render choke-point debug overlay)", () => {
+it.skip("stub: displayChokeMap() is a no-op (debug overlay — port-v2-platform)", () => {
     // C: IO.c:2264 — displayChokeMap()
-    // io/input-context.ts:262 has a `() => {}` stub.
-    // Real implementation should visualise the choke-point heat map used during
-    // level generation analysis.
+    // input-context.ts:262 has () => {} stub. Debug-only overlay for choke-point visualization.
+    // Deferred to port-v2-platform.
 });
 
-it.skip("stub: displayLoops() is a no-op (should render loop detection debug overlay)", () => {
+it.skip("stub: displayLoops() is a no-op (debug overlay — port-v2-platform)", () => {
     // C: IO.c:2289 — displayLoops()
-    // io/input-context.ts:261 has a `() => {}` stub.
-    // Real implementation should highlight dungeon cells that participate in
-    // loop structures detected by the architect.
+    // input-context.ts:261 has () => {} stub. Debug-only overlay for loop detection visualization.
+    // Deferred to port-v2-platform.
 });
 
-it.skip("stub: saveRecording() is a no-op (persistence layer not yet implemented)", () => {
-    // C: RogueMain.c — saveRecording() called from gameOver() and victory()
+it.skip("stub: saveRecording() is a no-op (DEFER: port-v2-persistence)", () => {
+    // DEFER: port-v2-persistence — serialise recording buffer to file/browser storage.
+    // C: RogueMain.c — saveRecording() called from gameOver() and victory().
     // lifecycle.ts:buildLifecycleContext() has saveRecording: (_f) => {} stub.
-    // Real implementation should serialise the recording buffer to a file or
-    // browser storage so the player can replay the run. Blocked on the
-    // persistence layer initiative.
 });
 
-it.skip("stub: saveRecordingNoPrompt() is a no-op (persistence layer not yet implemented)", () => {
-    // C: RogueMain.c — saveRecordingNoPrompt() called from gameOver() and victory() in server mode
+it.skip("stub: saveRecordingNoPrompt() is a no-op (DEFER: port-v2-persistence)", () => {
+    // DEFER: port-v2-persistence — silent recording save without player prompt.
+    // C: RogueMain.c — saveRecordingNoPrompt() called from gameOver() and victory() in server mode.
     // lifecycle.ts:buildLifecycleContext() has saveRecordingNoPrompt: (_f) => {} stub.
-    // Real implementation should silently save the recording without prompting
-    // the player. Blocked on the persistence layer initiative.
 });

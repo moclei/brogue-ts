@@ -502,7 +502,9 @@ All in `tests/ui.test.ts`. 2 ACTIVATE, 11 UPDATE, 6 DEFER.
 | 492 | `saveRecording()` | D | port-v2-persistence |
 | 500 | `saveRecordingNoPrompt()` | D | port-v2-persistence |
 
-- [ ] Work through all 19 entries; run `npx vitest run`; commit
+- [x] Work through all 19 entries; run `npx vitest run`; commit
+  - 2 ACTIVATE → passing (strLenWithoutEscapes, buildButtonContext color ops); 11 UPDATE + 6 DEFER → skipped with updated comments
+  - Outcome: 87 files, 2220 pass, 86 skip
 
 ---
 
