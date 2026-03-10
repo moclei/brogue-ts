@@ -186,6 +186,7 @@ describe("updateColors", () => {
 it.skip(
     "startLevel: environment simulation (updateEnvironment loop) is stubbed",
     () => {
+        // UPDATE: known divergence — TS skips while(timeAway--) loop; fix note below.
         // C runs `while (timeAway--) { updateEnvironment(); }` (up to 100 iterations)
         // TS skips this loop entirely — no ctx.updateEnvironment call exists.
         // Result: terrain processes (swamp gas, brimstone, fire spread) do not

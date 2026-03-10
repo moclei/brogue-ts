@@ -452,6 +452,7 @@ describe("redesignInterior", () => {
 // =============================================================================
 
 it.skip("coverage: abortItemsAndMonsters is private; tested only via buildAMachine failure paths", () => {
+    // DEFER: coverage only; tested via buildAMachine failure paths.
     // C: Architect.c:470 — abortItemsAndMonsters(spawnedItems, spawnedMonsters)
     // machines.ts:1819 — private function, not exported.
     // TS implementation VERIFIED MATCH: iterates items (remove from floorItems/packItems,
@@ -460,6 +461,7 @@ it.skip("coverage: abortItemsAndMonsters is private; tested only via buildAMachi
 });
 
 it.skip("coverage: buildAMachine is covered by seed-determinism.test.ts (full digDungeon pipeline)", () => {
+    // DEFER: covered by seed-determinism.test.ts full digDungeon pipeline.
     // C: Architect.c:984 — buildAMachine(bp, originX, originY, requiredFlags, ...)
     // machines.ts:1162 — ~700-line function.
     // TS implementation has a real port. NEEDS-VERIFICATION: seed-determinism tests
@@ -469,6 +471,7 @@ it.skip("coverage: buildAMachine is covered by seed-determinism.test.ts (full di
 });
 
 it.skip("coverage: addMachines is covered by seed-determinism.test.ts; note Bullet Brogue variant gap", () => {
+    // DEFER: covered by seed-determinism.test.ts.
     // C: Architect.c:1732 — addMachines()
     // machines.ts:1852 — NEAR MATCH.
     // DIVERGENCE (minor, variant-specific): C includes a special Bullet Brogue path
@@ -478,12 +481,14 @@ it.skip("coverage: addMachines is covered by seed-determinism.test.ts; note Bull
 });
 
 it.skip("coverage: runAutogenerators is covered by seed-determinism.test.ts", () => {
+    // DEFER: covered by seed-determinism.test.ts.
     // C: Architect.c:1780 — runAutogenerators(buildAreaMachines)
     // machines.ts:1902 — VERIFIED MATCH.
     // Full MachineContext required for direct test; exercised by digDungeon pipeline.
 });
 
 it.skip("coverage: digDungeon is covered by seed-determinism.test.ts; note blob global reset gap", () => {
+    // DEFER: covered by seed-determinism.test.ts.
     // C: Architect.c:2877 — digDungeon()
     // architect.ts:230 — VERIFIED MATCH structurally.
     // MINOR GAP: C resets `topBlobMinX = topBlobMinY = blobWidth = blobHeight = 0` before carving.
@@ -493,6 +498,7 @@ it.skip("coverage: digDungeon is covered by seed-determinism.test.ts; note blob 
 });
 
 it.skip("divergence: refreshWaypoint missing sleeping/immobile/captive monster PDS_FORBIDDEN marking", () => {
+    // UPDATE: missing PDS_FORBIDDEN for sleeping/immobile/captive monsters.
     // C: Architect.c:3014 — refreshWaypoint loops monsters and marks sleeping/immobile/captive
     //   creatures as PDS_FORBIDDEN in the cost map before running Dijkstra.
     // architect.ts:601 — TS skips this loop; comment explains dependency on monsters module.

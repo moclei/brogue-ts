@@ -106,6 +106,7 @@ describe("printBrogueVersion", () => {
 it.skip(
     "initializeRogue: full direct test requires GameInitContext mock (complex orchestrator)",
     () => {
+        // UPDATE: complex orchestrator (~50 context members); indirect coverage via seed-determinism.test.ts.
         // GameInitContext has ~50 context members including RNG, catalog,
         // item generation, equipment, message archive, recording.
         // Direct unit test deferred; seed-determinism.test.ts provides integration coverage.
@@ -122,6 +123,7 @@ it.skip(
 it.skip(
     "freeEverything: full test requires CleanupContext with allocated level/grid data",
     () => {
+        // UPDATE: needs CleanupContext with allocated level/grid data; risk: low.
         // freeEverything iterates levels[0..deepestLevel], frees grids, clears arrays.
         // The domain fn freeEverything in game-cleanup.ts is straightforward; the lifecycle
         // wrapper in lifecycle.ts delegates via buildCleanupContext().
@@ -138,6 +140,7 @@ it.skip(
 it.skip(
     "gameOver (game-lifecycle.ts): full death screen requires IO context mocks",
     () => {
+        // UPDATE: full death screen — needs IO context mocks (nextBrogueEvent, funkyFade, etc.).
         // core.ts:gameOver (sync state: MB_IS_DYING, gameHasEnded) has 5 tests in core.test.ts.
         // game-lifecycle.ts:gameOver (full sequence) needs:
         //   - nextBrogueEvent mock (input loop termination)
@@ -156,6 +159,7 @@ it.skip(
 it.skip(
     "victory (game-lifecycle.ts): full victory screen requires IO + display context mocks",
     () => {
+        // UPDATE: full victory — needs IO + display context mocks.
         // victory() is called when the player escapes the dungeon.
         // Requires: funkyFade, plotCharToBuffer, printString, saveHighScore, saveRecording.
         // superVictory vs normal victory paths both untested.
@@ -258,6 +262,7 @@ describe("welcome", () => {
     });
 
     it.skip("welcome: amulet name is not colorized (color encoding divergence vs C)", () => {
+        // UPDATE: known acceptable divergence — no encodeMessageColor call in TS.
         // C: welcome() calls encodeMessageColor(buf, ..., &itemMessageColor) and
         //    encodeMessageColor(buf, ..., &white) to embed color codes in the message string.
         // TS: welcome() (game-init.ts) just joins the strings — no encodeMessageColor call.
@@ -433,6 +438,7 @@ describe("executeEvent", () => {
     });
 
     it.skip("executeEvent: KEYSTROKE path requires full InputContext mock", () => {
+        // UPDATE: needs full InputContext mock; indirect coverage via io/input-cursor.ts in play.
         // C: executeEvent dispatches KEYSTROKE → executeKeystroke(param1, controlKey, shiftKey).
         // TS: executeEvent → executeKeystroke(ctx, param1, controlKey, shiftKey, openMenu).
         // executeKeystroke requires a full InputContext with rogue, player, items, equipment etc.

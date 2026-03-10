@@ -581,6 +581,7 @@ describe("carveDungeon seed regression", () => {
 // =============================================================================
 
 it.skip("stub: restoreMonster() is a no-op (should restore monsters from a previously visited level)", () => {
+    // DEFER: port-v2-persistence.
     // C: Architect.c:3501 — restoreMonster()
     // architect/architect.ts:758 has an empty stub with a dependency comment.
     // Real implementation should re-create each monster from the level's saved
@@ -588,6 +589,7 @@ it.skip("stub: restoreMonster() is a no-op (should restore monsters from a previ
 });
 
 it.skip("stub: restoreItems() is a no-op (should restore items dropped on a previously visited level)", () => {
+    // DEFER: port-v2-persistence.
     // C: Architect.c:3573 — restoreItems()
     // architect/architect.ts:770 has an empty stub with a dependency comment.
     // Real implementation should re-create each item from the level's saved item
