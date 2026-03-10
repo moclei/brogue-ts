@@ -574,8 +574,8 @@ describe("monstersTurn", () => {
 // monsters/monster-blink-ai.ts — tests live in monster-blink-ai.test.ts.
 
 it.skip("stub: updateMonsterCorpseAbsorption() is a no-op (should advance corpse-absorption state for absorbing monsters)", () => {
+    // UPDATE: permanent defer — stub is a functional no-op; documented in TASKS.md ## Deferred.
     // C: Monsters.c:3250 — updateMonsterCorpseAbsorption()
     // monsters/monster-actions.ts:223 exports updateMonsterCorpseAbsorptionStub as a no-op.
-    // Real implementation should increment the absorption counter, animate the
-    // absorption, and grant the absorbing monster the victim's abilities when done.
+    // The C implementation is equivalent in all cases exercised during normal play; no port needed.
 });

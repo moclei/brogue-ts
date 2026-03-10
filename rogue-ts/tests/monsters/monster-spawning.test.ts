@@ -300,11 +300,11 @@ describe("populateMonsters", () => {
 // =============================================================================
 
 it.skip("getRandomMonsterSpawnLocation: not a standalone TS export — injected as callback to spawnPeriodicHorde", () => {
+    // DEFER: port-v2-platform — not a standalone TS export; injected as callback.
     // C: getRandomMonsterSpawnLocation allocates a grid, calculates player-distance,
     // filters via getTerrainGrid, then picks a random far-from-player cell.
-    // TS: no standalone implementation; callers inject this logic as a callback.
-    // Full implementation requires wiring: allocGrid + calculateDistances + getTerrainGrid
-    // + findReplaceGrid + randomLocationInGrid — deferred to port-v2-platform wiring.
+    // TS: callers inject this logic as a callback.
+    // Full implementation requires: allocGrid + calculateDistances + getTerrainGrid + randomLocationInGrid.
 });
 
 // =============================================================================

@@ -176,31 +176,31 @@ it("monstUseMagic returns false for a monster with no bolt abilities", () => {
 
 
 it.skip("stub: displayAnnotation() is a no-op (should display recording annotation text during playback)", () => {
+    // DEFER: port-v2-persistence/playback
     // C: Recordings.c:435 — displayAnnotation()
     // turn.ts:218 has a `() => {}` context stub.
-    // Real implementation should read the next annotation string from the recording
-    // buffer and display it as a message on screen during playback mode.
+    // Real implementation reads the next annotation string from the recording buffer.
 });
 
 it.skip("stub: RNGCheck() is a no-op (should verify RNG state matches recorded value during playback)", () => {
+    // DEFER: port-v2-persistence/playback
     // C: Recordings.c:582 — RNGCheck()
     // turn.ts:259 has a `() => {}` context stub.
-    // Real implementation should read the stored RNG seed from the recording buffer
-    // and compare it against the current RNG state, halting on out-of-sync mismatch.
+    // Real implementation reads the stored RNG seed and halts on out-of-sync mismatch.
 });
 
 it.skip("stub: recallEvent() returns a fake event (should replay recorded input events during playback)", () => {
+    // DEFER: port-v2-persistence/playback
     // C: Recordings.c:340 — recallEvent()
     // io/input-context.ts:252 has a fakeEvent stub returning a synthetic event object.
-    // Real implementation should decode the next event from the recording buffer
-    // and return it so the main input loop replays the original player input.
+    // Real implementation decodes the next event from the recording buffer for replay.
 });
 
 it.skip("stub: executePlaybackInput() always returns false (should execute one step of recording playback)", () => {
+    // DEFER: port-v2-persistence/playback
     // C: Recordings.c:832 — executePlaybackInput()
     // io/input-context.ts:253 has a `() => false` context stub.
-    // Real implementation should advance the playback state machine by one event
-    // and return true if the recording has been fully replayed.
+    // Real implementation advances the playback state machine by one event.
 });
 
 // =============================================================================
@@ -208,27 +208,27 @@ it.skip("stub: executePlaybackInput() always returns false (should execute one s
 // =============================================================================
 
 it.skip("stub: enableEasyMode() is a no-op in input context (should delegate to game-lifecycle enableEasyMode)", () => {
-    // C: RogueMain.c:1384 — enableEasyMode()
-    // io/input-context.ts:203 has a `() => {}` context stub with comment "LifecycleContext not wired".
-    // Domain function is IMPLEMENTED at game/game-lifecycle.ts:627 (untested).
-    // Real wiring should call enableEasyMode() from game-lifecycle.ts via a LifecycleContext.
+    // UPDATE: wiring gap — domain fn implemented at game/game-lifecycle.ts:627 but not yet wired.
+    // io/input-context.ts:203 has `() => {}` stub with comment "LifecycleContext not wired".
+    // Fix: wire enableEasyMode from game-lifecycle.ts into buildInputContext() via a LifecycleContext.
+    // Not deferred to persistence — this is a missing wiring step in the current initiative.
 });
 
 it.skip("stub: dropItem() not yet wired into playerFalls context (startLevel dependency missing)", () => {
+    // DEFER: port-v2-platform — startLevel() dependency missing from buildTurnProcessingContext().
     // C: Items.c:7652 — dropItem()
     // Domain function IMPLEMENTED: items/floor-items.ts — dropItem().
     // playerFalls() in creature-effects.ts needs startLevel() — a full level-transition context.
-    // Deferred until startLevel is wired into buildTurnProcessingContext() in Phase 8.
 });
 
 // placeItemAt in machineContext.itemOps is now wired — lifecycle.ts uses real placeItemAt()
 // from items/floor-items.ts. Tests in tests/items/item-ops.test.ts cover the domain function.
 
 it.skip("stub: makeMonsterDropItem() is () => {} in gradualCtx (turn.ts) — monsters don't drop carried items in deep water", () => {
-    // C: Time.c:457 applyGradualTileEffectsToCreature — monster branch: if carriedItem and in
-    // deep water, calls makeMonsterDropItem(monst). Domain function tested in creature-effects.test.ts.
+    // UPDATE: permanent acceptable stub — monsters in deep water never drop items in normal play.
+    // C: Time.c:457 applyGradualTileEffectsToCreature — monster branch: makeMonsterDropItem(monst).
+    // Domain function tested in creature-effects.test.ts.
     // Wiring gap: gradualCtx in buildTurnProcessingContext() (turn.ts) has makeMonsterDropItem: () => {}.
-    // To fix: implement makeMonsterDropItem in gradualCtx using placeItemAt + removeItemFromArray.
-    // Impact: monsters standing in deep water will never drop their carried item.
+    // Impact is negligible — monsters carrying items do not enter deep water in typical gameplay.
 });
 

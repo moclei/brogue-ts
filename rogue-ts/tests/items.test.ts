@@ -183,16 +183,20 @@ describe("buildItemHelperContext — context builds without errors", () => {
 // Stub audit: known-incomplete behaviours in buildItemHandlerContext
 // =============================================================================
 
-it.skip("stub: message() is a no-op (should queue a message for display)", () => {
-    // buildItemHandlerContext().message() does nothing.
-    // Real implementation should call the message queue in ui.ts,
-    // rendering the text on the 3-row message area.
+it("buildItemHandlerContext().message() queues message in archive (Phase 1)", () => {
+    // items.ts:256 wires io.message from buildMessageContext() into the item handler context.
+    // Calling message() increments messageState.archivePosition confirming the pipeline is live.
+    const ctx = buildItemHandlerContext();
+    ctx.message("test message", 0);
+    const { messageState } = getGameState();
+    expect(messageState.archivePosition).toBeGreaterThan(0);
 });
 
 it.skip("stub: confirm() always returns true (should prompt player for y/n)", () => {
+    // DEFER: port-v2-platform — deferred Phase 3b.
     // buildItemHandlerContext().confirm() returns true unconditionally.
-    // Real implementation should display a yes/no prompt and wait for keypress.
-    // This means cursed-item warnings are silently bypassed in the wiring phase.
+    // Real implementation requires async confirm dialog via waitForEvent() event bridge.
+    // Cursed-item warnings are silently bypassed until then.
 });
 
 it("promptForItemOfType() returns null with empty pack (real impl, buttonInputLoop deferred)", async () => {
@@ -258,11 +262,10 @@ it("exposeCreatureToFire() sets Burning status on a monster", () => {
 // =============================================================================
 
 it.skip("wiring stub: items.ts chooseTarget() and playerCancelsBlinking() are async stubs (platform IO required)", () => {
-    // chooseTarget domain function is implemented in items/targeting.ts (Phase 1d).
-    // playerCancelsBlinking domain function is in items/targeting.ts (Phase 1c).
+    // DEFER: port-v2-platform — requires async event bridge (moveCursor + confirm via waitForEvent).
+    // chooseTarget domain function is implemented in items/targeting.ts.
+    // playerCancelsBlinking domain function is in items/targeting.ts.
     // Both stubs in items.ts are async but still return stub values.
-    // Full wiring requires platform IO (moveCursor + confirm via waitForEvent).
-    // Wire up in port-v2-platform initiative.
 });
 
 it("swapLastEquipment() does not throw when no swap state exists", () => {
@@ -284,10 +287,10 @@ it("swapLastEquipment() does not throw when no swap state exists", () => {
 // =============================================================================
 
 it.skip("stub: fadeInMonster() is a no-op (should animate a monster appearing on screen)", () => {
+    // DEFER: port-v2-platform — requires canvas animation via the async event bridge.
     // C: Monsters.c:904 — fadeInMonster()
-    // items.ts:206, combat.ts:92, and turn.ts:90 all have `() => {}` context stubs.
-    // Real implementation should render the monster with gradually increasing opacity
-    // over several frames so it visibly materializes rather than appearing instantly.
+    // items.ts:375,423, combat.ts:92, and turn.ts:90 all have `() => {}` context stubs.
+    // Real implementation renders the monster with gradually increasing opacity over several frames.
 });
 
 // =============================================================================
@@ -295,15 +298,15 @@ it.skip("stub: fadeInMonster() is a no-op (should animate a monster appearing on
 // =============================================================================
 
 it.skip("stub: recordKeystrokeSequence() is a no-op (should record a multi-key input sequence for playback)", () => {
+    // DEFER: port-v2-persistence
     // C: Recordings.c:154 — recordKeystrokeSequence()
     // items.ts:194 has a `() => {}` context stub.
-    // Real implementation should append each keystroke in the sequence to the
-    // recording buffer so the full input sequence can be replayed later.
+    // Real implementation appends each keystroke to the recording buffer for playback.
 });
 
 it.skip("stub: recordMouseClick() is a no-op (should record a mouse click event for playback)", () => {
+    // DEFER: port-v2-persistence
     // C: Recordings.c:162 — recordMouseClick()
     // items.ts:195 and movement.ts:457 have `() => {}` context stubs.
-    // Real implementation should append the mouse position and button state to the
-    // recording buffer so click events can be replayed during playback.
+    // Real implementation appends mouse position and button state to the recording buffer.
 });

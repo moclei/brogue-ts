@@ -303,8 +303,8 @@ it("buildMonsterStateContext().openPathBetween uses bolt-geometry (Phase 6)", ()
 // =============================================================================
 
 it.skip("stub: drawManacles() is a no-op (should draw manacle terrain decorations adjacent to a chained monster)", () => {
+    // UPDATE: permanent defer — visual only; documented in TASKS.md ## Deferred.
     // C: Monsters.c:771 — drawManacles()
     // monsters.ts:141 has a `() => {}` context stub.
-    // Real implementation should draw single-cell manacle terrain glyphs on the
-    // wall cells adjacent to a chained monster's starting location.
+    // No gameplay effect; stub is permanently acceptable.
 });
