@@ -54,38 +54,38 @@ function makeCtx(
 // =============================================================================
 
 describe("inscribeItem", () => {
-    it("sets inscription and returns true when player confirms", () => {
+    it("sets inscription and returns true when player confirms", async () => {
         const item = makeItem({ inscription: "" });
         const ctx = makeCtx("holy");
-        const result = inscribeItem(item, ctx);
+        const result = await inscribeItem(item, ctx);
         expect(result).toBe(true);
         expect(item.inscription).toBe("holy");
     });
 
-    it("calls confirmMessages and messageWithColor on success", () => {
+    it("calls confirmMessages and messageWithColor on success", async () => {
         const item = makeItem({ inscription: "" });
         const ctx = makeCtx("sharp");
-        inscribeItem(item, ctx);
+        await inscribeItem(item, ctx);
         expect(ctx.confirmMessages).toHaveBeenCalled();
         expect(ctx.messageWithColor).toHaveBeenCalled();
     });
 
-    it("returns false and leaves inscription unchanged when player cancels", () => {
+    it("returns false and leaves inscription unchanged when player cancels", async () => {
         const item = makeItem({ inscription: "old" });
         const ctx = makeCtx(null);
-        const result = inscribeItem(item, ctx);
+        const result = await inscribeItem(item, ctx);
         expect(result).toBe(false);
         expect(item.inscription).toBe("old");
     });
 
-    it("calls confirmMessages on cancel", () => {
+    it("calls confirmMessages on cancel", async () => {
         const item = makeItem({ inscription: "" });
         const ctx = makeCtx(null);
-        inscribeItem(item, ctx);
+        await inscribeItem(item, ctx);
         expect(ctx.confirmMessages).toHaveBeenCalled();
     });
 
-    it("clears inscription before building the prompt name (so old label doesn't appear)", () => {
+    it("clears inscription before building the prompt name (so old label doesn't appear)", async () => {
         const item = makeItem({ inscription: "previous" });
         let firstSeenInscription: string | null = null;
         const ctx = makeCtx("new", {
@@ -94,28 +94,28 @@ describe("inscribeItem", () => {
                 return "sword";
             },
         });
-        inscribeItem(item, ctx);
+        await inscribeItem(item, ctx);
         // The first itemName call (for the prompt) should see the CLEARED inscription
         expect(firstSeenInscription).toBe("");
     });
 
-    it("uses singular pronoun for quantity 1", () => {
+    it("uses singular pronoun for quantity 1", async () => {
         const item = makeItem({ quantity: 1 });
         const messages: string[] = [];
         const ctx = makeCtx("keen", {
             messageWithColor: (msg) => { messages.push(msg); },
         });
-        inscribeItem(item, ctx);
+        await inscribeItem(item, ctx);
         expect(messages[0]).toMatch(/^it's/);
     });
 
-    it("uses plural pronoun for quantity > 1", () => {
+    it("uses plural pronoun for quantity > 1", async () => {
         const item = makeItem({ quantity: 3 });
         const messages: string[] = [];
         const ctx = makeCtx("keen", {
             messageWithColor: (msg) => { messages.push(msg); },
         });
-        inscribeItem(item, ctx);
+        await inscribeItem(item, ctx);
         expect(messages[0]).toMatch(/^they're/);
     });
 });

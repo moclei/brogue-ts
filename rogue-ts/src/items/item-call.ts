@@ -30,13 +30,14 @@ export interface InscribeContext {
     /**
      * Prompt the player for a short text string.
      * Returns the entered text, or null if cancelled.
+     * May be async (browser text-entry loop) or sync (test mocks).
      */
     getInputTextString(
         prompt: string,
         maxLength: number,
         defaultEntry: string,
         promptSuffix: string,
-    ): string | null;
+    ): string | null | Promise<string | null>;
 
     confirmMessages(): void;
     messageWithColor(msg: string, color: Readonly<Color>, flags: number): void;
@@ -61,7 +62,7 @@ export interface InscribeContext {
  * @param ctx     DI context.
  * @returns       true if the player confirmed; false if they cancelled.
  */
-export function inscribeItem(theItem: Item, ctx: InscribeContext): boolean {
+export async function inscribeItem(theItem: Item, ctx: InscribeContext): Promise<boolean> {
     const oldInscription = theItem.inscription;
     theItem.inscription = "";
     const nameOfItem = ctx.itemName(theItem, true, true);
@@ -70,7 +71,7 @@ export function inscribeItem(theItem: Item, ctx: InscribeContext): boolean {
     const promptPrefix = `inscribe: ${nameOfItem} "`;
     const maxLength = Math.min(29, DCOLS - ctx.strLenWithoutEscapes(promptPrefix) - 1);
 
-    const result = ctx.getInputTextString(promptPrefix, maxLength, "", '"');
+    const result = await ctx.getInputTextString(promptPrefix, maxLength, "", '"');
     if (result !== null) {
         theItem.inscription = result;
         ctx.confirmMessages();

@@ -72,13 +72,15 @@ import { itemMagicPolarity as itemMagicPolarityFn } from "./item-generation.js";
 import { coordinatesAreInMap, mapToWindowX, windowToMapX, windowToMapY } from "../globals/tables.js";
 import { randClump, randPercent, randRange } from "../math/rng.js";
 import { playerTurnEnded as playerTurnEndedFn } from "../turn.js";
-import { badMessageColor, red, itemMessageColor } from "../globals/colors.js";
+import { badMessageColor, black, gray, red, white, itemMessageColor } from "../globals/colors.js";
 import { anyoneWantABite as anyoneWantABiteFn } from "../combat/combat-helpers.js";
 import type { CombatHelperContext } from "../combat/combat-helpers.js";
-import { AutoTargetMode, CreatureState, GameMode, StatusEffect } from "../types/enums.js";
+import { AutoTargetMode, CreatureState, DisplayGlyph, EventType, GameMode, StatusEffect } from "../types/enums.js";
 import { TerrainFlag, TileFlag } from "../types/flags.js";
-import { DCOLS } from "../types/constants.js";
+import { COLS, DCOLS, DELETE_KEY, ESCAPE_KEY, MESSAGE_LINES, RETURN_KEY } from "../types/constants.js";
 import type { Color, Creature, Item, ItemTable, Pos, RogueEvent } from "../types/types.js";
+import { printString } from "../io/text.js";
+import { plotCharToBuffer } from "../io/display.js";
 
 // =============================================================================
 // ItemCommandDeps — caller-supplied messaging (avoids circular imports)
@@ -181,6 +183,95 @@ function buildMinCombatDamageCtx(deps: ItemCommandDeps): CombatDamageContext {
         badMessageColor,
         poisonColor: badMessageColor,
     };
+}
+
+// =============================================================================
+// asyncGetInputTextString — async text-entry loop for browser
+// =============================================================================
+
+/**
+ * Show a text-entry prompt in the message area and read keystrokes via
+ * waitForEvent(). Returns the entered string or null if cancelled (Escape).
+ *
+ * Replicates getInputTextString() (IO.c:2720) in non-dialog mode with
+ * TEXT_INPUT_NORMAL bounds (printable ASCII 32–126).
+ *
+ * C: getInputTextString in IO.c
+ */
+async function asyncGetInputTextString(
+    prompt: string,
+    maxLength: number,
+    defaultEntry: string,
+    promptSuffix: string,
+): Promise<string | null> {
+    const { displayBuffer } = getGameState();
+    const SPACE = 32;
+    const TILDE = 126;
+    const BACKSPACE = 8;
+
+    // Capitalize and show prompt in the message area (mirrors temporaryMessage)
+    const text = prompt.charAt(0).toUpperCase() + prompt.slice(1);
+    for (let row = 0; row < MESSAGE_LINES; row++) {
+        for (let col = 0; col < DCOLS; col++) {
+            plotCharToBuffer(SPACE as DisplayGlyph, mapToWindowX(col), row, black, black, displayBuffer);
+        }
+    }
+    printString(text, mapToWindowX(0), MESSAGE_LINES - 1, white, black, displayBuffer);
+
+    // Cursor position is immediately after the visible prompt text
+    const promptVisLen = text.replace(/\x19[\s\S]{3}/g, "").length;
+    const baseX = mapToWindowX(promptVisLen);
+    const y = MESSAGE_LINES - 1;
+    const actualMaxLength = Math.min(maxLength, COLS - baseX);
+    const promptSuffixLen = promptSuffix.length;
+
+    // Initialise input buffer from defaultEntry
+    const inputChars: number[] = new Array(actualMaxLength).fill(SPACE);
+    let charNum = 0;
+    if (defaultEntry) {
+        const take = Math.min(defaultEntry.length, actualMaxLength);
+        for (let i = 0; i < take; i++) { inputChars[i] = defaultEntry.charCodeAt(i); }
+        printString(defaultEntry.substring(0, take), baseX, y, white, black, displayBuffer);
+        charNum = take;
+    }
+
+    const suffix = promptSuffix || " ";
+
+    for (;;) {
+        // Render cursor: suffix in gray, first char inverted (black on white)
+        printString(suffix, baseX + charNum, y, gray, black, displayBuffer);
+        plotCharToBuffer(
+            (suffix.charCodeAt(0) || SPACE) as DisplayGlyph,
+            baseX + charNum, y, black, white, displayBuffer,
+        );
+        commitDraws();
+
+        let event: RogueEvent;
+        try { event = await waitForEvent(); } catch { return null; }
+        if (event.eventType !== EventType.Keystroke) continue;
+        const keystroke = event.param1;
+
+        if ((keystroke === DELETE_KEY || keystroke === BACKSPACE) && charNum > 0) {
+            printString(suffix, baseX + charNum - 1, y, gray, black, displayBuffer);
+            plotCharToBuffer(
+                SPACE as DisplayGlyph,
+                baseX + charNum + suffix.length - 1, y, black, black, displayBuffer,
+            );
+            charNum--;
+            inputChars[charNum] = SPACE;
+        } else if (keystroke >= SPACE && keystroke <= TILDE) {
+            inputChars[charNum] = keystroke;
+            plotCharToBuffer(keystroke as DisplayGlyph, baseX + charNum, y, white, black, displayBuffer);
+            if (charNum < actualMaxLength - promptSuffixLen) {
+                printString(suffix, baseX + charNum + 1, y, gray, black, displayBuffer);
+                charNum++;
+            }
+        } else if (keystroke === RETURN_KEY) {
+            return String.fromCharCode(...inputChars.slice(0, charNum));
+        } else if (keystroke === ESCAPE_KEY) {
+            return null;
+        }
+    }
 }
 
 // =============================================================================
@@ -431,10 +522,9 @@ export function buildCallCommandFn(
 
         const namingCtx = buildNamingCtx();
 
-        const confirmed = inscribeItem(item, {
+        const confirmed = await inscribeItem(item, {
             itemName: (i, details, article) => itemNameFn(i, details, article, namingCtx),
-            // getInputTextString: stub — Phase 2 (async event bridge needed for text entry loop)
-            getInputTextString: () => null,
+            getInputTextString: asyncGetInputTextString,
             confirmMessages: deps.confirmMessages,
             messageWithColor: (msg, color, flags) => deps.messageWithColor(msg, color, flags),
             strLenWithoutEscapes: (s) => s.replace(/\x19[\s\S]{3}/g, "").length,
@@ -442,7 +532,7 @@ export function buildCallCommandFn(
         });
 
         if (confirmed) {
-            playerTurnEndedFn();
+            await playerTurnEndedFn();
         }
     };
 }
