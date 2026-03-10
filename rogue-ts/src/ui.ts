@@ -36,7 +36,7 @@ import { EventType, DisplayGlyph, ItemCategory } from "./types/enums.js";
 import { ItemFlag, ButtonFlag } from "./types/flags.js";
 import {
     COLS, ROWS, INTERFACE_OPACITY, KEYBOARD_LABELS,
-    APPLY_KEY, EQUIP_KEY, UNEQUIP_KEY, DROP_KEY, THROW_KEY, RELABEL_KEY,
+    APPLY_KEY, EQUIP_KEY, UNEQUIP_KEY, DROP_KEY, THROW_KEY, RELABEL_KEY, CALL_KEY,
     UP_KEY, DOWN_KEY, UP_ARROW, DOWN_ARROW, NUMPAD_8, NUMPAD_2,
 } from "./types/constants.js";
 import type { ItemTable } from "./types/types.js";
@@ -75,6 +75,7 @@ import {
     confirmMessages as confirmMessagesFn,
 } from "./io/messages.js";
 import { buildThrowCommandFn, buildCallCommandFn } from "./items/item-commands.js";
+import { itemCanBeCalled } from "./items/item-utils.js";
 import type { MessageContext as SyncMessageContext } from "./io/messages-state.js";
 import type { InventoryContext as FullInventoryContext } from "./io/inventory.js";
 
@@ -427,6 +428,9 @@ export function buildInventoryContext(): FullInventoryContext {
                 bs.push(mkBtn(`   ${keyEsc}d${whiteEsc}rop    `, DROP_KEY));
                 bs.push(mkBtn(`   ${keyEsc}t${whiteEsc}hrow   `, THROW_KEY));
                 if (KEYBOARD_LABELS) {
+                    if (itemCanBeCalled(theItem)) {
+                        bs.push(mkBtn(`   ${keyEsc}c${whiteEsc}all    `, CALL_KEY));
+                    }
                     bs.push(mkBtn(`  ${keyEsc}R${whiteEsc}elabel  `, RELABEL_KEY));
                 }
                 return bs;

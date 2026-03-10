@@ -48,6 +48,7 @@ import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
     cellHasTMFlag as cellHasTMFlagFn,
 } from "../state/helpers.js";
+import { removeItemFromArray } from "./item-inventory.js";
 import { layerWithTMFlag as layerWithTMFlagFn } from "../movement/map-queries.js";
 import {
     monstersAreTeammates as monstersAreTeammatesFn,
@@ -205,7 +206,7 @@ export function buildThrowCommandFn(
     return async (item, _confirmed) => {
         if (!item) return;
 
-        const { rogue, player, pmap, monsters, floorItems, mutablePotionTable, gameConst } = getGameState();
+        const { rogue, player, pmap, monsters, floorItems, packItems, mutablePotionTable, gameConst } = getGameState();
 
         const cellHasTerrainFlag = (loc: Pos, flags: number) => cellHasTerrainFlagFn(pmap, loc, flags);
         const cellHasTMFlag = (loc: Pos, flag: number) => cellHasTMFlagFn(pmap, loc, flag);
@@ -400,6 +401,12 @@ export function buildThrowCommandFn(
 
         rogue.lastItemThrown = item;
         await throwItem(item, player, target, DCOLS, throwCtx);
+        // Remove or decrement from pack (C: throwCommand:6379 — done after throwItem returns)
+        if (item.quantity > 1) {
+            item.quantity--;
+        } else {
+            removeItemFromArray(item, packItems);
+        }
         playerTurnEndedFn();
     };
 }
