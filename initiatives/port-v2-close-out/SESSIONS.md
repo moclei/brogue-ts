@@ -13,6 +13,7 @@ New sessions: read the Bug Tracker table first, then the last session entry.
 | B2 | Item not removed from inventory after throwing | P1 | FIXED | buildThrowCommandFn: added packItems destructure + removeItemFromArray after throwItem returns |
 | B3 | "Call" label shows "Relabel" for unidentified items | P2 | FIXED | ui.ts actionButtons missing CALL_KEY button; added with itemCanBeCalled guard |
 | B4 | Fog ghost — picked-up item stays visible under fog of war | P3 | OPEN | Dungeon memory not updated on item pickup; clears on direct LOS |
+| B5 | "Call" dialog does nothing — keystrokes fall through to game | P2 | OPEN | getInputTextString stubbed to return null; needs async char-by-char text entry loop |
 
 ---
 
