@@ -147,19 +147,31 @@ that must become async. If both cascades together would exceed 60% context, comp
 
 ---
 
-## Phase 4: Light.c audit
+## Phase 4: Light.c audit ✓ DONE
 
-- [ ] Read `docs/audit/gaps-Light.md` — identify the 5 NEEDS-VERIFICATION functions
-      (if the file does not exist, search `docs/audit/` for the correct gap file)
-- [ ] For each of the 5 functions:
-  - [ ] Read C source in `src/brogue/Light.c`
-  - [ ] Read the TS port in `rogue-ts/src/`
-  - [ ] Confirm match; OR document divergence and fix it
-  - [ ] Add a direct unit test if none exists
-        OR add a test.skip with a description if the divergence is acceptable
-- [ ] Run `npx vitest run` — confirm no regressions; record pass/skip counts
-- [ ] Commit all changes
-- [ ] Generate handoff prompt:
+- [x] Read `docs/audit/gaps-Light.md` — identified 5 NEEDS-VERIFICATION functions
+- [x] For each of the 5 functions:
+  - [x] Read C source in `src/brogue/Light.c`
+  - [x] Read the TS port in `rogue-ts/src/light/`
+  - [x] Confirm match; OR document divergence and fix it
+  - [x] Added direct unit tests — new file `rogue-ts/tests/light-verification.test.ts` (18 tests)
+
+Audit findings (all 5 MATCH C source — no fixes needed):
+
+1. `updateMinersLightRadius` — MATCH. BigInt arithmetic faithfully mirrors C fixpt math.
+2. `updateLighting` — MATCH with acceptable simplification: C assigns pointers to global
+   color constants; TS copies them (`{ ...playerInvisibleColor }`). Read-only after
+   assignment, so functionally equivalent. Creature iteration order is preserved.
+3. `createFlare` — MATCH. `rogue.flares.push()` replaces C's manual realloc;
+   `newFlare` deep-copies light source (C stores pointer to catalog) — equivalent
+   since catalog is read-only.
+4. `drawFlareFrame` — MATCH. `Math.floor` where C uses integer truncation — equivalent.
+5. `animateFlares` — MATCH. C's `brogueAssert` omitted (no assertion system in TS).
+   All loop logic, lighting backup/restore, and fast-forward behavior are correct.
+
+- [x] Run `npx vitest run` — 88 files, 2242 pass, 82 skip — no regressions (+18 new tests)
+- [x] Commit all changes
+- [x] Generate handoff prompt:
   ```
   Continue port-v2-close-out. Read: .context/PROJECT.md, initiatives/port-v2-close-out/BRIEF.md, PLAN.md, TASKS.md
   Resume at: Phase 5 — browser playtest
