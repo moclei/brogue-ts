@@ -41,12 +41,12 @@ Phase 2 async bridge work. The throwCommand targeting loop is wired and function
 
 - [x] Run `npx vitest run` — 87 files, 2220 pass, 86 skip — no regressions
 - [x] Commit all changes
-- [ ] Generate handoff prompt:
+- [x] Generate handoff prompt:
   ```
   Continue port-v2-close-out. Read: .context/PROJECT.md, initiatives/port-v2-close-out/BRIEF.md, PLAN.md, TASKS.md
   Resume at: Phase 2 — waitForAcknowledgment + confirm async cascade
   Branch: feat/port-v2-playtest
-  Last commit: [hash]
+  Last commit: 6d5226c
   ```
 
 ---
