@@ -530,7 +530,9 @@ All in `tests/ui.test.ts`. 2 ACTIVATE, 11 UPDATE, 6 DEFER.
 | architect-orchestration.test.ts | 583 | `restoreMonster()` | D | port-v2-persistence |
 | architect-orchestration.test.ts | 590 | `restoreItems()` | D | port-v2-persistence |
 
-- [ ] Work through all 15 entries; run `npx vitest run`; commit
+- [x] Work through all 15 entries; run `npx vitest run`; commit
+  - 0 ACTIVATE; 8 UPDATE + 7 DEFER → skipped with updated comments
+  - Outcome: 87 files, 2220 pass, 86 skip (unchanged)
 
 ---
 
