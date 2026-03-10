@@ -333,21 +333,57 @@ Branch: feat/port-v2-playtest
 - `printCarriedItemDetails` item description — shows name only, not full stats; `itemDetails()` stub
 
 
-## Phase 9: Final stub cleanup
+## Phase 9a: Stub recon + task list (ONE session — read-only, no code changes)
 
-*Convert or close all remaining test.skip entries.*
+*Enumerate and classify every test.skip entry. Output a structured task list for Phase 9b+.*
+*Do NOT activate or edit any tests this session — classification only.*
 
-May spill to a second session if skip count is high.
+98 skips across 87 files is too large to activate in one pass. This session does the
+investigation so that Phase 9b+ sessions have clear, bounded work with no re-investigation.
 
-- [ ] Run `npx vitest run` — record final skip count
-- [ ] For each test.skip: is the function now implemented?
-      - If yes and testable: activate the test
-      - If yes but requires IO mocks: update description to reflect current state
-      - If deliberately deferred (persistence): add "DEFER: port-v2-persistence" note
+- [ ] Run `npx vitest run` — confirm current skip count as baseline
+- [ ] Grep all test files for `test.skip` / `it.skip` / `describe.skip` — collect every entry
+- [ ] For each skip, read enough source to classify it as one of:
+      - **ACTIVATE**: function is now implemented; test should pass; no blocker
+      - **UPDATE**: function implemented but test needs IO mocks / async / browser —
+        leave skipped but rewrite comment to explain why it stays skipped
+      - **DEFER**: belongs to port-v2-persistence, playback, or platform IO —
+        add `// DEFER: port-v2-persistence` (or appropriate tag) note
+- [ ] Write the classified list into `TASKS.md` as Phase 9b tasks, grouped by domain
+      (combat, monsters, items, movement, ui, lifecycle — ~15–20 per batch)
+- [ ] Commit the updated TASKS.md (no test file changes)
+- [ ] Generate handoff prompt for Phase 9b
+
+---
+
+## Phase 9b+: Stub activation — one batch per session
+
+*Work through the classified list from Phase 9a, one domain batch per session.*
+
+### Session protocol — REQUIRED for every Phase 9b+ session
+
+**Take on ONE batch only (~15–20 skips). Do not start a second batch in the same session.**
+Stop, commit, and generate a handoff prompt after completing the batch.
+If a skip turns out to need more investigation than expected, defer it and move on.
+
+1. Pick the next unchecked batch from the list below (added by Phase 9a).
+2. For each ACTIVATE entry: remove `.skip`, run the test, fix if needed.
+3. For each UPDATE entry: rewrite the skip comment only.
+4. For each DEFER entry: add the `// DEFER:` tag only.
+5. Run `npx vitest run` — confirm no regressions before committing.
+6. Mark completed entries in the list below.
+7. Commit all changes.
+8. Generate handoff prompt referencing `TASKS.md` and the latest commit hash.
+
+### Closing tasks (final Phase 9b+ session only — after all batches done)
+
 - [ ] Update `MEMORY.md` — note initiative complete, final test counts
 - [ ] Update `PROJECT.md` — mark `port-v2-playtest` complete; set next as `port-v2-persistence`
-- [ ] Commit final cleanup
-- [ ] Generate closing handoff prompt
+- [ ] Commit and generate closing handoff prompt
+
+### Batches (populated by Phase 9a)
+
+*(Phase 9a will fill this section with the classified skip list, grouped by domain.)*
 
 ---
 
