@@ -76,22 +76,22 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("playerMoves — basic movement via buildMovementContext", () => {
-    it("player moves right one cell: loc.x advances by 1", () => {
+    it("player moves right one cell: loc.x advances by 1", async () => {
         const player = setupPlayer();
         const ctx = buildMovementContext();
 
-        const moved = playerMoves(Direction.Right, ctx);
+        const moved = await playerMoves(Direction.Right, ctx);
 
         expect(moved).toBe(true);
         expect(player.loc.x).toBe(6);
         expect(player.loc.y).toBe(5);
     });
 
-    it("player moves down one cell: loc.y advances by 1", () => {
+    it("player moves down one cell: loc.y advances by 1", async () => {
         const player = setupPlayer();
         const ctx = buildMovementContext();
 
-        const moved = playerMoves(Direction.Down, ctx);
+        const moved = await playerMoves(Direction.Down, ctx);
 
         expect(moved).toBe(true);
         expect(player.loc.x).toBe(5);
@@ -215,10 +215,14 @@ it.skip("DEFER: recordKeystroke() — port-v2-persistence (input recording layer
     // Real implementation belongs to the recordings layer (Recordings.c).
 });
 
-it.skip("DEFER: confirm() always returns true — deferred Phase 3b (sync/async cascade)", () => {
-    // DEFER: deferred Phase 3b — sync/async cascade
-    // PlayerMoveContext.confirm is synchronous; making it async requires a cascading
-    // refactor of playerMoves() and all callers. Deferred to a future initiative.
+it("wired: confirm() shows dialog via buildConfirmFn() — returns false in test context (Escape = No)", async () => {
+    // confirm() wired in buildMovementContext() via buildConfirmFn() (port-v2-close-out Phase 2b).
+    // In test context waitForEvent() throws → nextBrogueEvent falls back to Escape →
+    // button loop selects No (hotkey ESCAPE_KEY) → confirm() returns false.
+    setupPlayer();
+    const ctx = buildMovementContext();
+    const result = await ctx.confirm("Really?", false);
+    expect(result).toBe(false);
 });
 
 it("wired: pickUpItemAt() delegates to pickup domain function (no item on empty cell)", () => {

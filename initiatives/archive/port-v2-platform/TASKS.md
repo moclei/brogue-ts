@@ -62,20 +62,24 @@ Note: source is 1,875 lines; 4-file split required by 600-line hard constraint.
 
 ## Phase 8: Targeting UI Domain Functions
 *Deferred from port-v2-domain-gaps. These require the IO targeting layer (Phase 3) as a base.*
+**COMPLETED in port-v2-verify-mechanics Phases 1a–1d.**
 
-- [ ] Implement `moveCursor` (Items.c:5372) — move targeting reticle one step; wire into io/input-context.ts
-- [ ] Implement `nextTargetAfter` (Items.c:5281) — advance targeting cursor to next visible hostile
-- [ ] Implement `chooseTarget` (Items.c:5607) — full bolt targeting UI loop; returns confirmed target pos
-- [ ] Implement `hiliteTrajectory` (Items.c:~5550) — draw bolt path highlight on dungeon map
-- [ ] Implement `playerCancelsBlinking` (Items.c:6470) — blink targeting cursor loop; returns true on cancel
-- [ ] Implement `inscribeItem` (Items.c:1292) — player item-naming dialog; wire into inventory
-- [ ] Implement `itemCanBeCalled` (Items.c:1314) — predicate for showing "call" option in inventory menu
-- [ ] Remove test.skip entries for all of the above
-- [ ] All files under 600 lines; commit
+- [x] Implement `moveCursor` — verify-mechanics Phase 1b
+- [x] Implement `nextTargetAfter` — verify-mechanics Phase 1b
+- [x] Implement `chooseTarget` — verify-mechanics Phase 1d
+- [x] Implement `hiliteTrajectory` — verify-mechanics Phase 1c
+- [x] Implement `playerCancelsBlinking` — verify-mechanics Phase 1c
+- [x] Implement `inscribeItem` — verify-mechanics Phase 1b
+- [x] Implement `itemCanBeCalled` — verify-mechanics Phase 1b
 
 ## Completion
-- [ ] Game is playable end-to-end in browser
+- [x] Game is playable end-to-end in browser — verified in port-v2-playtest Phase 8
 - [x] No synchronous event polling spin loops
 - [x] All files under 600 lines
-- [ ] All stubs have paired `test.skip` entries
-- [ ] Committed: "feat: port-v2 platform — browser IO and game loop complete"
+- [x] All stubs have paired `test.skip` entries — verified in port-v2-verify-mechanics Phase 6
+- [x] Committed
+
+---
+
+> CLOSED — all phases complete including Phase 8 (completed in port-v2-verify-mechanics).
+> Archived by port-v2-close-out Phase 1a.

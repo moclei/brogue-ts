@@ -76,7 +76,7 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("drinkPotion — strength potion applies to rogue.strength", () => {
-    it("drinking a strength potion increases rogue.strength by 1", () => {
+    it("drinking a strength potion increases rogue.strength by 1", async () => {
         setupPlayer();
         const { rogue, packItems } = getGameState();
         const initialStrength = rogue.strength;
@@ -85,7 +85,7 @@ describe("drinkPotion — strength potion applies to rogue.strength", () => {
         packItems.push(potion);
 
         const ctx = buildItemHandlerContext();
-        const result = drinkPotion(potion, ctx);
+        const result = await drinkPotion(potion, ctx);
 
         expect(result).toBe(true);
         expect(rogue.strength).toBe(initialStrength + 1);
@@ -192,11 +192,14 @@ it("buildItemHandlerContext().message() queues message in archive (Phase 1)", ()
     expect(messageState.archivePosition).toBeGreaterThan(0);
 });
 
-it.skip("stub: confirm() always returns true (should prompt player for y/n)", () => {
-    // DEFER: port-v2-platform — deferred Phase 3b.
-    // buildItemHandlerContext().confirm() returns true unconditionally.
-    // Real implementation requires async confirm dialog via waitForEvent() event bridge.
-    // Cursed-item warnings are silently bypassed until then.
+it("wired: confirm() shows dialog via buildConfirmFn() — returns false in test context (Escape = No)", async () => {
+    // confirm() wired in buildItemHandlerContext() via buildConfirmFn() (port-v2-close-out Phase 2b).
+    // In test context waitForEvent() throws → nextBrogueEvent falls back to Escape →
+    // button loop selects No → confirm() returns false (cursed-item warnings shown correctly in-browser).
+    setupPlayer();
+    const ctx = buildItemHandlerContext();
+    const result = await ctx.confirm("Really?", false);
+    expect(result).toBe(false);
 });
 
 it("promptForItemOfType() returns null with empty pack (real impl, buttonInputLoop deferred)", async () => {

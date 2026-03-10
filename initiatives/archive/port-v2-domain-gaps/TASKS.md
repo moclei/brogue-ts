@@ -211,6 +211,12 @@ Self-contained mechanic; no IO dependencies for core logic. All 4 functions call
 [from: port-v2-fix-rendering] Targeting UI: `hiliteTrajectory`, `moveCursor`,
   `nextTargetAfter`, `chooseTarget`, `playerCancelsBlinking` — IO/UI layer;
   tracked in port-v2-platform TASKS.md Phase 8.
+  **COMPLETED in port-v2-verify-mechanics Phases 1a–1d.**
 
 [from: port-v2-fix-rendering] `inscribeItem`, `itemCanBeCalled` — UI-dependent;
   tracked in port-v2-platform TASKS.md Phase 8.
+  **COMPLETED in port-v2-verify-mechanics Phases 1a–1b.**
+
+---
+
+> CLOSED — all phases complete. Archived by port-v2-close-out Phase 1a.

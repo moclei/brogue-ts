@@ -120,7 +120,7 @@ import { commitDraws } from "./platform.js";
 import type { Creature, Pos, RogueEvent } from "./types/types.js";
 import type { EnvironmentContext } from "./time/environment.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
-import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildGetCellAppearanceFn } from "./io-wiring.js";
+import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildGetCellAppearanceFn, buildConfirmFn } from "./io-wiring.js";
 import { buildWeaponAttackContext } from "./movement-weapon-context.js";
 export { buildWeaponAttackContext };
 
@@ -391,7 +391,7 @@ export function buildMovementContext(): PlayerMoveContext {
         playerTurnEnded: () => playerTurnEndedFn(buildTurnProcessingContext()),
         recordKeystroke: () => {},       // DEFER: port-v2-persistence (input recording layer)
         cancelKeystroke: () => {},       // DEFER: port-v2-persistence (input recording layer)
-        confirm: () => true,             // stub — wired in port-v2-platform
+        confirm: buildConfirmFn(),
 
         // ── Messages (stubs — wired in port-v2-platform) ─────────────────────
         message: io.message,
@@ -503,7 +503,7 @@ export function buildTravelContext(): TravelExploreContext {
             Number(monsterDamageAdjustmentAmountFn(m, player)),
 
         // ── Player movement ───────────────────────────────────────────────────
-        playerMoves: (dir) => playerMovesFn(dir, buildMovementContext()),
+        playerMoves: async (dir) => await playerMovesFn(dir, buildMovementContext()),
 
         // ── Distance / pathfinding ────────────────────────────────────────────
         allocGrid: () => allocGrid(),

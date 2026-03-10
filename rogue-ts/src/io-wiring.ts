@@ -20,7 +20,7 @@ import { monstersAreTeammates, monstersAreEnemies as monstersAreEnemiesFn } from
 import { CreatureState, CreatureMode, StatusEffect } from "./types/enums.js";
 import { exposeCreatureToFire as exposeCreatureToFireFn } from "./time/creature-effects.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
-import { fireForeColor, torchLightColor, badMessageColor } from "./globals/colors.js";
+import { fireForeColor, torchLightColor, badMessageColor, white, yellow, interfaceBoxColor } from "./globals/colors.js";
 import { messageColorFromVictim as messageColorFromVictimFn } from "./io/color.js";
 import type { Creature } from "./types/types.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
@@ -71,14 +71,18 @@ import {
 } from "./globals/item-catalog.js";
 import { charmRechargeDelay as charmRechargeDelayFn } from "./power/power-tables.js";
 import type { MessageContext as SyncMessageContext } from "./io/messages-state.js";
-import { TileFlag } from "./types/flags.js";
+import { TileFlag, ButtonFlag } from "./types/flags.js";
 import { hitProbability, monsterDamageAdjustmentAmount } from "./combat/combat-math.js";
 import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
 import { randPercent } from "./math/rng.js";
 import { encodeMessageColor } from "./io/color.js";
 import { buildResolvePronounEscapesFn } from "./io/text.js";
 import { boltCatalog } from "./globals/bolt-catalog.js";
-import type { Color, Pos, ItemTable, Item } from "./types/types.js";
+import type { Color, Pos, ItemTable, Item, BrogueButton } from "./types/types.js";
+import { COLS, ROWS, KEYBOARD_LABELS, RETURN_KEY, ACKNOWLEDGE_KEY, ESCAPE_KEY } from "./types/constants.js";
+import { printTextBox as printTextBoxFn } from "./io/inventory.js";
+import { initializeButton as initializeButtonFn } from "./io/buttons.js";
+import { saveDisplayBuffer as saveDisplayBufferFn, restoreDisplayBuffer as restoreDisplayBufferFn } from "./io/display.js";
 import type { DisplayGlyph } from "./types/enums.js";
 import type { SidebarContext } from "./io/sidebar-player.js";
 import {
@@ -446,5 +450,55 @@ export function buildPromptForItemOfTypeFn(): (
                 numberOfMatchingPackItemsFn(packItems, cat, req, forbidden),
         } as unknown as PromptItemContext;
         return promptForItemOfTypeFn(category, requiredFlags, forbiddenFlags, prompt, allowInventoryActions, ctx);
+    };
+}
+
+// =============================================================================
+// buildConfirmFn
+// =============================================================================
+
+/**
+ * Returns an async `(prompt, defaultYes) => Promise<boolean>` closure that
+ * shows a Yes/No dialog box and waits for the player's response.
+ *
+ * Mirrors the C `confirm()` in IO.c:2933. Uses `printTextBox` from
+ * io/inventory.ts with the full InventoryContext for button rendering and
+ * input loop.
+ *
+ * Returns true immediately (auto-confirm) during autoplay or playback.
+ */
+export function buildConfirmFn(): (prompt: string, defaultYes: boolean) => Promise<boolean> {
+    return async (prompt: string, _defaultYes: boolean): Promise<boolean> => {
+        const { rogue, displayBuffer } = getGameState();
+        if (rogue.autoPlayingLevel || rogue.playbackMode) return true;
+
+        const whiteEsc = encodeMessageColor(white);
+        const yellowEsc = KEYBOARD_LABELS ? encodeMessageColor(yellow) : encodeMessageColor(white);
+
+        const btn0: BrogueButton = initializeButtonFn();
+        btn0.text = `     ${yellowEsc}Y${whiteEsc}es     `;
+        btn0.hotkey = ["y".charCodeAt(0), "Y".charCodeAt(0), RETURN_KEY];
+        btn0.flags |= ButtonFlag.B_WIDE_CLICK_AREA | ButtonFlag.B_KEYPRESS_HIGHLIGHT;
+
+        const btn1: BrogueButton = initializeButtonFn();
+        btn1.text = `     ${yellowEsc}N${whiteEsc}o      `;
+        btn1.hotkey = ["n".charCodeAt(0), "N".charCodeAt(0), ACKNOWLEDGE_KEY, ESCAPE_KEY];
+        btn1.flags |= ButtonFlag.B_WIDE_CLICK_AREA | ButtonFlag.B_KEYPRESS_HIGHLIGHT;
+
+        const invCtx = buildInventoryContext();
+        const rbuf = saveDisplayBufferFn(displayBuffer);
+        const retVal = await printTextBoxFn(
+            prompt,
+            Math.floor(COLS / 3),
+            Math.floor(ROWS / 3),
+            Math.floor(COLS / 3),
+            white,
+            interfaceBoxColor,
+            invCtx,
+            [btn0, btn1],
+            2,
+        );
+        restoreDisplayBufferFn(displayBuffer, rbuf);
+        return retVal !== -1 && retVal !== 1;
     };
 }

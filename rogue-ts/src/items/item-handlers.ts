@@ -81,7 +81,7 @@ export interface ItemHandlerContext {
     message(msg: string, flags: number): void;
     messageWithColor(msg: string, color: Color, flags: number): void;
     confirmMessages(): void;
-    confirm(prompt: string, defaultYes: boolean): boolean;
+    confirm(prompt: string, defaultYes: boolean): boolean | Promise<boolean>;
     temporaryMessage(msg: string, flags: number): void;
     printString(s: string, x: number, y: number, fg: Color, bg: Color, grid: null): void;
 
@@ -403,16 +403,16 @@ export function magicCharDiscoverySuffix(
  * Port of C `eat()`.
  * The player eats the given food item.
  */
-export function eat(theItem: Item, recordCommands: boolean, ctx: ItemHandlerContext): boolean {
+export async function eat(theItem: Item, recordCommands: boolean, ctx: ItemHandlerContext): Promise<boolean> {
     if (!(theItem.category & ItemCategory.FOOD)) return false;
 
     if (STOMACH_SIZE - ctx.player.status[StatusEffect.Nutrition]
         < ctx.foodTable[theItem.kind].power) {
         const foodName = theItem.kind === FoodKind.Ration ? "food" : "mango";
-        if (!ctx.confirm(
+        if (!(await ctx.confirm(
             `You're not hungry enough to fully enjoy the ${foodName}. Eat it anyway?`,
             false,
-        )) {
+        ))) {
             return false;
         }
     }
@@ -454,7 +454,7 @@ export async function readScroll(theItem: Item, ctx: ItemHandlerContext): Promis
         const prompt = scrollKind.identified
             ? `Really read a scroll of ${scrollKind.name}?`
             : "Really read a cursed scroll?";
-        if (!ctx.confirm(prompt, false)) {
+        if (!(await ctx.confirm(prompt, false))) {
             return false;
         }
     }
@@ -800,7 +800,7 @@ export async function readScroll(theItem: Item, ctx: ItemHandlerContext): Promis
  * Port of C `drinkPotion()`.
  * The player drinks a potion. Returns true if consumed.
  */
-export function drinkPotion(theItem: Item, ctx: ItemHandlerContext): boolean {
+export async function drinkPotion(theItem: Item, ctx: ItemHandlerContext): Promise<boolean> {
     const potionKind = ctx.potionTable[theItem.kind];
 
     // Warn about known-cursed potions
@@ -810,7 +810,7 @@ export function drinkPotion(theItem: Item, ctx: ItemHandlerContext): boolean {
         const prompt = potionKind.identified
             ? `Really drink a potion of ${potionKind.name}?`
             : "Really drink a cursed potion?";
-        if (!ctx.confirm(prompt, false)) return false;
+        if (!(await ctx.confirm(prompt, false))) return false;
     }
 
     ctx.confirmMessages();
@@ -1249,10 +1249,10 @@ export async function apply(theItem: Item | null, ctx: ItemHandlerContext): Prom
 
     switch (theItem.category) {
         case ItemCategory.FOOD:
-            if (eat(theItem, true, ctx)) break;
+            if (await eat(theItem, true, ctx)) break;
             return;
         case ItemCategory.POTION:
-            if (drinkPotion(theItem, ctx)) break;
+            if (await drinkPotion(theItem, ctx)) break;
             return;
         case ItemCategory.SCROLL:
             if (await readScroll(theItem, ctx)) {

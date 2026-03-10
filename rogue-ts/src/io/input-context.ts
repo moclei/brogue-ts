@@ -422,8 +422,8 @@ export function buildInputContext(): InputContext {
         setGraphicsMode: (m) => m,
 
         // ── Game actions ──────────────────────────────────────────────────────
-        playerMoves: (dir) => { playerMovesFn(dir, moveCtx()); },
-        playerRuns: (dir) => { playerRunsFn(dir, moveCtx() as PlayerRunContext); },
+        playerMoves: async (dir) => { await playerMovesFn(dir, moveCtx()); },
+        playerRuns: async (dir) => { await playerRunsFn(dir, moveCtx() as PlayerRunContext); },
         playerTurnEnded: () => { playerTurnEndedFn(); },
         autoRest: () => { autoRestFn(buildMiscHelpersContext()); },
         manualSearch: () => { manualSearchFn(buildMiscHelpersContext()); },

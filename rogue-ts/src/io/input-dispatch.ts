@@ -455,9 +455,9 @@ export async function executeKeystroke(
         ctx.hideCursor();
         considerCautiousMode(ctx);
         if (controlKey || shiftKey) {
-            ctx.playerRuns(direction);
+            await ctx.playerRuns(direction);
         } else {
-            ctx.playerMoves(direction);
+            await ctx.playerMoves(direction);
         }
         ctx.refreshSideBar(-1, -1, false);
     }

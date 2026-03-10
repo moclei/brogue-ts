@@ -262,3 +262,7 @@ Permanently deferred (persistence layer):
 - `loadSavedGame` — blocked on persistence layer; no filesystem in browser
 - Recordings.c file I/O (28 functions) — deferred to persistence layer initiative
 - SeedCatalog.c (10 functions) — CLI tool, no browser equivalent needed
+
+---
+
+> CLOSED — all phases complete. Archived by port-v2-close-out Phase 1a.

@@ -109,16 +109,18 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 - [x] Commit; generate handoff
 
 ## Phase 5b: NEEDS-VERIFICATION — Monsters.c read-through
+**COMPLETED in port-v2-verify-mechanics Phases 3a + 3b.**
 
-- [ ] Read C source + TS port for each of the 20 NEEDS-VERIFICATION Monsters.c functions
-- [ ] For each: confirm match, fix divergence, or add test.skip with description
-- [ ] Commit; generate handoff
+- [x] Monsters.c query helpers + spawning — verify-mechanics Phase 3a
+- [x] Monsters.c movement AI — verify-mechanics Phase 3b
 
 ## Phase 5c: NEEDS-VERIFICATION — RogueMain.c + remainder
+**COMPLETED in port-v2-verify-mechanics Phases 4a + 4b + 5a + 5b.**
 
-- [ ] Review RogueMain.c 20 NEEDS-VERIFICATION functions
-- [ ] Review remaining entries (MainMenu.c, Architect.c, Buttons.c, etc.)
-- [ ] Commit; generate handoff
+- [x] RogueMain.c lifecycle core — verify-mechanics Phase 4a
+- [x] RogueMain.c init helpers + wiring gaps — verify-mechanics Phase 4b
+- [x] Architect.c terrain helpers + lake/room — verify-mechanics Phase 5a
+- [x] Architect.c top-level orchestrators — verify-mechanics Phase 5b
 
 ---
 
@@ -128,3 +130,9 @@ Each sub-phase is one session's work. Commit and generate a handoff prompt after
 [from: port-v2-audit] Recordings.c file I/O (28 OUT-OF-SCOPE) — deferred to persistence layer initiative.
 [from: port-v2-audit] SeedCatalog.c (10 OUT-OF-SCOPE) — CLI tool, no browser equivalent needed.
 [from: port-v2-fix-rendering Phase 5a] Zap pipeline (`zap` in Items.c; `zap: () => {}` stub in turn.ts) — 14 staff/weapon/ring power-table functions are tested but have no reachable call site until this is ported. Picked up by port-v2-domain-gaps Phases 1b–1d.
+**COMPLETED in port-v2-domain-gaps Phases 1b–1d.**
+
+---
+
+> CLOSED — all phases complete including 5b/5c (completed in port-v2-verify-mechanics).
+> Archived by port-v2-close-out Phase 1a.

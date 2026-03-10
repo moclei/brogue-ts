@@ -1,5 +1,10 @@
 # Port V2 — Playtest
 
+> **CLOSED** — Phases 1–9b complete (87 files, 2220 pass, 86 skip).
+> All gameplay bugs fixed (B1–B11). Stub classification complete.
+> Remaining work (wiring + Light.c audit + playtest) continues in port-v2-close-out.
+> SESSIONS.md preserved as historical bug log — do not archive this initiative.
+
 ## Intent
 
 Make the game mechanically complete and interactively playable in the browser.
