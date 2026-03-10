@@ -206,26 +206,42 @@ describe("buildMonsterStateContext — decrementMonsterStatus", () => {
 // =============================================================================
 
 it.skip("stub: buildMonsterSpawningContext().getQualifyingPathLocNear returns provided loc (stub, not real pathfinding)", () => {
-    // buildMonsterSpawningContext().getQualifyingPathLocNear always returns the provided location.
-    // Real implementation should use Dijkstra-based pathfinding to find an adjacent passable cell.
+    // UPDATE: stub `(loc) => ({x:loc.x,y:loc.y})` in monsters.ts:187.
+    // Note: correctly wired in movement.ts:356 via getQualifyingPathLocNear (Phase 3a).
+    // Spawn context stub deferred to port-v2-platform.
     // Required for spawnMinions() to place followers near the leader.
 });
 
-it.skip("stub: buildMonsterSpawningContext().randomMatchingLocation returns null (stub, not real random search)", () => {
-    // buildMonsterSpawningContext().randomMatchingLocation always returns null.
-    // Real implementation should scan pmap for matching dungeon/liquid/terrain type.
-    // Required for spawnHorde() random location selection when loc is INVALID_POS.
+it("buildMonsterSpawningContext().randomMatchingLocation finds a granite cell (Phase 8)", () => {
+    // wired Phase 8: monsters.ts:188 via randomMatchingLocationFn.
+    // All cells start as GRANITE (initGameState default), so terrainType=GRANITE
+    // matches on the first random attempt — result is always non-null.
+    // The old stub always returned null; the real fn returns a valid pos.
+    const ctx = buildMonsterSpawningContext();
+    const result = ctx.randomMatchingLocation(-1, -1, TileType.GRANITE);
+    expect(result).not.toBeNull();
+    expect(result!.x).toBeGreaterThanOrEqual(0);
+    expect(result!.y).toBeGreaterThanOrEqual(0);
 });
 
-it.skip("stub: buildMonsterSpawningContext().passableArcCount returns 0 (stub, needs arc counting)", () => {
-    // buildMonsterSpawningContext().passableArcCount returns 0 for all positions.
-    // Real implementation should count how many contiguous arcs of passable terrain surround a cell.
-    // Required for spawnHorde() random location selection (avoids dead-end cells).
+it("buildMonsterSpawningContext().passableArcCount counts passable arcs (Phase 8)", () => {
+    // wired Phase 8: monsters.ts:189 via passableArcCountFn.
+    // Default pmap (all GRANITE, all layers) — no passable neighbors → 0 arcs.
+    const ctx = buildMonsterSpawningContext();
+    expect(ctx.passableArcCount(10, 10)).toBe(0);
+    // Set neighbor (11,10) to all-NOTHING layers (passable: NOTHING has no T_PATHING_BLOCKER)
+    // → 1 arc (one contiguous passable region around cell (10,10)).
+    const { pmap } = getGameState();
+    for (let layer = 0; layer < NUMBER_TERRAIN_LAYERS; layer++) {
+        pmap[11][10].layers[layer] = TileType.NOTHING;
+    }
+    const ctx2 = buildMonsterSpawningContext();
+    expect(ctx2.passableArcCount(10, 10)).toBe(1);
 });
 
 it.skip("stub: buildMonsterSpawningContext().buildMachine is a no-op (stub, needs machine builder)", () => {
-    // buildMonsterSpawningContext().buildMachine does nothing.
-    // Real implementation should call buildMachine() from the architect module.
+    // UPDATE: stub `() => {}` in monsters.ts:128. Wired in port-v2-platform.
+    // Real implementation calls buildMachine() from the architect module.
     // Required for hordes with machine > 0 (machine-associated spawns).
 });
 
@@ -247,13 +263,13 @@ it("buildMonsterStateContext().awareOfTarget uses scent map and FOV (Phase 6)", 
 });
 
 it.skip("stub: buildMonsterStateContext().traversiblePathBetween returns false (stub, needs pathfinding)", () => {
-    // buildMonsterStateContext().traversiblePathBetween always returns false.
+    // UPDATE: stub `() => false` in monsters.ts:277. Wired in port-v2-platform.
     // Real implementation runs Dijkstra from monster to target checking avoidedFlags.
     // Required for monsterFleesFrom() distance checks in updateMonsterState().
 });
 
 it.skip("stub: buildMonsterStateContext().extinguishFireOnCreature is a no-op (stub, needs CreatureEffectsContext)", () => {
-    // buildMonsterStateContext().extinguishFireOnCreature does nothing.
+    // UPDATE: stub `() => {}` in monsters.ts:286. Wired in port-v2-platform.
     // Real implementation clears burning status and updates miner's light if player.
     // Required for decrementMonsterStatus() burning cleanup.
 });
@@ -286,8 +302,8 @@ it("buildMonsterStateContext().burnedTerrainFlagsAtLoc checks flammable layers (
 });
 
 it.skip("stub: buildMonsterStateContext().discoveredTerrainFlagsAtLoc returns 0 (needs terrain history)", () => {
-    // buildMonsterStateContext().discoveredTerrainFlagsAtLoc(loc) returns 0.
-    // Real implementation should return the terrain flags seen at loc during
+    // UPDATE: stub `() => 0` in monsters.ts:257. Secrets awareness not wired; deferred to port-v2-platform.
+    // Real implementation returns the terrain flags seen at loc during
     // the current generation for secret-door hunting AI.
 });
 

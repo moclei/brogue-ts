@@ -470,7 +470,9 @@ All in `tests/movement.test.ts`. 8 ACTIVATE, 4 DEFER, 6 UPDATE.
 | monster-ai-movement.test.ts | 478 | `moveAlly`: missing corpse-eating + scent-follow | U | known divergence in two branches |
 | monster-ai-movement.test.ts | 488 | `makeMonsterDropItem`: inline drop vs `getQualifyingPathLocNear` | U | known divergence |
 
-- [ ] Work through all 13 entries; run `npx vitest run`; commit
+- [x] Work through all 13 entries; run `npx vitest run`; commit
+  - 2 ACTIVATE → passing (randomMatchingLocation, passableArcCount); 11 UPDATE → skipped with updated comments
+  - Outcome: 87 files, 2218 pass, 88 skip
 
 ---
 

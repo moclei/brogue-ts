@@ -308,17 +308,14 @@ describe("traversiblePathBetween", () => {
 });
 
 it.skip("divergence: traversiblePathBetween uses Bresenham instead of bolt getLineCoordinates", () => {
+    // UPDATE: known divergence — Bresenham vs bolt getLineCoordinates. Deferred.
     // C (Monsters.c:1994): uses getLineCoordinates(coords, origin, target, &boltCatalog[BOLT_NONE])
-    // which follows the exact same line-drawing algorithm used for bolt projection,
-    // including cases where diagonals interact with corner walls.
+    // which follows the exact same line-drawing algorithm used for bolt projection.
     //
     // TS (monster-actions.ts:333): uses a plain Bresenham raster scan.
-    // The two algorithms can disagree on which intermediate cells a diagonal path visits,
-    // meaning monsterAvoids() checks may fire on different cells.
-    //
-    // Practical impact: minor — affects diagonal pathing near corner walls; monster may
-    // judge a path traversible in TS when C would not (or vice versa).
+    // Practical impact: minor — affects diagonal pathing near corner walls only.
     // Fix: replace Bresenham with getLineCoordinates (needs bolt-geometry dependency).
+    // Deferred to port-v2-platform.
 });
 
 // =============================================================================
@@ -444,52 +441,45 @@ describe("monsterMillAbout", () => {
 // =============================================================================
 
 it.skip("moveAlly: missing monsterHasBoltEffect guard before blink-to-safety in flee branch", () => {
+    // UPDATE: known divergence in flee branch. Deferred to port-v2-platform.
     // C (Monsters.c:3101):
     //   if (monsterHasBoltEffect(monst, BE_BLINKING)
     //       && ((flags & MONST_ALWAYS_USE_ABILITY) || rand_percent(30))
     //       && monsterBlinkToSafety(monst)) { return; }
     //
-    // TS (monster-actions.ts:750):
-    //   if ((monst.info.flags & ctx.MONST_ALWAYS_USE_ABILITY || ctx.rng.randPercent(30))
-    //       && ctx.monsterBlinkToSafety(monst)) { return; }
-    //
-    // The BE_BLINKING check is absent — every ally with ALWAYS_USE_ABILITY will attempt
-    // to blink-to-safety even if the monster has no blinking ability.
+    // TS (monster-actions.ts:750): missing BE_BLINKING guard — every ally with
+    // ALWAYS_USE_ABILITY attempts blink-to-safety even without blinking ability.
     // Fix: add monsterHasBoltEffect(monst, BE_BLINKING) as first guard.
 });
 
 it.skip("moveAlly: attack leash uses distance-to-enemy instead of distance-to-player", () => {
-    // C (Monsters.c:3153):
-    //   if (closestMonster
-    //       && (distanceBetween({x,y}, player.loc) < leashLength
-    //           || (monst->bookkeepingFlags & MB_DOES_NOT_TRACK_LEADER))
-    //       && !(monst->info.flags & MONST_MAINTAINS_DISTANCE)
-    //       && !attackWouldBeFutile(monst, closestMonster)) { ... }
+    // UPDATE: known divergence — attack leash metric. Deferred to port-v2-platform.
+    // C (Monsters.c:3153): leash based on distanceBetween({x,y}, player.loc) with
+    // MB_DOES_NOT_TRACK_LEADER / MONST_MAINTAINS_DISTANCE / attackWouldBeFutile guards.
     //
-    // TS (monster-actions.ts:798):
-    //   if (closestMonster && ctx.distanceBetween(monst.loc, closestMonster.loc) <= leashLength) {
-    //
-    // Multiple divergences: TS uses distance-to-enemy not distance-to-player; missing
-    // MB_DOES_NOT_TRACK_LEADER override; missing MONST_MAINTAINS_DISTANCE; missing
-    // attackWouldBeFutile; missing shortestDistance==1 leash increment.
+    // TS (monster-actions.ts:798): uses distance-to-enemy not distance-to-player;
+    // missing MB_DOES_NOT_TRACK_LEADER, MONST_MAINTAINS_DISTANCE, attackWouldBeFutile,
+    // and shortestDistance==1 leash increment.
     // Fix: rewrite the attack guard to match C exactly.
 });
 
 it.skip("moveAlly: missing corpse-eating branch and scent-follow return-to-leader path", () => {
-    // C (Monsters.c:3208): if targetCorpseLoc is valid → move toward corpse
-    // C (Monsters.c:3222+): else if close to player or MB_DOES_NOT_TRACK_LEADER → mill about
+    // UPDATE: known divergence in two branches. Deferred to port-v2-platform.
+    // C (Monsters.c:3208): targetCorpseLoc → move toward corpse
+    // C (Monsters.c:3222+): close to player / MB_DOES_NOT_TRACK_LEADER → mill about
     // C (Monsters.c:3228+): else → follow via scentDirection, fall back to pathTowardCreature
     //
-    // TS just calls pathTowardCreature(monst, leader) when no enemy is in range.
-    // The ally never eats corpses, never uses scent-map return-to-leader, and never mills
-    // about when close to the player. Fix: port the full three-branch else chain from C.
+    // TS (monster-actions.ts): calls pathTowardCreature(leader) unconditionally —
+    // ally never eats corpses, never mills about near player, never uses scent-map.
+    // Fix: port the full three-branch else chain from C.
 });
 
 it.skip("makeMonsterDropItem: inline drop doesn't use getQualifyingPathLocNear", () => {
+    // UPDATE: known divergence. Deferred to port-v2-platform.
     // C (Monsters.c:4065): getQualifyingPathLocNear(monst->loc, ...) finds a valid
     // path-adjacent cell and places the item there via placeItemAt.
     //
-    // TS (monsters.ts:258): pushes item directly into floorItems without finding a
+    // TS (monsters.ts:~287): pushes item directly into floorItems without finding a
     // valid drop location — item may be placed in a wall or on top of another item.
     // Fix: implement a proper drop-location search via getQualifyingLocNear.
 });

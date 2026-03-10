@@ -289,9 +289,9 @@ describe("populateMonsters", () => {
     });
 
     it.skip("spawns ~6 + randPercent(60) monsters at depth 1 (integration: requires full SpawnContext)", () => {
-        // populateMonsters calls spawnHorde repeatedly; count = min(20, 6 + 3*max(0, depth-amulet)).
-        // Full verification requires initGameState() and a wired buildMonsterSpawningContext().
-        // See monsters.test.ts for integration-level spawning tests.
+        // UPDATE: full integration test requires wired buildMonsterSpawningContext() with real map.
+        // Indirect coverage via seed-determinism.test.ts full digDungeon pipeline.
+        // Full unit test deferred to port-v2-platform.
     });
 });
 
