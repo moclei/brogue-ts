@@ -444,7 +444,9 @@ All in `tests/movement.test.ts`. 8 ACTIVATE, 4 DEFER, 6 UPDATE.
 | monsters/monster-spawning.test.ts | 302 | `getRandomMonsterSpawnLocation` | D | not a standalone TS export — injected as callback |
 | monsters.test.ts | 305 | `drawManacles()` | U | permanent defer — visual only, documented in TASKS.md; update comment |
 
-- [ ] Work through all 16 entries; run `npx vitest run`; commit
+- [x] Work through all 16 entries; run `npx vitest run`; commit
+  - 1 ACTIVATE → passing (message() in items.test.ts); 10 DEFER + 5 UPDATE → skipped with updated comments
+  - Outcome: 87 files, 2216 pass, 90 skip
 
 ---
 
