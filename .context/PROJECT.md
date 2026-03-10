@@ -20,12 +20,11 @@ Port V2 is underway. Full plan: `docs/PORT_V2.md`.
 3. Follow the session protocol described in `PLAN.md` exactly
 4. Work on one phase at a time; stop and commit when the phase is done
 
-**Current active initiative:** `port-v2-playtest`
+**Current active initiative:** `port-v2-persistence`
 
-**Why this initiative:** All domain functions are implemented and verified. The remaining work
-is wiring 48 existing implementations into context builders, porting 31 smaller functions
-(pronoun resolution, pickUpItemAt, display screens, etc.), and doing a full browser playtest.
-After this, only the persistence layer (save/load/recordings) remains.
+**Why this initiative:** All domain functions are wired, all stubs are classified, and a full
+browser playtest was completed. The remaining work is the persistence layer: save/load
+(.broguesave), recordings (.broguerec), playback, and file browser UI.
 
 **Previous initiatives (all complete):**
 - `port-v2-audit` — all gap files in `docs/audit/`, all stubs tracked
@@ -33,6 +32,7 @@ After this, only the persistence layer (save/load/recordings) remains.
 - `port-v2-domain-gaps` — all 72 MISSING core domain functions implemented
 - `port-v2-platform` — browser platform, IO, menus, entry point (Phases 1–6)
 - `port-v2-verify-mechanics` — NEEDS-VERIFICATION review, targeting UI, charmRechargeDelay fix
+- `port-v2-playtest` — wiring, stub classification, browser playtest (87 files, 2220 pass, 86 skip)
 
 First attempt (reference only, do not modify): `ts/`
 

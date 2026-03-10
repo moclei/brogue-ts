@@ -377,9 +377,9 @@ If a skip turns out to need more investigation than expected, defer it and move 
 
 ### Closing tasks (final Phase 9b+ session only — after all batches done)
 
-- [ ] Update `MEMORY.md` — note initiative complete, final test counts
-- [ ] Update `PROJECT.md` — mark `port-v2-playtest` complete; set next as `port-v2-persistence`
-- [ ] Commit and generate closing handoff prompt
+- [x] Update `MEMORY.md` — note initiative complete, final test counts
+- [x] Update `PROJECT.md` — mark `port-v2-playtest` complete; set next as `port-v2-persistence`
+- [x] Commit and generate closing handoff prompt
 
 ### Batches (populated by Phase 9a)
 
@@ -560,7 +560,9 @@ All in `tests/menus/menus.test.ts`. 0 ACTIVATE, 0 UPDATE, 17 DEFER — all port-
 | 221 | `initializeLaunchArguments()` | port-v2-persistence |
 | 229 | `displayAnnotation()` | port-v2-persistence/playback |
 
-- [ ] Add `// DEFER: port-v2-persistence` comment to each; run `npx vitest run`; commit
+- [x] Add `// DEFER: port-v2-persistence` comment to each; run `npx vitest run`; commit
+  - 0 ACTIVATE; 0 UPDATE; 17 DEFER → all skipped with DEFER tags
+  - Outcome: 87 files, 2220 pass, 86 skip (unchanged)
 
 ---
 
