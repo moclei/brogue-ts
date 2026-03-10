@@ -341,18 +341,18 @@ Branch: feat/port-v2-playtest
 98 skips across 87 files is too large to activate in one pass. This session does the
 investigation so that Phase 9b+ sessions have clear, bounded work with no re-investigation.
 
-- [ ] Run `npx vitest run` — confirm current skip count as baseline
-- [ ] Grep all test files for `test.skip` / `it.skip` / `describe.skip` — collect every entry
-- [ ] For each skip, read enough source to classify it as one of:
+- [x] Run `npx vitest run` — confirm current skip count as baseline (2208 pass, 98 skip)
+- [x] Grep all test files for `test.skip` / `it.skip` / `describe.skip` — collect every entry
+- [x] For each skip, read enough source to classify it as one of:
       - **ACTIVATE**: function is now implemented; test should pass; no blocker
       - **UPDATE**: function implemented but test needs IO mocks / async / browser —
         leave skipped but rewrite comment to explain why it stays skipped
       - **DEFER**: belongs to port-v2-persistence, playback, or platform IO —
         add `// DEFER: port-v2-persistence` (or appropriate tag) note
-- [ ] Write the classified list into `TASKS.md` as Phase 9b tasks, grouped by domain
-      (combat, monsters, items, movement, ui, lifecycle — ~15–20 per batch)
-- [ ] Commit the updated TASKS.md (no test file changes)
-- [ ] Generate handoff prompt for Phase 9b
+- [x] Write the classified list into `TASKS.md` as Phase 9b tasks, grouped by domain
+      (movement, items+turn, monsters, ui, lifecycle+architect, menus — 6 batches of 13–19)
+- [x] Commit the updated TASKS.md (no test file changes)
+- [x] Generate handoff prompt for Phase 9b
 
 ---
 
@@ -383,7 +383,173 @@ If a skip turns out to need more investigation than expected, defer it and move 
 
 ### Batches (populated by Phase 9a)
 
-*(Phase 9a will fill this section with the classified skip list, grouped by domain.)*
+Classification key: **A** = ACTIVATE (remove .skip, verify passes), **U** = UPDATE (rewrite comment only), **D** = DEFER (add `// DEFER:` tag)
+
+Baseline: 98 skipped, 2208 passed (87 files). Branch: feat/port-v2-playtest, commit 3f9663a.
+
+---
+
+#### Batch 9b-1: Movement wiring (18 stubs)
+
+All in `tests/movement.test.ts`. 8 ACTIVATE, 4 DEFER, 6 UPDATE.
+
+| Line | Function | Class | Reason |
+|------|----------|-------|--------|
+| 211 | `recordKeystroke()` | D | port-v2-persistence |
+| 217 | `confirm()` | D | deferred Phase 3b — sync/async cascade |
+| 223 | `pickUpItemAt()` | **A** | wired Phase 3a: `movement.ts:373` |
+| 229 | `checkForMissingKeys()` | **A** | wired Phase 3a: `movement.ts:374` |
+| 235 | `promoteTile()` | **A** | wired Phase 3a: `movement.ts:380` |
+| 241 | `refreshDungeonCell()` | **A** | wired Phase 1: `movement.ts:381` via `buildRefreshDungeonCellFn()` |
+| 272 | `getQualifyingPathLocNear()` | **A** | wired Phase 3a: `movement.ts:356` |
+| 278 | `nextBrogueEvent()` | D | sync/async mismatch — travel dialog async refactor |
+| 306 | `getImpactLoc` | U | still stub `(_origin, target) => ({...target})` in `movement-weapon-context.ts:112` |
+| 312 | `canPass` | U | still stub `() => false` in `movement.ts:499` (comment: wired in port-v2-platform) |
+| 318 | `itemName` | **A** | wired `movement.ts:238` via `itemNameFn` |
+| 328 | `plotForegroundChar()` | U | wired in browser; unit test requires rendered display buffer (IO integration) |
+| 334 | `exploreKey()` | **A** | wired Phase 2b: `input-context.ts:465` via `exploreFn` |
+| 345 | `cancelKeystroke()` | D | port-v2-persistence |
+| 356 | `dijkstraScan()` in input ctx | **A** | wired Phase 2b: `input-context.ts:551`; note real `buildInputContext` dijkstraScan wired |
+| 364 | `terrainFlags()` in input ctx | U | domain fn wired in cursor/misc contexts; `buildInputContext()` uses deliberate `() => 0` |
+| 372 | `knownToPlayerAsPassableOrSecretDoor` | U | divergence is a safe over-approximation; no fix needed; update comment |
+| 386 | `terrainMechFlags()` in input ctx | U | same as terrainFlags — deliberate `() => 0` in `buildInputContext()` |
+
+- [ ] Work through all 18 entries; run `npx vitest run`; commit
+
+---
+
+#### Batch 9b-2: Items + Turn + Monster permanents (16 stubs)
+
+6 from `tests/items.test.ts`, 7 from `tests/turn.test.ts`, 3 from monster tests. 1 ACTIVATE, 10 DEFER, 5 UPDATE.
+
+| File | Line | Function | Class | Reason |
+|------|------|----------|-------|--------|
+| items.test.ts | 186 | `message()` | **A** | wired Phase 1: `items.ts` message pipeline |
+| items.test.ts | 192 | `confirm()` | D | deferred Phase 3b — sync `confirm` in movement context |
+| items.test.ts | 260 | `chooseTarget()` / `playerCancelsBlinking()` | D | platform IO — async event bridge required |
+| items.test.ts | 286 | `fadeInMonster()` | D | platform IO — stub in `items.ts:375,423` (comment: wired in port-v2-platform) |
+| items.test.ts | 297 | `recordKeystrokeSequence()` | D | port-v2-persistence |
+| items.test.ts | 304 | `recordMouseClick()` | D | port-v2-persistence |
+| turn.test.ts | 178 | `displayAnnotation()` | D | port-v2-persistence/playback |
+| turn.test.ts | 185 | `RNGCheck()` | D | port-v2-persistence/playback |
+| turn.test.ts | 192 | `recallEvent()` | D | port-v2-persistence/playback |
+| turn.test.ts | 199 | `executePlaybackInput()` | D | port-v2-persistence/playback |
+| turn.test.ts | 210 | `enableEasyMode()` | U | domain fn at `game/game-lifecycle.ts:627`; input-context.ts stub; wiring gap |
+| turn.test.ts | 217 | `dropItem()` | D | `startLevel()` dependency missing from `buildTurnProcessingContext()` |
+| turn.test.ts | 227 | `makeMonsterDropItem()` in gradualCtx | U | permanent acceptable stub — monsters in deep water never drop; update comment to reflect |
+| monsters/monster-actions.test.ts | 576 | `updateMonsterCorpseAbsorption()` | U | permanent defer — documented in TASKS.md `## Deferred` section; update comment |
+| monsters/monster-spawning.test.ts | 302 | `getRandomMonsterSpawnLocation` | D | not a standalone TS export — injected as callback |
+| monsters.test.ts | 305 | `drawManacles()` | U | permanent defer — visual only, documented in TASKS.md; update comment |
+
+- [ ] Work through all 16 entries; run `npx vitest run`; commit
+
+---
+
+#### Batch 9b-3: Monsters — state stubs + AI divergences (13 stubs)
+
+8 from `tests/monsters.test.ts`, 5 from `tests/monsters/monster-ai-movement.test.ts`. 2 ACTIVATE, 11 UPDATE.
+
+| File | Line | Function | Class | Reason |
+|------|------|----------|-------|--------|
+| monsters.test.ts | 208 | `getQualifyingPathLocNear` in spawn ctx | U | still stub `(loc) => ({x:loc.x,y:loc.y})` in `monsters.ts:187`; note wired correctly in `movement.ts` |
+| monsters.test.ts | 214 | `randomMatchingLocation` in spawn ctx | **A** | wired Phase 8: `monsters.ts:188` via `randomMatchingLocationFn` |
+| monsters.test.ts | 220 | `passableArcCount` in spawn ctx | **A** | wired Phase 8: `monsters.ts:189` via `passableArcCountFn` |
+| monsters.test.ts | 226 | `buildMachine` in spawn ctx | U | still stub `() => {}` in `monsters.ts:128` (comment: wired in port-v2-platform) |
+| monsters.test.ts | 249 | `traversiblePathBetween` in state ctx | U | still stub `() => false` in `monsters.ts:277`; note port-v2-platform wiring |
+| monsters.test.ts | 255 | `extinguishFireOnCreature` in state ctx | U | still stub `() => {}` in `monsters.ts:286` (comment: wired in port-v2-platform) |
+| monsters.test.ts | 288 | `discoveredTerrainFlagsAtLoc` in state ctx | U | still stub `() => 0` in `monsters.ts:257`; secrets awareness not wired |
+| monsters/monster-spawning.test.ts | 291 | full spawn integration test | U | requires full `SpawnContext`; indirect coverage via `seed-determinism.test.ts` |
+| monster-ai-movement.test.ts | 310 | `traversiblePathBetween` uses Bresenham | U | known divergence — Bresenham vs bolt `getLineCoordinates`; harmless |
+| monster-ai-movement.test.ts | 446 | `moveAlly`: missing `monsterHasBoltEffect` guard | U | known divergence in flee branch |
+| monster-ai-movement.test.ts | 461 | `moveAlly`: attack leash metric | U | known divergence — distance-to-enemy vs distance-to-player |
+| monster-ai-movement.test.ts | 478 | `moveAlly`: missing corpse-eating + scent-follow | U | known divergence in two branches |
+| monster-ai-movement.test.ts | 488 | `makeMonsterDropItem`: inline drop vs `getQualifyingPathLocNear` | U | known divergence |
+
+- [ ] Work through all 13 entries; run `npx vitest run`; commit
+
+---
+
+#### Batch 9b-4: UI display stubs (19 stubs)
+
+All in `tests/ui.test.ts`. 2 ACTIVATE, 11 UPDATE, 6 DEFER.
+
+| Line | Function | Class | Reason |
+|------|----------|-------|--------|
+| 273 | `refreshDungeonCell()` in `buildDisplayContext()` | U | wired via `buildRefreshDungeonCellFn()` in movement/combat/items; `ui.ts:242` still `() => {}` (needs appearance system) |
+| 279 | `refreshSideBar()` in `buildDisplayContext()` | U | same — `ui.ts:278` still `() => {}`; wired elsewhere |
+| 285 | `plotCharWithColor()` | U | IO integration — no display buffer in unit tests |
+| 291 | `overlayDisplayBuffer()` | U | IO integration |
+| 297 | `clearDisplayBuffer()` | U | IO integration |
+| 303 | `updateFlavorText()` | D | deferred Phase 7c — needs `CreatureEffectsContext` |
+| 309 | `waitForAcknowledgment()` | D | deferred Phase 7c — async cascade through `messages.ts` |
+| 315 | `flashTemporaryAlert()` | D | deferred Phase 7c — needs `EffectsContext` |
+| 348 | `strLenWithoutEscapes()` | **A** | wired in `ui.ts:358` via `strLenWithoutEscapesFn`; test description stale |
+| 358 | `initializeButtonState()` | U | permanent defer — documented in TASKS.md `## Deferred`; update comment |
+| 388 | `buildButtonContext()` color ops | **A** | wired in `ui.ts:354-362` — `applyColorAverage`, `bakeColor`, `separateColors`, `encodeMessageColor`, `decodeMessageColor`, `plotCharToBuffer` all real |
+| 399 | `displayLevel()` in items + input-context | D | stubs remain in `items.ts` + `input-context.ts`; `lifecycle.ts` impl is complete |
+| 458 | `displayGrid()` | U | debug overlay — `input-context.ts:260` stub; update comment (debug-only, port-v2-platform) |
+| 464 | `displayWaypoints()` | U | debug overlay — same |
+| 471 | `displayMachines()` | U | debug overlay — same |
+| 478 | `displayChokeMap()` | U | debug overlay — same |
+| 485 | `displayLoops()` | U | debug overlay — same |
+| 492 | `saveRecording()` | D | port-v2-persistence |
+| 500 | `saveRecordingNoPrompt()` | D | port-v2-persistence |
+
+- [ ] Work through all 19 entries; run `npx vitest run`; commit
+
+---
+
+#### Batch 9b-5: Game lifecycle + architect coverage (15 stubs)
+
+6 from `tests/game.test.ts`, 1 from `tests/game/game-level.test.ts`, 6 from `tests/architect-level-setup.test.ts`, 2 from `tests/architect-orchestration.test.ts`. 0 ACTIVATE, 8 UPDATE, 7 DEFER.
+
+| File | Line | Function | Class | Reason |
+|------|------|----------|-------|--------|
+| game.test.ts | 106 | `initializeRogue` | U | complex orchestrator (~50 context members); indirect coverage via `seed-determinism.test.ts`; update comment |
+| game.test.ts | 122 | `freeEverything` | U | needs `CleanupContext` with allocated level/grid data; risk: low |
+| game.test.ts | 138 | `gameOver` | U | full death screen — needs IO context mocks (`nextBrogueEvent`, `funkyFade`, etc.) |
+| game.test.ts | 156 | `victory` | U | full victory — needs IO + display context mocks |
+| game.test.ts | 260 | `welcome: amulet name not colorized` | U | known acceptable divergence — no `encodeMessageColor` call in TS; update comment |
+| game.test.ts | 435 | `executeEvent: KEYSTROKE path` | U | needs full `InputContext` mock; indirect coverage via `io/input-cursor.ts` in play |
+| game/game-level.test.ts | 186 | `startLevel: updateEnvironment loop` | U | known divergence — TS skips `while (timeAway--)` loop; fix note in comment |
+| architect-level-setup.test.ts | 454 | `abortItemsAndMonsters` | D | coverage only; tested via `buildAMachine` failure paths |
+| architect-level-setup.test.ts | 462 | `buildAMachine` | D | covered by `seed-determinism.test.ts` full `digDungeon` pipeline |
+| architect-level-setup.test.ts | 471 | `addMachines` | D | covered by `seed-determinism.test.ts` |
+| architect-level-setup.test.ts | 480 | `runAutogenerators` | D | covered by `seed-determinism.test.ts` |
+| architect-level-setup.test.ts | 486 | `digDungeon` | D | covered by `seed-determinism.test.ts` |
+| architect-level-setup.test.ts | 495 | `refreshWaypoint` divergence | U | missing `PDS_FORBIDDEN` for sleeping/immobile/captive monsters; update comment |
+| architect-orchestration.test.ts | 583 | `restoreMonster()` | D | port-v2-persistence |
+| architect-orchestration.test.ts | 590 | `restoreItems()` | D | port-v2-persistence |
+
+- [ ] Work through all 15 entries; run `npx vitest run`; commit
+
+---
+
+#### Batch 9b-6: Menus persistence (17 stubs)
+
+All in `tests/menus/menus.test.ts`. 0 ACTIVATE, 0 UPDATE, 17 DEFER — all port-v2-persistence.
+
+| Line | Function | DEFER reason |
+|------|----------|--------------|
+| 111 | `saveGameNoPrompt()` | port-v2-persistence |
+| 117 | `loadSavedGame()` | port-v2-persistence |
+| 123 | `saveRecordingNoPrompt()` | port-v2-persistence |
+| 128 | `openFile()` | port-v2-persistence |
+| 138 | `flushBufferToFile()` | port-v2-persistence |
+| 145 | `initRecording()` | port-v2-persistence |
+| 152 | `pausePlayback()` | port-v2-persistence |
+| 159 | `getAvailableFilePath()` | port-v2-persistence |
+| 166 | `characterForbiddenInFilename()` | port-v2-persistence |
+| 173 | `saveGame()` | port-v2-persistence |
+| 184 | `initializeGameVariant()` | port-v2-persistence |
+| 192 | `executeEvent()` in menus ctx | port-v2-persistence/playback |
+| 200 | `listFiles()` | port-v2-persistence |
+| 207 | `loadRunHistory()` | port-v2-persistence |
+| 214 | `saveResetRun()` | port-v2-persistence |
+| 221 | `initializeLaunchArguments()` | port-v2-persistence |
+| 229 | `displayAnnotation()` | port-v2-persistence/playback |
+
+- [ ] Add `// DEFER: port-v2-persistence` comment to each; run `npx vitest run`; commit
 
 ---
 
