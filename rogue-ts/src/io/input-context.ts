@@ -92,6 +92,7 @@ import { buttonInputLoop as buttonInputLoopFn, initializeButton as initializeBut
 import { equip as equipFn, unequip as unequipFn, drop as dropFn, relabel as relabelFn } from "./inventory-actions.js";
 import { buildButtonContext, buildInventoryContext, buildMessageContext } from "../ui.js";
 import { displayInventory as displayInventoryFn } from "./inventory-display.js";
+import { buildThrowCommandFn, buildCallCommandFn } from "../items/item-commands.js";
 import { TURNS_FOR_FULL_REGEN, REST_KEY, SEARCH_KEY, DCOLS, DROWS } from "../types/constants.js";
 import { moveCursor as moveCursorFn, nextTargetAfter as nextTargetAfterFn } from "./cursor-move.js";
 import { commitDraws, waitForEvent } from "../platform.js";
@@ -325,6 +326,11 @@ export function buildInputContext(): InputContext {
 
     const refreshSideBarFn = buildRefreshSideBarFn();
     const io = buildMessageFns();
+    const itemCmdDeps = {
+        message: (msg: string, flags: number) => io.message(msg, flags),
+        messageWithColor: (msg: string, color: Readonly<Color> | null, flags: number) => io.messageWithColor(msg, color, flags),
+        confirmMessages: () => io.confirmMessages(),
+    };
 
     return {
         // ── State ─────────────────────────────────────────────────────────────
@@ -430,9 +436,9 @@ export function buildInputContext(): InputContext {
         equip: (item) => equipFn(item),
         unequip: (item) => unequipFn(item),
         drop: (item) => dropFn(item),
-        throwCommand: async () => {},               // stub — Phase 8 (needs chooseTarget)
+        throwCommand: buildThrowCommandFn(itemCmdDeps),
         relabel: (item) => relabelFn(item),
-        call: async () => {},                       // stub — Phase 8 (needs getInputTextString)
+        call: buildCallCommandFn(itemCmdDeps),
         swapLastEquipment() {
             // C: Items.c:6441 — swapLastEquipment()
             const io = buildMessageFns();

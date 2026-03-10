@@ -71,8 +71,10 @@ import {
 } from "./io/text.js";
 import {
     message as messageFn,
+    messageWithColor as messageWithColorFn,
     confirmMessages as confirmMessagesFn,
 } from "./io/messages.js";
+import { buildThrowCommandFn, buildCallCommandFn } from "./items/item-commands.js";
 import type { MessageContext as SyncMessageContext } from "./io/messages-state.js";
 import type { InventoryContext as FullInventoryContext } from "./io/inventory.js";
 
@@ -341,12 +343,27 @@ export function buildInventoryContext(): FullInventoryContext {
         equip: (item) => equipFn(item),
         unequip: (item) => unequipFn(item),
         drop: (item) => dropFn(item),
-        throwCommand: async () => {                           // stub — Phase 8 (needs chooseTarget)
+        throwCommand: (() => {
             const mc = buildMessageContext() as unknown as SyncMessageContext;
-            messageFn(mc, "Throwing not yet implemented.", 0);
-        },
+            const deps = {
+                message: (msg: string, flags: number) => messageFn(mc, msg, flags),
+                messageWithColor: (msg: string, color: Readonly<Color> | null, flags: number) =>
+                    messageWithColorFn(mc, msg, color ?? { red: 100, green: 100, blue: 100 }, flags),
+                confirmMessages: () => confirmMessagesFn(mc),
+            };
+            return buildThrowCommandFn(deps);
+        })(),
         relabel: (item) => relabelFn(item),
-        call: async () => {},                                 // stub — Phase 8 (needs getInputTextString)
+        call: (() => {
+            const mc = buildMessageContext() as unknown as SyncMessageContext;
+            const deps = {
+                message: (msg: string, flags: number) => messageFn(mc, msg, flags),
+                messageWithColor: (msg: string, color: Readonly<Color> | null, flags: number) =>
+                    messageWithColorFn(mc, msg, color ?? { red: 100, green: 100, blue: 100 }, flags),
+                confirmMessages: () => confirmMessagesFn(mc),
+            };
+            return buildCallCommandFn(deps);
+        })(),
         white,
         gray,
         black,
