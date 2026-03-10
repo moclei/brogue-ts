@@ -46,7 +46,7 @@ Phase 2 async bridge work. The throwCommand targeting loop is wired and function
   Continue port-v2-close-out. Read: .context/PROJECT.md, initiatives/port-v2-close-out/BRIEF.md, PLAN.md, TASKS.md
   Resume at: Phase 2 — waitForAcknowledgment + confirm async cascade
   Branch: feat/port-v2-playtest
-  Last commit: 6d5226c
+  Last commit: 1a8cf88
   ```
 
 ---
