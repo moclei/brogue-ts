@@ -183,11 +183,11 @@ describe("buildItemHelperContext — context builds without errors", () => {
 // Stub audit: known-incomplete behaviours in buildItemHandlerContext
 // =============================================================================
 
-it("buildItemHandlerContext().message() queues message in archive (Phase 1)", () => {
+it("buildItemHandlerContext().message() queues message in archive (Phase 1)", async () => {
     // items.ts:256 wires io.message from buildMessageContext() into the item handler context.
     // Calling message() increments messageState.archivePosition confirming the pipeline is live.
     const ctx = buildItemHandlerContext();
-    ctx.message("test message", 0);
+    await ctx.message("test message", 0);
     const { messageState } = getGameState();
     expect(messageState.archivePosition).toBeGreaterThan(0);
 });

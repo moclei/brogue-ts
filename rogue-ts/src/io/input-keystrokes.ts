@@ -154,9 +154,9 @@ export interface InputContext {
     // Game actions
     playerMoves(direction: number): void;
     playerRuns(direction: number): void;
-    playerTurnEnded(): void;
-    autoRest(): void;
-    manualSearch(): void;
+    playerTurnEnded(): void | Promise<void>;
+    autoRest(): void | Promise<void>;
+    manualSearch(): void | Promise<void>;
     travel(loc: Pos, autoConfirm: boolean): void | Promise<void>;
     travelRoute(path: Pos[], steps: number): void | Promise<void>;
     equip(item: Item | null): void | Promise<void>;

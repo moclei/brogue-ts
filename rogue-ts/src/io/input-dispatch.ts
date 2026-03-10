@@ -290,25 +290,25 @@ export async function executeKeystroke(
                 considerCautiousMode(ctx);
                 ctx.rogue.justRested = true;
                 ctx.recordKeystroke(REST_KEY, false, false);
-                ctx.playerTurnEnded();
+                await ctx.playerTurnEnded();
                 break;
             case AUTO_REST_KEY:
                 ctx.rogue.justRested = true;
-                ctx.autoRest();
+                await ctx.autoRest();
                 break;
             case SEARCH_KEY:
                 if (controlKey) {
                     ctx.rogue.disturbed = false;
                     ctx.rogue.automationActive = true;
                     do {
-                        ctx.manualSearch();
+                        await ctx.manualSearch();
                         if (pauseAnimation(ctx, 80, PAUSE_BEHAVIOR_DEFAULT)) {
                             ctx.rogue.disturbed = true;
                         }
                     } while (ctx.player.status[ctx.STATUS_SEARCHING] < 5 && !ctx.rogue.disturbed);
                     ctx.rogue.automationActive = false;
                 } else {
-                    ctx.manualSearch();
+                    await ctx.manualSearch();
                 }
                 break;
             case INVENTORY_KEY:

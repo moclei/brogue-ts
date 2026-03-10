@@ -130,15 +130,15 @@ export interface TurnProcessingContext {
     // Combat helpers
     inflictDamage(attacker: Creature | null, defender: Creature, damage: number, flashColor: Color, showDamage: boolean): boolean;
     killCreature(monst: Creature, administrativeDeath: boolean): void;
-    combatMessage(msg: string, color: Color | null): void;
-    displayCombatText(): void;
+    combatMessage(msg: string, color: Color | null): void | Promise<void>;
+    displayCombatText(): void | Promise<void>;
     messageColorFromVictim(monst: Creature): Color;
     addPoison(monst: Creature, totalDamage: number, concentrationIncrement: number): void;
     flashMonster(monst: Creature, color: Color, strength: number): void;
 
     // UI
-    message(msg: string, flags: number): void;
-    messageWithColor(msg: string, color: Color, flags: number): void;
+    message(msg: string, flags: number): void | Promise<void>;
+    messageWithColor(msg: string, color: Color, flags: number): void | Promise<void>;
     flavorMessage(msg: string): void;
     refreshDungeonCell(loc: Pos): void;
     displayLevel(): void;
@@ -425,9 +425,9 @@ export function recordCurrentCreatureHealths(
  *
  * C: void playerTurnEnded()
  */
-export function playerTurnEnded(
+export async function playerTurnEnded(
     ctx: TurnProcessingContext,
-): void {
+): Promise<void> {
     let fastForward = false;
 
     handleXPXP(ctx);
@@ -714,7 +714,7 @@ export function playerTurnEnded(
                         const article = ctx.isVowelish(buf2[0]) ? "n" : "";
                         const buf = `you ${senseVerb} a${article} ${buf2[0]}`;
                         if (ctx.rogue.cautiousMode) {
-                            ctx.message(buf + ".", 1); // REQUIRE_ACKNOWLEDGMENT
+                            await ctx.message(buf + ".", 1); // REQUIRE_ACKNOWLEDGMENT
                         } else {
                             ctx.combatMessage(buf, null);
                         }
@@ -835,10 +835,10 @@ export function playerTurnEnded(
                 turnsToShore = Math.floor(ctx.player.status[StatusEffect.Levitating] * 100 / ctx.player.movementSpeed);
             }
             if (turnsRequiredToShore === turnsToShore || turnsRequiredToShore + 1 === turnsToShore) {
-                ctx.message("better head back to solid ground!", 1); // REQUIRE_ACKNOWLEDGMENT
+                await ctx.message("better head back to solid ground!", 1); // REQUIRE_ACKNOWLEDGMENT
                 ctx.rogue.receivedLevitationWarning = true;
             } else if (turnsRequiredToShore > turnsToShore && turnsRequiredToShore < 10000) {
-                ctx.message("you're past the point of no return!", 1); // REQUIRE_ACKNOWLEDGMENT
+                await ctx.message("you're past the point of no return!", 1); // REQUIRE_ACKNOWLEDGMENT
                 ctx.rogue.receivedLevitationWarning = true;
             }
         }

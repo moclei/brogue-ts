@@ -109,7 +109,7 @@ export interface MiscHelpersContext {
 
     // Turn
     recordKeystroke(key: string, shifted: boolean, ctrled: boolean): void;
-    playerTurnEnded(): void;
+    playerTurnEnded(): void | Promise<void>;
     pauseAnimation(frames: number, behavior: number): boolean;
 
     // Items info tables
@@ -269,9 +269,9 @@ export function dangerChanged(
 // autoRest — from Time.c:2087
 // =============================================================================
 
-export function autoRest(
+export async function autoRest(
     ctx: MiscHelpersContext,
-): void {
+): Promise<void> {
     const danger: boolean[] = [];
     for (let dir = 0; dir < 4; dir++) {
         const newLoc = ctx.posNeighborInDirection(ctx.player.loc, dir);
@@ -313,7 +313,7 @@ export function autoRest(
         ) {
             ctx.recordKeystroke(ctx.REST_KEY, false, false);
             ctx.rogue.justRested = true;
-            ctx.playerTurnEnded();
+            await ctx.playerTurnEnded();
             if (dangerChanged(danger, ctx) || ctx.pauseAnimation(1, ctx.PAUSE_BEHAVIOR_DEFAULT)) {
                 ctx.rogue.disturbed = true;
             }
@@ -322,7 +322,7 @@ export function autoRest(
         for (let i = 0; i < 100 && !ctx.rogue.disturbed; i++) {
             ctx.recordKeystroke(ctx.REST_KEY, false, false);
             ctx.rogue.justRested = true;
-            ctx.playerTurnEnded();
+            await ctx.playerTurnEnded();
             if (dangerChanged(danger, ctx) || ctx.pauseAnimation(1, ctx.PAUSE_BEHAVIOR_DEFAULT)) {
                 ctx.rogue.disturbed = true;
             }
@@ -335,9 +335,9 @@ export function autoRest(
 // manualSearch — from Time.c:2146
 // =============================================================================
 
-export function manualSearch(
+export async function manualSearch(
     ctx: MiscHelpersContext,
-): void {
+): Promise<void> {
     ctx.recordKeystroke(ctx.SEARCH_KEY, false, false);
 
     if (ctx.player.status[StatusEffect.Searching] <= 0) {
@@ -359,7 +359,7 @@ export function manualSearch(
     ctx.search(ctx.max(searchStrength, ctx.rogue.awarenessBonus + 30));
 
     ctx.rogue.justSearched = true;
-    ctx.playerTurnEnded();
+    await ctx.playerTurnEnded();
 }
 
 // =============================================================================

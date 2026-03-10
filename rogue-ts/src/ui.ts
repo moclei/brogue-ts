@@ -135,7 +135,7 @@ export interface MessageContext {
     restoreDisplayBuffer(saved: Readonly<SavedDisplayBuffer>): void;
     refreshSideBar(x: number, y: number, forceFullUpdate: boolean): void;
     refreshDungeonCell(loc: Pos): void;
-    waitForAcknowledgment(): void;
+    waitForAcknowledgment(): void | Promise<void>;
     pauseBrogue(ms: number, behavior: PauseBehavior): Promise<boolean>;
     nextBrogueEvent(textInput: boolean, colorsDance: boolean, realInput: boolean): Promise<RogueEvent>;
     flashTemporaryAlert(msg: string, ms: number): void;
@@ -279,7 +279,24 @@ export function buildMessageContext(): MessageContext {
         restoreDisplayBuffer: (saved) => restoreDisplayBufferFn(displayBuffer, saved),
         refreshSideBar: () => {},                             // stub — needs appearance system
         refreshDungeonCell: () => {},                         // stub — needs appearance system
-        waitForAcknowledgment: () => {},                      // stub — sync/async bridge (Phase 7)
+        waitForAcknowledgment: async (): Promise<void> => {
+            if (rogue.autoPlayingLevel || (rogue.playbackMode && !rogue.playbackOOS)) {
+                return;
+            }
+            try {
+                commitDraws();
+                let event = await waitForEvent();
+                while (!(
+                    (event.eventType === EventType.Keystroke &&
+                        (event.param1 === 32 /* space */ || event.param1 === 0x1b /* escape */)) ||
+                    event.eventType === EventType.MouseUp
+                )) {
+                    event = await waitForEvent();
+                }
+            } catch {
+                // Platform not initialised (tests) — acknowledge immediately
+            }
+        },
         pauseBrogue: async () => false,                       // stub — sync/async bridge (Phase 7)
         nextBrogueEvent: async () => fakeEvent(),             // stub — sync/async bridge (Phase 7)
         flashTemporaryAlert: () => {},                        // stub — needs appearance system

@@ -456,6 +456,6 @@ import { playerTurnEnded as playerTurnEndedFn } from "./time/turn-processing.js"
 import { monstersTurn as monstersTurnFn } from "./monsters/monster-actions.js";
 
 /** Run one full player turn. Called by the main game loop. */
-export function playerTurnEnded(): void {
-    playerTurnEndedFn(buildTurnProcessingContext());
+export async function playerTurnEnded(): Promise<void> {
+    await playerTurnEndedFn(buildTurnProcessingContext());
 }

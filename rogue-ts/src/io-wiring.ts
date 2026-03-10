@@ -350,11 +350,11 @@ export function buildWakeUpFn(player: Creature, monsters: Creature[]): (monst: C
  * references so it stays current for the lifetime of the turn.
  */
 export function buildMessageFns(): {
-    message: (msg: string, flags: number) => void;
-    messageWithColor: (msg: string, color: Readonly<Color>, flags: number) => void;
+    message: (msg: string, flags: number) => Promise<void>;
+    messageWithColor: (msg: string, color: Readonly<Color>, flags: number) => Promise<void>;
     confirmMessages: () => void;
-    temporaryMessage: (msg: string, flags: number) => void;
-    combatMessage: (msg: string, color: Readonly<Color> | null) => void;
+    temporaryMessage: (msg: string, flags: number) => Promise<void>;
+    combatMessage: (msg: string, color: Readonly<Color> | null) => Promise<void>;
     updateMessageDisplay: () => void;
 } {
     const ctx = buildMessageContext() as unknown as SyncMessageContext;

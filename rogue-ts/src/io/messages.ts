@@ -172,7 +172,7 @@ export function clearMessageArchive(state: MessageState): void {
  *
  * C: `displayMoreSign` in IO.c
  */
-export function displayMoreSign(ctx: MessageContext): void {
+export async function displayMoreSign(ctx: MessageContext): Promise<void> {
     if (ctx.rogue.autoPlayingLevel) {
         return;
     }
@@ -181,11 +181,11 @@ export function displayMoreSign(ctx: MessageContext): void {
 
     if (strLenWithoutEscapes(state.displayedMessage[0]) < DCOLS - 8 || state.messagesUnconfirmed > 0) {
         printString("--MORE--", COLS - 8, MESSAGE_LINES - 1, white, black, ctx.displayBuffer);
-        ctx.waitForAcknowledgment();
+        await ctx.waitForAcknowledgment();
         printString("        ", COLS - 8, MESSAGE_LINES - 1, black, black, ctx.displayBuffer);
     } else {
         printString("--MORE--", COLS - 8, MESSAGE_LINES, white, black, ctx.displayBuffer);
-        ctx.waitForAcknowledgment();
+        await ctx.waitForAcknowledgment();
         for (let i = 1; i <= 8; i++) {
             ctx.refreshDungeonCell({ x: DCOLS - i, y: 0 });
         }
@@ -217,7 +217,7 @@ export function displayMoreSignWithoutWaitingForAcknowledgment(ctx: MessageConte
  *
  * C: `message` in IO.c
  */
-export function message(ctx: MessageContext, msg: string, flags: number): void {
+export async function message(ctx: MessageContext, msg: string, flags: number): Promise<void> {
     if (!msg) {
         return;
     }
@@ -228,13 +228,13 @@ export function message(ctx: MessageContext, msg: string, flags: number): void {
         ctx.refreshSideBar(-1, -1, false);
     }
 
-    displayCombatText(ctx);
+    await displayCombatText(ctx);
 
     addMessageToArchive(ctx.messageState, msg, flags, ctx.rogue.playerTurnNumber);
     displayRecentMessages(ctx);
 
     if ((flags & MessageFlag.REQUIRE_ACKNOWLEDGMENT) || ctx.rogue.cautiousMode) {
-        displayMoreSign(ctx);
+        await displayMoreSign(ctx);
         confirmMessages(ctx);
         ctx.rogue.cautiousMode = false;
     }
@@ -249,9 +249,9 @@ export function message(ctx: MessageContext, msg: string, flags: number): void {
  *
  * C: `messageWithColor` in IO.c
  */
-export function messageWithColor(ctx: MessageContext, msg: string, theColor: Readonly<Color>, flags: number): void {
+export async function messageWithColor(ctx: MessageContext, msg: string, theColor: Readonly<Color>, flags: number): Promise<void> {
     const prefix = encodeMessageColor(theColor);
-    message(ctx, prefix + msg, flags);
+    await message(ctx, prefix + msg, flags);
 }
 
 /**
@@ -293,7 +293,7 @@ export function flavorMessage(ctx: MessageContext, msg: string): void {
  *
  * C: `temporaryMessage` in IO.c
  */
-export function temporaryMessage(ctx: MessageContext, msg: string, flags: number): void {
+export async function temporaryMessage(ctx: MessageContext, msg: string, flags: number): Promise<void> {
     // Capitalize the first visible character (skipping leading color escapes)
     let text = msg;
     let i = 0;
@@ -323,7 +323,7 @@ export function temporaryMessage(ctx: MessageContext, msg: string, flags: number
     printString(text, mapToWindowX(0), mapToWindowY(-1), white, black, ctx.displayBuffer);
 
     if (flags & MessageFlag.REQUIRE_ACKNOWLEDGMENT) {
-        ctx.waitForAcknowledgment();
+        await ctx.waitForAcknowledgment();
         updateMessageDisplay(ctx);
     }
 }
@@ -338,7 +338,7 @@ export function temporaryMessage(ctx: MessageContext, msg: string, flags: number
  *
  * C: `combatMessage` in Combat.c
  */
-export function combatMessage(ctx: MessageContext, msg: string, theColor: Readonly<Color> | null): void {
+export async function combatMessage(ctx: MessageContext, msg: string, theColor: Readonly<Color> | null): Promise<void> {
     const color = theColor ?? white;
 
     const prefix = encodeMessageColor(color);
@@ -348,7 +348,7 @@ export function combatMessage(ctx: MessageContext, msg: string, theColor: Readon
 
     // If the buffer would overflow, flush it first
     if (state.combatText.length + newMsg.length > COLS * 2 - 2) {
-        displayCombatText(ctx);
+        await displayCombatText(ctx);
     }
 
     if (state.combatText) {
@@ -363,7 +363,7 @@ export function combatMessage(ctx: MessageContext, msg: string, theColor: Readon
  *
  * C: `displayCombatText` in Combat.c
  */
-export function displayCombatText(ctx: MessageContext): void {
+export async function displayCombatText(ctx: MessageContext): Promise<void> {
     const state = ctx.messageState;
 
     if (!state.combatText) {
@@ -377,7 +377,7 @@ export function displayCombatText(ctx: MessageContext): void {
     const lines = buf.split("\n");
     for (const line of lines) {
         if (line) {
-            message(
+            await message(
                 ctx,
                 line,
                 MessageFlag.FOLDABLE | (ctx.rogue.cautiousMode ? MessageFlag.REQUIRE_ACKNOWLEDGMENT : 0),

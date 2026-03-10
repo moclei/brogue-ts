@@ -526,9 +526,9 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         playerCancelsBlinking: async () => true,   // stub — wired in port-v2-platform
 
         // ── Turn management ─────────────────────────────────────────────────
-        playerTurnEnded() {
+        async playerTurnEnded() {
             const turnCtx = buildTurnProcessingContext();
-            playerTurnEndedFn(turnCtx);
+            await playerTurnEndedFn(turnCtx);
         },
 
         // ── Map helpers ─────────────────────────────────────────────────────

@@ -307,11 +307,12 @@ it.skip("stub: updateFlavorText() is a no-op (deferred — needs CreatureEffects
     // Deferred Phase 7c; flavor text line stays blank until appearance system is wired.
 });
 
-it.skip("stub: waitForAcknowledgment() is a no-op (deferred — async cascade through messages.ts)", () => {
-    // DEFER: port-v2-platform — async cascade through messages.ts required.
-    // Would need nextBrogueEvent wired into buildMessageContext() to function.
-    // buildMessageContext().waitForAcknowledgment() at ui.ts:280 remains () => {}.
-    // --MORE-- prompt never blocks; deferred Phase 7c.
+it("waitForAcknowledgment() is wired — resolves immediately when platform not initialised (tests)", async () => {
+    // waitForAcknowledgment() in buildMessageContext() now uses waitForEvent() via the async bridge.
+    // In test context, waitForEvent() throws (platform not initialised) → caught → resolves immediately.
+    // In-browser it awaits space/escape/click before returning.
+    const ctx = buildMessageContext();
+    await expect(ctx.waitForAcknowledgment()).resolves.toBeUndefined();
 });
 
 it.skip("stub: flashTemporaryAlert() is a no-op (deferred — needs EffectsContext)", () => {
@@ -320,10 +321,10 @@ it.skip("stub: flashTemporaryAlert() is a no-op (deferred — needs EffectsConte
     // Deferred Phase 7c; no temporary overlays until appearance system is wired.
 });
 
-it("buildInventoryContext().message() queues message in archive (Phase 7a)", () => {
+it("buildInventoryContext().message() queues message in archive (Phase 7a)", async () => {
     // buildInventoryContext().message(msg, flags) now wired to real message pipeline.
     const ctx = buildInventoryContext();
-    ctx.message("test message", 0);
+    await ctx.message("test message", 0);
     const { messageState } = getGameState();
     // archive position advanced = message was queued
     expect(messageState.archivePosition).toBeGreaterThan(0);

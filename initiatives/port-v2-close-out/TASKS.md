@@ -57,22 +57,30 @@ Phase 2 async bridge work. The throwCommand targeting loop is wired and function
 that must become async. If both cascades together would exceed 60% context, complete
 `waitForAcknowledgment` only and move `confirm` to Phase 3.
 
-### 2a: waitForAcknowledgment ← DEFERRED (cascade too deep)
+### 2a: waitForAcknowledgment ✓ DONE
 
-Cascade analysis done. Depth: >5 function levels. Deferred to Phase 2a sub-session.
-
-Full cascade:
-1. `MessageContext.waitForAcknowledgment(): void` → `void | Promise<void>` (messages-state.ts, ui.ts)
-2. `displayMoreSign()` in messages.ts → async (awaits waitForAcknowledgment)
-3. `temporaryMessage()` in messages.ts → async (awaits waitForAcknowledgment)
-4. `message()` in messages.ts → async (awaits displayMoreSign)
-5. `messageWithColor()` → async; `displayCombatText()` → async; `combatMessage()` → async
-6. `buildMessageFns()` in io-wiring.ts: all return types change
-7. Every context that uses io.message/messageWithColor/combatMessage:
-   PlayerMoveContext, CombatAttackContext, TurnContext, MonsterContext, etc.
-   (all callers in all domain context files need await)
-
-Too large for one session. Start a dedicated Phase 2a sub-session with this analysis.
+- [x] `MessageContext.waitForAcknowledgment(): void` → `void | Promise<void>` (messages-state.ts, ui.ts)
+- [x] `displayMoreSign()` → async, awaits `ctx.waitForAcknowledgment()`
+- [x] `temporaryMessage()` → async, awaits `ctx.waitForAcknowledgment()`
+- [x] `message()` → async, awaits `displayCombatText()` + `displayMoreSign()`
+- [x] `messageWithColor()` → async; `displayCombatText()` → async; `combatMessage()` → async
+- [x] `buildMessageFns()` in `io-wiring.ts`: return types updated to `Promise<void>`
+- [x] `buildMessageContext().waitForAcknowledgment` wired to real `waitForEvent()` loop
+      (auto-confirms during autoPlay/playback; throws in tests → immediate resolve)
+- [x] `playerTurnEnded()` in `turn-processing.ts` → async; `await ctx.message(...)` at
+      3 REQUIRE_ACKNOWLEDGMENT call sites (lines 717, 838, 841)
+- [x] `turn.ts::playerTurnEnded()` wrapper → async
+- [x] `player-movement.ts::playerMoves/playerRuns` — all `ctx.playerTurnEnded()` → `await`
+- [x] `movement.ts::buildMovementContext().playerTurnEnded` → async closure
+- [x] `input-context.ts` — all 3 `playerTurnEnded` closures → async
+- [x] `input-dispatch.ts` — `await ctx.playerTurnEnded()`, `await ctx.autoRest()`,
+      `await ctx.manualSearch()` (×2)
+- [x] `inventory-actions.ts` — all 3 `playerTurnEndedFn()` calls → `await`
+- [x] `items.ts::buildItemHandlerContext().playerTurnEnded` → async closure
+- [x] `misc-helpers.ts::autoRest()` + `manualSearch()` → async; all `ctx.playerTurnEnded()` → `await`
+- [x] `input-keystrokes.ts` — `playerTurnEnded/autoRest/manualSearch` interface → `void | Promise<void>`
+- [x] Activated test.skip for `waitForAcknowledgment` in ui.test.ts (+1 pass)
+- [x] All tests updated for async (`await autoRest()`, `await manualSearch()`, `await ctx.message()`)
 
 ### 2b: confirm in movement + item contexts ✓ DONE
 

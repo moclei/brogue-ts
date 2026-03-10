@@ -388,7 +388,7 @@ export function buildMovementContext(): PlayerMoveContext {
         },
 
         // ── Game flow ────────────────────────────────────────────────────────
-        playerTurnEnded: () => playerTurnEndedFn(buildTurnProcessingContext()),
+        playerTurnEnded: async () => { await playerTurnEndedFn(buildTurnProcessingContext()); },
         recordKeystroke: () => {},       // DEFER: port-v2-persistence (input recording layer)
         cancelKeystroke: () => {},       // DEFER: port-v2-persistence (input recording layer)
         confirm: buildConfirmFn(),

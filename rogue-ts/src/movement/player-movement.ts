@@ -162,7 +162,7 @@ export interface PlayerMoveContext {
     useStairs(direction: number): void;
 
     // ── Game flow ──
-    playerTurnEnded(): void;
+    playerTurnEnded(): void | Promise<void>;
     recordKeystroke(key: number, shift: boolean, ctrl: boolean): void;
     cancelKeystroke(): void;
     confirm(prompt: string, defaultYes: boolean): boolean | Promise<boolean>;
@@ -433,7 +433,7 @@ export async function playerMoves(
                 committed = true;
                 ctx.message(tileCatalog[pmap[newX][newY].layers[layer]].flavorText, 0);
                 ctx.promoteTile(newX, newY, layer, false);
-                ctx.playerTurnEnded();
+                await ctx.playerTurnEnded();
                 return true;
             }
         }
@@ -474,7 +474,7 @@ export async function playerMoves(
                 nbDirs: ctx.nbDirs,
                 moveMonster: ctx.moveMonster,
             });
-            ctx.playerTurnEnded();
+            await ctx.playerTurnEnded();
             return true;
         }
         if (specialAttackAborted.value) {
@@ -497,7 +497,7 @@ export async function playerMoves(
                     }
                     ctx.freeCaptive(defender);
                     player.ticksUntilTurn += player.attackSpeed;
-                    ctx.playerTurnEnded();
+                    await ctx.playerTurnEnded();
                     return true;
                 } else {
                     ctx.cancelKeystroke();
@@ -527,7 +527,7 @@ export async function playerMoves(
                     committed = true;
                     if (ctx.randPercent(25)) {
                         ctx.vomit(player);
-                        ctx.playerTurnEnded();
+                        await ctx.playerTurnEnded();
                         return false;
                     }
                 }
@@ -554,7 +554,7 @@ export async function playerMoves(
                     nbDirs: ctx.nbDirs,
                     moveMonster: ctx.moveMonster,
                 });
-                ctx.playerTurnEnded();
+                await ctx.playerTurnEnded();
                 return true;
             }
         }
@@ -578,7 +578,7 @@ export async function playerMoves(
                             moveMonster: ctx.moveMonster,
                         });
                         ctx.message(`you struggle but ${monstName} is holding your legs!`, 0);
-                        ctx.playerTurnEnded();
+                        await ctx.playerTurnEnded();
                         return true;
                     } else {
                         ctx.message(`you cannot move; ${monstName} is holding your legs!`, 0);
@@ -733,7 +733,7 @@ export async function playerMoves(
                     moveMonster: ctx.moveMonster,
                 });
                 committed = true;
-                ctx.playerTurnEnded();
+                await ctx.playerTurnEnded();
                 return true;
             } else {
                 if (!ctx.rogue.automationActive) {
@@ -750,7 +750,7 @@ export async function playerMoves(
             committed = true;
             if (ctx.randPercent(25)) {
                 ctx.vomit(player);
-                ctx.playerTurnEnded();
+                await ctx.playerTurnEnded();
                 return true;
             }
         }
@@ -824,7 +824,7 @@ export async function playerMoves(
                 ctx.playerRecoversFromAttacking(anyAttackHit);
             }
 
-            ctx.playerTurnEnded();
+            await ctx.playerTurnEnded();
         }
     } else if (ctx.cellHasTerrainFlag({ x: newX, y: newY }, TerrainFlag.T_OBSTRUCTS_PASSABILITY)) {
         // ── Bumped into a wall or closed door ──

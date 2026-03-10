@@ -85,7 +85,7 @@ export interface MessageContext {
     // Interaction callbacks
     refreshSideBar(x: number, y: number, forceFullUpdate: boolean): void;
     refreshDungeonCell(loc: Pos): void;
-    waitForAcknowledgment(): void;
+    waitForAcknowledgment(): void | Promise<void>;
     pauseBrogue(ms: number, behavior: PauseBehavior): boolean;
     nextBrogueEvent(textInput: boolean, colorsDance: boolean, realInput: boolean): RogueEvent;
     flashTemporaryAlert(msg: string, ms: number): void;

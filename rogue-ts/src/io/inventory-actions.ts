@@ -157,7 +157,7 @@ export async function equip(theItem: Item | null): Promise<void> {
     rogue.swappedOut = theItem2;
     rogue.swappedIn = rogue.swappedOut ? theItem : null;
 
-    playerTurnEndedFn();
+    await playerTurnEndedFn();
 }
 
 // =============================================================================
@@ -203,7 +203,7 @@ export async function unequip(theItem: Item | null): Promise<void> {
     const verb = (theItem.category & ItemCategory.WEAPON) ? "wielding" : "wearing";
     io.messageWithColor(`you are no longer ${verb} ${name}.`, itemMessageColor, 0);
 
-    playerTurnEndedFn();
+    await playerTurnEndedFn();
 }
 
 // =============================================================================
@@ -280,7 +280,7 @@ export async function drop(theItem: Item | null): Promise<void> {
             droppedItem.flags |= ItemFlag.ITEM_PLAYER_AVOIDS;
             const name = itemStr(droppedItem, true, true);
             io.messageWithColor(`You dropped ${name}.`, itemMessageColor, 0);
-            playerTurnEndedFn();
+            await playerTurnEndedFn();
         }
     } else {
         io.confirmMessages();

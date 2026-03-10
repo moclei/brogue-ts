@@ -263,7 +263,7 @@ function buildMiscHelpersContext(): MiscHelpersContext {
         refreshDungeonCell,
         search: (strength) => { searchFn(strength, searchCtx); },
         recordKeystroke: () => {},                // stub — persistence layer
-        playerTurnEnded: () => { playerTurnEndedFn(); },
+        playerTurnEnded: async () => { await playerTurnEndedFn(); },
         pauseAnimation: () => false,              // stub — Phase 3b
 
         ringTable: ringTable as unknown as Array<{ identified: boolean }>,
@@ -424,9 +424,9 @@ export function buildInputContext(): InputContext {
         // ── Game actions ──────────────────────────────────────────────────────
         playerMoves: async (dir) => { await playerMovesFn(dir, moveCtx()); },
         playerRuns: async (dir) => { await playerRunsFn(dir, moveCtx() as PlayerRunContext); },
-        playerTurnEnded: () => { playerTurnEndedFn(); },
-        autoRest: () => { autoRestFn(buildMiscHelpersContext()); },
-        manualSearch: () => { manualSearchFn(buildMiscHelpersContext()); },
+        playerTurnEnded: async () => { await playerTurnEndedFn(); },
+        autoRest: async () => { await autoRestFn(buildMiscHelpersContext()); },
+        manualSearch: async () => { await manualSearchFn(buildMiscHelpersContext()); },
 
         travel: (loc, autoConfirm) => travelFn(loc, autoConfirm, travelCtx()),
         travelRoute: (path, steps) => travelRouteFn(path, steps, travelCtx()),
@@ -439,12 +439,12 @@ export function buildInputContext(): InputContext {
         throwCommand: buildThrowCommandFn(itemCmdDeps),
         relabel: (item) => relabelFn(item),
         call: buildCallCommandFn(itemCmdDeps),
-        swapLastEquipment() {
+        async swapLastEquipment() {
             // C: Items.c:6441 — swapLastEquipment()
             const io = buildMessageFns();
             if (!rogue.swappedIn || !rogue.swappedOut) {
                 io.confirmMessages();
-                io.message("You have nothing to swap.", 0);
+                await io.message("You have nothing to swap.", 0);
                 return;
             }
             const s = buildEquipState();
@@ -460,7 +460,7 @@ export function buildInputContext(): InputContext {
             const tmp = rogue.swappedIn;
             rogue.swappedIn = rogue.swappedOut;
             rogue.swappedOut = tmp;
-            playerTurnEndedFn();
+            await playerTurnEndedFn();
         },
         enableEasyMode: () => {},                   // stub — LifecycleContext not wired
         saveGame: () => {},                         // stub — save system not yet ported
