@@ -144,6 +144,21 @@ After this phase: the port is mechanically complete. Only the persistence layer 
 
 ---
 
+## Session Notes 2026-03-10
+
+**Phase 2a: waitForAcknowledgment — DONE.** Made 6 message functions async in messages.ts.
+Wired real `waitForAcknowledgment` in `buildMessageContext()` using `waitForEvent()` loop.
+Cascaded `playerTurnEnded()` async through all callers (13 files): turn.ts, movement.ts,
+player-movement.ts, input-context.ts (3 closures), input-dispatch.ts, inventory-actions.ts,
+items.ts, misc-helpers.ts. `autoRest()`/`manualSearch()` → async. Tests fixed with await.
+Key learning: `playerTurnEnded` cascade was manageable because domain functions with
+REQUIRE_ACKNOWLEDGMENT messages (hunger, levitation) are mostly stubs in current wiring.
+Only 3 direct REQUIRE_ACKNOWLEDGMENT awaits needed in turn-processing.ts.
+
+**Next session start point:** Phase 3 — remaining wireable stubs.
+
+---
+
 ## Session Notes 2026-03-09
 
 **Phase 2b: confirm — DONE.** Created `buildConfirmFn()` in `io-wiring.ts` using
