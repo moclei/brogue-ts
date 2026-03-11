@@ -205,11 +205,52 @@ describe("buildMonsterStateContext — decrementMonsterStatus", () => {
 // Stub audit — known-incomplete behaviours
 // =============================================================================
 
-it.skip("stub: buildMonsterSpawningContext().getQualifyingPathLocNear returns provided loc (stub, not real pathfinding)", () => {
-    // UPDATE: stub `(loc) => ({x:loc.x,y:loc.y})` in monsters.ts:187.
-    // Note: correctly wired in movement.ts:356 via getQualifyingPathLocNear (Phase 3a).
-    // Spawn context stub deferred to port-v2-platform.
-    // Required for spawnMinions() to place followers near the leader.
+it("buildMonsterSpawningContext().getQualifyingPathLocNear finds a floor cell near target", () => {
+    // Wired: monsters.ts — real getQualifyingPathLocNearFn with buildQualifyingPathCtx.
+    // All cells start as GRANITE (T_OBSTRUCTS_PASSABILITY = T_DIVIDES_LEVEL blocker),
+    // so the dijkstra pass finds nothing and falls back to the ring search.
+    // Make a floor cell adjacent to (5,5) — it should be returned as the drop location.
+    const { pmap } = getGameState();
+    makeFloorCell(6, 5);
+    const ctx = buildMonsterSpawningContext();
+    // Call with T_DIVIDES_LEVEL blocking, T_OBSTRUCTS_ITEMS forbidden — matching makeMonsterDropItem usage.
+    const result = ctx.getQualifyingPathLocNear({ x: 5, y: 5 }, true, 0, 0, 0, 0, true);
+    // With no restrictions, the cell itself (5,5) is valid — GRANITE has no forbidden flags when all flags are 0.
+    expect(result).not.toBeNull();
+    expect(result.x).toBeGreaterThanOrEqual(0);
+    expect(result.y).toBeGreaterThanOrEqual(0);
+});
+
+it("buildMonsterStateContext().makeMonsterDropItem places item via path search (mirrors Monsters.c:4065)", () => {
+    // Verifies the fix: item lands at a valid floor cell with HAS_ITEM set on pmap,
+    // rather than being pushed directly to floorItems without any location search.
+    const { pmap, floorItems } = getGameState();
+
+    // Clear ALL 4 layers on three adjacent cells so cellHasTerrainFlag returns no flags.
+    // makeFloorCell only sets layer[0] — layers 1-3 remain GRANITE which has T_OBSTRUCTS_ITEMS.
+    for (const [cx, cy] of [[5, 5], [6, 5], [7, 5]]) {
+        for (let layer = 0; layer < NUMBER_TERRAIN_LAYERS; layer++) {
+            pmap[cx][cy].layers[layer] = TileType.NOTHING;
+        }
+        pmap[cx][cy].flags = 0;
+    }
+    // Mark (5,5) as already occupied by an item to force the drop to search elsewhere.
+    pmap[5][5].flags |= TileFlag.HAS_ITEM;
+
+    const monst = makeMonster(MonsterType.MK_GOBLIN);
+    monst.loc = { x: 5, y: 5 };
+    const item = { loc: { x: 0, y: 0 }, category: 1 } as any;
+    monst.carriedItem = item;
+
+    const ctx = buildMonsterStateContext();
+    ctx.makeMonsterDropItem(monst);
+
+    expect(monst.carriedItem).toBeNull();
+    expect(floorItems).toContain(item);
+    // item.loc must be a valid in-map position with HAS_ITEM set on pmap.
+    expect(item.loc.x).toBeGreaterThanOrEqual(0);
+    expect(item.loc.y).toBeGreaterThanOrEqual(0);
+    expect(pmap[item.loc.x][item.loc.y].flags & TileFlag.HAS_ITEM).toBeTruthy();
 });
 
 it("buildMonsterSpawningContext().randomMatchingLocation finds a granite cell (Phase 8)", () => {

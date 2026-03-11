@@ -455,12 +455,7 @@ it.skip("moveAlly: missing corpse-eating branch and scent-follow return-to-leade
     // Fix: port the full three-branch else chain from C.
 });
 
-it.skip("makeMonsterDropItem: inline drop doesn't use getQualifyingPathLocNear", () => {
-    // UPDATE: known divergence. Deferred to port-v2-platform.
-    // C (Monsters.c:4065): getQualifyingPathLocNear(monst->loc, ...) finds a valid
-    // path-adjacent cell and places the item there via placeItemAt.
-    //
-    // TS (monsters.ts:~287): pushes item directly into floorItems without finding a
-    // valid drop location — item may be placed in a wall or on top of another item.
-    // Fix: implement a proper drop-location search via getQualifyingLocNear.
-});
+// makeMonsterDropItem: FIXED — now calls getQualifyingPathLocNear to find a valid drop
+// location and sets item.loc + pmap HAS_ITEM flag before adding to floorItems.
+// Integration test in tests/monsters.test.ts: "buildMonsterStateContext().makeMonsterDropItem
+// places item via path search".
