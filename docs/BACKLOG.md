@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-11 (after B19 — readScroll awaits messageWithColor before promptForItemOfType)
+**Status:** updated 2026-03-11 (after B26 — hallucination crash: describeHallucinatedItem mutual recursion fixed)
 **Tests at last update:** 88 files · 2264 pass · 63 skip
 
 ---
@@ -273,6 +273,18 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   whose effect function is a stub (e.g. staff of healing, blinking). Both cases need separate fixes.
   C: `Items.c` (useStaffOrWand, zap, individual staff handlers). TS: `items/item-handlers.ts`,
   `items/targeting.ts`, `io/input-cursor.ts`. **M**
+
+- [x] **B26 — Hallucination crash: stack overflow after drinking hallucination potion** —
+  After drinking a potion of hallucination and moving for ~10 turns, the game crashed with
+  `RangeError: Maximum call stack size exceeded` at `partialCtx.describeHallucinatedItem` ↔
+  `describeHallucinatedItem (sidebar-player.ts)`.
+  Root cause: mutual recursion. The free function `describeHallucinatedItem(ctx)` in
+  `sidebar-player.ts` delegated to `ctx.describeHallucinatedItem()`, while the `io-wiring.ts`
+  context patch wired `ctx.describeHallucinatedItem` back to call that same free function.
+  Fix: replaced the delegating free function body with a real implementation — calls
+  `ctx.getHallucinatedItemCategory()` and maps the result to a category name string
+  ("a potion", "a scroll", etc.) via a lookup table. The `io-wiring.ts` patch unchanged.
+  TS: `io/sidebar-player.ts`. **S**
 
 - [x] **B19 — Scroll of identify / enchanting stalls in item selection** — Both scrolls open
   the inventory/button UI to select an item, but clicks and keypresses are not accepted;
