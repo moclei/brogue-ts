@@ -309,10 +309,15 @@ it.skip("stub: buildMonsterStateContext().traversiblePathBetween returns false (
     // Required for monsterFleesFrom() distance checks in updateMonsterState().
 });
 
-it.skip("stub: buildMonsterStateContext().extinguishFireOnCreature is a no-op (stub, needs CreatureEffectsContext)", () => {
-    // UPDATE: stub `() => {}` in monsters.ts:286. Wired in port-v2-platform.
-    // Real implementation clears burning status and updates miner's light if player.
-    // Required for decrementMonsterStatus() burning cleanup.
+it("buildMonsterStateContext().extinguishFireOnCreature clears burning status on monster", () => {
+    // extinguishFireOnCreature now wired via extinguishFireOnCreatureFn in monsters.ts.
+    // For non-player creatures, only status[Burning] is cleared; player-specific
+    // effects (foreColor, minersLight, message) are handled inline in turn-processing.ts.
+    const ctx = buildMonsterStateContext();
+    const monst = makeMonster(MonsterType.MK_GOBLIN);
+    monst.status[StatusEffect.Burning] = 5;
+    ctx.extinguishFireOnCreature(monst);
+    expect(monst.status[StatusEffect.Burning]).toBe(0);
 });
 
 it("buildMonsterStateContext().queryCtx.cellHasGas detects gas layer (Phase 6)", () => {

@@ -49,6 +49,9 @@ import { coordinatesAreInMap } from "./globals/tables.js";
 import { DCOLS, DROWS, MAX_WAYPOINT_COUNT } from "./types/constants.js";
 import { TileFlag, MonsterBookkeepingFlag, TerrainFlag, T_DIVIDES_LEVEL } from "./types/flags.js";
 import { GameMode, DungeonLayer } from "./types/enums.js";
+import { extinguishFireOnCreature as extinguishFireOnCreatureFn } from "./time/creature-effects.js";
+import type { CreatureEffectsContext } from "./time/creature-effects.js";
+import { white, minersLightColor } from "./globals/colors.js";
 import type { SpawnContext } from "./monsters/monster-spawning.js";
 import { monsterAvoids as monsterAvoidsFn } from "./monsters/monster-state.js";
 import type { MonsterStateContext } from "./monsters/monster-state.js";
@@ -378,7 +381,16 @@ export function buildMonsterStateContext(): MonsterStateContext {
         inflictDamage: (attacker, defender, damage) =>
             inflictDamageFn(attacker, defender, damage, null, false, combatCtx),
         killCreature: (monst, quiet) => killCreatureFn(monst, quiet, combatCtx),
-        extinguishFireOnCreature: () => {},     // permanent-defer — requires full CreatureEffectsContext
+        extinguishFireOnCreature: (monst) =>
+            extinguishFireOnCreatureFn(monst, {
+                player,
+                white,
+                minersLightColor,
+                rogue,
+                refreshDungeonCell,
+                updateVision: () => {},  // monster-only path; player handled in turn-processing.ts
+                message: io.message,
+            } as unknown as CreatureEffectsContext),
         makeMonsterDropItem: (monst) =>
             doMakeMonsterDropItem(monst, pmap, floorItems, cellHasTerrainFlag, refreshDungeonCell),
 

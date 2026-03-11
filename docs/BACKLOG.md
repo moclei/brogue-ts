@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-11 (after makeMonsterDropItem wiring in gradualCtx + combatCtx)
-**Tests at last update:** 88 files · 2258 pass · 68 skip
+**Status:** updated 2026-03-11 (after extinguishFireOnCreature wired in monsters.ts)
+**Tests at last update:** 88 files · 2260 pass · 66 skip
 
 ---
 
@@ -122,12 +122,12 @@ replace the stub closure.
   C: `Monsters.c`. TS: `turn.ts`.
   test.skip: `tests/turn.test.ts:227`. **S**
 
-- [ ] **`displayLevel` in `items.ts` and `input-context.ts`** — two context builders
+- [x] **`displayLevel` in `items.ts` and `input-context.ts`** — two context builders
   have no-op `displayLevel`; only `lifecycle.ts` is wired.
   C: `IO.c`. TS: `items.ts`, `io/input-context.ts`.
   test.skip: `tests/ui.test.ts:418`. **S**
 
-- [ ] **`extinguishFireOnCreature`** — no-op in monster state context; needs
+- [x] **`extinguishFireOnCreature`** — no-op in monster state context; needs
   `CreatureEffectsContext` wired in.
   C: `Time.c`. TS: `monsters.ts` context builder.
   test.skip: `tests/monsters.test.ts:271`. **S**
