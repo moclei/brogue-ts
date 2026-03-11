@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-10 (after port-v2-close-out Phases 1–6 + B9/B8/B7/B6 fix + canPass wired + getImpactLoc wired + traversiblePathBetween fixed)
-**Tests at last update:** 88 files · 2245 pass · 79 skip
+**Status:** updated 2026-03-10 (after makeMonsterDropItem + getQualifyingPathLocNear wired in monsters.ts)
+**Tests at last update:** 88 files · 2247 pass · 75 skip
 
 ---
 
@@ -66,7 +66,7 @@ Complexity key: **S** = small/self-contained · **M** = medium, needs context wo
   C: `Monsters.c`. TS: `monsters/monster-ai-movement.ts`.
   test.skip: `monsters/monster-ai-movement.test.ts:443`. **S**
 
-- [ ] **`makeMonsterDropItem` — not using `getQualifyingPathLocNear`** — drops items
+- [x] **`makeMonsterDropItem` — not using `getQualifyingPathLocNear`** — drops items
   in-place unconditionally instead of finding a nearby valid cell.
   C: `Monsters.c`. TS: `monsters/monster-ai-movement.ts`.
   test.skip: `monsters/monster-ai-movement.test.ts:477`. **S**
@@ -139,7 +139,7 @@ replace the stub closure.
 
 - [ ] **`getQualifyingPathLocNear`** — returns provided loc unconditionally; real
   pathfinding (find nearest passable cell near a pos) not wired.
-  C: `Grid.c`. TS: stubs in `monsters.ts`, `movement.ts`.
+  C: `Grid.c`. TS: stub in `movement.ts` (`monsters.ts` wired as part of makeMonsterDropItem fix).
   test.skip: `tests/monsters.test.ts:208`. **M**
 
 ---
