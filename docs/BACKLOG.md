@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-11 (after fadeInMonster — ported and wired)
-**Tests at last update:** 88 files · 2271 pass · 60 skip
+**Status:** updated 2026-03-11 (after debug overlays — all 5 ported and wired)
+**Tests at last update:** 88 files · 2276 pass · 55 skip
 
 ---
 
@@ -210,20 +210,20 @@ Were in the C game. Port from `IO.c`. Each is a grid-visualization helper that
 renders a number grid or flag map over the dungeon for debugging. They share the
 same pattern: iterate the dungeon grid, call `plotCharWithColor` for each cell.
 
-- [ ] **`displayGrid`** — renders a numeric grid over the dungeon.
-  C: `IO.c`. test.skip: `tests/ui.test.ts:477`. **S**
+- [x] **`displayGrid`** — renders a numeric grid over the dungeon.
+  C: `IO.c`. test: `tests/ui.test.ts:485`. **S**
 
-- [ ] **`displayWaypoints`** — renders waypoint indices.
-  C: `IO.c`. test.skip: `tests/ui.test.ts:483`. **S**
+- [x] **`displayWaypoints`** — renders waypoint indices.
+  C: `IO.c`. test: `tests/ui.test.ts:494`. **S**
 
-- [ ] **`displayMachines`** — renders machine room numbers.
-  C: `IO.c`. test.skip: `tests/ui.test.ts:489`. **S**
+- [x] **`displayMachines`** — renders machine room numbers.
+  C: `IO.c`. test: `tests/ui.test.ts:502`. **S**
 
-- [ ] **`displayChokeMap`** — renders choke-point distances.
-  C: `IO.c`. test.skip: `tests/ui.test.ts:495`. **S**
+- [x] **`displayChokeMap`** — renders choke-point distances.
+  C: `IO.c`. test: `tests/ui.test.ts:510`. **S**
 
-- [ ] **`displayLoops`** — renders loop detection data.
-  C: `IO.c`. test.skip: `tests/ui.test.ts:501`. **S**
+- [x] **`displayLoops`** — renders loop detection data.
+  C: `IO.c`. test: `tests/ui.test.ts:518`. **S**
 
 ---
 
