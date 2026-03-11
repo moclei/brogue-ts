@@ -23,6 +23,7 @@ import {
     T_HARMFUL_TERRAIN,
 } from "../types/flags.js";
 import { distanceBetween } from "./monster-state.js";
+import { getLineCoordinates } from "../items/bolt-geometry.js";
 
 // ============================================================================
 // Creature list management — array-based (no linked lists)
@@ -336,34 +337,17 @@ export function traversiblePathBetween(
     y2: number,
     ctx: TraversiblePathContext,
 ): boolean {
-    const x1 = monst.loc.x;
-    const y1 = monst.loc.y;
+    const targetLoc = { x: x2, y: y2 };
+    // C: getLineCoordinates(coords, originLoc, targetLoc, &boltCatalog[BOLT_NONE])
+    // Uses fixed-point bolt-path geometry, not Bresenham.
+    const coords = getLineCoordinates(monst.loc, targetLoc);
 
-    const dx = Math.abs(x2 - x1);
-    const dy = Math.abs(y2 - y1);
-    const sx = x1 < x2 ? 1 : -1;
-    const sy = y1 < y2 ? 1 : -1;
-
-    let cx = x1;
-    let cy = y1;
-    let err = dx - dy;
-
-    // Walk the Bresenham line; skip origin; return true when we reach target
-    for (let step = 0; step < dx + dy + 2; step++) {
-        if (cx === x2 && cy === y2) {
+    for (const coord of coords) {
+        if (coord.x === x2 && coord.y === y2) {
             return true;
         }
-        if (ctx.monsterAvoids(monst, { x: cx, y: cy }) && !(cx === x1 && cy === y1)) {
+        if (ctx.monsterAvoids(monst, coord)) {
             return false;
-        }
-        const e2 = 2 * err;
-        if (e2 > -dy) {
-            err -= dy;
-            cx += sx;
-        }
-        if (e2 < dx) {
-            err += dx;
-            cy += sy;
         }
     }
 

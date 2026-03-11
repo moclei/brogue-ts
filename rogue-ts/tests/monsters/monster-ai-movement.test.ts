@@ -307,15 +307,18 @@ describe("traversiblePathBetween", () => {
     });
 });
 
-it.skip("divergence: traversiblePathBetween uses Bresenham instead of bolt getLineCoordinates", () => {
-    // UPDATE: known divergence — Bresenham vs bolt getLineCoordinates. Deferred.
-    // C (Monsters.c:1994): uses getLineCoordinates(coords, origin, target, &boltCatalog[BOLT_NONE])
-    // which follows the exact same line-drawing algorithm used for bolt projection.
-    //
-    // TS (monster-actions.ts:333): uses a plain Bresenham raster scan.
-    // Practical impact: minor — affects diagonal pathing near corner walls only.
-    // Fix: replace Bresenham with getLineCoordinates (needs bolt-geometry dependency).
-    // Deferred to port-v2-platform.
+it("traversiblePathBetween uses bolt getLineCoordinates (fixed from Bresenham)", () => {
+    // Fixed: C (Monsters.c:1994) uses getLineCoordinates(coords, origin, target, &boltCatalog[BOLT_NONE])
+    // TS now uses the same fixed-point bolt-geometry algorithm.
+    const monst = makeMonster();
+    monst.loc = { x: 0, y: 0 };
+    const ctx: TraversiblePathContext = {
+        monsterAvoids: (_m: Creature, loc: Pos) => loc.x === 2 && loc.y === 2,
+        DCOLS: 79,
+        DROWS: 29,
+    };
+    // Diagonal path from (0,0) to (4,4): getLineCoordinates passes through (2,2).
+    expect(traversiblePathBetween(monst, 4, 4, ctx)).toBe(false);
 });
 
 // =============================================================================

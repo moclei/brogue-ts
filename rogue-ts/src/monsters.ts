@@ -50,7 +50,9 @@ import { DCOLS, DROWS, MAX_WAYPOINT_COUNT } from "./types/constants.js";
 import { TileFlag, MonsterBookkeepingFlag, TerrainFlag } from "./types/flags.js";
 import { GameMode, DungeonLayer } from "./types/enums.js";
 import type { SpawnContext } from "./monsters/monster-spawning.js";
+import { monsterAvoids as monsterAvoidsFn } from "./monsters/monster-state.js";
 import type { MonsterStateContext } from "./monsters/monster-state.js";
+import { traversiblePathBetween as traversiblePathBetweenFn } from "./monsters/monster-actions.js";
 import type { MonsterQueryContext } from "./monsters/monster-queries.js";
 import type { MonsterGenContext } from "./monsters/monster-creation.js";
 import { becomeAllyWith as becomeAllyWithFn } from "./monsters/monster-lifecycle.js";
@@ -228,7 +230,7 @@ export function buildMonsterStateContext(): MonsterStateContext {
         playbackOmniscience: rogue.playbackOmniscience,
     };
 
-    return {
+    const stateCtx: MonsterStateContext = {
         player,
         monsters,
         rng: { randRange, randPercent: (pct) => randPercent(pct) },
@@ -282,7 +284,12 @@ export function buildMonsterStateContext(): MonsterStateContext {
         },
         openPathBetween: (l1, l2) =>
             openPathBetweenFn(l1, l2, (pos) => cellHasTerrainFlagFn(pmap, pos, TerrainFlag.T_OBSTRUCTS_PASSABILITY)),
-        traversiblePathBetween: () => false,    // stub
+        traversiblePathBetween: (monst, x, y) =>
+            traversiblePathBetweenFn(monst, x, y, {
+                monsterAvoids: (m, loc) => monsterAvoidsFn(m, loc, stateCtx),
+                DCOLS,
+                DROWS,
+            }),
         inFieldOfView: (loc) =>
             !!(pmap[loc.x]?.[loc.y]?.flags & TileFlag.IN_FIELD_OF_VIEW),
 
@@ -325,4 +332,5 @@ export function buildMonsterStateContext(): MonsterStateContext {
         DCOLS,
         DROWS,
     };
+    return stateCtx;
 }

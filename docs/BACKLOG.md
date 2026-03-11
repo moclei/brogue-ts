@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-10 (after port-v2-close-out Phases 1–6 + B9/B8/B7/B6 fix + canPass wired + getImpactLoc wired)
-**Tests at last update:** 88 files · 2244 pass · 80 skip
+**Status:** updated 2026-03-10 (after port-v2-close-out Phases 1–6 + B9/B8/B7/B6 fix + canPass wired + getImpactLoc wired + traversiblePathBetween fixed)
+**Tests at last update:** 88 files · 2245 pass · 79 skip
 
 ---
 
@@ -51,7 +51,7 @@ Complexity key: **S** = small/self-contained · **M** = medium, needs context wo
   C: `Items.c` (bolt geometry). TS: `items/bolt-geometry.ts` or movement context.
   test.skip: `movement.test.ts:324`. **M**
 
-- [ ] **`traversiblePathBetween` uses Bresenham** — should use bolt `getLineCoordinates`.
+- [x] **`traversiblePathBetween` uses Bresenham** — should use bolt `getLineCoordinates`.
   Affects monster line-of-sight checks for ranged attacks.
   C: `Monsters.c`. TS: `monsters/monster-ai-movement.ts`.
   test.skip: `monsters/monster-ai-movement.test.ts:310`. **S**
