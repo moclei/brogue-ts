@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-10 (after port-v2-close-out Phases 1–6 + B9/B8 fix)
+**Status:** updated 2026-03-10 (after port-v2-close-out Phases 1–6 + B9/B8/B7 fix)
 **Tests at last update:** 88 files · 2242 pass · 82 skip
 
 ---
@@ -222,10 +222,16 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `Items.c` (throwItem → removeItemAt → T_PROMOTES_ON_ITEM_PICKUP chain),
   `Architect.c` (machine trigger). Start by reading the crash stack trace in the console. **L**
 
-- [ ] **B7 — Die → New Game does nothing** — After dying, selecting New Game from the
+- [x] **B7 — Die → New Game does nothing** — After dying, selecting New Game from the
   death screen has no effect. The game does not restart.
   C: `RogueMain.c` (gameOver → mainInputLoop → NEW_GAME_KEY handling).
   TS: `game/game-lifecycle.ts` gameOver, `menus.ts` post-death menu. **M**
+  Fix: `freeEverything()` freed `safetyMap`, `allySafetyMap`, `chokeMap` (set to null)
+  but `initializeRogue()` in `lifecycle.ts` did not re-allocate them. Second call to
+  `buildLevelContext()` → `analyzeMap(pmap, null, …)` → crash. Fixed by re-allocating
+  in `lifecycle.ts::initializeRogue()` when null (matches C `initializeRogue` behavior).
+  Also extracted `buildLifecycleContext()` to `lifecycle-gameover.ts` to keep
+  `lifecycle.ts` under 600 lines.
 
 - [x] **B8 — Items in treasure rooms show as `?`** — All items in treasure/item rooms
   display as `?` instead of their actual glyphs. Likely `displayChar` not set on

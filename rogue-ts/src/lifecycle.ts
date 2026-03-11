@@ -23,10 +23,9 @@ import { getGameState, setMonsters, setDormantMonsters, setLevels, getScentMap, 
 import { initializeRogue as initializeRogueFn } from "./game/game-init.js";
 import { startLevel as startLevelFn } from "./game/game-level.js";
 import { freeEverything as freeEverythingFn } from "./game/game-cleanup.js";
-import { dynamicColorsBounds, nbDirs, coordinatesAreInMap, posNeighborInDirection,
-    mapToWindowX, mapToWindowY } from "./globals/tables.js";
+import { dynamicColorsBounds, nbDirs, coordinatesAreInMap, posNeighborInDirection } from "./globals/tables.js";
 import { lightCatalog } from "./globals/light-catalog.js";
-import { LightType, DungeonLayer, MonsterType, EventType, DisplayGlyph } from "./types/enums.js";
+import { LightType, DungeonLayer, MonsterType } from "./types/enums.js";
 import { meteredItemsGenerationTable, lumenstoneDistribution,
     scrollTable, potionTable } from "./globals/item-catalog.js";
 import { featCatalog } from "./globals/feat-catalog.js";
@@ -39,9 +38,7 @@ import { dungeonProfileCatalog } from "./globals/dungeon-profile-catalog.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
 import { mutationCatalog } from "./globals/mutation-catalog.js";
-import { itemMessageColor, white, backgroundMessageColor, goodMessageColor,
-    black, gray, yellow, lightBlue, badMessageColor, advancementMessageColor,
-    superVictoryColor } from "./globals/colors.js";
+import { itemMessageColor, white, backgroundMessageColor, goodMessageColor } from "./globals/colors.js";
 import { KEYBOARD_LABELS, DCOLS, DROWS, MESSAGE_ARCHIVE_ENTRIES, MONSTER_CLASS_COUNT } from "./types/constants.js";
 import { TileFlag } from "./types/flags.js";
 import { seedRandomGenerator, randRange, rand64bits, randPercent, randClump, clamp } from "./math/rng.js";
@@ -73,7 +70,7 @@ import { buildEquipState, syncEquipBonuses, syncEquipState } from "./items/equip
 import type { MachineItem } from "./architect/machines.js";
 import { initializeGender, initializeStatus, generateMonster } from "./monsters/monster-creation.js";
 import { createMonsterOps, toggleMonsterDormancy } from "./monsters/monster-ops.js";
-import { blackOutScreen, clearDisplayBuffer, plotCharToBuffer } from "./io/display.js";
+import { blackOutScreen } from "./io/display.js";
 import {
     getCellAppearance,
     refreshDungeonCell as refreshDungeonCellFn,
@@ -93,8 +90,7 @@ import type { Creature, Color, Item, LevelData } from "./types/types.js";
 import type { GameInitContext } from "./game/game-init.js";
 import type { LevelContext } from "./game/game-level.js";
 import type { CleanupContext } from "./game/game-cleanup.js";
-import type { LifecycleContext } from "./game/game-lifecycle.js";
-import { buildRefreshSideBarFn, buildMessageFns } from "./io-wiring.js";
+import { buildMessageFns } from "./io-wiring.js";
 import { buildUpdateVisionFn } from "./vision-wiring.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
 
@@ -356,7 +352,7 @@ export function buildLevelContext(): LevelContext {
             staleLoopMap: rogue.staleLoopMap,
             gameConstants: gameConst, monsterOps,
             itemOps: {
-                generateItem: (category, kind) => generateItem(category, kind, {
+                generateItem: (category: number, kind: number) => generateItem(category, kind, {
                     rng: { randRange, randPercent, randClump }, gameConstants: gameConst,
                     depthLevel: rogue.depthLevel, scrollTable: mutableScrollTable,
                     potionTable: mutablePotionTable, depthAccelerator: gameConst.depthAccelerator,
@@ -557,54 +553,6 @@ export function buildCleanupContext(): CleanupContext {
 }
 
 // =============================================================================
-// buildLifecycleContext
-// =============================================================================
-
-export function buildLifecycleContext(): LifecycleContext {
-    const { rogue, player, gameConst, pmap, tmap, monsters, dormantMonsters,
-        floorItems, packItems, displayBuffer, monsterCatalog, messageState } = getGameState();
-    const { message, messageWithColor, confirmMessages } = buildMessageFns();
-    const refreshSideBar = buildRefreshSideBarFn();
-    const getCellApp = (loc: { x: number; y: number }) => getCellAppearance(
-        loc, pmap, tmap, displayBuffer, rogue, player, monsters, dormantMonsters, floorItems,
-        tileCatalog, dungeonFeatureCatalog, monsterCatalog, terrainRandomValues, displayDetail, getScentMap() ?? []);
-    return {
-        rogue, player, gameConst, packItems, featTable: featCatalog,
-        serverMode: false, nonInteractivePlayback: false,
-        displayBuffer,
-        clearDisplayBuffer: (d) => clearDisplayBuffer(d),
-        blackOutScreen: (d) => blackOutScreen(d),
-        displayLevel() {
-            displayLevelFn(DCOLS, DROWS, (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer));
-        },
-        refreshSideBar,
-        printString: () => {},
-        plotCharToBuffer: (ch, pos, fg, bg, dbuf) => plotCharToBuffer(ch, pos.windowX, pos.windowY, fg, bg, dbuf),
-        funkyFade: () => {}, strLenWithoutEscapes: () => 0,
-        mapToWindowX, mapToWindowY,
-        message, messageWithColor, confirmMessages,
-        deleteMessages: () => {}, displayMoreSign: () => {},
-        displayMoreSignWithoutWaitingForAcknowledgment: () => {},
-        flashTemporaryAlert: () => {}, confirm: () => false,
-        nextBrogueEvent(ev) { ev.eventType = EventType.MouseUp; }, // stub: exits sync event loops
-        identify: (item) => identify(item, gameConst),
-        itemName: () => "", upperCase: (s) => s.toUpperCase(), itemValue: () => 0,
-        numberOfMatchingPackItems: (cat, fl, fl2, _uf) => numberOfMatchingPackItems(packItems, cat, fl, fl2),
-        isVowelish: () => false, displayInventory: () => 0,
-        flushBufferToFile: () => {}, saveHighScore: () => false, printHighScores: () => {},
-        saveRecording: (_f) => {},              // stub — persistence layer not implemented
-        saveRecordingNoPrompt: (_f) => {},      // stub — persistence layer not implemented
-        notifyEvent: () => {}, saveRunHistory: () => {}, recordKeystroke: () => {},
-        refreshDungeonCell: (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer),
-        encodeMessageColor: () => {},
-        black, white, gray, yellow, lightBlue, badMessageColor,
-        itemMessageColor, advancementMessageColor, superVictoryColor,
-        displayedMessage: messageState.displayedMessage,
-        G_GOLD: DisplayGlyph.G_GOLD, G_AMULET: DisplayGlyph.G_AMULET,
-    };
-}
-
-// =============================================================================
 // Public entry points
 // =============================================================================
 
@@ -614,6 +562,12 @@ export function getPreviousGameSeed(): bigint { return previousGameSeed; }
 /** Initialize game state for a new game from seed (0 = random). */
 export function initializeRogue(seed: bigint): void {
     dynamicColors = dynamicColorsBounds.map(([start]) => ({ ...start }));
+    // Re-allocate grids freed by freeEverything() — matches C initializeRogue behavior.
+    // Without this, a second game (die → new game) passes null grids to buildLevelContext
+    // and crashes when analyzeMap/machineContext access chokeMap[i][j].
+    if (!safetyMap) safetyMap = allocGrid();
+    if (!allySafetyMap) allySafetyMap = allocGrid();
+    if (!chokeMap) chokeMap = allocGrid();
     initializeRogueFn(buildGameInitContext(), seed);
 }
 
