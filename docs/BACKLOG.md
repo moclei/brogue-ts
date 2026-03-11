@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-11 (after B26 — hallucination crash: describeHallucinatedItem mutual recursion fixed)
-**Tests at last update:** 88 files · 2264 pass · 63 skip
+**Status:** updated 2026-03-11 (after updateMonsterCorpseAbsorption — corpse absorption now fully wired)
+**Tests at last update:** 88 files · 2269 pass · 62 skip
 
 ---
 
@@ -174,11 +174,12 @@ These don't exist in TS yet. Port the C function, add context plumbing, wire it 
   between steps. Fix: make `flashMessage`/`EffectsContext.pauseBrogue` async throughout.
   Filed as **B17** in bug reports below.
 
-- [ ] **`updateMonsterCorpseAbsorption`** — advances corpse-absorption state for
+- [x] **`updateMonsterCorpseAbsorption`** — advances corpse-absorption state for
   monsters that eat corpses to gain abilities (e.g. wraiths, vampires).
   Actual gameplay mechanic, not cosmetic.
-  C: `Monsters.c`. TS: `monsters/monster-actions.ts` or similar.
-  test.skip: `tests/monsters/monster-actions.test.ts:576`. **M**
+  C: `Monsters.c`. TS: `monsters/monster-corpse-absorption.ts`; wired in
+  `turn-monster-ai.ts` via `CorpseAbsorptionContext`.
+  test: `tests/monsters/monster-actions.test.ts` (stub replaced). **M**
 
 - [ ] **`applyInstantTileEffectsToCreature`** — applies terrain effects to a creature
   that steps onto or is on a cell: tall grass trampling (`T_PROMOTES_ON_STEP`), fire

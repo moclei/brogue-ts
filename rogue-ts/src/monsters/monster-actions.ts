@@ -189,7 +189,7 @@ export function monsterSummons(
 
 // ============================================================================
 // Helper function stubs — monstUseMagic, monsterBlinkToPreferenceMap,
-//   monsterBlinkToSafety, updateMonsterCorpseAbsorption
+//   monsterBlinkToSafety
 // These require deep magic / blink systems not yet ported.
 // ============================================================================
 
@@ -215,13 +215,6 @@ export function monsterBlinkToPreferenceMapStub(
  * Stub: returns false — full blink-to-safety not yet ported.
  */
 export function monsterBlinkToSafetyStub(_monst: Creature): boolean {
-    return false;
-}
-
-/**
- * Stub: returns false — full corpse absorption not yet ported.
- */
-export function updateMonsterCorpseAbsorptionStub(_monst: Creature): boolean {
     return false;
 }
 

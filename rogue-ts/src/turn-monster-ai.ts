@@ -106,7 +106,13 @@ import {
     closestWaypointIndexTo as closestWaypointIndexToFn,
 } from "./monsters/monster-awareness.js";
 import { burnedTerrainFlagsAtLoc as burnedTerrainFlagsAtLocFn } from "./state/helpers.js";
-import { goodMessageColor } from "./globals/colors.js";
+import { goodMessageColor, advancementMessageColor } from "./globals/colors.js";
+import { monsterBehaviorCatalog, monsterAbilityCatalog } from "./globals/status-effects.js";
+import { unflag } from "./game/game-cleanup.js";
+import {
+    updateMonsterCorpseAbsorption as updateMonsterCorpseAbsorptionFn,
+} from "./monsters/monster-corpse-absorption.js";
+import type { CorpseAbsorptionContext } from "./monsters/monster-corpse-absorption.js";
 import type { Creature, Pos } from "./types/types.js";
 
 // =============================================================================
@@ -580,6 +586,38 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
     };
     monsterMillAboutImpl = (monst, chance) => monsterMillAboutFn(monst, chance, millAboutCtx);
 
+    // ── Corpse absorption context ─────────────────────────────────────────────
+    const corpseAbsorptionCtx: CorpseAbsorptionContext = {
+        canSeeMonster: (m) => canSeeMonsterFn(m, queryCtx),
+        monsterName: (m, includeArticle) => {
+            if (m === player) return "you";
+            const pfx = includeArticle ? (m.creatureState === CreatureState.Ally ? "your " : "the ") : "";
+            return `${pfx}${m.info.monsterName}`;
+        },
+        getAbsorbingText: (id) => monsterText[id]?.absorbing ?? "",
+        boltAbilityDescription: (boltIndex) => boltCatalog[boltIndex]?.abilityDescription ?? "",
+        behaviorDescription: (flagIndex) => monsterBehaviorCatalog[flagIndex]?.description ?? "",
+        abilityDescription: (flagIndex) => monsterAbilityCatalog[flagIndex]?.description ?? "",
+        resolvePronounEscapes,
+        messageWithColor: io.messageWithColor,
+        goodMessageColor,
+        advancementMessageColor,
+        MB_ABSORBING: MonsterBookkeepingFlag.MB_ABSORBING,
+        MB_SUBMERGED: MonsterBookkeepingFlag.MB_SUBMERGED,
+        MONST_FIERY: MonsterBehaviorFlag.MONST_FIERY,
+        MONST_FLIES: MonsterBehaviorFlag.MONST_FLIES,
+        MONST_IMMUNE_TO_FIRE: MonsterBehaviorFlag.MONST_IMMUNE_TO_FIRE,
+        MONST_INVISIBLE: MonsterBehaviorFlag.MONST_INVISIBLE,
+        MONST_RESTRICTED_TO_LIQUID: MonsterBehaviorFlag.MONST_RESTRICTED_TO_LIQUID,
+        MONST_SUBMERGES: MonsterBehaviorFlag.MONST_SUBMERGES,
+        STATUS_BURNING: StatusEffect.Burning,
+        STATUS_LEVITATING: StatusEffect.Levitating,
+        STATUS_IMMUNE_TO_FIRE: StatusEffect.ImmuneToFire,
+        STATUS_INVISIBLE: StatusEffect.Invisible,
+        BOLT_NONE: BoltType.NONE,
+        unflag,
+    };
+
     // ── Return the fully-wired MonstersTurnContext ─────────────────────────────
     return {
         player, monsters,
@@ -601,7 +639,8 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         monsterBlinkToSafety: (monst) => monsterBlinkToSafetyFn(monst, blinkToSafetyCtx),
         monsterSummons: (monst, alwaysUse) => monsterSummonsFn(monst, alwaysUse, summonsCtx),
         monsterCanShootWebs: (monst) => monsterCanShootWebsFn(monst, boltCatalog, tileCatalog, dungeonFeatureCatalog),
-        updateMonsterCorpseAbsorption: () => false,
+        updateMonsterCorpseAbsorption: (monst) =>
+            updateMonsterCorpseAbsorptionFn(monst, corpseAbsorptionCtx),
         spawnDungeonFeature(x, y, dfType, isVolatile, ignoreBlocking) {
             const feat = dungeonFeatureCatalog[dfType];
             if (feat) spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, isVolatile, ignoreBlocking);
