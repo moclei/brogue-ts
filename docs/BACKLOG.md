@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-10 (after port-v2-close-out Phases 1–6 + B9/B8/B7 fix)
+**Status:** updated 2026-03-10 (after port-v2-close-out Phases 1–6 + B9/B8/B7/B6 fix)
 **Tests at last update:** 88 files · 2242 pass · 82 skip
 
 ---
@@ -214,7 +214,7 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
 
 ### P1 — Blocking / crashes
 
-- [ ] **B6 — Crash on throw + pressure plate** — Threw a dart onto a pressure plate
+- [x] **B6 — Crash on throw + pressure plate** — Threw a dart onto a pressure plate
   that should open a cage; game crashed after throw resolved. Throw itself worked;
   crash is downstream — likely in the machine trigger that fires when the pressure
   plate is activated (dungeon feature spawning, cage-open mechanic, monster release).
@@ -276,6 +276,20 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   into `movement.ts` player move context. **M**
 
 ### P3 — Minor / cosmetic
+
+- [ ] **B16 — Title-screen flames speed up on mouse movement** — On the title screen,
+  moving the mouse over the game area causes the flame animation to run faster than
+  normal; the more mouse events arrive, the faster the flames animate. Stopping the
+  mouse or moving it off the canvas restores normal speed.
+  Cause: the `titleMenu` inner loop calls `updateMenuFlames` on every iteration.
+  `pauseBrogue(MENU_FLAME_UPDATE_DELAY, { interruptForMouseMove: true })` returns
+  early on each mouse-move event, so flames are advanced once per mouse event instead
+  of once per `MENU_FLAME_UPDATE_DELAY` ms. Fix: track `Date.now()` and only call
+  `updateMenuFlames` when at least `MENU_FLAME_UPDATE_DELAY` ms have elapsed since
+  the last flame update, regardless of how many mouse events arrived.
+  C: flame update rate is implicitly correct because C's `pauseBrogue` counts wall-clock
+  time; the TS async equivalent short-circuits the delay without compensating.
+  TS: `menus/main-menu.ts` (`titleMenu` inner loop). **S**
 
 - [ ] **B14 — No message when exploration complete** — When auto-explore has nowhere
   left to go (whole map explored, or path unreachable), no message appears. In C a

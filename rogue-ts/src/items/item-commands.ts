@@ -43,6 +43,8 @@ import { getQualifyingLocNear as getQualifyingLocNearFn } from "../architect/arc
 import { placeItemAt as placeItemAtFn } from "./floor-items.js";
 import type { PlaceItemAtContext } from "./floor-items.js";
 import { spawnDungeonFeature as spawnDungeonFeatureFn } from "../architect/machines.js";
+import { promoteTile as promoteTileFn } from "../time/environment.js";
+import type { EnvironmentContext } from "../time/environment.js";
 import {
     highestPriorityLayer as highestPriorityLayerFn,
     cellHasTerrainFlag as cellHasTerrainFlagFn,
@@ -70,14 +72,14 @@ import { itemName as itemNameFn } from "./item-naming.js";
 import { charmRechargeDelay as charmRechargeDelayFn } from "../power/power-tables.js";
 import { itemMagicPolarity as itemMagicPolarityFn } from "./item-generation.js";
 import { coordinatesAreInMap, mapToWindowX, windowToMapX, windowToMapY } from "../globals/tables.js";
-import { randClump, randPercent, randRange } from "../math/rng.js";
+import { randClump, randPercent, randRange, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "../math/rng.js";
 import { playerTurnEnded as playerTurnEndedFn } from "../turn.js";
 import { badMessageColor, black, gray, red, white, itemMessageColor } from "../globals/colors.js";
 import { anyoneWantABite as anyoneWantABiteFn } from "../combat/combat-helpers.js";
 import type { CombatHelperContext } from "../combat/combat-helpers.js";
-import { AutoTargetMode, CreatureState, DisplayGlyph, EventType, GameMode, StatusEffect } from "../types/enums.js";
+import { AutoTargetMode, CreatureState, DisplayGlyph, DungeonLayer, EventType, GameMode, StatusEffect } from "../types/enums.js";
 import { TerrainFlag, TileFlag } from "../types/flags.js";
-import { COLS, DCOLS, DELETE_KEY, ESCAPE_KEY, MESSAGE_LINES, RETURN_KEY } from "../types/constants.js";
+import { COLS, DCOLS, DROWS, DELETE_KEY, ESCAPE_KEY, MESSAGE_LINES, RETURN_KEY } from "../types/constants.js";
 import type { Color, Creature, Item, ItemTable, Pos, RogueEvent } from "../types/types.js";
 import { printString } from "../io/text.js";
 import { plotCharToBuffer } from "../io/display.js";
@@ -297,7 +299,7 @@ export function buildThrowCommandFn(
     return async (item, _confirmed) => {
         if (!item) return;
 
-        const { rogue, player, pmap, monsters, floorItems, packItems, mutablePotionTable, gameConst } = getGameState();
+        const { rogue, player, pmap, monsters, levels, floorItems, packItems, mutablePotionTable, gameConst } = getGameState();
 
         const cellHasTerrainFlag = (loc: Pos, flags: number) => cellHasTerrainFlagFn(pmap, loc, flags);
         const cellHasTMFlag = (loc: Pos, flag: number) => cellHasTMFlagFn(pmap, loc, flag);
@@ -431,6 +433,43 @@ export function buildThrowCommandFn(
             red,
         };
 
+        // EnvironmentContext for promoteTile — needed so pressure plates properly
+        // activate cage machines when a thrown item lands on them.
+        // fillSequentialList/shuffleList must be real: activateMachine fills and
+        // shuffles sCols/sRows before iterating pmap; stubs leave them undefined
+        // and pmap[undefined] crashes.  monstersTurn remains stubbed (complex wiring).
+        const envCtx: EnvironmentContext = {
+            player,
+            rogue,
+            monsters,
+            pmap,
+            levels,
+            tileCatalog: tileCatalog as never,
+            dungeonFeatureCatalog: dungeonFeatureCatalog as never,
+            DCOLS,
+            DROWS,
+            cellHasTerrainFlag,
+            cellHasTMFlag,
+            coordinatesAreInMap: (x, y) => coordinatesAreInMap(x, y),
+            refreshDungeonCell: () => {},
+            spawnDungeonFeature: (x, y, feat, isV, oP) =>
+                spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y,
+                    feat as never, isV, oP),
+            monstersFall: () => {},
+            updateFloorItems: () => {},
+            monstersTurn: () => {},         // stub — cage monsters get a turn on release
+            keyOnTileAt: () => null,
+            removeCreature: () => false,
+            prependCreature: () => {},
+            rand_range: (a, b) => randRange(a, b),
+            rand_percent: (p) => randPercent(p),
+            max: Math.max,
+            min: Math.min,
+            fillSequentialList: (list, _len) => fillSequentialListFn(list),
+            shuffleList: (list, _len) => shuffleListFn(list),
+            exposeTileToFire: () => false,
+        } as unknown as EnvironmentContext;
+
         const placeCtx: PlaceItemAtContext = {
             pmap,
             floorItems,
@@ -448,7 +487,8 @@ export function buildThrowCommandFn(
             spawnDungeonFeature: (x, y, feat, isV, oP) =>
                 spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y,
                     feat as never, isV, oP),
-            promoteTile: () => {},
+            promoteTile: (x, y, layer, isForced) =>
+                promoteTileFn(x, y, layer as DungeonLayer, isForced, envCtx),
         };
 
         const throwCtx: ThrowItemContext = {

@@ -103,7 +103,7 @@ import { monsterDamageAdjustmentAmount as monsterDamageAdjustmentAmountFn } from
 import { allocGrid, freeGrid } from "./grid/grid.js";
 import { dijkstraScan, calculateDistances } from "./dijkstra/dijkstra.js";
 import { FP_FACTOR } from "./math/fixpt.js";
-import { randRange, randPercent } from "./math/rng.js";
+import { randRange, randPercent, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "./math/rng.js";
 import { TileFlag, TerrainFlag, TerrainMechFlag } from "./types/flags.js";
 import { ItemCategory, CreatureState, DungeonLayer } from "./types/enums.js";
 import {
@@ -159,7 +159,7 @@ function buildMonsterNameHelper(player: Creature) {
  * are stubbed — wired in port-v2-platform.
  */
 export function buildMovementContext(): PlayerMoveContext {
-    const { player, rogue, pmap, monsters, packItems, floorItems, gameConst,
+    const { player, rogue, pmap, monsters, levels, packItems, floorItems, gameConst,
         mutableScrollTable, mutablePotionTable, monsterCatalog } = getGameState();
     const namingCtx = {
         gameConstants: gameConst,
@@ -191,14 +191,20 @@ export function buildMovementContext(): PlayerMoveContext {
     const attackCtx = buildCombatAttackContext();
 
     // Partial EnvironmentContext for promoteTile (unused fields stubbed).
+    // fillSequentialList/shuffleList must be real: activateMachine fills and
+    // shuffles sCols/sRows before iterating pmap; stubs leave them undefined
+    // and pmap[undefined] crashes.  monstersTurn remains stubbed (complex wiring).
     const envCtx = {
-        pmap, rogue, tileCatalog, dungeonFeatureCatalog, DCOLS, DROWS, monsters: [], levels: [],
+        pmap, rogue, tileCatalog, dungeonFeatureCatalog, DCOLS, DROWS, monsters, levels,
         refreshDungeonCell, spawnDungeonFeature: spawnFeature, cellHasTerrainFlag, cellHasTMFlag,
         coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
         monstersFall: () => {}, updateFloorItems: () => {}, monstersTurn: () => {}, keyOnTileAt: () => null,
         removeCreature: () => false, prependCreature: () => {},
         rand_range: (a: number, b: number) => randRange(a, b), rand_percent: (p: number) => randPercent(p),
-        max: Math.max, min: Math.min, fillSequentialList: () => {}, shuffleList: () => {}, exposeTileToFire: () => false,
+        max: Math.max, min: Math.min,
+        fillSequentialList: (list: number[], _len: number) => fillSequentialListFn(list),
+        shuffleList: (list: number[], _len: number) => shuffleListFn(list),
+        exposeTileToFire: () => false,
     } as unknown as EnvironmentContext;
 
     // Partial ItemHelperContext for useKeyAt/checkForMissingKeys.
