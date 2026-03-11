@@ -95,7 +95,6 @@ export {
     monstUseMagicStub,
     monsterBlinkToPreferenceMapStub,
     monsterBlinkToSafetyStub,
-    updateMonsterCorpseAbsorptionStub,
     isValidWanderDestination,
     wanderToward,
     traversiblePathBetween,
