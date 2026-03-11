@@ -26,7 +26,7 @@ import {
     playerCancelsBlinking as playerCancelsBlinkingFn,
 } from "./targeting.js";
 import { zap as zapFn } from "./zap.js";
-import { buildCombatAttackContext, buildCombatDamageContext } from "../combat.js";
+import { buildCombatAttackContext, buildCombatDamageContext, buildFadeInMonsterFn } from "../combat.js";
 import { attack as attackFn } from "../combat/combat-attack.js";
 import {
     inflictDamage as inflictDamageFn,
@@ -496,7 +496,7 @@ export function buildStaffZapFn() {
                 return monst;
             },
             getQualifyingPathLocNear: (loc) => loc,  // stub — returns loc
-            fadeInMonster: () => {},        // stub — visual only
+            fadeInMonster: buildFadeInMonsterFn(),
 
             // ── RNG ──
             randPercent,

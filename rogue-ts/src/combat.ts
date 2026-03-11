@@ -35,9 +35,12 @@ import {
 } from "./globals/colors.js";
 import { TileFlag } from "./types/flags.js";
 import { CreatureState, GameMode } from "./types/enums.js";
+import { flashMonster } from "./combat/combat-damage.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { AttackContext } from "./combat/combat-attack.js";
 import type { Creature, Pos } from "./types/types.js";
+import { getCellAppearance } from "./io/cell-appearance.js";
+import { terrainRandomValues, displayDetail } from "./render-state.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
 import { updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, equipItem as equipItemFn } from "./items/item-usage.js";
 import { buildEquipState, syncEquipBonuses, syncEquipState } from "./items/equip-helpers.js";
@@ -110,7 +113,7 @@ export function buildCombatDamageContext(): CombatDamageContext {
         message: io.message,
         refreshDungeonCell,
         applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
-        fadeInMonster: () => {},
+        fadeInMonster: buildFadeInMonsterFn(),
 
         monsterName: buildMonsterName(player),
 
@@ -292,5 +295,33 @@ export function buildCombatAttackContext(): AttackContext {
         // ── Ally ops ─────────────────────────────────────────────────────────
         unAlly: (monst) => unAllyFn(monst),
         alertMonster: (monst) => alertMonsterFn(monst, player),
+    };
+}
+
+// =============================================================================
+// buildFadeInMonsterFn — Monsters.c:904
+// =============================================================================
+
+/**
+ * Returns a `fadeInMonster(monst)` closure that flashes the monster with the
+ * background colour of its current cell — the visual cue for a monster
+ * appearing (summoned, revealed, etc.).
+ *
+ * C: void fadeInMonster(creature *monst) — calls getCellAppearance then
+ *    flashMonster(monst, &bColor, 100).
+ */
+export function buildFadeInMonsterFn(): (monst: Creature) => void {
+    return (monst) => {
+        const { rogue, pmap, tmap, displayBuffer, player, monsters,
+            dormantMonsters, floorItems, monsterCatalog, scentMap } = getGameState();
+        const { backColor } = getCellAppearance(
+            monst.loc, pmap, tmap, displayBuffer, rogue, player,
+            monsters, dormantMonsters, floorItems,
+            tileCatalog, dungeonFeatureCatalog, monsterCatalog,
+            terrainRandomValues, displayDetail, scentMap ?? [],
+        );
+        flashMonster(monst, backColor, 100, {
+            setCreaturesWillFlash() { rogue.creaturesWillFlashThisTurn = true; },
+        });
     };
 }

@@ -36,6 +36,7 @@ import {
     killCreature as killCreatureFn,
 } from "../combat/combat-damage.js";
 import type { CombatDamageContext } from "../combat/combat-damage.js";
+import { buildFadeInMonsterFn } from "../combat.js";
 import { damageFraction } from "../power/power-tables.js";
 import { wandDominate } from "../power/power-tables.js";
 import { netEnchant as netEnchantFn } from "./item-usage.js";
@@ -149,7 +150,7 @@ function buildMinCombatDamageCtx(deps: ItemCommandDeps): CombatDamageContext {
         message: deps.message,
         refreshDungeonCell: () => {},
         applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
-        fadeInMonster: () => {},
+        fadeInMonster: buildFadeInMonsterFn(),
         monsterName: (m) => (m === player ? "you" : m.info.monsterName),
         gameOver(msg) { gameOver(msg); },
         setCreaturesWillFlash() { rogue.creaturesWillFlashThisTurn = true; },

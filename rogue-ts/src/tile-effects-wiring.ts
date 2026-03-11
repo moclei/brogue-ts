@@ -36,6 +36,8 @@ import {
 } from "./io-wiring.js";
 import { buildUpdateVisionFn } from "./vision-wiring.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
+import { getCellAppearance } from "./io/cell-appearance.js";
+import { terrainRandomValues, displayDetail } from "./render-state.js";
 import { layerWithFlag as layerWithFlagFn } from "./movement/map-queries.js";
 import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
@@ -83,8 +85,9 @@ import type { ItemTable } from "./types/types.js";
  */
 export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
     const {
-        player, rogue, pmap, monsters, floorItems, packItems, levels, gameConst,
-        mutablePotionTable, mutableScrollTable, monsterCatalog,
+        player, rogue, pmap, tmap, displayBuffer, monsters, dormantMonsters, floorItems,
+        packItems, levels, gameConst, mutablePotionTable, mutableScrollTable,
+        monsterCatalog, scentMap,
     } = getGameState();
 
     const io = buildMessageFns();
@@ -208,7 +211,15 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
         clearCellMonsterFlag: () => {},
         prependCreature: () => {},
         applyInstantTileEffectsToCreature: () => {},  // no recursion in this sub-ctx
-        fadeInMonster: () => {},
+        fadeInMonster: (monst) => {
+            const { backColor } = getCellAppearance(
+                monst.loc, pmap, tmap, displayBuffer, rogue, player,
+                monsters, dormantMonsters, floorItems,
+                tileCatalog, dungeonFeatureCatalog, monsterCatalog,
+                terrainRandomValues, displayDetail, scentMap ?? [],
+            );
+            flashMonsterFn(monst, backColor, 100, combatCtx);
+        },
         refreshDungeonCell,
         anyoneWantABite: () => {},
         demoteMonsterFromLeadership: () => {},

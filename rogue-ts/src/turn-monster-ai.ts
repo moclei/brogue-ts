@@ -96,7 +96,7 @@ import {
     attack as attackFn,
     buildHitList as buildHitListFn,
 } from "./combat/combat-attack.js";
-import { buildCombatAttackContext } from "./combat.js";
+import { buildCombatAttackContext, buildFadeInMonsterFn } from "./combat.js";
 import { passableArcCount } from "./architect/helpers.js";
 import { getQualifyingPathLocNear as getQualifyingPathLocNearFn } from "./movement/path-qualifying.js";
 import { buildRefreshDungeonCellFn, buildMessageFns } from "./io-wiring.js";
@@ -403,7 +403,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         },
         getSummonMessage: (id) => monsterText[id]?.summonMessage ?? "",
         message: io.message,
-        fadeInMonster: () => {},
+        fadeInMonster: buildFadeInMonsterFn(),
         refreshDungeonCell,
         demoteMonsterFromLeadership: () => {},
         createFlare: () => {},

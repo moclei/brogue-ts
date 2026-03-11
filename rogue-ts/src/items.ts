@@ -19,7 +19,7 @@
 
 import { getGameState } from "./core.js";
 import { buildApplyInstantTileEffectsFn } from "./tile-effects-wiring.js";
-import { buildCombatDamageContext } from "./combat.js";
+import { buildCombatDamageContext, buildFadeInMonsterFn } from "./combat.js";
 import { buildTurnProcessingContext } from "./turn.js";
 import { buildMonsterSpawningContext } from "./monsters.js";
 import {
@@ -378,7 +378,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
             });
         },
         wakeUp: buildWakeUpFn(player, monsters),
-        fadeInMonster: () => {},             // permanent-defer — visual fade-in effect only
+        fadeInMonster: buildFadeInMonsterFn(),
         flashMonster: () => {},              // permanent-defer — visual flash effect only
         aggravateMonsters(range, x, y, color) {
             aggravateMonstersFn(range, x, y, color, {
@@ -426,7 +426,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                         charmEffectTable[CharmKind.Guardian].effectMagnitudeMultiplier,
                     ),
                 netEnchant: (item) => netEnchantFn(item, rogue.strength, player.weaknessAmount),
-                fadeInMonster: () => {},        // permanent-defer — visual fade-in effect only
+                fadeInMonster: buildFadeInMonsterFn(),
             });
         },
 

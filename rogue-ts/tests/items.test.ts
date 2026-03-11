@@ -16,6 +16,8 @@ import { buildTurnProcessingContext } from "../src/turn.js";
 import { playerTurnEnded as playerTurnEndedFn } from "../src/time/turn-processing.js";
 import { monsterCatalog } from "../src/globals/monster-catalog.js";
 import { MonsterType, PotionKind, ScrollKind, ItemCategory, StatusEffect, DungeonLayer } from "../src/types/enums.js";
+import { MonsterBookkeepingFlag } from "../src/types/flags.js";
+import { buildFadeInMonsterFn } from "../src/combat.js";
 import type { Creature, Item } from "../src/types/types.js";
 
 // =============================================================================
@@ -346,11 +348,23 @@ it("swapLastEquipment() does not throw when no swap state exists", () => {
 // Stub registry — Monsters.c domain stubs (Phase 3c, port-v2-audit)
 // =============================================================================
 
-it.skip("stub: fadeInMonster() is a no-op (should animate a monster appearing on screen)", () => {
-    // DEFER: port-v2-platform — requires canvas animation via the async event bridge.
-    // C: Monsters.c:904 — fadeInMonster()
-    // items.ts:375,423, combat.ts:92, and turn.ts:90 all have `() => {}` context stubs.
-    // Real implementation renders the monster with gradually increasing opacity over several frames.
+it("fadeInMonster() sets MB_WILL_FLASH on the monster at strength 100", () => {
+    // C: Monsters.c:904 — getCellAppearance(loc) → flashMonster(monst, &bColor, 100)
+    // The flash flag is the observable side-effect; the actual frame animation
+    // happens in the render loop and cannot be tested here.
+    const { player } = getGameState();
+    player.loc = { x: 1, y: 1 };
+
+    const monst = { ...monsterCatalog[MonsterType.MK_RAT] } as Creature;
+    monst.loc = { x: 1, y: 1 };
+    monst.bookkeepingFlags = 0;
+    monst.flashStrength = 0;
+
+    const fadeInMonster = buildFadeInMonsterFn();
+    fadeInMonster(monst as Creature);
+
+    expect(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_WILL_FLASH).toBeTruthy();
+    expect(monst.flashStrength).toBe(100);
 });
 
 // =============================================================================
