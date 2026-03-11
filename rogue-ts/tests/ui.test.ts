@@ -301,10 +301,14 @@ it.skip("stub: clearDisplayBuffer() wired to io/display; full integration test d
     // Full integration test (verify all cells blanked) deferred to port-v2-platform.
 });
 
-it.skip("stub: updateFlavorText() is a no-op (deferred — needs CreatureEffectsContext)", () => {
-    // DEFER: port-v2-platform — needs CreatureEffectsContext (getCellAppearance, creature lookup).
-    // buildDisplayContext().updateFlavorText() at ui.ts:251 remains () => {}.
-    // Deferred Phase 7c; flavor text line stays blank until appearance system is wired.
+it("updateFlavorText() is wired — no throw when rogue.disturbed is false", () => {
+    // buildDisplayContext().updateFlavorText() now calls updateFlavorTextFn via buildUpdateFlavorTextFn().
+    // When rogue.disturbed is false (test default), the function is a no-op (no flavor line rendered).
+    // Verifies the context wiring does not throw; full render coverage is a browser integration test.
+    const ctx = buildDisplayContext();
+    expect(() => ctx.updateFlavorText()).not.toThrow();
+    const msgCtx = buildMessageContext();
+    expect(() => msgCtx.updateFlavorText()).not.toThrow();
 });
 
 it("waitForAcknowledgment() is wired — resolves immediately when platform not initialised (tests)", async () => {

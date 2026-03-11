@@ -78,6 +78,7 @@ import { buildThrowCommandFn, buildCallCommandFn } from "./items/item-commands.j
 import { itemCanBeCalled } from "./items/item-utils.js";
 import type { MessageContext as SyncMessageContext } from "./io/messages-state.js";
 import type { InventoryContext as FullInventoryContext } from "./io/inventory.js";
+import { buildUpdateFlavorTextFn } from "./io-wiring.js";
 
 // =============================================================================
 // Private helpers
@@ -251,7 +252,7 @@ export function buildDisplayContext(): DisplayContext {
         restoreDisplayBuffer: (saved) => restoreDisplayBufferFn(displayBuffer, saved),
         clearDisplayBuffer: clearDisplayBufferFn,
         createScreenDisplayBuffer: createScreenDisplayBufferFn,
-        updateFlavorText: () => {},                           // stub — needs appearance system
+        updateFlavorText: buildUpdateFlavorTextFn(),
     };
 }
 
@@ -301,7 +302,7 @@ export function buildMessageContext(): MessageContext {
         pauseBrogue: async () => false,                       // stub — sync/async bridge (Phase 7)
         nextBrogueEvent: async () => fakeEvent(),             // stub — sync/async bridge (Phase 7)
         flashTemporaryAlert: () => {},                        // stub — needs appearance system
-        updateFlavorText: () => {},                           // stub — needs appearance system
+        updateFlavorText: buildUpdateFlavorTextFn(),
         stripShiftFromMovementKeystroke: (k) => k,
     };
 }

@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-11 (after getQualifyingPathLocNear wired in lifecycle.ts + turn-monster-ai.ts)
-**Tests at last update:** 88 files · 2261 pass · 65 skip
+**Status:** updated 2026-03-11 (after updateFlavorText wired via buildUpdateFlavorTextFn in io-wiring.ts)
+**Tests at last update:** 88 files · 2262 pass · 64 skip
 
 ---
 
@@ -148,10 +148,12 @@ replace the stub closure.
 
 These don't exist in TS yet. Port the C function, add context plumbing, wire it in.
 
-- [ ] **`updateFlavorText`** — creature description text shown in sidebar when hovering
-  over a monster. Currently no-op.
-  C: `IO.c` (updateFlavorText). TS: `ui.ts` sidebar context.
-  test.skip: `tests/ui.test.ts:304`. **M**
+- [x] **`updateFlavorText`** — tile flavor text shown at the bottom of the screen
+  when the player moves (rogue.disturbed = true). Wired via `buildUpdateFlavorTextFn()`
+  in `io-wiring.ts`; wired into `movement.ts`, `ui.ts` (buildDisplayContext +
+  buildMessageContext). Handles respiration armor, levitating, and normal terrain cases.
+  C: `Time.c` (updateFlavorText). TS: `io-wiring.ts`, `movement.ts`, `ui.ts`.
+  test: `tests/ui.test.ts:304`. **M**
 
 - [ ] **`flashTemporaryAlert`** — brief screen flash on notable events (level up, potion
   identifies, etc.). Currently no-op.

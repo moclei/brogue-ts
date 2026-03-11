@@ -18,7 +18,10 @@ import { getGameState, getScentMap } from "./core.js";
 import { alertMonster as alertMonsterFn } from "./monsters/monster-state.js";
 import { monstersAreTeammates, monstersAreEnemies as monstersAreEnemiesFn } from "./monsters/monster-queries.js";
 import { CreatureState, CreatureMode, StatusEffect } from "./types/enums.js";
-import { exposeCreatureToFire as exposeCreatureToFireFn } from "./time/creature-effects.js";
+import {
+    exposeCreatureToFire as exposeCreatureToFireFn,
+    updateFlavorText as updateFlavorTextFn,
+} from "./time/creature-effects.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
 import { fireForeColor, torchLightColor, badMessageColor, white, yellow, interfaceBoxColor } from "./globals/colors.js";
 import { messageColorFromVictim as messageColorFromVictimFn } from "./io/color.js";
@@ -42,6 +45,7 @@ import {
     temporaryMessage as temporaryMessageFn,
     combatMessage as combatMessageFn,
     updateMessageDisplay as updateMessageDisplayFn,
+    flavorMessage as flavorMessageFn,
 } from "./io/messages.js";
 import { buildMessageContext, buildInventoryContext } from "./ui.js";
 import {
@@ -60,7 +64,14 @@ import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
     cellHasTMFlag as cellHasTMFlagFn,
 } from "./state/helpers.js";
-import { layerWithTMFlag as layerWithTMFlagFn, layerWithFlag as layerWithFlagFn } from "./movement/map-queries.js";
+import {
+    layerWithTMFlag as layerWithTMFlagFn,
+    layerWithFlag as layerWithFlagFn,
+    highestPriorityLayer as highestPriorityLayerFn,
+    tileFlavor as tileFlavorFn,
+    describeLocation as describeLocationFn,
+    type DescribeLocationContext,
+} from "./movement/map-queries.js";
 import {
     printProgressBar,
     describeHallucinatedItem as describeHallucinatedItemFn,
@@ -83,7 +94,11 @@ import type { Color, Pos, ItemTable, Item, BrogueButton } from "./types/types.js
 import { COLS, ROWS, KEYBOARD_LABELS, RETURN_KEY, ACKNOWLEDGE_KEY, ESCAPE_KEY, DCOLS, DROWS } from "./types/constants.js";
 import { printTextBox as printTextBoxFn } from "./io/inventory.js";
 import { initializeButton as initializeButtonFn } from "./io/buttons.js";
-import { saveDisplayBuffer as saveDisplayBufferFn, restoreDisplayBuffer as restoreDisplayBufferFn } from "./io/display.js";
+import {
+    plotCharWithColor as plotCharWithColorFn,
+    saveDisplayBuffer as saveDisplayBufferFn,
+    restoreDisplayBuffer as restoreDisplayBufferFn,
+} from "./io/display.js";
 import type { DisplayGlyph } from "./types/enums.js";
 import type { SidebarContext } from "./io/sidebar-player.js";
 import {
@@ -528,4 +543,47 @@ export function buildDisplayLevelFn(): () => void {
         terrainRandomValues, displayDetail, scentMap,
     );
     return () => displayLevelFn(DCOLS, DROWS, (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer));
+}
+
+// =============================================================================
+// buildUpdateFlavorTextFn
+// =============================================================================
+
+/**
+ * Returns a `() => void` closure that calls updateFlavorText() with the current
+ * game state. Renders the tile-flavor line at the bottom of the screen when
+ * rogue.disturbed is true.
+ *
+ * C: updateFlavorText() in Time.c
+ */
+export function buildUpdateFlavorTextFn(): () => void {
+    return () => {
+        const { pmap, player, rogue, displayBuffer, floorItems } = getGameState();
+        const plotChar = (ch: number, pos: { windowX: number; windowY: number }, fg: Readonly<Color>, bg: Readonly<Color>) =>
+            plotCharWithColorFn(ch as import("./types/enums.js").DisplayGlyph, pos, fg, bg, displayBuffer);
+        const msgCtx = { displayBuffer, plotCharWithColor: plotChar } as unknown as SyncMessageContext;
+        updateFlavorTextFn({
+            rogue: rogue as unknown as CreatureEffectsContext["rogue"],
+            player,
+            pmapAt: (pos: Pos) => pmap[pos.x][pos.y],
+            tileCatalog: tileCatalog as unknown as CreatureEffectsContext["tileCatalog"],
+            highestPriorityLayer: (x: number, y: number, skipGas: boolean) =>
+                highestPriorityLayerFn(pmap, x, y, skipGas),
+            flavorMessage: (msg: string) => flavorMessageFn(msgCtx, msg),
+            describeLocation: (buf: string[], x: number, y: number) => {
+                buf[0] = describeLocationFn(x, y, {
+                    pmap,
+                    player,
+                    itemAtLoc: (loc: Pos) => {
+                        for (const item of floorItems) {
+                            if (item.loc.x === loc.x && item.loc.y === loc.y) return item;
+                        }
+                        return null;
+                    },
+                } as unknown as DescribeLocationContext);
+            },
+            tileFlavor: (x: number, y: number) =>
+                tileFlavorFn(pmap, x, y, (pm, px, py, sg) => highestPriorityLayerFn(pm, px, py, sg)),
+        } as unknown as CreatureEffectsContext);
+    };
 }

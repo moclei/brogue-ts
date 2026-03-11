@@ -121,7 +121,7 @@ import { commitDraws } from "./platform.js";
 import type { Creature, Pos, RogueEvent } from "./types/types.js";
 import type { EnvironmentContext } from "./time/environment.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
-import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildGetCellAppearanceFn, buildConfirmFn } from "./io-wiring.js";
+import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildGetCellAppearanceFn, buildConfirmFn, buildUpdateFlavorTextFn } from "./io-wiring.js";
 import { buildWeaponAttackContext } from "./movement-weapon-context.js";
 export { buildWeaponAttackContext };
 
@@ -553,7 +553,7 @@ export function buildTravelContext(): TravelExploreContext {
         hiliteCell: (x, y, color, strength, flash) => hiliteCellFn(x, y, color, strength, flash, hiliteCellCtx),
         refreshDungeonCell,
         refreshSideBar,
-        updateFlavorText: () => {},          // stub — needs CreatureEffectsContext (Phase 3c)
+        updateFlavorText: buildUpdateFlavorTextFn(),
         clearCursorPath: () => clearCursorPathFn(pathHighlightCtx),
         hilitePath: (path, steps, remove) => hilitePathFn(path, steps, remove, pathHighlightCtx),
         getPlayerPathOnMap: () => 0,
