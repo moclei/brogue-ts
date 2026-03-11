@@ -164,7 +164,7 @@ export interface LifecycleContext {
     // -- Player display -------------------------------------------------------
 
     refreshDungeonCell(loc: { x: number; y: number }): void;
-    encodeMessageColor(buf: string[], pos: number, color: Readonly<Color>): void;
+    encodeMessageColor(color: Readonly<Color>): string;
 
     // -- Color references -----------------------------------------------------
 
