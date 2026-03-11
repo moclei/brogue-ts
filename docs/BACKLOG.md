@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-11 (after B18 — staff use wired: chooseTarget + zap() in useStaffOrWand)
-**Tests at last update:** 88 files · 2263 pass · 63 skip
+**Status:** updated 2026-03-11 (after B19 — readScroll awaits messageWithColor before promptForItemOfType)
+**Tests at last update:** 88 files · 2264 pass · 63 skip
 
 ---
 
@@ -274,13 +274,18 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `Items.c` (useStaffOrWand, zap, individual staff handlers). TS: `items/item-handlers.ts`,
   `items/targeting.ts`, `io/input-cursor.ts`. **M**
 
-- [ ] **B19 — Scroll of identify / enchanting stalls in item selection** — Both scrolls open
+- [x] **B19 — Scroll of identify / enchanting stalls in item selection** — Both scrolls open
   the inventory/button UI to select an item, but clicks and keypresses are not accepted;
-  game hangs indefinitely. Root cause likely in the modal item-selection event loop
-  (`buttonInputLoop` / item picker) not properly resolving input events in the async bridge.
-  Same symptom as B18(a) but a different code path (inventory modal vs targeting cursor).
-  C: `Items.c` (scrollIdentify, scrollEnchant → item picker). TS: `io/buttons.ts`,
-  `io/inventory.ts`, `items/item-handlers.ts`. **M**
+  game hangs indefinitely.
+  Root cause: `ctx.messageWithColor(..., REQUIRE_ACKNOWLEDGMENT)` was not awaited before
+  `ctx.promptForItemOfType(...)` in `readScroll`. Both paths called `waitForEvent()`, which
+  has a single-slot resolver; the acknowledgment waiter overwrote the inventory's slot and
+  consumed every subsequent keypress/click, leaving `buttonInputLoop` permanently blocked.
+  Fix: added `await` to the three `messageWithColor(REQUIRE_ACKNOWLEDGMENT)` calls that
+  precede `promptForItemOfType` in `readScroll` (ScrollKind.Identify, ScrollKind.Enchanting,
+  and the "Can't enchant that" retry). Also widened `ItemHandlerContext.message` /
+  `messageWithColor` return type to `void | Promise<void>` to match the async wire.
+  TS: `items/item-handlers.ts`. test: `tests/items.test.ts` (B19 fix test). **M**
 
 ### P2 — Visible gameplay divergences
 

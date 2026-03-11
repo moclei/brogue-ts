@@ -11,11 +11,11 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { initGameState, getGameState } from "../src/core.js";
 import { buildItemHandlerContext, buildItemHelperContext } from "../src/items.js";
 import { buildInputContext } from "../src/io/input-context.js";
-import { drinkPotion, apply } from "../src/items/item-handlers.js";
+import { drinkPotion, apply, readScroll } from "../src/items/item-handlers.js";
 import { buildTurnProcessingContext } from "../src/turn.js";
 import { playerTurnEnded as playerTurnEndedFn } from "../src/time/turn-processing.js";
 import { monsterCatalog } from "../src/globals/monster-catalog.js";
-import { MonsterType, PotionKind, ItemCategory, StatusEffect, DungeonLayer } from "../src/types/enums.js";
+import { MonsterType, PotionKind, ScrollKind, ItemCategory, StatusEffect, DungeonLayer } from "../src/types/enums.js";
 import type { Creature, Item } from "../src/types/types.js";
 
 // =============================================================================
@@ -200,6 +200,63 @@ it("wired: confirm() shows dialog via buildConfirmFn() — returns false in test
     const ctx = buildItemHandlerContext();
     const result = await ctx.confirm("Really?", false);
     expect(result).toBe(false);
+});
+
+function makeScroll(kind: ScrollKind): Item {
+    return {
+        category: ItemCategory.SCROLL,
+        kind,
+        flags: 0,
+        displayChar: 63 as never,
+        foreColor: { red: 100, green: 100, blue: 100, redRand: 0, greenRand: 0, blueRand: 0, colorDances: false, rand: 0 },
+        quantity: 1,
+        quiverNumber: 0,
+        loc: { x: 0, y: 0 },
+        depth: 1,
+        originDepth: 1,
+        enchant1: 0,
+        enchant2: 0,
+        vorpalEnemy: 0,
+        charges: 0,
+        timesEnchanted: 0,
+        carried: true,
+        inventoryLetter: "a",
+        inscription: "",
+        identified: false,
+    } as unknown as Item;
+}
+
+it("B19 fix: readScroll(Identify) awaits messageWithColor before calling promptForItemOfType", async () => {
+    // Root cause: messageWithColor(REQUIRE_ACKNOWLEDGMENT) was not awaited before
+    // promptForItemOfType — both called waitForEvent() concurrently, the acknowledgment
+    // waiter overwrote resolveWait and consumed events meant for the item selector.
+    // Fix: add `await` before messageWithColor calls in readScroll.
+    //
+    // If fix is present: callOrder = ["message_done", "prompt_called"]
+    // Without fix:       callOrder = ["prompt_called", "message_done"] (race)
+    setupPlayer();
+    const { rogue } = getGameState();
+    const callOrder: string[] = [];
+
+    const base = buildItemHandlerContext();
+    const ctx = {
+        ...base,
+        messageWithColor: async (_msg: string, _color: unknown, _flags: number) => {
+            await Promise.resolve(); // yield so ordering is detectable
+            callOrder.push("message_done");
+        },
+        numberOfMatchingPackItems: (_cat: number, _req: number, _forbidden: number, _err: boolean) => 1,
+        promptForItemOfType: async (..._args: unknown[]) => {
+            callOrder.push("prompt_called");
+            rogue.gameHasEnded = true; // break the do-while loop
+            return null;
+        },
+    } as unknown as typeof base;
+
+    const scroll = makeScroll(ScrollKind.Identify);
+    await readScroll(scroll, ctx);
+    rogue.gameHasEnded = false; // cleanup
+    expect(callOrder).toEqual(["message_done", "prompt_called"]);
 });
 
 it("promptForItemOfType() returns null with empty pack (real impl, buttonInputLoop deferred)", async () => {

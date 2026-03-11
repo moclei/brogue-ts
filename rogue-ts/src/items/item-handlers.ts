@@ -78,8 +78,8 @@ export interface ItemHandlerContext {
     randClump(range: { lowerBound: number; upperBound: number; clumpFactor: number }): number;
 
     // ── UI functions ──
-    message(msg: string, flags: number): void;
-    messageWithColor(msg: string, color: Color, flags: number): void;
+    message(msg: string, flags: number): void | Promise<void>;
+    messageWithColor(msg: string, color: Color, flags: number): void | Promise<void>;
     confirmMessages(): void;
     confirm(prompt: string, defaultYes: boolean): boolean | Promise<boolean>;
     temporaryMessage(msg: string, flags: number): void;
@@ -469,7 +469,7 @@ export async function readScroll(theItem: Item, ctx: ItemHandlerContext): Promis
         case ScrollKind.Identify:
             identify(theItem, ctx.gc, ctx.namingCtx);
             updateIdentifiableItems(ctx);
-            ctx.messageWithColor(
+            await ctx.messageWithColor(
                 "this is a scroll of identify.",
                 ctx.itemMessageColor,
                 ctx.REQUIRE_ACKNOWLEDGMENT,
@@ -531,7 +531,7 @@ export async function readScroll(theItem: Item, ctx: ItemHandlerContext): Promis
 
         case ScrollKind.Enchanting:
             identify(theItem, ctx.gc, ctx.namingCtx);
-            ctx.messageWithColor(
+            await ctx.messageWithColor(
                 "this is a scroll of enchanting.",
                 ctx.itemMessageColor,
                 ctx.REQUIRE_ACKNOWLEDGMENT,
@@ -555,7 +555,7 @@ export async function readScroll(theItem: Item, ctx: ItemHandlerContext): Promis
                     );
                     ctx.confirmMessages();
                     if (!enchantTarget || !(enchantTarget.category & enchantableCategories)) {
-                        ctx.messageWithColor("Can't enchant that.", ctx.itemMessageColor, ctx.REQUIRE_ACKNOWLEDGMENT);
+                        await ctx.messageWithColor("Can't enchant that.", ctx.itemMessageColor, ctx.REQUIRE_ACKNOWLEDGMENT);
                     }
                     if (ctx.rogue.gameHasEnded) return false;
                 } while (!enchantTarget || !(enchantTarget.category & enchantableCategories));
