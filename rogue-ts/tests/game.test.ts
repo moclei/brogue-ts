@@ -364,35 +364,35 @@ describe("enableEasyMode", () => {
         };
     }
 
-    it("sends 'Alas' message and returns early when already in easy mode", () => {
+    it("sends 'Alas' message and returns early when already in easy mode", async () => {
         const ctx = makeEasyCtx(false, GameMode.Easy);
-        enableEasyMode(ctx as any);
+        await enableEasyMode(ctx as any);
         expect(ctx.message.mock.calls[0][0]).toContain("Alas");
         expect(ctx.confirm).not.toHaveBeenCalled();
         expect(ctx.rogue.mode).toBe(GameMode.Easy);
     });
 
-    it("sends 'dissipates' message when player declines", () => {
+    it("sends 'dissipates' message when player declines", async () => {
         const ctx = makeEasyCtx(false);
-        enableEasyMode(ctx as any);
+        await enableEasyMode(ctx as any);
         expect(ctx.confirm).toHaveBeenCalledOnce();
         const lastMsg = ctx.message.mock.calls.at(-1)?.[0] as string;
         expect(lastMsg).toContain("dissipates");
         expect(ctx.rogue.mode).toBe(GameMode.Normal);
     });
 
-    it("enables easy mode and records keystroke when player confirms", () => {
+    it("enables easy mode and records keystroke when player confirms", async () => {
         const ctx = makeEasyCtx(true);
-        enableEasyMode(ctx as any);
+        await enableEasyMode(ctx as any);
         expect(ctx.rogue.mode).toBe(GameMode.Easy);
         expect(ctx.recordKeystroke).toHaveBeenCalledWith(EASY_MODE_KEY, false, true);
         expect(ctx.refreshDungeonCell).toHaveBeenCalledOnce();
         expect(ctx.refreshSideBar).toHaveBeenCalledOnce();
     });
 
-    it("first message to player uses REQUIRE_ACKNOWLEDGMENT flag", () => {
+    it("first message to player uses REQUIRE_ACKNOWLEDGMENT flag", async () => {
         const ctx = makeEasyCtx(false);
-        enableEasyMode(ctx as any);
+        await enableEasyMode(ctx as any);
         const firstMsg = ctx.message.mock.calls[0];
         expect(firstMsg[1]).toBe(MessageFlag.REQUIRE_ACKNOWLEDGMENT);
     });

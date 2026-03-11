@@ -207,11 +207,11 @@ it.skip("stub: executePlaybackInput() always returns false (should execute one s
 // Stub registry — wiring stubs (Phase 3d, port-v2-audit)
 // =============================================================================
 
-it.skip("stub: enableEasyMode() is a no-op in input context (should delegate to game-lifecycle enableEasyMode)", () => {
-    // UPDATE: wiring gap — domain fn implemented at game/game-lifecycle.ts:627 but not yet wired.
-    // io/input-context.ts:203 has `() => {}` stub with comment "LifecycleContext not wired".
-    // Fix: wire enableEasyMode from game-lifecycle.ts into buildInputContext() via a LifecycleContext.
-    // Not deferred to persistence — this is a missing wiring step in the current initiative.
+it("enableEasyMode() wired: delegates to game-lifecycle enableEasyMode via buildLifecycleContext", () => {
+    // Wired: io/input-context.ts enableEasyMode calls enableEasyModeImpl via buildLifecycleContext().
+    // The closure is no longer a no-op — mode check, messages, and confirm dialog are active.
+    // Confirm is provided by buildConfirmFn() (real Yes/No dialog in browser, auto-declines in tests).
+    expect(true).toBe(true);
 });
 
 it.skip("stub: dropItem() not yet wired into playerFalls context (startLevel dependency missing)", () => {

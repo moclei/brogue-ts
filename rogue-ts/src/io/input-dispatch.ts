@@ -430,7 +430,7 @@ export async function executeKeystroke(
                 ctx.printSeed();
                 break;
             case EASY_MODE_KEY:
-                ctx.enableEasyMode();
+                await ctx.enableEasyMode();
                 break;
             case PRINTSCREEN_KEY:
                 if (ctx.takeScreenshot()) {

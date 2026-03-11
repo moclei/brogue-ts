@@ -70,8 +70,10 @@ import { dijkstraScan as dijkstraScanFn } from "../dijkstra/dijkstra.js";
 import {
     buildMessageFns,
     buildRefreshDungeonCellFn,
-    buildRefreshSideBarFn,
+    buildRefreshSideBarFn, buildConfirmFn,
 } from "../io-wiring.js";
+import { enableEasyMode as enableEasyModeImpl, type LifecycleContext } from "../game/game-lifecycle.js";
+import { buildLifecycleContext } from "../lifecycle-gameover.js";
 import {
     printHelpScreen as printHelpScreenFn,
     displayFeatsScreen as displayFeatsScreenFn,
@@ -462,7 +464,7 @@ export function buildInputContext(): InputContext {
             rogue.swappedOut = tmp;
             await playerTurnEndedFn();
         },
-        enableEasyMode: () => {},                   // stub — LifecycleContext not wired
+        enableEasyMode: () => enableEasyModeImpl({ ...buildLifecycleContext(), confirm: buildConfirmFn() } as unknown as LifecycleContext),
         saveGame: () => {},                         // stub — save system not yet ported
         gameOver: () => {},                         // stub — LifecycleContext not wired
         printSeed: () => { buildMessageFns().message(`Seed: ${rogue.seed}`, 0); },

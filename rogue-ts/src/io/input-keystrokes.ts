@@ -167,7 +167,7 @@ export interface InputContext {
     relabel(item: Item | null): void | Promise<void>;
     call(item: Item | null): void | Promise<void>;
     swapLastEquipment(): void;
-    enableEasyMode(): void;
+    enableEasyMode(): void | Promise<void>;
     saveGame(): void;
     gameOver(message: string, showHighScores: boolean): void;
     printSeed(): void;
