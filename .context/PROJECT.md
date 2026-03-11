@@ -33,6 +33,7 @@ browser playtest was completed. The remaining work is the persistence layer: sav
 - `port-v2-platform` — browser platform, IO, menus, entry point (Phases 1–6)
 - `port-v2-verify-mechanics` — NEEDS-VERIFICATION review, targeting UI, charmRechargeDelay fix
 - `port-v2-playtest` — wiring, stub classification, browser playtest (87 files, 2220 pass, 86 skip)
+- `port-v2-close-out` — threw/call wired, async cascade, stub audit, Light.c verification, playtest bugs B1–B15 filed. Phases 1–6 complete. Phase 7 (backlog clearance) ongoing via `docs/BACKLOG.md` (88 files, 2242 pass, 82 skip)
 
 First attempt (reference only, do not modify): `ts/`
 

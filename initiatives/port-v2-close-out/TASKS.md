@@ -216,12 +216,11 @@ reason in SESSIONS.md explaining why it cannot yet be verified.
 
 ## Phase 6: Final cleanup
 
-- [ ] Run `npx vitest run` — record final pass/skip counts
-- [ ] Grep `src/` for any `// stub` comments not covered by a test.skip — add or confirm
-- [ ] Update `MEMORY.md` — mark initiative phases 1–5 complete; note Phase 7 is ongoing
-- [ ] Update `PROJECT.md` — mark port-v2-close-out phases 1–5 complete; note backlog
-      work continues in Phase 7 via `docs/BACKLOG.md`
-- [ ] Commit: `"docs: port-v2-close-out Phases 1–6 complete — backlog work begins"`
+- [x] Run `npx vitest run` — 88 files, 2242 pass, 82 skip
+- [x] Grep `src/` for any `// stub` comments not covered by a test.skip — confirmed; all stubs from Phase 3 audit remain tracked; no new uncovered stubs
+- [x] Update `MEMORY.md` — mark phases 1–6 complete; note Phase 7 ongoing on B9/B8
+- [x] Update `PROJECT.md` — added port-v2-close-out entry to previous initiatives list with Phase 7 note
+- [x] Commit: `"docs: port-v2-close-out Phases 1–6 complete — backlog work begins"`
 - [ ] Generate handoff to Phase 7:
   ```
   Continue port-v2 backlog. Branch: feat/port-v2-playtest.
