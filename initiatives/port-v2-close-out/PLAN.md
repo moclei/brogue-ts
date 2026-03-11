@@ -121,11 +121,24 @@ reason they cannot yet be verified.
 
 ## Phase 6: Final cleanup
 
-**Goal:** All stubs documented, all test.skips classified, initiative closed.
+**Goal:** Docs updated, initiative Phases 1–5 marked complete, Phase 7 handed off.
 
-No code changes expected — this phase is documentation and housekeeping only.
+No code changes. Update MEMORY.md and PROJECT.md to reflect that backlog work
+continues in Phase 7 via `docs/BACKLOG.md`. No longer closes out to port-v2-persistence
+directly — that layer will be reached after the backlog is clear.
 
-After this phase: the port is mechanically complete. Only the persistence layer remains.
+---
+
+## Phase 7: Backlog clearance (ongoing, no end date)
+
+**Goal:** Implement everything in `docs/BACKLOG.md` except the persistence section.
+
+`docs/BACKLOG.md` is the source of truth. This plan phase just describes the approach:
+one item per session, highest priority first, same commit/handoff discipline as all
+other phases. When the backlog non-persistence items are all checked off, move to the
+persistence layer as a coordinated group effort.
+
+See `docs/BACKLOG.md` for the full item list, complexity estimates, and session protocol.
 
 ---
 

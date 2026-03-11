@@ -217,39 +217,61 @@ reason in SESSIONS.md explaining why it cannot yet be verified.
 ## Phase 6: Final cleanup
 
 - [ ] Run `npx vitest run` — record final pass/skip counts
-- [ ] Review all remaining test.skip entries; for each confirm its classification:
-      - **ACTIVE** — remove skip; test passes
-      - **PERMANENT-DEFER** — comment explains the acceptable simplification
-      - **PERSISTENCE-DEFER** — tagged `// DEFER: port-v2-persistence`
 - [ ] Grep `src/` for any `// stub` comments not covered by a test.skip — add or confirm
-- [ ] Update `MEMORY.md` — mark initiative complete; record final test counts;
-      note what remains for port-v2-persistence
-- [ ] Update `PROJECT.md` — mark port-v2-close-out complete; set next as port-v2-persistence
-- [ ] Commit: `"docs: port-v2-close-out complete — port ready for persistence layer"`
-- [ ] Generate closing handoff:
+- [ ] Update `MEMORY.md` — mark initiative phases 1–5 complete; note Phase 7 is ongoing
+- [ ] Update `PROJECT.md` — mark port-v2-close-out phases 1–5 complete; note backlog
+      work continues in Phase 7 via `docs/BACKLOG.md`
+- [ ] Commit: `"docs: port-v2-close-out Phases 1–6 complete — backlog work begins"`
+- [ ] Generate handoff to Phase 7:
   ```
-  port-v2-close-out is complete. The port is mechanically complete (persistence aside).
-  Next initiative: port-v2-persistence.
-  Read: .context/PROJECT.md for current state.
-  Branch: feat/port-v2-playtest (or create feat/port-v2-persistence for new work)
+  Continue port-v2 backlog. Branch: feat/port-v2-playtest.
+  Read: .context/PROJECT.md, docs/BACKLOG.md, initiatives/port-v2-close-out/TASKS.md.
+  Next item: pick next unchecked by priority in BACKLOG.md
+  Last commit: [hash]
   ```
 
 ---
 
-## Permanently deferred (no further action needed)
+## Phase 7: Backlog clearance (ongoing)
 
-- `applyInstantTileEffectsToCreature` — chasms freeze vision (B5); gameplay impact is
-  low, fix requires significant async cascade; permanent defer this initiative
-- `displayLevel` stubs in `items.ts` + `input-context.ts` — only `lifecycle.ts` impl
-  is complete; the other two are internal context callbacks rarely reached
-- `flashTemporaryAlert` — needs full EffectsContext (getCellAppearance, hiliteCell,
-  pauseAnimation); too complex to wire without more scaffolding
-- `updateFlavorText` — needs CreatureEffectsContext; deferred
-- `itemDetails()` — full item stat description; stub shows name only; cosmetic
-- Debug overlays (`displayGrid`, `displayWaypoints`, `displayMachines`, etc.) — debug only
-- `drawManacles` — visual-only rendering call; no gameplay effect
-- `updateMonsterCorpseAbsorption` — stub is a functional no-op in all exercised cases
-- `initializeButtonState` in InputContext — domain fn called directly; slot unused
+**No end date. Work through `docs/BACKLOG.md` one item per session.**
+
+`docs/BACKLOG.md` is the authoritative source. This phase just describes the protocol.
+
+### Session protocol
+
+1. **Read `docs/BACKLOG.md`** — find the item specified in the handoff prompt, or
+   pick the next unchecked item in priority order (Priority 1 → 2 → 3 → 4 → 5).
+2. **Read the C source** for the item before writing any code.
+3. **Do that item only** — stop at ~70% context window. Revert incomplete changes.
+4. **Run `npx vitest run`** — no regressions before committing.
+5. **Check the item off** in `docs/BACKLOG.md`.
+6. **Commit** with message: `fix: [item] — [description]`
+7. **Generate handoff prompt:**
+   ```
+   Continue port-v2 backlog. Branch: feat/port-v2-playtest.
+   Read: .context/PROJECT.md, docs/BACKLOG.md, initiatives/port-v2-close-out/TASKS.md.
+   Next item: [exact item name from BACKLOG.md]
+   Last commit: [hash]
+   ```
+
+### Playtester bugs
+
+Bugs found during browser testing go in `docs/BACKLOG.md` under "Bug reports from
+playtesting". They are worked the same way as any other backlog item: one per session,
+highest priority first.
+
+---
+
+## Previously "permanently deferred" — now in BACKLOG.md
+
+These were classified as permanent-defer during Phase 3 but have since been moved
+to `docs/BACKLOG.md` because the owner decided everything non-persistence should be
+implemented before the persistence layer. See BACKLOG.md Priority 3–5 for their
+current status.
+
+The only true permanent defer (no action needed, ever) is:
+- `initializeButtonState` in InputContext — signature mismatch; slot is unused
 
 ## Deferred to port-v2-persistence (do not touch)
 
