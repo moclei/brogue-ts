@@ -72,6 +72,7 @@ import {
     buildRefreshDungeonCellFn,
     buildRefreshSideBarFn, buildConfirmFn, buildDisplayLevelFn,
 } from "../io-wiring.js";
+import { buildDebugOverlayFns } from "./debug-overlays.js";
 import { enableEasyMode as enableEasyModeImpl, type LifecycleContext } from "../game/game-lifecycle.js";
 import { buildLifecycleContext } from "../lifecycle-gameover.js";
 import {
@@ -577,11 +578,7 @@ export function buildInputContext(): InputContext {
 
         // ── Debug ─────────────────────────────────────────────────────────────
         safetyMap: null,
-        displayGrid: () => {},
-        displayLoops: () => {},
-        displayChokeMap: () => {},
-        displayMachines: () => {},
-        displayWaypoints: () => {},
+        ...buildDebugOverlayFns(io.temporaryMessage, buildDisplayLevelFn()),
 
         // ── Constants ─────────────────────────────────────────────────────────
         AUTOTARGET_MODE_EXPLORE: AutoTargetMode.Explore,

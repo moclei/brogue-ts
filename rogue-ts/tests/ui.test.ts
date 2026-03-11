@@ -482,34 +482,51 @@ it("printSeed() wired: displays seed via message system (Phase 7a)", async () =>
     expect(() => ctx.printSeed()).not.toThrow();
 });
 
-it.skip("stub: displayGrid() is a no-op (debug overlay — port-v2-platform)", () => {
+it("displayGrid() wired: renders numeric grid overlay without throwing", async () => {
     // C: IO.c:4339 — displayGrid()
-    // input-context.ts:260 has () => {} stub. Debug-only overlay; no gameplay effect.
-    // Deferred to port-v2-platform when full display buffer rendering is available.
+    // Iterates DCOLS×DROWS, maps grid values to a blue→red→green color scale,
+    // and calls plotCharWithColor for each visible cell.
+    initGameState();
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    const ctx = buildInputContext();
+    const grid: number[][] = Array.from({ length: 79 }, () => new Array(29).fill(0));
+    expect(() => ctx.displayGrid(grid)).not.toThrow();
 });
 
-it.skip("stub: displayWaypoints() is a no-op (debug overlay — port-v2-platform)", () => {
+it("displayWaypoints() wired: renders waypoint distances without throwing", async () => {
     // C: IO.c:2206 — displayWaypoints()
-    // input-context.ts:264 has () => {} stub. Debug-only overlay for pathfinding inspection.
-    // Deferred to port-v2-platform.
+    // Highlights cells near waypoints with white tint, then calls temporaryMessage + displayLevel.
+    initGameState();
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    const ctx = buildInputContext();
+    expect(() => ctx.displayWaypoints()).not.toThrow();
 });
 
-it.skip("stub: displayMachines() is a no-op (debug overlay — port-v2-platform)", () => {
+it("displayMachines() wired: renders machine numbers without throwing", async () => {
     // C: IO.c:2226 — displayMachines()
-    // input-context.ts:263 has () => {} stub. Debug-only overlay for machine region inspection.
-    // Deferred to port-v2-platform.
+    // Overlays machine number glyphs and random per-machine background colors.
+    initGameState();
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    const ctx = buildInputContext();
+    expect(() => ctx.displayMachines()).not.toThrow();
 });
 
-it.skip("stub: displayChokeMap() is a no-op (debug overlay — port-v2-platform)", () => {
+it("displayChokeMap() wired: renders choke distances without throwing", async () => {
     // C: IO.c:2264 — displayChokeMap()
-    // input-context.ts:262 has () => {} stub. Debug-only overlay for choke-point visualization.
-    // Deferred to port-v2-platform.
+    // Colors cells by chokeMap value; gate sites tinted teal, others red gradient.
+    initGameState();
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    const ctx = buildInputContext();
+    expect(() => ctx.displayChokeMap()).not.toThrow();
 });
 
-it.skip("stub: displayLoops() is a no-op (debug overlay — port-v2-platform)", () => {
+it("displayLoops() wired: renders loop/chokepoint cells without throwing", async () => {
     // C: IO.c:2289 — displayLoops()
-    // input-context.ts:261 has () => {} stub. Debug-only overlay for loop detection visualization.
-    // Deferred to port-v2-platform.
+    // Highlights IN_LOOP cells (yellow) and IS_CHOKEPOINT cells (teal).
+    initGameState();
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    const ctx = buildInputContext();
+    expect(() => ctx.displayLoops()).not.toThrow();
 });
 
 it.skip("stub: saveRecording() is a no-op (DEFER: port-v2-persistence)", () => {

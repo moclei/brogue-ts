@@ -596,3 +596,5 @@ export function startLevel(oldLevel: number, stairDirection: number): void {
 export function freeEverything(): void {
     freeEverythingFn(buildCleanupContext());
 }
+/** Read the current chokepoint map (null until first level). */
+export function getChokeMap(): number[][] | null { return chokeMap; }
