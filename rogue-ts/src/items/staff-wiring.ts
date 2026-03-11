@@ -73,6 +73,7 @@ import { openPathBetween } from "./bolt-geometry.js";
 import { buildResolvePronounEscapesFn } from "../io/text.js";
 import { buildEquipState } from "./equip-helpers.js";
 import { updateEncumbrance as updateEncumbranceFn } from "./item-usage.js";
+import { generateMonster as generateMonsterFn } from "../monsters/monster-creation.js";
 import { randPercent, randRange } from "../math/rng.js";
 import {
     coordinatesAreInMap, mapToWindowX, windowToMapX, windowToMapY,
@@ -275,7 +276,7 @@ export function buildStaffZapFn() {
         hideDetails: boolean,
         reverseBoltDir: boolean,
     ): Promise<boolean> => {
-        const { rogue, player, pmap, monsters } = getGameState();
+        const { rogue, player, pmap, monsters, monsterCatalog, monsterItemsHopper, gameConst } = getGameState();
         const io = buildMessageFns();
         const monsterAtLoc = buildMonsterAtLocFn(player, monsters);
         const cellHasTerrainFlag = (loc: Pos, flags: number) =>
@@ -480,8 +481,18 @@ export function buildStaffZapFn() {
 
             // ── Conjuration ──
             setUpWaypoints: () => {},       // stub — complex dijkstra recompute
-            generateMonster: () => {        // stub — conjuration staff
-                throw new Error("generateMonster not wired in staff ZapContext");
+            generateMonster: (kind, itemPossible, mutationPossible) => {
+                const monst = generateMonsterFn(kind, itemPossible, mutationPossible, {
+                    rng: { randPercent, randRange },
+                    gameConstants: gameConst,
+                    depthLevel: rogue.depthLevel,
+                    monsterCatalog,
+                    mutationCatalog,
+                    monsterItemsHopper,
+                    itemsEnabled: true,
+                });
+                monsters.push(monst);
+                return monst;
             },
             getQualifyingPathLocNear: (loc) => loc,  // stub — returns loc
             fadeInMonster: () => {},        // stub — visual only
