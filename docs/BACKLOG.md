@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-11 (after flashTemporaryAlert wired in buildMessageContext via minimal EffectsContext)
+**Status:** updated 2026-03-11 (after B18 — staff use wired: chooseTarget + zap() in useStaffOrWand)
 **Tests at last update:** 88 files · 2263 pass · 63 skip
 
 ---
@@ -258,7 +258,7 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
 
 ### P1 — Blocking / crashes (continued)
 
-- [ ] **B18 — Staff use stalls or silently fails** — Two observed behaviours depending on staff type:
+- [x] **B18 — Staff use stalls or silently fails** — Two observed behaviours depending on staff type:
   (a) Game stalls (async hang) — likely bolt-firing or targeting staves that open the targeting
   cursor via `chooseTarget`; cursor opens but keypresses/clicks never resolve the await.
   Relates to B10/B11 (targeting input not forwarded). (b) Game does nothing — non-bolt staves

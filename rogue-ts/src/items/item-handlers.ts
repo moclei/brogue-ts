@@ -151,6 +151,7 @@ export interface ItemHandlerContext {
     chooseTarget(maxDistance: number, autoTargetMode: number, theItem: Item): Promise<{ confirmed: boolean; target: Pos }>;
     staffBlinkDistance(enchant: Fixpt): number;
     playerCancelsBlinking(origin: Pos, target: Pos, maxDistance: number): Promise<boolean>;
+    zap(originLoc: Pos, targetLoc: Pos, theBolt: Bolt, hideDetails: boolean, reverseBoltDir: boolean): Promise<boolean>;
 
     // ── Turn management ──
     playerTurnEnded(): void;
@@ -1089,10 +1090,18 @@ export async function useStaffOrWand(theItem: Item, ctx: ItemHandlerContext): Pr
         const msg = monst
             ? `you zap your ${buf2} at ${ctx.monsterName(monst, true)}.`
             : `you zap your ${buf2}.`;
-        ctx.message(msg, 0);
+        await ctx.message(msg, 0);
 
-        // TODO: call zap() bolt function when ported
-        // autoID = zap(originLoc, zapTarget, theBolt, !boltKnown, false);
+        const autoID = await ctx.zap(originLoc, zapTarget, theBolt, !boltKnown, false);
+        if (autoID && !theTable[theItem.kind].identified) {
+            const nameBefore = itemName(theItem, false, false, ctx.namingCtx);
+            identifyItemKindNaming(theItem, ctx.gc);
+            const nameAfter = itemName(theItem, false, true, ctx.namingCtx);
+            await ctx.messageWithColor(
+                `(Your ${nameBefore} must be ${nameAfter}.)`,
+                ctx.itemMessageColor, 0,
+            );
+        }
     } else {
         const depletedMsg = theItem.category === ItemCategory.STAFF
             ? `Your ${buf2} fizzles; it must be out of charges for now.`

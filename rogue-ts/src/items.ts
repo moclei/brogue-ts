@@ -115,6 +115,11 @@ import { INVALID_POS } from "./types/types.js";
 import { KEYBOARD_LABELS } from "./types/constants.js";
 import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
 import type { ItemHandlerContext } from "./items/item-handlers.js";
+import {
+    buildStaffChooseTargetFn,
+    buildStaffPlayerCancelsBlinkingFn,
+    buildStaffZapFn,
+} from "./items/staff-wiring.js";
 import type { ItemTable, Creature, Pos } from "./types/types.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn, buildExposeCreatureToFireFn, buildPromptForItemOfTypeFn, buildConfirmFn, buildDisplayLevelFn } from "./io-wiring.js";
 import { buildResolvePronounEscapesFn } from "./io/text.js";
@@ -521,10 +526,11 @@ export function buildItemHandlerContext(): ItemHandlerContext {
             });
         },
 
-        // ── Targeting stubs ─────────────────────────────────────────────────
-        chooseTarget: async () => ({ confirmed: false, target: { ...INVALID_POS } }), // permanent-defer — blink/zap targeting needs dedicated context
+        // ── Targeting ───────────────────────────────────────────────────────
+        chooseTarget: buildStaffChooseTargetFn(),
         staffBlinkDistance: (enchant) => staffBlinkDistanceFn(enchant),
-        playerCancelsBlinking: async () => true,   // permanent-defer — requires async player input loop
+        playerCancelsBlinking: buildStaffPlayerCancelsBlinkingFn(),
+        zap: buildStaffZapFn(),
 
         // ── Turn management ─────────────────────────────────────────────────
         async playerTurnEnded() {
