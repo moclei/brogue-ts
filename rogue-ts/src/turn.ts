@@ -128,7 +128,7 @@ function buildMinimalCombatContext(
         gameOver: (msg) => gameOver(msg),
         setCreaturesWillFlash: () => { rogue.creaturesWillFlashThisTurn = true; },
         deleteItem: deleteItemFn,
-        makeMonsterDropItem: (monst) =>
+        makeMonsterDropItem: (monst: Creature) =>
             doMakeMonsterDropItem(monst, pmap, floorItems, (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags), refreshDungeonCell),
         clearLastTarget: () => {},                  // stub
         clearYendorWarden: () => {},                // stub
@@ -227,7 +227,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         },
         messageWithColor: (msg: string, color: Color, flags: number) => io.messageWithColor(msg, color, flags),
         itemMessageColor,
-        makeMonsterDropItem: (monst) =>
+        makeMonsterDropItem: (monst: Creature) =>
             doMakeMonsterDropItem(monst, pmap, floorItems, _ctf, refreshDungeonCell),
         max: Math.max, min: Math.min,
         tileCatalog,
