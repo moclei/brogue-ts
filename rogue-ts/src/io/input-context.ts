@@ -70,7 +70,7 @@ import { dijkstraScan as dijkstraScanFn } from "../dijkstra/dijkstra.js";
 import {
     buildMessageFns,
     buildRefreshDungeonCellFn,
-    buildRefreshSideBarFn, buildConfirmFn,
+    buildRefreshSideBarFn, buildConfirmFn, buildDisplayLevelFn,
 } from "../io-wiring.js";
 import { enableEasyMode as enableEasyModeImpl, type LifecycleContext } from "../game/game-lifecycle.js";
 import { buildLifecycleContext } from "../lifecycle-gameover.js";
@@ -269,7 +269,7 @@ function buildMiscHelpersContext(): MiscHelpersContext {
         pauseAnimation: () => false,              // stub — Phase 3b
 
         ringTable: ringTable as unknown as Array<{ identified: boolean }>,
-        displayLevel: () => {},                   // stub
+        displayLevel: buildDisplayLevelFn(),
         updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
         itemMessageColor: null,
         red: null,
@@ -404,7 +404,7 @@ export function buildInputContext(): InputContext {
         locIsInWindow: () => false,
 
         // ── Display ───────────────────────────────────────────────────────────
-        displayLevel: () => {},
+        displayLevel: buildDisplayLevelFn(),
         refreshSideBar: (_x, _y, _justClearing) => refreshSideBarFn(),
         displayInventory: async (categoryMask, requiredFlags, forbiddenFlags, waitForAcknowledge, includeButtons) => {
             await displayInventoryFn(categoryMask, requiredFlags, forbiddenFlags, waitForAcknowledge, includeButtons,

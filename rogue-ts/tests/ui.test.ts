@@ -415,10 +415,12 @@ it("buildButtonContext() color ops are wired to real io/ implementations (Phase 
 // Stub registry — IO.c domain stubs (Phase 3b, port-v2-audit)
 // =============================================================================
 
-it.skip("stub: displayLevel() is a no-op in items.ts and input-context.ts (deferred)", () => {
-    // DEFER: port-v2-platform — stubs remain in items.ts and input-context.ts.
-    // C: IO.c:910 — displayLevel(). lifecycle.ts implementation is complete.
-    // Wiring in remaining call sites requires the appearance system to be available.
+it("displayLevel() is wired in buildInputContext() and buildItemHandlerContext() (Phase 7)", async () => {
+    // C: IO.c:910 — displayLevel(). Now wired via buildDisplayLevelFn() in io-wiring.ts
+    // in items.ts and input-context.ts. Previously stubbed as () => {}.
+    initGameState();
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    expect(() => buildInputContext().displayLevel()).not.toThrow();
 });
 
 it("shuffleTerrainColors() populates terrainRandomValues (Phase 7a)", () => {

@@ -32,6 +32,7 @@ import { terrainRandomValues, displayDetail } from "./render-state.js";
 import {
     getCellAppearance,
     refreshDungeonCell as refreshDungeonCellFn,
+    displayLevel as displayLevelFn,
 } from "./io/cell-appearance.js";
 import { refreshSideBar as refreshSideBarFn } from "./io/sidebar-monsters.js";
 import {
@@ -79,7 +80,7 @@ import { encodeMessageColor } from "./io/color.js";
 import { buildResolvePronounEscapesFn } from "./io/text.js";
 import { boltCatalog } from "./globals/bolt-catalog.js";
 import type { Color, Pos, ItemTable, Item, BrogueButton } from "./types/types.js";
-import { COLS, ROWS, KEYBOARD_LABELS, RETURN_KEY, ACKNOWLEDGE_KEY, ESCAPE_KEY } from "./types/constants.js";
+import { COLS, ROWS, KEYBOARD_LABELS, RETURN_KEY, ACKNOWLEDGE_KEY, ESCAPE_KEY, DCOLS, DROWS } from "./types/constants.js";
 import { printTextBox as printTextBoxFn } from "./io/inventory.js";
 import { initializeButton as initializeButtonFn } from "./io/buttons.js";
 import { saveDisplayBuffer as saveDisplayBufferFn, restoreDisplayBuffer as restoreDisplayBufferFn } from "./io/display.js";
@@ -501,4 +502,30 @@ export function buildConfirmFn(): (prompt: string, defaultYes: boolean) => Promi
         restoreDisplayBufferFn(displayBuffer, rbuf);
         return retVal !== -1 && retVal !== 1;
     };
+}
+
+// =============================================================================
+// buildDisplayLevelFn
+// =============================================================================
+
+/**
+ * Returns a `() => void` closure that redraws every dungeon cell.
+ * Faithful port of displayLevel() in IO.c — iterates all DCOLS×DROWS cells.
+ *
+ * Used by context builders in items.ts and input-context.ts that previously
+ * stubbed displayLevel as a no-op.
+ */
+export function buildDisplayLevelFn(): () => void {
+    const {
+        pmap, tmap, rogue, player, monsters, dormantMonsters,
+        floorItems, monsterCatalog, displayBuffer,
+    } = getGameState();
+    const scentMap = getScentMap() ?? [];
+    const getCellApp = (loc: Pos) => getCellAppearance(
+        loc, pmap, tmap, displayBuffer, rogue, player,
+        monsters, dormantMonsters, floorItems,
+        tileCatalog, dungeonFeatureCatalog, monsterCatalog,
+        terrainRandomValues, displayDetail, scentMap,
+    );
+    return () => displayLevelFn(DCOLS, DROWS, (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer));
 }

@@ -116,7 +116,7 @@ import { KEYBOARD_LABELS } from "./types/constants.js";
 import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
 import type { ItemHandlerContext } from "./items/item-handlers.js";
 import type { ItemTable, Creature, Pos } from "./types/types.js";
-import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn, buildExposeCreatureToFireFn, buildPromptForItemOfTypeFn, buildConfirmFn } from "./io-wiring.js";
+import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn, buildExposeCreatureToFireFn, buildPromptForItemOfTypeFn, buildConfirmFn, buildDisplayLevelFn } from "./io-wiring.js";
 import { buildResolvePronounEscapesFn } from "./io/text.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
 
@@ -456,7 +456,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 freeCaptivesEmbeddedAt: (x, y) => freeCaptivesEmbeddedAtFn(x, y, allyCtx),
                 updateVision: () => {},         // permanent-defer — visual update (wired in turn/lifecycle contexts)
                 colorFlash: () => {},           // permanent-defer — visual flash effect only
-                displayLevel: () => {},         // permanent-defer — lifecycle.ts impl is wired; this context is unused
+                displayLevel: buildDisplayLevelFn(),
                 refreshSideBar,
                 forceFieldColor,
             });
@@ -508,7 +508,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         // ── Visual effects stubs ────────────────────────────────────────────
         colorFlash: () => {},                // permanent-defer — visual flash effect only
         createFlare: () => {},               // permanent-defer — visual flare effect only
-        displayLevel: () => {},              // permanent-defer — lifecycle.ts impl is wired; this context is unused
+        displayLevel: buildDisplayLevelFn(),
 
         // ── Vision / light stubs ────────────────────────────────────────────
         updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
