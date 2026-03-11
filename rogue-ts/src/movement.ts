@@ -38,6 +38,7 @@ import {
     monsterWillAttackTarget as monsterWillAttackTargetFn,
 } from "./monsters/monster-queries.js";
 import { forbiddenFlagsForMonster as forbiddenFlagsForMonsterFn } from "./monsters/monster-spawning.js";
+import { canPass as canPassFn } from "./monsters/monster-movement.js";
 import {
     buildHitList as buildHitListFn,
     attack as attackFn,
@@ -502,7 +503,7 @@ export function buildTravelContext(): TravelExploreContext {
         // ── Creature helpers ──────────────────────────────────────────────────
         monsterAtLoc,
         canSeeMonster,
-        canPass: (_m, blocker) => !!(blocker.info?.flags & 0), // permanent-defer — pass-through logic not yet ported
+        canPass: (mover, blocker) => canPassFn(mover, blocker, player, cellHasTerrainFlag),
         monstersAreTeammates: (a, b) => a.leader === b || b.leader === a,
         monstersAreEnemies: (a, b) => monstersAreEnemiesFn(a, b, player, cellHasTerrainFlag),
         monsterDamageAdjustmentAmount: (m) =>

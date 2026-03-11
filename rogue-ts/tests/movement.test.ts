@@ -19,8 +19,8 @@ import { playerMoves } from "../src/movement/player-movement.js";
 import { populateCreatureCostMap } from "../src/movement/cost-maps-fov.js";
 import { buildTurnProcessingContext } from "../src/turn.js";
 import { monsterCatalog } from "../src/globals/monster-catalog.js";
-import { MonsterType, Direction, StatusEffect, TileType, DungeonLayer } from "../src/types/enums.js";
-import { TileFlag } from "../src/types/flags.js";
+import { MonsterType, Direction, StatusEffect, TileType, DungeonLayer, CreatureState } from "../src/types/enums.js";
+import { TileFlag, MonsterBookkeepingFlag } from "../src/types/flags.js";
 import type { Creature } from "../src/types/types.js";
 
 // =============================================================================
@@ -328,10 +328,32 @@ it.skip("UPDATE: getImpactLoc still stub — returns target as-is, no bolt path 
     // Remains a stub pending full bolt-geometry wiring.
 });
 
-it.skip("UPDATE: canPass still stub () => false — monster traversal rules not yet wired", () => {
-    // canPass is still stub `() => false` in movement.ts (comment: wired in port-v2-platform).
-    // Real implementation should check if a monster can pass through or over a blocker
-    // (e.g. incorporeal, same team). Deliberate stub — traversal safety fallback is conservative.
+it("wired: canPass delegates to monster-movement canPass — player always blocked; ally with lower HP passable", () => {
+    // canPass is now wired in movement.ts (buildTravelContext), movement-cost-map.ts
+    // (buildCostMapFovContext), and vision-wiring.ts (fovDisplayCtx).
+    setupPlayer();
+    const ctx = buildTravelContext();
+    const player = getGameState().player;
+
+    // Build two minimal ally creatures (no leader relationship, both Ally state)
+    const base = {
+        info: { flags: 0, abilityFlags: 0, behaviorFlags: 0, bolts: [] },
+        status: new Array(60).fill(0),
+        bookkeepingFlags: 0,
+        leader: null as Creature | null,
+        creatureState: CreatureState.Ally,
+    } as unknown as Creature;
+
+    const mover: Creature = { ...base, currentHP: 10, maxHP: 10 } as unknown as Creature;
+    const blocker: Creature = { ...base, currentHP: 5, maxHP: 10 } as unknown as Creature;
+
+    // player as blocker → always false
+    expect(ctx.canPass(mover, player)).toBe(false);
+    // Two Ally-state monsters, no leader link, blocker.currentHP < mover.currentHP → true
+    expect(ctx.canPass(mover, blocker)).toBe(true);
+    // Reverse HP: blocker stronger → false
+    const strongBlocker: Creature = { ...base, currentHP: 20, maxHP: 20 } as unknown as Creature;
+    expect(ctx.canPass(mover, strongBlocker)).toBe(false);
 });
 
 it("wired: buildCostMapFovContext().itemName() delegates to itemNameFn and writes to buffer", () => {

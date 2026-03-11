@@ -23,6 +23,7 @@ import {
 } from "./state/helpers.js";
 import { storeMemories as storeMemoriesFn, layerWithTMFlag as layerWithTMFlagFn } from "./movement/map-queries.js";
 import { monsterAvoids as monsterAvoidsFn, distanceBetween } from "./monsters/monster-state.js";
+import { canPass as canPassFn } from "./monsters/monster-movement.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
 import { itemAtLoc as itemAtLocFn } from "./items/item-inventory.js";
@@ -96,7 +97,7 @@ export function buildCostMapFovContext(): CostMapFovContext {
             (tileType) => { const df = tileCatalog[tileType]?.discoverType ?? 0; return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0; },
         ),
         monsterAvoids: (m, pos) => monsterAvoidsFn(m, pos, monsterStateCtx),
-        canPass: (_m, _blocker) => false,   // stub
+        canPass: (mover, blocker) => canPassFn(mover, blocker, player, cellHasTerrainFlag),
         distanceBetween: (a, b) => distanceBetween(a, b),
 
         // ── Creature helpers ──────────────────────────────────────────────────

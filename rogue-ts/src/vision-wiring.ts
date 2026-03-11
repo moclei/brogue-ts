@@ -45,6 +45,7 @@ import {
 import { layerWithTMFlag as layerWithTMFlagFn } from "./movement/map-queries.js";
 import { storeMemories as storeMemoriesFn } from "./movement/map-queries.js";
 import { monsterAvoids as monsterAvoidsFn } from "./monsters/monster-state.js";
+import { canPass as canPassFn } from "./monsters/monster-movement.js";
 import { itemAtLoc as itemAtLocFn } from "./items/item-inventory.js";
 import {
     getCellAppearance,
@@ -151,7 +152,7 @@ export function buildUpdateVisionFn(): (refreshDisplay: boolean) => void {
                 } as never;
                 return monsterAvoidsFn(m, pos, minCtx);
             },
-            canPass: () => false,
+            canPass: (mover, blocker) => canPassFn(mover, blocker, player, (pos, flags) => cellHasTerrainFlagFn(pmap, pos, flags)),
             distanceBetween: (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)),
 
             monsterAtLoc: (loc) =>

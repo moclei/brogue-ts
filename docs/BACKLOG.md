@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-10 (after port-v2-close-out Phases 1–6 + B9/B8/B7/B6 fix)
-**Tests at last update:** 88 files · 2242 pass · 82 skip
+**Status:** updated 2026-03-10 (after port-v2-close-out Phases 1–6 + B9/B8/B7/B6 fix + canPass wired)
+**Tests at last update:** 88 files · 2243 pass · 81 skip
 
 ---
 
@@ -41,7 +41,7 @@ These produce incorrect gameplay. Fix before anything cosmetic.
 Complexity key: **S** = small/self-contained · **M** = medium, needs context work ·
 **L** = large, multi-file
 
-- [ ] **`canPass` stub** — `() => false` in movement context; monster traversal rules
+- [x] **`canPass` stub** — `() => false` in movement context; monster traversal rules
   not wired. Affects monster pathfinding through each other and obstacles.
   C: `Movement.c` (`canPass` / passability checks in movement cost maps).
   TS: `movement.ts` context builder. test.skip: `movement.test.ts:331`. **M**
