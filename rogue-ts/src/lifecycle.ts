@@ -49,7 +49,7 @@ import { zeroOutGrid } from "./architect/helpers.js";
 import { distanceBetween } from "./monsters/monster-state.js";
 import { calculateDistances, pathingDistance as pathingDistanceFn } from "./dijkstra/dijkstra.js";
 import type { CalculateDistancesContext } from "./dijkstra/dijkstra.js";
-import { applyColorAverage } from "./io/color.js";
+import { applyColorAverage, encodeMessageColor } from "./io/color.js";
 import { buildTurnProcessingContext } from "./turn.js";
 import { buildMonsterSpawningContext } from "./monsters.js";
 import { digDungeon, placeStairs, initializeLevel, setUpWaypoints,
@@ -251,7 +251,7 @@ export function buildGameInitContext(): GameInitContext {
         blackOutScreen(dbuf) { blackOutScreen(dbuf); },
         displayBuffer,
         message, messageWithColor, flavorMessage: () => {},
-        encodeMessageColor: () => {},
+        encodeMessageColor,
         itemMessageColor, white, backgroundMessageColor,
         initializeGameVariantBrogue() {
             gameConst.numberScrollKinds = mutableScrollTable.length;

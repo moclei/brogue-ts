@@ -28,6 +28,7 @@ import {
     itemMessageColor, advancementMessageColor, superVictoryColor,
 } from "./globals/colors.js";
 import { blackOutScreen, clearDisplayBuffer, plotCharToBuffer } from "./io/display.js";
+import { encodeMessageColor } from "./io/color.js";
 import {
     getCellAppearance,
     refreshDungeonCell as refreshDungeonCellFn,
@@ -78,7 +79,7 @@ export function buildLifecycleContext(): LifecycleContext {
         saveRecordingNoPrompt: (_f) => {},      // stub — persistence layer not implemented
         notifyEvent: () => {}, saveRunHistory: () => {}, recordKeystroke: () => {},
         refreshDungeonCell: (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer),
-        encodeMessageColor: () => {},
+        encodeMessageColor,
         black, white, gray, yellow, lightBlue, badMessageColor,
         itemMessageColor, advancementMessageColor, superVictoryColor,
         displayedMessage: messageState.displayedMessage,

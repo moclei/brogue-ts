@@ -221,7 +221,7 @@ describe("welcome", () => {
             message: vi.fn((msg: string) => { messages.push(msg); }),
             messageWithColor: vi.fn(),
             flavorMessage: vi.fn(),
-            encodeMessageColor: vi.fn(),
+            encodeMessageColor: vi.fn(() => "\x1b"),
             itemMessageColor: {},
             white: {},
             backgroundMessageColor: {},
@@ -261,13 +261,15 @@ describe("welcome", () => {
         );
     });
 
-    it.skip("welcome: amulet name is not colorized (color encoding divergence vs C)", () => {
-        // UPDATE: known acceptable divergence — no encodeMessageColor call in TS.
-        // C: welcome() calls encodeMessageColor(buf, ..., &itemMessageColor) and
-        //    encodeMessageColor(buf, ..., &white) to embed color codes in the message string.
-        // TS: welcome() (game-init.ts) just joins the strings — no encodeMessageColor call.
-        // Fix: call ctx.encodeMessageColor on the string[] parts before joining.
-        // Impact: Amulet of Yendor will not be highlighted in itemMessageColor in-game.
+    it("amulet message embeds itemMessageColor and white color escapes", () => {
+        // C: welcome() calls encodeMessageColor(buf, ..., &itemMessageColor) before "Amulet of Yendor"
+        // and encodeMessageColor(buf, ..., &white) after, to colorize the name.
+        const ctx = makeCtx(false);
+        welcome(ctx as any);
+        expect(ctx.encodeMessageColor).toHaveBeenCalledWith(ctx.itemMessageColor);
+        expect(ctx.encodeMessageColor).toHaveBeenCalledWith(ctx.white);
+        const amuletCall = ctx.message.mock.calls[1][0] as string;
+        expect(amuletCall).toContain("\x1b");
     });
 });
 

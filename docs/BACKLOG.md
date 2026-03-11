@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-10 (after refreshWaypoint PDS_FORBIDDEN marking wired in architect.ts + turn.ts)
-**Tests at last update:** 88 files · 2248 pass · 74 skip
+**Status:** updated 2026-03-10 (after welcome() amulet colorization fix)
+**Tests at last update:** 88 files · 2249 pass · 73 skip
 
 ---
 
@@ -77,7 +77,7 @@ Complexity key: **S** = small/self-contained · **M** = medium, needs context wo
   C: `Movement.c`. TS: `movement/` waypoint code.
   test.skip: `tests/architect-level-setup.test.ts:500`. **S**
 
-- [ ] **`welcome()` — amulet not colorized** — opening message doesn't call
+- [x] **`welcome()` — amulet not colorized** — opening message doesn't call
   `encodeMessageColor` on the Amulet of Yendor name. Visual divergence.
   C: `RogueMain.c`. TS: `game/game-init.ts`.
   test.skip: `tests/game.test.ts:264`. **S**
