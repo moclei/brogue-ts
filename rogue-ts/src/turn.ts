@@ -45,6 +45,8 @@ import {
 } from "./globals/colors.js";
 import { DCOLS, DROWS } from "./types/constants.js";
 import { TileFlag, MonsterBookkeepingFlag, TerrainFlag, T_OBSTRUCTS_SCENT } from "./types/flags.js";
+import { refreshWaypoint as refreshWaypointFn } from "./architect/architect.js";
+import { populateGenericCostMap } from "./movement/cost-maps-fov.js";
 import { CreatureState, GameMode, ALL_ITEMS } from "./types/enums.js";
 import type { TurnProcessingContext } from "./time/turn-processing.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
@@ -363,7 +365,23 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         updateVision: buildUpdateVisionFn(),
         updateMapToShore: () => {},
         updateSafetyMap: () => {},
-        refreshWaypoint: () => {},
+        refreshWaypoint(index: number) {
+            const dist = rogue.wpDistance[index];
+            const coord = rogue.wpCoordinates[index];
+            if (!dist || !coord) return;
+            const costCtx = {
+                cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
+                cellHasTMFlag: (pos: Pos, flags: number) => cellHasTMFlagFn(pmap, pos, flags),
+                discoveredTerrainFlagsAtLoc: (pos: Pos) => discoveredTerrainFlagsAtLocFn(
+                    pmap, pos, tileCatalog,
+                    (tileType) => {
+                        const df = tileCatalog[tileType]?.discoverType ?? 0;
+                        return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
+                    },
+                ),
+            };
+            refreshWaypointFn(dist, coord, (cm) => populateGenericCostMap(cm, costCtx as never), monsters);
+        },
         analyzeMap: () => {},
         removeDeadMonsters() {
             for (let i = monsters.length - 1; i >= 0; i--) {

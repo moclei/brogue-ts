@@ -22,14 +22,14 @@ import {
     initializeLevel,
 } from "../src/architect/architect.js";
 import { redesignInterior } from "../src/architect/machines.js";
-import { TileType, DungeonLayer } from "../src/types/enums.js";
+import { TileType, DungeonLayer, CreatureState } from "../src/types/enums.js";
 import {
     DCOLS, DROWS, NUMBER_TERRAIN_LAYERS, MAX_WAYPOINT_COUNT,
 } from "../src/types/constants.js";
-import { TileFlag, TerrainFlag } from "../src/types/flags.js";
+import { TileFlag, TerrainFlag, MonsterBehaviorFlag, MonsterBookkeepingFlag } from "../src/types/flags.js";
 import { allocGrid, fillGrid, type Grid } from "../src/grid/grid.js";
 import { seedRandomGenerator } from "../src/math/rng.js";
-import { PDS_OBSTRUCTION } from "../src/types/constants.js";
+import { PDS_OBSTRUCTION, PDS_FORBIDDEN } from "../src/types/constants.js";
 import type { Pcell, CellDisplayBuffer, DungeonProfile, Pos } from "../src/types/types.js";
 
 // =============================================================================
@@ -497,13 +497,39 @@ it.skip("coverage: digDungeon is covered by seed-determinism.test.ts; note blob 
     // Full ArchitectContext (many callbacks) required for direct test.
 });
 
-it.skip("divergence: refreshWaypoint missing sleeping/immobile/captive monster PDS_FORBIDDEN marking", () => {
-    // UPDATE: missing PDS_FORBIDDEN for sleeping/immobile/captive monsters.
-    // C: Architect.c:3014 — refreshWaypoint loops monsters and marks sleeping/immobile/captive
-    //   creatures as PDS_FORBIDDEN in the cost map before running Dijkstra.
-    // architect.ts:601 — TS skips this loop; comment explains dependency on monsters module.
-    // Impact: sleeping monsters act as impassable cells in C waypoint maps (pathfinding avoids
-    // them); TS waypoints treat all open cells as equally passable. Monsters will path
-    // through sleeping creatures' cells more aggressively than C.
-    // Will be fixed when monster-aware cost map is wired into refreshWaypoint.
+it("refreshWaypoint marks sleeping/immobile/captive monsters as PDS_FORBIDDEN", () => {
+    // C: Architect.c:3019 — sleeping, immobile, or captive monsters are marked
+    // PDS_FORBIDDEN so other monsters path around them.
+    const wpDistance = allocGrid();
+    const wpCoord = { x: 5, y: 5 };
+
+    // Flat cost map: all cells passable (cost = 1)
+    const mockPopulateCostMap = (costMap: number[][]) => {
+        for (let i = 0; i < DCOLS; i++)
+            for (let j = 0; j < DROWS; j++)
+                costMap[i][j] = 1;
+    };
+
+    const makeMonster = (x: number, y: number, state: CreatureState, infoFlags = 0, bkFlags = 0) => ({
+        loc: { x, y },
+        creatureState: state,
+        info: { flags: infoFlags },
+        bookkeepingFlags: bkFlags,
+    } as unknown as import("../src/types/types.js").Creature);
+
+    const monsters = [
+        makeMonster(2, 2, CreatureState.Sleeping),                                        // sleeping → forbidden
+        makeMonster(3, 3, CreatureState.Wandering, MonsterBehaviorFlag.MONST_IMMOBILE),   // immobile → forbidden
+        makeMonster(4, 4, CreatureState.Wandering, 0, MonsterBookkeepingFlag.MB_CAPTIVE), // captive → forbidden
+        makeMonster(6, 6, CreatureState.Wandering),                                       // normal → not forbidden
+    ];
+
+    refreshWaypoint(wpDistance, wpCoord, mockPopulateCostMap, monsters);
+
+    // Sleeping/immobile/captive cells → costMap set to PDS_FORBIDDEN → Dijkstra leaves them at 30000 (unreachable)
+    expect(wpDistance[2][2]).toBe(30000);  // sleeping
+    expect(wpDistance[3][3]).toBe(30000);  // immobile
+    expect(wpDistance[4][4]).toBe(30000);  // captive
+    // Normal monster → costMap = 1 → reachable, distance < 30000
+    expect(wpDistance[6][6]).toBeLessThan(30000);
 });

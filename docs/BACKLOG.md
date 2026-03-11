@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-10 (after makeMonsterDropItem + getQualifyingPathLocNear wired in monsters.ts)
-**Tests at last update:** 88 files · 2247 pass · 75 skip
+**Status:** updated 2026-03-10 (after refreshWaypoint PDS_FORBIDDEN marking wired in architect.ts + turn.ts)
+**Tests at last update:** 88 files · 2248 pass · 74 skip
 
 ---
 
@@ -71,7 +71,7 @@ Complexity key: **S** = small/self-contained · **M** = medium, needs context wo
   C: `Monsters.c`. TS: `monsters/monster-ai-movement.ts`.
   test.skip: `monsters/monster-ai-movement.test.ts:477`. **S**
 
-- [ ] **`refreshWaypoint` — missing PDS_FORBIDDEN marking** — sleeping, immobile, and
+- [x] **`refreshWaypoint` — missing PDS_FORBIDDEN marking** — sleeping, immobile, and
   captive monsters should be marked forbidden in waypoint cost maps but aren't.
   Affects monster pathfinding around stunned/sleeping enemies.
   C: `Movement.c`. TS: `movement/` waypoint code.
