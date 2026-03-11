@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-10 (after port-v2-close-out Phases 1–5)
+**Status:** updated 2026-03-10 (after port-v2-close-out Phases 1–6 + B9/B8 fix)
 **Tests at last update:** 88 files · 2242 pass · 82 skip
 
 ---
@@ -227,16 +227,20 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `RogueMain.c` (gameOver → mainInputLoop → NEW_GAME_KEY handling).
   TS: `game/game-lifecycle.ts` gameOver, `menus.ts` post-death menu. **M**
 
-- [ ] **B8 — Items in treasure rooms show as `?`** — All items in treasure/item rooms
+- [x] **B8 — Items in treasure rooms show as `?`** — All items in treasure/item rooms
   display as `?` instead of their actual glyphs. Likely `displayChar` not set on
   generated items, or the item rendering branch in `getCellAppearance` is falling
   through to a fallback. Check `item-generation.ts` and `getCellAppearance` item path.
   C: `Items.c` (item generation sets displayChar per category). **M**
+  Fix: `archCtx.machineContext.itemOps.generateItem` was a stub returning `{category:0}`;
+  wired to real `generateItem` in `lifecycle.ts:359`. Items now have correct `displayChar`.
 
-- [ ] **B9 — Key shows as "unknown item" on pickup** — On picking up a key, the message
+- [x] **B9 — Key shows as "unknown item" on pickup** — On picking up a key, the message
   reads "you now have an unknown item (k)". `itemName` is returning the fallback string
   for KEY category items.
   C: `Items.c` (itemName, key category naming). TS: `items/item-naming.ts`. **S**
+  Fix: same root cause as B8 — `generateItem` stub in machine context set `category=0`;
+  `itemName` hit the `default` case. Fixed by wiring real `generateItem`.
 
 ### P2 — Visible gameplay divergences
 

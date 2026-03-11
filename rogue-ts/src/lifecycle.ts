@@ -356,7 +356,12 @@ export function buildLevelContext(): LevelContext {
             staleLoopMap: rogue.staleLoopMap,
             gameConstants: gameConst, monsterOps,
             itemOps: {
-                generateItem: () => ({ category: 0, kind: 0, quantity: 1, flags: 0, keyLoc: [], originDepth: 0 } as unknown as Item),
+                generateItem: (category, kind) => generateItem(category, kind, {
+                    rng: { randRange, randPercent, randClump }, gameConstants: gameConst,
+                    depthLevel: rogue.depthLevel, scrollTable: mutableScrollTable,
+                    potionTable: mutablePotionTable, depthAccelerator: gameConst.depthAccelerator,
+                    chooseVorpalEnemy,
+                }),
                 deleteItem: () => {},
                 placeItemAt(item: MachineItem, loc: import("./types/types.js").Pos) {
                     placeItemAtFn(item as unknown as Item, loc, {
