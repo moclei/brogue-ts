@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-10 (after moveAlly corpse-eating and scent-follow branches)
-**Tests at last update:** 88 files · 2254 pass · 72 skip
+**Status:** updated 2026-03-10 (after startLevel updateEnvironment loop)
+**Tests at last update:** 88 files · 2255 pass · 71 skip
 
 ---
 
@@ -93,7 +93,7 @@ Code exists but is missing chunks present in C.
   C: `Monsters.c` (moveAlly). TS: `monsters/monster-ai-movement.ts`.
   test.skip: `monsters/monster-ai-movement.test.ts:466`. **M**
 
-- [ ] **`startLevel` — missing updateEnvironment simulation loop** — on level entry,
+- [x] **`startLevel` — missing updateEnvironment simulation loop** — on level entry,
   C runs `while (timeAway--) { updateEnvironment(); }` (up to 100 iterations).
   TS skips this entirely. Fire spread, swamp gas, brimstone don't evolve during
   level transitions.

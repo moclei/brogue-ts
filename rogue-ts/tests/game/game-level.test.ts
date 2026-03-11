@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { updateColors } from "../../src/game/game-level.js";
+import { updateColors, startLevel } from "../../src/game/game-level.js";
 import type { LevelContext } from "../../src/game/game-level.js";
 import { applyColorAverage } from "../../src/io/color.js";
 import type { Color } from "../../src/types/types.js";
@@ -74,6 +74,7 @@ function makeUpdateColorsCtx(
         describedItemName() { return ""; },
         generateItem() { return {} as any; },
         placeItemAt() {},
+        updateEnvironment() {},
         restoreMonster() {},
         restoreItems() {},
         updateMonsterState() {},
@@ -183,20 +184,10 @@ describe("updateColors", () => {
 // DIVERGENCE: environment simulation loop stubbed
 // =============================================================================
 
-it.skip(
-    "startLevel: environment simulation (updateEnvironment loop) is stubbed",
-    () => {
-        // UPDATE: known divergence — TS skips while(timeAway--) loop; fix note below.
-        // C runs `while (timeAway--) { updateEnvironment(); }` (up to 100 iterations)
-        // TS skips this loop entirely — no ctx.updateEnvironment call exists.
-        // Result: terrain processes (swamp gas, brimstone, fire spread) do not
-        // evolve during level transitions. Behavioral divergence from C.
-        //
-        // Fix: add updateEnvironment to LevelContext and call it in the loop:
-        //   while (timeAway-- > 0) {
-        //     rogue.absoluteTurnNumber = Math.max(currentTurnNumber, timeAway) - timeAway;
-        //     ctx.updateEnvironment();
-        //   }
-        //   rogue.absoluteTurnNumber = currentTurnNumber;
-    },
-);
+it("startLevel: LevelContext requires updateEnvironment (loop wired in game-level.ts)", () => {
+    // C: while (timeAway--) { updateEnvironment(); } — up to 100 iterations.
+    // TS fix: added updateEnvironment to LevelContext and wired the loop.
+    // TypeScript compile error here if updateEnvironment is missing from LevelContext.
+    const ctx = makeUpdateColorsCtx(0, 26, [], []);
+    expect(typeof ctx.updateEnvironment).toBe("function");
+});

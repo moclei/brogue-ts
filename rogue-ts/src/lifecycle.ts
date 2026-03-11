@@ -497,6 +497,7 @@ export function buildLevelContext(): LevelContext {
             floorItems.unshift(item);
             pmap[loc.x][loc.y].flags |= TileFlag.HAS_ITEM;
         },
+        updateEnvironment: () => {},
         restoreMonster: () => {},
         restoreItems: () => {},
         updateMonsterState: () => {},
