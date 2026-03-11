@@ -28,6 +28,7 @@ import type {
     TraversiblePathContext,
     PathTowardCreatureContext,
     MonsterMillAboutContext,
+    MoveAllyContext,
 } from "../../src/monsters/monster-actions.js";
 import { createCreature } from "../../src/monsters/monster-creation.js";
 import { monsterCatalog } from "../../src/globals/monster-catalog.js";
@@ -444,15 +445,156 @@ describe("monsterMillAbout", () => {
 // =============================================================================
 
 
-it.skip("moveAlly: missing corpse-eating branch and scent-follow return-to-leader path", () => {
-    // UPDATE: known divergence in two branches. Deferred to port-v2-platform.
-    // C (Monsters.c:3208): targetCorpseLoc → move toward corpse
-    // C (Monsters.c:3222+): close to player / MB_DOES_NOT_TRACK_LEADER → mill about
-    // C (Monsters.c:3228+): else → follow via scentDirection, fall back to pathTowardCreature
-    //
-    // TS (monster-actions.ts): calls pathTowardCreature(leader) unconditionally —
-    // ally never eats corpses, never mills about near player, never uses scent-map.
-    // Fix: port the full three-branch else chain from C.
+describe("moveAlly — corpse-eating and scent-follow branches", () => {
+    const GOOD_COLOR = { r: 60, g: 50, b: 100, dr: 0, dg: 0, db: 0, variance: 0, colorDances: false };
+
+    function makeMoveAllyCtx(overrides?: Partial<MoveAllyContext>): MoveAllyContext {
+        const player = makeMonster(MonsterType.MK_YOU);
+        player.loc = { x: 10, y: 10 };
+        return {
+            player,
+            monsters: [],
+            rng: { randPercent: () => false },
+            cellHasTerrainFlag: () => false,
+            T_HARMFUL_TERRAIN: 0,
+            T_IS_FIRE: 0x0001,
+            T_CAUSES_DAMAGE: 0x0002,
+            T_CAUSES_PARALYSIS: 0x0004,
+            T_CAUSES_CONFUSION: 0x0008,
+            MONST_INANIMATE: 0,
+            MONST_INVULNERABLE: 0,
+            MONST_CAST_SPELLS_SLOWLY: 0,
+            MONST_ALWAYS_USE_ABILITY: 0,
+            MONST_ALWAYS_HUNTING: 0,
+            MONST_MAINTAINS_DISTANCE: 0,
+            MONST_FLITS: 0,
+            MONST_IMMOBILE: 0,
+            MONSTER_TRACKING_SCENT: 99,
+            mapToSafeTerrain: null,
+            updatedMapToSafeTerrainThisTurn: false,
+            updateSafeTerrainMap: () => {},
+            monsterWillAttackTarget: () => false,
+            traversiblePathBetween: () => false,
+            moveMonster: vi.fn().mockReturnValue(false),
+            moveMonsterPassivelyTowards: vi.fn().mockReturnValue(false),
+            monsterBlinkToPreferenceMap: () => false,
+            monsterBlinkToSafety: () => false,
+            monstUseMagic: () => false,
+            monsterSummons: () => false,
+            nextStep: () => NO_DIRECTION,
+            randValidDirectionFrom: () => NO_DIRECTION,
+            pathTowardCreature: vi.fn(),
+            nbDirs,
+            NO_DIRECTION,
+            DCOLS: 79,
+            DROWS: 29,
+            allyFlees: () => false,
+            justRested: false,
+            justSearched: false,
+            MB_SEIZED: MonsterBookkeepingFlag.MB_SEIZED,
+            MB_FOLLOWER: MonsterBookkeepingFlag.MB_FOLLOWER,
+            MB_SUBMERGED: MonsterBookkeepingFlag.MB_SUBMERGED,
+            MB_DOES_NOT_TRACK_LEADER: MonsterBookkeepingFlag.MB_DOES_NOT_TRACK_LEADER,
+            MB_ABSORBING: MonsterBookkeepingFlag.MB_ABSORBING,
+            MB_GIVEN_UP_ON_SCENT: MonsterBookkeepingFlag.MB_GIVEN_UP_ON_SCENT,
+            STATUS_INVISIBLE: StatusEffect.Invisible,
+            STATUS_IMMUNE_TO_FIRE: StatusEffect.ImmuneToFire,
+            STATUS_POISONED: StatusEffect.Poisoned,
+            STATUS_BURNING: StatusEffect.Burning,
+            attackWouldBeFutile: () => false,
+            monsterHasBoltEffect: () => 0,
+            BE_BLINKING: 0,
+            allySafetyMap: Array.from({ length: 79 }, () => new Array(29).fill(0)),
+            distanceBetween: (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)),
+            isPosInMap: (p) => p.x >= 0 && p.x < 79 && p.y >= 0 && p.y < 29,
+            canSeeMonster: () => false,
+            monsterName: (m) => m.info.monsterName ?? "monster",
+            getMonsterAbsorbingText: () => "devouring",
+            goodMessageColor: GOOD_COLOR,
+            messageWithColor: vi.fn(),
+            inFieldOfView: () => false,
+            monsterMillAbout: vi.fn(),
+            scentMap: Array.from({ length: 79 }, () => new Array(29).fill(0)),
+            scentDirection: () => NO_DIRECTION,
+            ...overrides,
+        };
+    }
+
+    it("moves toward targetCorpseLoc and starts absorbing when adjacent (C:3208)", () => {
+        const monst = makeMonster();
+        monst.loc = { x: 5, y: 5 };
+        monst.targetCorpseLoc = { x: 5, y: 5 };  // already at corpse
+        monst.targetCorpseName = "goblin";
+        monst.leader = makeMonster(MonsterType.MK_YOU);
+        const ctx = makeMoveAllyCtx({ canSeeMonster: () => true });
+        moveAlly(monst, ctx);
+        expect(monst.corpseAbsorptionCounter).toBe(20);
+        expect(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_ABSORBING).toBeTruthy();
+        expect(ctx.messageWithColor).toHaveBeenCalled();
+    });
+
+    it("moves toward targetCorpseLoc when not yet adjacent (C:3208)", () => {
+        const monst = makeMonster();
+        monst.loc = { x: 5, y: 5 };
+        monst.targetCorpseLoc = { x: 8, y: 8 };
+        monst.leader = makeMonster(MonsterType.MK_YOU);
+        const mmpt = vi.fn().mockReturnValue(true);
+        const ctx = makeMoveAllyCtx({ moveMonsterPassivelyTowards: mmpt });
+        moveAlly(monst, ctx);
+        expect(mmpt).toHaveBeenCalledWith(monst, monst.targetCorpseLoc, false);
+    });
+
+    it("mills about when close to player and in FOV (C:3222)", () => {
+        const monst = makeMonster();
+        monst.loc = { x: 10, y: 10 };  // same as player
+        monst.targetCorpseLoc = { x: -1, y: -1 };  // invalid (not in map)
+        monst.leader = makeMonster(MonsterType.MK_YOU);
+        const mill = vi.fn();
+        const ctx = makeMoveAllyCtx({
+            inFieldOfView: () => true,
+            monsterMillAbout: mill,
+        });
+        // player is at (10,10), monst is at (10,10) → distance 0 < 3
+        moveAlly(monst, ctx);
+        expect(mill).toHaveBeenCalledWith(monst, 30);
+        expect(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_GIVEN_UP_ON_SCENT).toBe(0);
+    });
+
+    it("follows scentDirection when far from player (C:3228)", () => {
+        const monst = makeMonster();
+        monst.loc = { x: 5, y: 5 };
+        monst.targetCorpseLoc = { x: -1, y: -1 };
+        const leader = makeMonster(MonsterType.MK_YOU);
+        leader.loc = { x: 40, y: 20 };  // far away (distance > 10)
+        monst.leader = leader;
+        const mmpt = vi.fn().mockReturnValue(true);
+        const ctx = makeMoveAllyCtx({
+            scentDirection: () => 0,  // dir 0 = [0, -1] (north)
+            moveMonsterPassivelyTowards: mmpt,
+        });
+        ctx.player.loc = { x: 40, y: 20 };
+        moveAlly(monst, ctx);
+        // dir 0 = [0, -1] → target = {5, 4}
+        expect(mmpt).toHaveBeenCalledWith(monst, { x: 5, y: 4 }, false);
+    });
+
+    it("falls back to pathTowardCreature(leader) when scentDirection returns -1 (C:3236)", () => {
+        const monst = makeMonster();
+        monst.loc = { x: 5, y: 5 };
+        monst.targetCorpseLoc = { x: -1, y: -1 };
+        const leader = makeMonster(MonsterType.MK_YOU);
+        leader.loc = { x: 40, y: 20 };
+        monst.leader = leader;
+        const pathToward = vi.fn();
+        const ctx = makeMoveAllyCtx({
+            scentDirection: () => NO_DIRECTION,
+            pathTowardCreature: pathToward,
+        });
+        ctx.player.loc = { x: 40, y: 20 };
+        moveAlly(monst, ctx);
+        expect(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_GIVEN_UP_ON_SCENT).toBeTruthy();
+        expect(pathToward).toHaveBeenCalledWith(monst, leader);
+    });
 });
 
 // makeMonsterDropItem: FIXED — now calls getQualifyingPathLocNear to find a valid drop

@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-10 (after welcome() amulet colorization fix)
-**Tests at last update:** 88 files · 2249 pass · 73 skip
+**Status:** updated 2026-03-10 (after moveAlly corpse-eating and scent-follow branches)
+**Tests at last update:** 88 files · 2254 pass · 72 skip
 
 ---
 
@@ -88,7 +88,7 @@ Complexity key: **S** = small/self-contained · **M** = medium, needs context wo
 
 Code exists but is missing chunks present in C.
 
-- [ ] **`moveAlly` — missing corpse-eating and scent-follow branches** — allied monsters
+- [x] **`moveAlly` — missing corpse-eating and scent-follow branches** — allied monsters
   don't eat corpses to gain abilities, and don't use scent to return to leader.
   C: `Monsters.c` (moveAlly). TS: `monsters/monster-ai-movement.ts`.
   test.skip: `monsters/monster-ai-movement.test.ts:466`. **M**

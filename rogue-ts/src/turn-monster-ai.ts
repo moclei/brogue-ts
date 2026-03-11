@@ -105,6 +105,7 @@ import {
     closestWaypointIndexTo as closestWaypointIndexToFn,
 } from "./monsters/monster-awareness.js";
 import { burnedTerrainFlagsAtLoc as burnedTerrainFlagsAtLocFn } from "./state/helpers.js";
+import { goodMessageColor } from "./globals/colors.js";
 import type { Creature, Pos } from "./types/types.js";
 
 // =============================================================================
@@ -147,6 +148,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
     let moveMonsterImpl: (monst: Creature, dx: number, dy: number) => boolean = () => false;
     let mmptImpl: (monst: Creature, t: Pos, w: boolean) => boolean = () => false;
     let traversibleImpl: (monst: Creature, x: number, y: number) => boolean = () => false;
+    let monsterMillAboutImpl: (monst: Creature, chance: number) => void = () => {};
 
     // ── Query context ─────────────────────────────────────────────────────────
     const queryCtx: MonsterQueryContext = {
@@ -536,6 +538,28 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         BE_BLINKING: BoltEffect.Blinking,
         allySafetyMap: allocGrid(),
         distanceBetween,
+
+        // Corpse-eating branch
+        isPosInMap: (pos) => coordinatesAreInMap(pos.x, pos.y),
+        STATUS_POISONED: StatusEffect.Poisoned,
+        STATUS_BURNING: StatusEffect.Burning,
+        canSeeMonster: (monst) => canSeeMonsterFn(monst, queryCtx),
+        monsterName: (monst, includeArticle) => {
+            if (monst === player) return "you";
+            const pfx = includeArticle ? (monst.creatureState === CreatureState.Ally ? "your " : "the ") : "";
+            return `${pfx}${monst.info.monsterName}`;
+        },
+        getMonsterAbsorbingText: (monst) => monsterText[monst.info.monsterID]?.absorbing ?? "",
+        goodMessageColor,
+        messageWithColor: io.messageWithColor,
+        MB_ABSORBING: MonsterBookkeepingFlag.MB_ABSORBING,
+
+        // Mill-about / scent-follow
+        inFieldOfView: inFOV,
+        monsterMillAbout: (monst, chance) => monsterMillAboutImpl(monst, chance),
+        MB_GIVEN_UP_ON_SCENT: MonsterBookkeepingFlag.MB_GIVEN_UP_ON_SCENT,
+        scentMap,
+        scentDirection: (monst) => scentDirectionFn(monst, scentDirCtx),
     };
 
     // ── randValidDirectionFrom shared closure ─────────────────────────────────
@@ -553,6 +577,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         moveMonsterPassivelyTowards: (monst, t, w) => mmptImpl(monst, t, w),
         nbDirs, NO_DIRECTION: -1,
     };
+    monsterMillAboutImpl = (monst, chance) => monsterMillAboutFn(monst, chance, millAboutCtx);
 
     // ── Return the fully-wired MonstersTurnContext ─────────────────────────────
     return {
