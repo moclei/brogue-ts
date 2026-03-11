@@ -16,6 +16,7 @@
  */
 
 import { getGameState, gameOver } from "./core.js";
+import { buildApplyInstantTileEffectsFn } from "./tile-effects-wiring.js";
 import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
     terrainFlags as terrainFlagsFn,
@@ -108,7 +109,7 @@ export function buildCombatDamageContext(): CombatDamageContext {
         messageWithColor: (text, color) => io.messageWithColor(text, color, 0),
         message: io.message,
         refreshDungeonCell,
-        applyInstantTileEffectsToCreature: () => {},
+        applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
         fadeInMonster: () => {},
 
         monsterName: buildMonsterName(player),

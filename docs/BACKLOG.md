@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-11 (after updateMonsterCorpseAbsorption — corpse absorption now fully wired)
+**Status:** updated 2026-03-11 (after applyInstantTileEffectsToCreature — wired into all context builders)
 **Tests at last update:** 88 files · 2269 pass · 62 skip
 
 ---
@@ -181,13 +181,13 @@ These don't exist in TS yet. Port the C function, add context plumbing, wire it 
   `turn-monster-ai.ts` via `CorpseAbsorptionContext`.
   test: `tests/monsters/monster-actions.test.ts` (stub replaced). **M**
 
-- [ ] **`applyInstantTileEffectsToCreature`** — applies terrain effects to a creature
+- [x] **`applyInstantTileEffectsToCreature`** — applies terrain effects to a creature
   that steps onto or is on a cell: tall grass trampling (`T_PROMOTES_ON_STEP`), fire
   damage, web entanglement, etc. Previously "permanently deferred" due to async cascade
   concerns; now in scope. Required by B13 (tall grass).
-  C: `Time.c`. TS: needs porting + wiring into `movement.ts` player-move context.
-  Note: the async cascade risk is real — stepping onto fire must `await` the burn
-  message. Map the cascade before writing code. **M**
+  C: `Time.c`. TS: `tile-effects-wiring.ts` — `buildApplyInstantTileEffectsFn()` wired
+  into `turn.ts`, `turn-monster-ai.ts`, `combat.ts`, `items.ts`, `items/item-commands.ts`,
+  `items/staff-wiring.ts`. **M**
 
 - [ ] **`drawManacles`** — draws manacle terrain decorations adjacent to a chained
   monster on level entry. Visual, but present in C.

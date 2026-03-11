@@ -17,6 +17,7 @@
  */
 
 import { getGameState, gameOver as gameOverFn } from "../core.js";
+import { buildApplyInstantTileEffectsFn } from "../tile-effects-wiring.js";
 import { waitForEvent, commitDraws } from "../platform.js";
 import { moveCursor as moveCursorFn } from "../io/cursor-move.js";
 import type { MoveCursorContext } from "../io/cursor-move.js";
@@ -401,7 +402,7 @@ export function buildStaffZapFn() {
                     messageColorFromVictimFn(m, player, false, false, () => false) as Color,
                 extinguishFireOnCreature: () => {},  // permanent-defer
                 refreshDungeonCell: () => {},
-                applyInstantTileEffectsToCreature: () => {},  // separate task
+                applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
                 resolvePronounEscapes: buildResolvePronounEscapesFn(player, pmap, rogue),
             }),
             empowerMonster: () => {},       // stub
@@ -467,7 +468,7 @@ export function buildStaffZapFn() {
                 HAS_STAIRS: TileFlag.HAS_STAIRS,
             }),
             disentangle: () => {},          // stub
-            applyInstantTileEffectsToCreature: () => {},  // separate task
+            applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
             pickUpItemAt: () => {},         // stub
             checkForMissingKeys: () => {},  // stub
             findAlternativeHomeFor: () => null,  // stub

@@ -18,6 +18,7 @@
  */
 
 import { getGameState } from "./core.js";
+import { buildApplyInstantTileEffectsFn } from "./tile-effects-wiring.js";
 import { buildCombatDamageContext } from "./combat.js";
 import { buildTurnProcessingContext } from "./turn.js";
 import { buildMonsterSpawningContext } from "./monsters.js";
@@ -217,7 +218,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         ),
         extinguishFireOnCreature: () => {},  // permanent-defer — requires full CreatureEffectsContext
         refreshDungeonCell,
-        applyInstantTileEffectsToCreature: () => {},  // permanent-defer — chasms/tile effects (see TASKS.md)
+        applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
         resolvePronounEscapes: buildResolvePronounEscapesFn(player, pmap, rogue),
     };
 

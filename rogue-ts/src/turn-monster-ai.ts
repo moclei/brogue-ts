@@ -12,6 +12,7 @@
  */
 
 import { getGameState, gameOver } from "./core.js";
+import { buildApplyInstantTileEffectsFn } from "./tile-effects-wiring.js";
 import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
     cellHasTMFlag as cellHasTMFlagFn,
@@ -270,7 +271,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         monsterAtLoc,
         refreshDungeonCell,
         discover: (x, y) => { if (coordinatesAreInMap(x, y)) pmap[x][y].flags |= TileFlag.DISCOVERED; },
-        applyInstantTileEffectsToCreature: () => {},    // permanent-defer — chasms/tile effects (see TASKS.md)
+        applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
         updateVision: () => {},                         // permanent-defer — visual update (wired in turn/lifecycle)
         pickUpItemAt: () => {},                         // stub — Phase 3a
         shuffleList: (list) => {
@@ -645,7 +646,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
             const feat = dungeonFeatureCatalog[dfType];
             if (feat) spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, isVolatile, ignoreBlocking);
         },
-        applyInstantTileEffectsToCreature: () => {},
+        applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
         makeMonsterDropItem: () => {},
 
         scentDirection: (monst) => scentDirectionFn(monst, scentDirCtx),

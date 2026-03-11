@@ -52,6 +52,7 @@ import type { TurnProcessingContext } from "./time/turn-processing.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
 import { applyGradualTileEffectsToCreature as applyGradualTileEffectsFn, playerFalls as playerFallsFn } from "./time/creature-effects.js";
+import { buildApplyInstantTileEffectsFn } from "./tile-effects-wiring.js";
 import type { Creature, Pcell, Pos, PlayerCharacter, Color, Item } from "./types/types.js";
 import { INVALID_POS } from "./types/types.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
@@ -439,8 +440,8 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         rechargeItemsIncrementally: () => {},
         processIncrementalAutoID: () => {},
 
-        // ── Tile effects (stubs — wired in port-v2-platform) ─────────────────
-        applyInstantTileEffectsToCreature: () => {},
+        // ── Tile effects ──────────────────────────────────────────────────────
+        applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
         applyGradualTileEffectsToCreature: (monst, ticks) => applyGradualTileEffectsFn(monst, ticks, gradualCtx),
         monsterShouldFall: () => false,
         monstersFall: () => {},

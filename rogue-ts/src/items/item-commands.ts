@@ -22,6 +22,7 @@
  */
 
 import { getGameState, gameOver } from "../core.js";
+import { buildApplyInstantTileEffectsFn } from "../tile-effects-wiring.js";
 import { waitForEvent, commitDraws } from "../platform.js";
 import { moveCursor as moveCursorFn, type MoveCursorContext } from "../io/cursor-move.js";
 import { chooseTarget } from "./targeting.js";
@@ -147,7 +148,7 @@ function buildMinCombatDamageCtx(deps: ItemCommandDeps): CombatDamageContext {
         messageWithColor: (msg, color) => deps.messageWithColor(msg, color as Readonly<Color> ?? null, 0),
         message: deps.message,
         refreshDungeonCell: () => {},
-        applyInstantTileEffectsToCreature: () => {},
+        applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
         fadeInMonster: () => {},
         monsterName: (m) => (m === player ? "you" : m.info.monsterName),
         gameOver(msg) { gameOver(msg); },
