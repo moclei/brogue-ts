@@ -443,28 +443,6 @@ describe("monsterMillAbout", () => {
 // moveAlly — Monsters.c:3040
 // =============================================================================
 
-it.skip("moveAlly: missing monsterHasBoltEffect guard before blink-to-safety in flee branch", () => {
-    // UPDATE: known divergence in flee branch. Deferred to port-v2-platform.
-    // C (Monsters.c:3101):
-    //   if (monsterHasBoltEffect(monst, BE_BLINKING)
-    //       && ((flags & MONST_ALWAYS_USE_ABILITY) || rand_percent(30))
-    //       && monsterBlinkToSafety(monst)) { return; }
-    //
-    // TS (monster-actions.ts:750): missing BE_BLINKING guard — every ally with
-    // ALWAYS_USE_ABILITY attempts blink-to-safety even without blinking ability.
-    // Fix: add monsterHasBoltEffect(monst, BE_BLINKING) as first guard.
-});
-
-it.skip("moveAlly: attack leash uses distance-to-enemy instead of distance-to-player", () => {
-    // UPDATE: known divergence — attack leash metric. Deferred to port-v2-platform.
-    // C (Monsters.c:3153): leash based on distanceBetween({x,y}, player.loc) with
-    // MB_DOES_NOT_TRACK_LEADER / MONST_MAINTAINS_DISTANCE / attackWouldBeFutile guards.
-    //
-    // TS (monster-actions.ts:798): uses distance-to-enemy not distance-to-player;
-    // missing MB_DOES_NOT_TRACK_LEADER, MONST_MAINTAINS_DISTANCE, attackWouldBeFutile,
-    // and shortestDistance==1 leash increment.
-    // Fix: rewrite the attack guard to match C exactly.
-});
 
 it.skip("moveAlly: missing corpse-eating branch and scent-follow return-to-leader path", () => {
     // UPDATE: known divergence in two branches. Deferred to port-v2-platform.

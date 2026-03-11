@@ -41,6 +41,7 @@ import {
     canSeeMonster as canSeeMonsterFn,
     canDirectlySeeMonster as canDirectlySeeMonsterFn,
     monsterWillAttackTarget as monsterWillAttackTargetFn,
+    attackWouldBeFutile as attackWouldBeFutileFn,
 } from "./monsters/monster-queries.js";
 import type { MonsterQueryContext } from "./monsters/monster-queries.js";
 import { distanceBetween, updateMonsterState as updateMonsterStateFn, monsterAvoids as monsterAvoidsFn, chooseNewWanderDestination as chooseNewWanderDestFn } from "./monsters/monster-state.js";
@@ -523,8 +524,16 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         MB_SEIZED: MonsterBookkeepingFlag.MB_SEIZED,
         MB_FOLLOWER: MonsterBookkeepingFlag.MB_FOLLOWER,
         MB_SUBMERGED: MonsterBookkeepingFlag.MB_SUBMERGED,
+        MB_DOES_NOT_TRACK_LEADER: MonsterBookkeepingFlag.MB_DOES_NOT_TRACK_LEADER,
         STATUS_INVISIBLE: StatusEffect.Invisible,
         STATUS_IMMUNE_TO_FIRE: StatusEffect.ImmuneToFire,
+        MONST_MAINTAINS_DISTANCE: MonsterBehaviorFlag.MONST_MAINTAINS_DISTANCE,
+        MONST_FLITS: MonsterBehaviorFlag.MONST_FLITS,
+        MONST_IMMOBILE: MonsterBehaviorFlag.MONST_IMMOBILE,
+        MONSTER_TRACKING_SCENT: CreatureState.TrackingScent,
+        attackWouldBeFutile: (monst, target) => attackWouldBeFutileFn(monst, target, player, chTF),
+        monsterHasBoltEffect: (monst, effectType) => monsterHasBoltEffectFn(monst, effectType, boltCatalog),
+        BE_BLINKING: BoltEffect.Blinking,
         allySafetyMap: allocGrid(),
         distanceBetween,
     };

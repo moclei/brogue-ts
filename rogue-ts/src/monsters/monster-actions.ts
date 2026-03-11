@@ -655,8 +655,16 @@ export interface MoveAllyContext {
     MB_SEIZED: number;
     MB_FOLLOWER: number;
     MB_SUBMERGED: number;
+    MB_DOES_NOT_TRACK_LEADER: number;
     STATUS_INVISIBLE: number;
     STATUS_IMMUNE_TO_FIRE: number;
+    MONST_MAINTAINS_DISTANCE: number;
+    MONST_FLITS: number;
+    MONST_IMMOBILE: number;
+    MONSTER_TRACKING_SCENT: number;
+    attackWouldBeFutile(monst: Creature, target: Creature): boolean;
+    monsterHasBoltEffect(monst: Creature, effectType: number): number;
+    BE_BLINKING: number;
 
     allySafetyMap: number[][];
     distanceBetween(loc1: Pos, loc2: Pos): number;
@@ -733,6 +741,7 @@ export function moveAlly(monst: Creature, ctx: MoveAllyContext): void {
     // Weak allies flee if in presence of enemies
     if (ctx.allyFlees(monst, closestMonster)) {
         if (
+            ctx.monsterHasBoltEffect(monst, ctx.BE_BLINKING) &&
             (monst.info.flags & ctx.MONST_ALWAYS_USE_ABILITY || ctx.rng.randPercent(30)) &&
             ctx.monsterBlinkToSafety(monst)
         ) {
@@ -777,9 +786,27 @@ export function moveAlly(monst: Creature, ctx: MoveAllyContext): void {
     } else {
         leashLength = 4;
     }
+    // C:3142 — if adjacent to enemy, extend leash (or max out if enemy is faster and tracking)
+    if (shortestDistance === 1 && closestMonster) {
+        if (
+            closestMonster.movementSpeed < monst.movementSpeed &&
+            !(closestMonster.info.flags & (ctx.MONST_FLITS | ctx.MONST_IMMOBILE)) &&
+            closestMonster.creatureState === ctx.MONSTER_TRACKING_SCENT
+        ) {
+            leashLength = Math.max(ctx.DCOLS, ctx.DROWS);
+        } else {
+            leashLength++;
+        }
+    }
 
-    // Attack or pursue nearest enemy within leash
-    if (closestMonster && ctx.distanceBetween(monst.loc, closestMonster.loc) <= leashLength) {
+    // Attack or pursue nearest enemy within leash (C:3153)
+    if (
+        closestMonster &&
+        (ctx.distanceBetween({ x, y }, ctx.player.loc) < leashLength ||
+            !!(monst.bookkeepingFlags & ctx.MB_DOES_NOT_TRACK_LEADER)) &&
+        !(monst.info.flags & ctx.MONST_MAINTAINS_DISTANCE) &&
+        !ctx.attackWouldBeFutile(monst, closestMonster)
+    ) {
         ctx.pathTowardCreature(monst, closestMonster);
         return;
     }

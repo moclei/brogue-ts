@@ -56,12 +56,12 @@ Complexity key: **S** = small/self-contained · **M** = medium, needs context wo
   C: `Monsters.c`. TS: `monsters/monster-ai-movement.ts`.
   test.skip: `monsters/monster-ai-movement.test.ts:310`. **S**
 
-- [ ] **`moveAlly` — wrong attack leash metric** — uses distance-to-enemy instead of
+- [x] **`moveAlly` — wrong attack leash metric** — uses distance-to-enemy instead of
   distance-to-player. Ally monsters disengage at wrong range.
   C: `Monsters.c`. TS: `monsters/monster-ai-movement.ts`.
   test.skip: `monsters/monster-ai-movement.test.ts:455`. **S**
 
-- [ ] **`moveAlly` — missing `monsterHasBoltEffect` guard** — blink-to-safety fires
+- [x] **`moveAlly` — missing `monsterHasBoltEffect` guard** — blink-to-safety fires
   when the ally doesn't have a blink bolt.
   C: `Monsters.c`. TS: `monsters/monster-ai-movement.ts`.
   test.skip: `monsters/monster-ai-movement.test.ts:443`. **S**
