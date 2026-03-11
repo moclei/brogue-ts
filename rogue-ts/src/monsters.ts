@@ -15,7 +15,7 @@
  *  License, or (at your option) any later version.
  */
 
-import { getGameState } from "./core.js";
+import { getGameState, getBuildMachineFn } from "./core.js";
 import { buildCombatDamageContext } from "./combat.js";
 import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
@@ -215,7 +215,10 @@ export function buildMonsterSpawningContext(): SpawnContext {
         // ── Map mutation ──────────────────────────────────────────────────────
         monsterAtLoc,
         killCreature: (creature, quiet) => killCreatureFn(creature, quiet, combatCtx),
-        buildMachine: () => {},         // permanent-defer — machine building requires full architect context
+        buildMachine: (machineType, x, y) => {
+            const fn = getBuildMachineFn();
+            if (fn) fn(machineType, x, y);
+        },
         setCellFlag(loc, flag) {
             if (coordinatesAreInMap(loc.x, loc.y)) {
                 pmap[loc.x][loc.y].flags |= flag;

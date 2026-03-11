@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-11 (after extinguishFireOnCreature wired in monsters.ts)
-**Tests at last update:** 88 files · 2260 pass · 66 skip
+**Status:** updated 2026-03-11 (after buildMachine wired in monsters.ts)
+**Tests at last update:** 88 files · 2261 pass · 65 skip
 
 ---
 
@@ -132,7 +132,7 @@ replace the stub closure.
   C: `Time.c`. TS: `monsters.ts` context builder.
   test.skip: `tests/monsters.test.ts:271`. **S**
 
-- [ ] **`buildMachine` in monster spawning context** — no-op; needs the machine
+- [x] **`buildMachine` in monster spawning context** — no-op; needs the machine
   builder wired in (it's called when monsters spawn guardians).
   C: `Architect.c`. TS: `monsters.ts` spawning context.
   test.skip: `tests/monsters.test.ts:242`. **M**

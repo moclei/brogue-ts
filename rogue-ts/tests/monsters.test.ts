@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { initGameState, getGameState } from "../src/core.js";
+import { initGameState, getGameState, setBuildMachineFn } from "../src/core.js";
 import { buildMonsterSpawningContext, buildMonsterStateContext } from "../src/monsters.js";
 import { spawnHorde } from "../src/monsters/monster-spawning.js";
 import { decrementMonsterStatus } from "../src/monsters/monster-state.js";
@@ -280,10 +280,26 @@ it("buildMonsterSpawningContext().passableArcCount counts passable arcs (Phase 8
     expect(ctx2.passableArcCount(10, 10)).toBe(1);
 });
 
-it.skip("stub: buildMonsterSpawningContext().buildMachine is a no-op (stub, needs machine builder)", () => {
-    // UPDATE: stub `() => {}` in monsters.ts:128. Wired in port-v2-platform.
-    // Real implementation calls buildMachine() from the architect module.
-    // Required for hordes with machine > 0 (machine-associated spawns).
+it("buildMonsterSpawningContext().buildMachine delegates to registered builder", () => {
+    // Wired via getBuildMachineFn() in monsters.ts. lifecycle.ts registers the real
+    // buildAMachine callback via setBuildMachineFn(); tests inject a mock directly.
+    let calledMachineType = -1;
+    let calledX = -1;
+    let calledY = -1;
+    setBuildMachineFn((machineType, x, y) => {
+        calledMachineType = machineType;
+        calledX = x;
+        calledY = y;
+    });
+    try {
+        const ctx = buildMonsterSpawningContext();
+        ctx.buildMachine(3, 10, 5);
+        expect(calledMachineType).toBe(3);
+        expect(calledX).toBe(10);
+        expect(calledY).toBe(5);
+    } finally {
+        setBuildMachineFn(null);
+    }
 });
 
 

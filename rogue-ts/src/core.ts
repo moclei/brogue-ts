@@ -250,6 +250,9 @@ let pendingDeathMessage: string | null = null;
 /** Pending victory type set by setVictory(); consumed by the async victory screen in menus.ts. */
 let pendingVictoryType: 'none' | 'normal' | 'super' = 'none';
 
+/** Machine builder callback — set by lifecycle after building architect context. */
+let buildMachineCallback: ((machineType: number, x: number, y: number) => void) | null = null;
+
 // =============================================================================
 // Game lifecycle
 // =============================================================================
@@ -282,6 +285,7 @@ export function initGameState(): void {
     scentMap = null;
     pendingDeathMessage = null;
     pendingVictoryType = 'none';
+    buildMachineCallback = null;
 }
 
 /**
@@ -388,3 +392,13 @@ export function setGameConst(gc: GameConstants): void { gameConst = gc; }
 
 /** Override game variant (used by main menu variant selection). */
 export function setGameVariant(gv: GameVariant): void { gameVariant = gv; }
+
+/** Register the machine builder (called by lifecycle after building architect context). */
+export function setBuildMachineFn(fn: ((machineType: number, x: number, y: number) => void) | null): void {
+    buildMachineCallback = fn;
+}
+
+/** Get the registered machine builder, or null if not yet wired. */
+export function getBuildMachineFn(): ((machineType: number, x: number, y: number) => void) | null {
+    return buildMachineCallback;
+}

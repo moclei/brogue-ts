@@ -19,7 +19,7 @@
  *  License, or (at your option) any later version.
  */
 
-import { getGameState, setMonsters, setDormantMonsters, setLevels, getScentMap, setScentMap } from "./core.js";
+import { getGameState, setMonsters, setDormantMonsters, setLevels, getScentMap, setScentMap, setBuildMachineFn } from "./core.js";
 import { initializeRogue as initializeRogueFn } from "./game/game-init.js";
 import { startLevel as startLevelFn } from "./game/game-level.js";
 import { freeEverything as freeEverythingFn } from "./game/game-cleanup.js";
@@ -67,7 +67,7 @@ import { identify, shuffleFlavors, itemColors, itemTitles } from "./items/item-n
 import { equipItem, recalculateEquipmentBonuses, updateRingBonuses as updateRingBonusesFn, updateEncumbrance as updateEncumbranceFn } from "./items/item-usage.js";
 import type { EquipContext } from "./items/item-usage.js";
 import { buildEquipState, syncEquipBonuses, syncEquipState } from "./items/equip-helpers.js";
-import type { MachineItem } from "./architect/machines.js";
+import { buildAMachine, type MachineItem } from "./architect/machines.js";
 import { initializeGender, initializeStatus, generateMonster } from "./monsters/monster-creation.js";
 import { createMonsterOps, toggleMonsterDormancy } from "./monsters/monster-ops.js";
 import { blackOutScreen } from "./io/display.js";
@@ -398,6 +398,12 @@ export function buildLevelContext(): LevelContext {
         floorItems: floorItems as unknown as MachineItem[],
         packItems: packItems as unknown as MachineItem[],
     };
+
+    // Register machine builder so buildMonsterSpawningContext().buildMachine can call it.
+    setBuildMachineFn((machineType, x, y) => {
+        buildAMachine(archCtx.machineContext, machineType, x, y, 0, null, null, null);
+        rogue.machineNumber = archCtx.machineContext.machineNumber;
+    });
 
     return {
         rogue, player, gameConst, FP_FACTOR,
