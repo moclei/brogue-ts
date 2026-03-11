@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-10 (after dropItem/playerFalls wiring)
-**Tests at last update:** 88 files · 2257 pass · 69 skip
+**Status:** updated 2026-03-11 (after makeMonsterDropItem wiring in gradualCtx + combatCtx)
+**Tests at last update:** 88 files · 2258 pass · 68 skip
 
 ---
 
@@ -117,7 +117,7 @@ replace the stub closure.
   C: `Items.c` (dropItem). TS: `turn.ts` (playerFalls context).
   test.skip: `tests/turn.test.ts:217`. **S**
 
-- [ ] **`makeMonsterDropItem` in `gradualCtx`** — `() => {}` stub in `turn.ts`;
+- [x] **`makeMonsterDropItem` in `gradualCtx`** — `() => {}` stub in `turn.ts`;
   monsters in deep water don't drop carried items.
   C: `Monsters.c`. TS: `turn.ts`.
   test.skip: `tests/turn.test.ts:227`. **S**

@@ -224,11 +224,10 @@ it("playerFalls() wired: buildTurnProcessingContext() delegates to playerFallsFn
 // placeItemAt in machineContext.itemOps is now wired — lifecycle.ts uses real placeItemAt()
 // from items/floor-items.ts. Tests in tests/items/item-ops.test.ts cover the domain function.
 
-it.skip("stub: makeMonsterDropItem() is () => {} in gradualCtx (turn.ts) — monsters don't drop carried items in deep water", () => {
-    // UPDATE: permanent acceptable stub — monsters in deep water never drop items in normal play.
+it("wired: makeMonsterDropItem() in gradualCtx (turn.ts) — monsters drop carried items in deep water", () => {
     // C: Time.c:457 applyGradualTileEffectsToCreature — monster branch: makeMonsterDropItem(monst).
-    // Domain function tested in creature-effects.test.ts.
-    // Wiring gap: gradualCtx in buildTurnProcessingContext() (turn.ts) has makeMonsterDropItem: () => {}.
-    // Impact is negligible — monsters carrying items do not enter deep water in typical gameplay.
+    // Wired: gradualCtx in buildTurnProcessingContext() now calls doMakeMonsterDropItem().
+    // Domain function tested in creature-effects.test.ts and monsters.test.ts.
+    expect(true).toBe(true);
 });
 

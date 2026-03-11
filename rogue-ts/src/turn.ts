@@ -63,6 +63,7 @@ import { shuffleTerrainColors as shuffleTerrainColorsFn } from "./render-state.j
 import { checkForContinuedLeadership as checkForContinuedLeadershipFn, demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "./monsters/monster-ally-ops.js";
 import { buildResolvePronounEscapesFn, getMonsterDFMessage as getMonsterDFMessageFn } from "./io/text.js";
 import { buildMonstersTurnContext } from "./turn-monster-ai.js";
+import { doMakeMonsterDropItem } from "./monsters.js";
 import { updateEncumbrance as updateEncumbranceFn } from "./items/item-usage.js";
 import { buildEquipState } from "./items/equip-helpers.js";
 import { getFOVMask as getFOVMaskFn } from "./light/fov.js";
@@ -91,6 +92,7 @@ function buildMinimalCombatContext(
     rogue: PlayerCharacter,
     pmap: Pcell[][],
     monsters: Creature[],
+    floorItems: Item[],
 ): CombatDamageContext {
     const canSeeMonster = (m: Creature) =>
         !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE);
@@ -126,7 +128,8 @@ function buildMinimalCombatContext(
         gameOver: (msg) => gameOver(msg),
         setCreaturesWillFlash: () => { rogue.creaturesWillFlashThisTurn = true; },
         deleteItem: deleteItemFn,
-        makeMonsterDropItem: () => {},              // stub
+        makeMonsterDropItem: (monst) =>
+            doMakeMonsterDropItem(monst, pmap, floorItems, (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags), refreshDungeonCell),
         clearLastTarget: () => {},                  // stub
         clearYendorWarden: () => {},                // stub
         clearCellMonsterFlag: () => {},             // stub
@@ -186,7 +189,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         monsterClassName: (classId: number) => monsterCatalog[classId]?.monsterName ?? "creature",
     };
 
-    const combatCtx = buildMinimalCombatContext(player, rogue, pmap, monsters);
+    const combatCtx = buildMinimalCombatContext(player, rogue, pmap, monsters, floorItems);
 
     // ── Gradual tile effects context (for water item loss, terrain damage/healing) ──
     const _ctf = (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags);
@@ -224,7 +227,8 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         },
         messageWithColor: (msg: string, color: Color, flags: number) => io.messageWithColor(msg, color, flags),
         itemMessageColor,
-        makeMonsterDropItem: () => {},
+        makeMonsterDropItem: (monst) =>
+            doMakeMonsterDropItem(monst, pmap, floorItems, _ctf, refreshDungeonCell),
         max: Math.max, min: Math.min,
         tileCatalog,
         autoIdentify: (item: Item) => autoIdentifyFn(item, {

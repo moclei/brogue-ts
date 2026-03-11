@@ -131,7 +131,7 @@ function buildQualifyingPathCtx(
  * Drops monst's carried item at the nearest valid floor location.
  * Mirrors C Monsters.c:4065 — makeMonsterDropItem().
  */
-function doMakeMonsterDropItem(
+export function doMakeMonsterDropItem(
     monst: Creature,
     pmap: Pcell[][],
     floorItems: Item[],
