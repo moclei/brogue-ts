@@ -161,6 +161,10 @@ These don't exist in TS yet. Port the C function, add context plumbing, wire it 
   (visual timing deferred until commitDraws is integrated into flash loop).
   C: `IO.c` (flashTemporaryAlert). TS: `ui.ts` display context.
   test: `tests/ui.test.ts:322`. **M**
+  ⚠ Known gap: `flashMessage` animation non-functional — `EffectsContext.pauseBrogue` is
+  synchronous but `MessageContext.pauseBrogue` is async; no real frame delay or commitDraws
+  between steps. Fix: make `flashMessage`/`EffectsContext.pauseBrogue` async throughout.
+  Filed as **B17** in bug reports below.
 
 - [ ] **`updateMonsterCorpseAbsorption`** — advances corpse-absorption state for
   monsters that eat corpses to gain abilities (e.g. wraiths, vampires).
@@ -252,6 +256,24 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   Fix: same root cause as B8 — `generateItem` stub in machine context set `category=0`;
   `itemName` hit the `default` case. Fixed by wiring real `generateItem`.
 
+### P1 — Blocking / crashes (continued)
+
+- [ ] **B18 — Staff use stalls or silently fails** — Two observed behaviours depending on staff type:
+  (a) Game stalls (async hang) — likely bolt-firing or targeting staves that open the targeting
+  cursor via `chooseTarget`; cursor opens but keypresses/clicks never resolve the await.
+  Relates to B10/B11 (targeting input not forwarded). (b) Game does nothing — non-bolt staves
+  whose effect function is a stub (e.g. staff of healing, blinking). Both cases need separate fixes.
+  C: `Items.c` (useStaffOrWand, zap, individual staff handlers). TS: `items/item-handlers.ts`,
+  `items/targeting.ts`, `io/input-cursor.ts`. **M**
+
+- [ ] **B19 — Scroll of identify / enchanting stalls in item selection** — Both scrolls open
+  the inventory/button UI to select an item, but clicks and keypresses are not accepted;
+  game hangs indefinitely. Root cause likely in the modal item-selection event loop
+  (`buttonInputLoop` / item picker) not properly resolving input events in the async bridge.
+  Same symptom as B18(a) but a different code path (inventory modal vs targeting cursor).
+  C: `Items.c` (scrollIdentify, scrollEnchant → item picker). TS: `io/buttons.ts`,
+  `io/inventory.ts`, `items/item-handlers.ts`. **M**
+
 ### P2 — Visible gameplay divergences
 
 - [ ] **B10 — Aiming: no path shown** — When targeting with the mouse (throw/zap),
@@ -271,6 +293,36 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   decremented. Relates to Priority 2 item `startLevel updateEnvironment` — but that
   is the level-entry simulation; per-turn gas spreading is a separate call site.
   C: `Time.c` (updateEnvironment → gas diffusion). TS: `time/` or `turn.ts`. **M**
+
+- [ ] **B20 — Key not consumed after opening locked room** — After using a key to open a
+  locked vault/item room door, the key remains in the player's inventory. In C, the key
+  is removed on use. Likely `removeItemFromPack` or the key-use handler not called.
+  C: `Items.c` (key use, removeItemFromPack). TS: `items/item-handlers.ts`. **S**
+
+- [ ] **B21 — Captive monster cannot be freed** — Attempting to free a captive monster
+  (e.g. caged monkey) always fails; the monster remains captive on every attempt. In C,
+  success/failure depends on a dice roll and the monster's captive flags are cleared on
+  success. Either the roll always fails or the captive-clearing logic is stubbed/missing.
+  C: `Monsters.c` (free captive logic). TS: `monsters/monster-actions.ts` or `turn.ts`. **S**
+
+- [ ] **B22 — Floor-trap terrain promotion stops after one turn** — After picking up a key
+  that triggers a floor-removal trap (floor promotes to chasm), only the first turn of
+  promotion runs; subsequent turns leave the room unchanged. The promotion chain should
+  continue each turn until complete. Likely root: `applyInstantTileEffectsToCreature`
+  (Priority 4 / B13 root) not firing per-turn, OR `updateEnvironment` promotion chain
+  halting. C: `Time.c` (terrain promotion, T_PROMOTES_ON_STEP). TS: `time/`. **M**
+
+- [ ] **B23 — Magic mapping scroll has no effect** — Using a scroll of magic mapping
+  neither reveals the level map nor plays the radial reveal animation (expanding ring
+  centred on player). The map should be fully revealed with a visual sweep effect.
+  Likely the map-reveal function is a stub or not wired.
+  C: `Items.c` (scrollMagicMapping), `IO.c` (animation). TS: `items/item-handlers.ts`. **M**
+
+- [ ] **B24 — Creeping death / gas clouds do not expand** — Potion of creeping death places
+  initial spores but they do not spread over subsequent turns. Same root cause as B12
+  (`updateEnvironment` not called per turn — gas diffusion and terrain promotion both live
+  there). Fix B12 and B24 together.
+  C: `Time.c` (updateEnvironment). TS: `turn.ts` (per-turn environment update call site). **M**
 
 - [ ] **B13 — Tall grass not trampled on walkover** — Walking over tall grass does not
   convert it to short grass (or bare floor). In C this is driven by
@@ -295,12 +347,26 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   time; the TS async equivalent short-circuits the delay without compensating.
   TS: `menus/main-menu.ts` (`titleMenu` inner loop). **S**
 
+- [ ] **B17 — `flashMessage` animation non-functional** — `flashTemporaryAlert` is wired
+  but produces no visible flash because `EffectsContext.pauseBrogue` is synchronous while
+  the browser platform only has `async pauseBrogue`. The animation loop runs instantly with
+  no per-frame `commitDraws`, so only the final restored state is ever displayed.
+  Fix: make `flashMessage` and `EffectsContext.pauseBrogue` async; call `commitDraws()`
+  between animation frames. C: `IO.c` (flashMessage). TS: `io/effects-alerts.ts`, `ui.ts`. **M**
+
 - [ ] **B14 — No message when exploration complete** — When auto-explore has nowhere
   left to go (whole map explored, or path unreachable), no message appears. In C a
   message like "Nowhere left to explore." or "Exploration interrupted." is shown.
   C: `Movement.c` or `RogueMain.c` (autoTravel / explore path). TS: `movement/travel-explore.ts`. **S**
 
 ### Needs investigation (not yet classified)
+
+- [ ] **B25 — Items in locked vault appear unidentified** — Two unidentified rings were
+  observed in a locked item vault. Verify C behaviour first: in C, vault items are
+  standard unidentified items — the vault room type determines *category* but identification
+  still requires scrolls/use. If that is correct C behaviour, close as WAI. If C auto-
+  identifies vault items on entry, trace the identification call site.
+  C: `Architect.c` (vault machine setup, item generation). **investigate first**
 
 - [ ] **B15 — Item/treasure rooms appearing on depth 1** — Treasure rooms and item
   vaults were observed on the first floor. Unclear if this is intended (some machines
