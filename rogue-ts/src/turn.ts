@@ -34,7 +34,7 @@ import type { CombatHelperContext } from "./combat/combat-helpers.js";
 import { allocGrid } from "./grid/grid.js";
 import { zeroOutGrid } from "./architect/helpers.js";
 import { FP_FACTOR } from "./math/fixpt.js";
-import { randRange, randPercent } from "./math/rng.js";
+import { randRange, randPercent, randClumpedRange } from "./math/rng.js";
 import { nbDirs, coordinatesAreInMap } from "./globals/tables.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
@@ -44,15 +44,16 @@ import {
     orange, green, red, yellow, darkRed, darkGreen, poisonColor,
 } from "./globals/colors.js";
 import { DCOLS, DROWS } from "./types/constants.js";
-import { TileFlag, MonsterBookkeepingFlag, TerrainFlag, T_OBSTRUCTS_SCENT } from "./types/flags.js";
+import { TileFlag, MonsterBookkeepingFlag, TerrainFlag, TerrainMechFlag, T_OBSTRUCTS_SCENT, IS_IN_MACHINE } from "./types/flags.js";
 import { refreshWaypoint as refreshWaypointFn } from "./architect/architect.js";
 import { populateGenericCostMap } from "./movement/cost-maps-fov.js";
-import { CreatureState, GameMode, ALL_ITEMS } from "./types/enums.js";
+import { CreatureState, GameMode, ALL_ITEMS, LightType } from "./types/enums.js";
 import type { TurnProcessingContext } from "./time/turn-processing.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
-import { applyGradualTileEffectsToCreature as applyGradualTileEffectsFn } from "./time/creature-effects.js";
+import { applyGradualTileEffectsToCreature as applyGradualTileEffectsFn, playerFalls as playerFallsFn } from "./time/creature-effects.js";
 import type { Creature, Pcell, Pos, PlayerCharacter, Color, Item } from "./types/types.js";
+import { INVALID_POS } from "./types/types.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
 import { displayCombatText as displayCombatTextFn } from "./io/messages.js";
 import { buildMessageContext } from "./ui.js";
@@ -69,6 +70,13 @@ import { scentDistance } from "./time/turn-processing.js";
 import { itemName as itemNameFn } from "./items/item-naming.js";
 import { autoIdentify as autoIdentifyFn } from "./items/item-handlers.js";
 import { dropItem as dropItemFn } from "./items/floor-items.js";
+import { startLevel as startLevelFn } from "./lifecycle.js";
+import { layerWithFlag as layerWithFlagFn } from "./movement/map-queries.js";
+import { teleport as teleportFn, disentangle as disentangleFn } from "./monsters/monster-teleport.js";
+import { createFlare as createFlareFn } from "./light/flares.js";
+import { calculateDistances } from "./dijkstra/dijkstra.js";
+import { forbiddenFlagsForMonster as forbiddenFlagsForMonsterFn, avoidedFlagsForMonster as avoidedFlagsForMonsterFn } from "./monsters/monster-spawning.js";
+import { lightCatalog } from "./globals/light-catalog.js";
 import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
 import { wandTable, staffTable, ringTable, charmTable } from "./globals/item-catalog.js";
 import type { ItemTable } from "./types/types.js";
@@ -433,7 +441,78 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         monsterShouldFall: () => false,
         monstersFall: () => {},
         decrementPlayerStatus: () => {},
-        playerFalls: () => {},
+        playerFalls: () => {
+            const fallCtx = {
+                player, rogue, pmap, gameConst,
+                cellHasTMFlag: (pos: Pos, flags: number) => cellHasTMFlagFn(pmap, pos, flags),
+                playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+                discover: (x: number, y: number) => { if (coordinatesAreInMap(x, y)) { pmap[x][y].flags |= TileFlag.DISCOVERED; } },
+                monstersFall: () => {},     // stub — separate backlog item
+                updateFloorItems: () => {}, // stub — separate backlog item
+                layerWithFlag: (x: number, y: number, flag: number) => layerWithFlagFn(pmap, x, y, flag),
+                tileCatalog,
+                pmapAt: (pos: Pos) => pmap[pos.x][pos.y],
+                REQUIRE_ACKNOWLEDGMENT: 1,
+                message: io.message,
+                terrainFlags: (pos: Pos) => terrainFlagsFn(pmap, pos),
+                messageWithColor: (msg: string, color: Color, f: number) => io.messageWithColor(msg, color, f),
+                badMessageColor, red,
+                inflictDamage: (attacker: Creature | null, defender: Creature, damage: number, flashColor: Color, showDamage: boolean) =>
+                    inflictDamageFn(attacker, defender, damage, flashColor, showDamage, combatCtx),
+                killCreature: (monst: Creature, adminDeath: boolean) => killCreatureFn(monst, adminDeath, combatCtx),
+                gameOver: (msg: string) => gameOver(msg),
+                startLevel: (depth: number, dir: number) => startLevelFn(depth, dir),
+                randClumpedRange,
+                teleport: (monst: Creature, destination: Pos, voluntary: boolean) => {
+                    const fovCtx = {
+                        cellHasTerrainFlag: _ctf,
+                        getCellFlags: (x: number, y: number) => pmap[x]?.[y]?.flags ?? 0,
+                    };
+                    teleportFn(monst, destination, voluntary, {
+                        player,
+                        disentangle: (m: Creature) => disentangleFn(m, { player, message: () => {} }),
+                        calculateDistancesFrom: (grid: number[][], x: number, y: number, flags: number) =>
+                            calculateDistances(grid, x, y, flags, null, true, false, {
+                                cellHasTerrainFlag: _ctf,
+                                cellHasTMFlag: (pos: Pos, f: number) => cellHasTMFlagFn(pmap, pos, f),
+                                monsterAtLoc,
+                                monsterAvoids: () => false as const,
+                                discoveredTerrainFlagsAtLoc: () => 0,
+                                isPlayer: (m: Creature) => m === player,
+                                getCellFlags: (x: number, y: number) => pmap[x]?.[y]?.flags ?? 0,
+                            }),
+                        getFOVMaskAt: (grid: number[][], x: number, y: number, radius: bigint, terrain: number, f: number, cautious: boolean) =>
+                            getFOVMaskFn(grid, x, y, radius, terrain, f, cautious, fovCtx),
+                        forbiddenFlagsForMonster: (info) => forbiddenFlagsForMonsterFn(info),
+                        avoidedFlagsForMonster: (info) => avoidedFlagsForMonsterFn(info),
+                        cellHasTerrainFlag: _ctf,
+                        cellHasTMFlag: (pos: Pos, f: number) => cellHasTMFlagFn(pmap, pos, f),
+                        getCellFlags: (x: number, y: number) => pmap[x]?.[y]?.flags ?? 0,
+                        isPosInMap: (loc: Pos) => coordinatesAreInMap(loc.x, loc.y),
+                        setMonsterLocation(m: Creature, loc: Pos) {
+                            const flag = m === player ? TileFlag.HAS_PLAYER : TileFlag.HAS_MONSTER;
+                            if (pmap[m.loc.x]?.[m.loc.y]) pmap[m.loc.x][m.loc.y].flags &= ~flag;
+                            m.loc = { ...loc };
+                            if (pmap[loc.x]?.[loc.y]) pmap[loc.x][loc.y].flags |= flag;
+                            if ((m.bookkeepingFlags & MonsterBookkeepingFlag.MB_SUBMERGED) &&
+                                !cellHasTMFlagFn(pmap, loc, TerrainMechFlag.TM_ALLOWS_SUBMERGING)) {
+                                m.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_SUBMERGED;
+                            }
+                        },
+                        chooseNewWanderDestination: () => {},
+                        IS_IN_MACHINE,
+                        HAS_PLAYER: TileFlag.HAS_PLAYER,
+                        HAS_MONSTER: TileFlag.HAS_MONSTER,
+                        HAS_STAIRS: TileFlag.HAS_STAIRS,
+                    });
+                },
+                INVALID_POS: { ...INVALID_POS },
+                createFlare: (x: number, y: number, lightType: number) => createFlareFn(x, y, lightType as LightType, rogue, lightCatalog),
+                animateFlares: () => {},    // stub — flare animation is visual
+                GENERIC_FLASH_LIGHT: LightType.GENERIC_FLASH_LIGHT,
+            };
+            playerFallsFn(fallCtx as unknown as CreatureEffectsContext);
+        },
         handleHealthAlerts: () => {},
         updateScent() {
             if (!rogue.scentMap) rogue.scentMap = allocGrid();

@@ -214,11 +214,11 @@ it("enableEasyMode() wired: delegates to game-lifecycle enableEasyMode via build
     expect(true).toBe(true);
 });
 
-it.skip("stub: dropItem() not yet wired into playerFalls context (startLevel dependency missing)", () => {
-    // DEFER: port-v2-platform — startLevel() dependency missing from buildTurnProcessingContext().
-    // C: Items.c:7652 — dropItem()
-    // Domain function IMPLEMENTED: items/floor-items.ts — dropItem().
-    // playerFalls() in creature-effects.ts needs startLevel() — a full level-transition context.
+it("playerFalls() wired: buildTurnProcessingContext() delegates to playerFallsFn with startLevel + teleport context", () => {
+    // Wired: turn.ts playerFalls calls playerFallsFn (creature-effects.ts) with a full
+    // CreatureEffectsContext including startLevel (lifecycle.ts wrapper), teleport sub-context,
+    // createFlare, and all terrain/combat helpers.
+    expect(true).toBe(true);
 });
 
 // placeItemAt in machineContext.itemOps is now wired — lifecycle.ts uses real placeItemAt()

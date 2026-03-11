@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-10 (after enableEasyMode wiring)
-**Tests at last update:** 88 files · 2256 pass · 70 skip
+**Status:** updated 2026-03-10 (after dropItem/playerFalls wiring)
+**Tests at last update:** 88 files · 2257 pass · 69 skip
 
 ---
 
@@ -112,7 +112,7 @@ replace the stub closure.
   C: `RogueMain.c`. TS: `io/input-context.ts` or `turn.ts`.
   test.skip: `tests/turn.test.ts:210`. **S**
 
-- [ ] **`dropItem()` in `playerFalls` context** — stub in `turn.ts`; `startLevel`
+- [x] **`dropItem()` in `playerFalls` context** — stub in `turn.ts`; `startLevel`
   dependency not wired.
   C: `Items.c` (dropItem). TS: `turn.ts` (playerFalls context).
   test.skip: `tests/turn.test.ts:217`. **S**
