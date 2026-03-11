@@ -45,10 +45,10 @@ import { openPathBetween as openPathBetweenFn } from "./items/bolt-geometry.js";
 import { passableArcCount as passableArcCountFn, randomMatchingLocation as randomMatchingLocationFn } from "./architect/helpers.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { randRange, randPercent } from "./math/rng.js";
-import { coordinatesAreInMap } from "./globals/tables.js";
+import { coordinatesAreInMap, posNeighborInDirection } from "./globals/tables.js";
 import { DCOLS, DROWS, MAX_WAYPOINT_COUNT } from "./types/constants.js";
 import { TileFlag, MonsterBookkeepingFlag, TerrainFlag, T_DIVIDES_LEVEL } from "./types/flags.js";
-import { GameMode, DungeonLayer } from "./types/enums.js";
+import { GameMode, DungeonLayer, TileType } from "./types/enums.js";
 import { extinguishFireOnCreature as extinguishFireOnCreatureFn } from "./time/creature-effects.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
 import { white, minersLightColor } from "./globals/colors.js";
@@ -265,8 +265,36 @@ export function buildMonsterSpawningContext(): SpawnContext {
             });
         },
 
-        // ── Decorative stubs ──────────────────────────────────────────────────
-        drawManacles: () => {},         // permanent-defer — visual rendering only (no gameplay effect)
+        // ── Decorative ───────────────────────────────────────────────────────
+        drawManacles: (loc) => {
+            // C: Monsters.c:771 — drawManacles / drawManacle
+            // Indexed by direction (0=UP,1=DOWN,2=LEFT,3=RIGHT,4=UPLEFT,5=DOWNLEFT,6=UPRIGHT,7=DOWNRIGHT)
+            const manacles: TileType[] = [
+                TileType.MANACLE_T, TileType.MANACLE_B, TileType.MANACLE_L, TileType.MANACLE_R,
+                TileType.MANACLE_TL, TileType.MANACLE_BL, TileType.MANACLE_TR, TileType.MANACLE_BR,
+            ];
+            // Four groups of fallback directions; try each in order, stop on first success
+            const fallback = [
+                [4, 0, 2], // UPLEFT, UP, LEFT
+                [5, 1, 2], // DOWNLEFT, DOWN, LEFT
+                [6, 0, 3], // UPRIGHT, UP, RIGHT
+                [7, 1, 3], // DOWNRIGHT, DOWN, RIGHT
+            ];
+            const tryPlace = (dir: number): boolean => {
+                const newLoc = posNeighborInDirection(loc, dir);
+                if (!coordinatesAreInMap(newLoc.x, newLoc.y)) return false;
+                const cell = pmap[newLoc.x][newLoc.y];
+                if (cell.layers[DungeonLayer.Dungeon] !== TileType.FLOOR) return false;
+                if (cell.layers[DungeonLayer.Liquid] !== TileType.NOTHING) return false;
+                cell.layers[DungeonLayer.Surface] = manacles[dir];
+                return true;
+            };
+            for (const group of fallback) {
+                for (const dir of group) {
+                    if (tryPlace(dir)) break;
+                }
+            }
+        },
 
         // ── Grid ops ─────────────────────────────────────────────────────────
         allocGrid,

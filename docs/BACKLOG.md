@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-11 (after applyInstantTileEffectsToCreature — wired into all context builders)
-**Tests at last update:** 88 files · 2269 pass · 62 skip
+**Status:** updated 2026-03-11 (after drawManacles — ported and wired)
+**Tests at last update:** 88 files · 2270 pass · 61 skip
 
 ---
 
@@ -189,7 +189,7 @@ These don't exist in TS yet. Port the C function, add context plumbing, wire it 
   into `turn.ts`, `turn-monster-ai.ts`, `combat.ts`, `items.ts`, `items/item-commands.ts`,
   `items/staff-wiring.ts`. **M**
 
-- [ ] **`drawManacles`** — draws manacle terrain decorations adjacent to a chained
+- [x] **`drawManacles`** — draws manacle terrain decorations adjacent to a chained
   monster on level entry. Visual, but present in C.
   C: `Monsters.c`. TS: `monsters.ts` or `lifecycle.ts`.
   test.skip: `tests/monsters.test.ts:322`. **S**

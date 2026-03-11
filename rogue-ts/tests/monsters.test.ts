@@ -381,9 +381,31 @@ it("buildMonsterStateContext().openPathBetween uses bolt-geometry (Phase 6)", ()
 // Stub registry — Monsters.c domain stubs (Phase 3c, port-v2-audit)
 // =============================================================================
 
-it.skip("stub: drawManacles() is a no-op (should draw manacle terrain decorations adjacent to a chained monster)", () => {
-    // UPDATE: permanent defer — visual only; documented in TASKS.md ## Deferred.
-    // C: Monsters.c:771 — drawManacles()
-    // monsters.ts:141 has a `() => {}` context stub.
-    // No gameplay effect; stub is permanently acceptable.
+it("buildMonsterSpawningContext().drawManacles() sets manacle terrain on adjacent floor cells", () => {
+    // C: Monsters.c:771 — drawManacles() / drawManacle()
+    // drawManacles tries 4 groups of 3 fallback directions (UPLEFT/UP/LEFT, DOWNLEFT/DOWN/LEFT,
+    // UPRIGHT/UP/RIGHT, DOWNRIGHT/DOWN/RIGHT) and places a manacle surface tile on the first
+    // valid floor cell (dungeon=FLOOR, liquid=NOTHING) found in each group.
+    const { pmap } = getGameState();
+    const cx = 5, cy = 5;
+
+    // Set the center and all 8 neighbors to FLOOR with no liquid
+    for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+            pmap[cx + dx][cy + dy].layers[0] = TileType.FLOOR;   // Dungeon
+            pmap[cx + dx][cy + dy].layers[1] = TileType.NOTHING;  // Liquid
+            pmap[cx + dx][cy + dy].layers[2] = TileType.NOTHING;  // Surface (gas)
+        }
+    }
+
+    const ctx = buildMonsterSpawningContext();
+    ctx.drawManacles({ x: cx, y: cy });
+
+    // Each group should place exactly one manacle. With all neighbors open, the first
+    // direction in each group is used: UPLEFT(4), DOWNLEFT(5), UPRIGHT(6), DOWNRIGHT(7).
+    // DungeonLayer.Surface = 3 (index 3 in layers array)
+    expect(pmap[cx - 1][cy - 1].layers[3]).toBe(TileType.MANACLE_TL);  // UPLEFT
+    expect(pmap[cx - 1][cy + 1].layers[3]).toBe(TileType.MANACLE_BL);  // DOWNLEFT
+    expect(pmap[cx + 1][cy - 1].layers[3]).toBe(TileType.MANACLE_TR);  // UPRIGHT
+    expect(pmap[cx + 1][cy + 1].layers[3]).toBe(TileType.MANACLE_BR);  // DOWNRIGHT
 });
