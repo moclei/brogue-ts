@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-10 (after port-v2-close-out Phases 1–6 + B9/B8/B7/B6 fix + canPass wired)
-**Tests at last update:** 88 files · 2243 pass · 81 skip
+**Status:** updated 2026-03-10 (after port-v2-close-out Phases 1–6 + B9/B8/B7/B6 fix + canPass wired + getImpactLoc wired)
+**Tests at last update:** 88 files · 2244 pass · 80 skip
 
 ---
 
@@ -46,7 +46,7 @@ Complexity key: **S** = small/self-contained · **M** = medium, needs context wo
   C: `Movement.c` (`canPass` / passability checks in movement cost maps).
   TS: `movement.ts` context builder. test.skip: `movement.test.ts:331`. **M**
 
-- [ ] **`getImpactLoc` stub** — returns target as-is; no bolt path trace. Affects
+- [x] **`getImpactLoc` stub** — returns target as-is; no bolt path trace. Affects
   targeting accuracy for thrown items and bolt-firing staves/wands.
   C: `Items.c` (bolt geometry). TS: `items/bolt-geometry.ts` or movement context.
   test.skip: `movement.test.ts:324`. **M**

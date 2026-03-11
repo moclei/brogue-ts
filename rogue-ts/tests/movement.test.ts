@@ -14,6 +14,7 @@ import {
     buildTravelContext,
     buildCostMapFovContext,
 } from "../src/movement.js";
+import { buildWeaponAttackContext } from "../src/movement-weapon-context.js";
 import { buildInputContext } from "../src/io/input-context.js";
 import { playerMoves } from "../src/movement/player-movement.js";
 import { populateCreatureCostMap } from "../src/movement/cost-maps-fov.js";
@@ -321,11 +322,24 @@ it("hilitePath() sets IS_IN_PATH flags; clearCursorPath() clears them", () => {
     expect(pmap[6][5].flags & TileFlag.IS_IN_PATH).toBeFalsy();
 });
 
-it.skip("UPDATE: getImpactLoc still stub — returns target as-is, no bolt path trace", () => {
-    // getImpactLoc is still stub `(_origin, target) => ({...target})` in movement-weapon-context.ts.
-    // Real implementation should trace the bolt trajectory through the dungeon,
-    // stopping at the first wall or blocking creature hit.
-    // Remains a stub pending full bolt-geometry wiring.
+it("wired: getImpactLoc traces bolt path and stops at wall (not target)", () => {
+    // getImpactLoc is wired in movement-weapon-context.ts via bolt-geometry.getImpactLoc.
+    // Scenario: origin(5,5) → target(5,10), wall placed at (5,7).
+    // Bolt must stop at (5,7) (the blocking cell), not reach target (5,10).
+    setupPlayer();
+    const { pmap } = getGameState();
+
+    // Place a wall at (5,7) — obstructs passability and vision
+    pmap[5][7].layers[0] = TileType.WALL;
+
+    const ctx = buildWeaponAttackContext();
+    // null bolt: no path tuning, just straight-line trace
+    const impact = ctx.getImpactLoc({ x: 5, y: 5 }, { x: 5, y: 10 }, 20, false, null);
+
+    // Must stop at or before the wall cell, not at the target
+    expect(impact.x).toBe(5);
+    expect(impact.y).toBeLessThanOrEqual(7);
+    expect(impact.y).not.toBe(10);
 });
 
 it("wired: canPass delegates to monster-movement canPass — player always blocked; ally with lower HP passable", () => {

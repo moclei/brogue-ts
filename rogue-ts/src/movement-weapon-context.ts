@@ -32,10 +32,11 @@ import { buildRefreshDungeonCellFn } from "./io-wiring.js";
 import { boltCatalog } from "./globals/bolt-catalog.js";
 import { lightBlue } from "./globals/colors.js";
 import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
-import { TileFlag } from "./types/flags.js";
+import { TileFlag, TerrainFlag, MonsterBookkeepingFlag } from "./types/flags.js";
 import { CreatureState, DisplayGlyph } from "./types/enums.js";
 import type { WeaponAttackContext, BoltInfo } from "./movement/weapon-attacks.js";
-import type { Creature, Pos, Color } from "./types/types.js";
+import type { Creature, Pos, Color, Bolt } from "./types/types.js";
+import { getImpactLoc as getImpactLocFn } from "./items/bolt-geometry.js";
 
 // =============================================================================
 // Private helpers
@@ -76,6 +77,14 @@ export function buildWeaponAttackContext(): WeaponAttackContext {
     const monsterAtLoc = buildMonsterAtLocHelper(player, monsters);
     const canSeeMonster = (m: Creature) =>
         !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE);
+    const monsterIsHiddenHelper = (m: Creature, observer: Creature | null) =>
+        monsterIsHiddenFn(m, observer, {
+            player, cellHasTerrainFlag,
+            cellHasGas: () => false,
+            playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+            playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+            playbackOmniscience: false,
+        });
 
     return {
         pmap,
@@ -89,13 +98,7 @@ export function buildWeaponAttackContext(): WeaponAttackContext {
             diagonalBlockedFn(x1, y1, x2, y2, (pos) => terrainFlagsFn(pmap, pos)),
         monsterAtLoc,
         canSeeMonster,
-        monsterIsHidden: (m, observer) => monsterIsHiddenFn(m, observer, {
-            player, cellHasTerrainFlag,
-            cellHasGas: () => false,
-            playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-            playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-            playbackOmniscience: false,
-        }),
+        monsterIsHidden: (m, observer) => monsterIsHiddenHelper(m, observer),
         monsterWillAttackTarget: (a, d) =>
             monsterWillAttackTargetFn(a, d, player, cellHasTerrainFlag),
         monsterIsInClass: (m, cls) => monsterIsInClassFn(m, monsterClassCatalog[cls]),
@@ -109,7 +112,24 @@ export function buildWeaponAttackContext(): WeaponAttackContext {
             attackFn(attacker, defender, lunge, attackCtx),
 
         boltCatalog: boltCatalog as unknown as readonly BoltInfo[],
-        getImpactLoc: (_origin, target) => ({ ...target }),  // stub
+        getImpactLoc: (origin, target, maxDistance, returnLastEmpty, bolt) => {
+            // creatureBlocks: visible non-submerged monster at loc blocks the bolt
+            const creatureBlocks = (loc: Pos, originLoc: Pos): boolean => {
+                const monst = monsterAtLoc(loc);
+                if (!monst) return false;
+                if (monsterIsHiddenHelper(monst, monsterAtLoc(originLoc))) return false;
+                if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_SUBMERGED) return false;
+                return true;
+            };
+            const cellBlocks = (loc: Pos): boolean =>
+                cellHasTerrainFlagFn(pmap, loc,
+                    TerrainFlag.T_OBSTRUCTS_VISION | TerrainFlag.T_OBSTRUCTS_PASSABILITY);
+            return getImpactLocFn(
+                origin, target, maxDistance, returnLastEmpty,
+                bolt as unknown as Bolt | null,
+                creatureBlocks, cellBlocks,
+            );
+        },
         zap: () => {},                       // permanent-defer — zap is the keystone bolt function (port-v2-persistence)
 
         confirm: () => true,                 // stub — sync context; no async confirm available
