@@ -164,6 +164,14 @@ These don't exist in TS yet. Port the C function, add context plumbing, wire it 
   C: `Monsters.c`. TS: `monsters/monster-actions.ts` or similar.
   test.skip: `tests/monsters/monster-actions.test.ts:576`. **M**
 
+- [ ] **`applyInstantTileEffectsToCreature`** — applies terrain effects to a creature
+  that steps onto or is on a cell: tall grass trampling (`T_PROMOTES_ON_STEP`), fire
+  damage, web entanglement, etc. Previously "permanently deferred" due to async cascade
+  concerns; now in scope. Required by B13 (tall grass).
+  C: `Time.c`. TS: needs porting + wiring into `movement.ts` player-move context.
+  Note: the async cascade risk is real — stepping onto fire must `await` the burn
+  message. Map the cascade before writing code. **M**
+
 - [ ] **`drawManacles`** — draws manacle terrain decorations adjacent to a chained
   monster on level entry. Visual, but present in C.
   C: `Monsters.c`. TS: `monsters.ts` or `lifecycle.ts`.
@@ -201,10 +209,77 @@ same pattern: iterate the dungeon grid, call `plotCharWithColor` for each cell.
 
 ## Bug reports from playtesting
 
-Add bugs here as they are found. Format: `**Bx — description** — status`.
-Move fixed bugs to the session log in `initiatives/port-v2-close-out/SESSIONS.md`.
+Add bugs here as they are found. Fix highest-priority bugs first (P1 before P2, etc.).
+After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
 
-*(none yet — report your bugs here)*
+### P1 — Blocking / crashes
+
+- [ ] **B6 — Crash on throw + pressure plate** — Threw a dart onto a pressure plate
+  that should open a cage; game crashed after throw resolved. Throw itself worked;
+  crash is downstream — likely in the machine trigger that fires when the pressure
+  plate is activated (dungeon feature spawning, cage-open mechanic, monster release).
+  Investigate: `spawnDungeonFeature`, terrain promotion chain, `applyTileEffectsToCreature`.
+  C: `Items.c` (throwItem → removeItemAt → T_PROMOTES_ON_ITEM_PICKUP chain),
+  `Architect.c` (machine trigger). Start by reading the crash stack trace in the console. **L**
+
+- [ ] **B7 — Die → New Game does nothing** — After dying, selecting New Game from the
+  death screen has no effect. The game does not restart.
+  C: `RogueMain.c` (gameOver → mainInputLoop → NEW_GAME_KEY handling).
+  TS: `game/game-lifecycle.ts` gameOver, `menus.ts` post-death menu. **M**
+
+- [ ] **B8 — Items in treasure rooms show as `?`** — All items in treasure/item rooms
+  display as `?` instead of their actual glyphs. Likely `displayChar` not set on
+  generated items, or the item rendering branch in `getCellAppearance` is falling
+  through to a fallback. Check `item-generation.ts` and `getCellAppearance` item path.
+  C: `Items.c` (item generation sets displayChar per category). **M**
+
+- [ ] **B9 — Key shows as "unknown item" on pickup** — On picking up a key, the message
+  reads "you now have an unknown item (k)". `itemName` is returning the fallback string
+  for KEY category items.
+  C: `Items.c` (itemName, key category naming). TS: `items/item-naming.ts`. **S**
+
+### P2 — Visible gameplay divergences
+
+- [ ] **B10 — Aiming: no path shown** — When targeting with the mouse (throw/zap),
+  the bolt/throw path from player to cursor is not drawn. In C, `chooseTarget` draws
+  the path using `drawBoltLine` or similar each cursor move.
+  C: `IO.c` (chooseTarget, drawBoltLine). TS: `io/input-cursor.ts`, `items/targeting.ts`. **M**
+
+- [ ] **B11 — Aiming: no target details shown** — When hovering over a cell during
+  targeting, no description of the target appears (monster name, item, terrain).
+  In C, this updates the sidebar/message area via `printMonsterDetails` or `updateFlavorText`.
+  C: `IO.c`. TS: `io/input-cursor.ts`. Note: relates to `updateFlavorText` (Priority 4). **M**
+
+- [ ] **B12 — Gas (bloodwort) does not spread** — Gas from a bloodwort plant stays at
+  its origin as a single red cloud spot and never dissipates or spreads to adjacent
+  cells. In C, gas diffuses and dissipates each turn via `updateEnvironment`.
+  Likely cause: `updateEnvironment` not called per turn, OR gas volume not being
+  decremented. Relates to Priority 2 item `startLevel updateEnvironment` — but that
+  is the level-entry simulation; per-turn gas spreading is a separate call site.
+  C: `Time.c` (updateEnvironment → gas diffusion). TS: `time/` or `turn.ts`. **M**
+
+- [ ] **B13 — Tall grass not trampled on walkover** — Walking over tall grass does not
+  convert it to short grass (or bare floor). In C this is driven by
+  `applyInstantTileEffectsToCreature` checking `T_PROMOTES_ON_STEP` terrain flags.
+  This function was previously "permanently deferred" but is now in scope.
+  C: `Time.c` (applyInstantTileEffectsToCreature). TS: likely needs porting + wiring
+  into `movement.ts` player move context. **M**
+
+### P3 — Minor / cosmetic
+
+- [ ] **B14 — No message when exploration complete** — When auto-explore has nowhere
+  left to go (whole map explored, or path unreachable), no message appears. In C a
+  message like "Nowhere left to explore." or "Exploration interrupted." is shown.
+  C: `Movement.c` or `RogueMain.c` (autoTravel / explore path). TS: `movement/travel-explore.ts`. **S**
+
+### Needs investigation (not yet classified)
+
+- [ ] **B15 — Item/treasure rooms appearing on depth 1** — Treasure rooms and item
+  vaults were observed on the first floor. Unclear if this is intended (some machines
+  have no minimum depth in C) or a level-generation depth-guard bug. Investigate:
+  read machine catalog minimum-depth conditions in C; compare to TS machine catalog
+  and `buildAMachine` depth checks before classifying as bug or acceptable behavior.
+  C: `Architect.c` (buildAMachine, machine catalog depth guards). **investigate first**
 
 ---
 
