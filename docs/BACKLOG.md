@@ -34,13 +34,11 @@ Every session working from this backlog follows the same pattern:
 
 ### Stub rules
 
-**Stubs in gameplay code paths must never `throw`.** A crash is worse than silence.
-Use `() => {}`, `() => null`, `() => false`, or a sensible default. Reserve `throw`
-for code that is structurally unreachable or only runs in tests.
-
 **Do not assume a code path is "rare" without checking.** Before stubbing a context
 function, check the C source to see what effect cases call it. If a bolt type or
-item effect triggers it in normal play, wire it — don't stub it.
+item effect triggers it in normal play, wire it — don't stub it. A `throw` stub
+is fine and preferred over silent failure — it gives an exact stack trace — but
+only if the path is genuinely not reachable in normal play.
 
 ---
 
