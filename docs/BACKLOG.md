@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-11 (after buildMachine wired in monsters.ts)
+**Status:** updated 2026-03-11 (after getQualifyingPathLocNear wired in lifecycle.ts + turn-monster-ai.ts)
 **Tests at last update:** 88 files · 2261 pass · 65 skip
 
 ---
@@ -137,7 +137,7 @@ replace the stub closure.
   C: `Architect.c`. TS: `monsters.ts` spawning context.
   test.skip: `tests/monsters.test.ts:242`. **M**
 
-- [ ] **`getQualifyingPathLocNear`** — returns provided loc unconditionally; real
+- [x] **`getQualifyingPathLocNear`** — returns provided loc unconditionally; real
   pathfinding (find nearest passable cell near a pos) not wired.
   C: `Grid.c`. TS: stub in `movement.ts` (`monsters.ts` wired as part of makeMonsterDropItem fix).
   test.skip: `tests/monsters.test.ts:208`. **M**

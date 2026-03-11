@@ -252,8 +252,8 @@ export function buildMovementContext(): PlayerMoveContext {
         cellHasTerrainFlag,
         cellFlags: (pos: Pos) => pmap[pos.x][pos.y].flags,
         rng: { randRange: (lo: number, hi: number) => randRange(lo, hi) },
-        // Fallback is rare (only when dijkstra finds no path); stub for now.
-        getQualifyingLocNear: (_t: Pos) => null,
+        // Fallback is rare (only when dijkstra finds no path); return target as last resort.
+        getQualifyingLocNear: (t: Pos) => t,
     } as unknown as import("./movement/path-qualifying.js").QualifyingPathContext;
 
     // Context for pickUpItemAt.

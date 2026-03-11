@@ -93,6 +93,7 @@ import type { CleanupContext } from "./game/game-cleanup.js";
 import { buildMessageFns } from "./io-wiring.js";
 import { buildUpdateVisionFn } from "./vision-wiring.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
+import { getQualifyingPathLocNear as getQualifyingPathLocNearFn } from "./movement/path-qualifying.js";
 
 // =============================================================================
 // Module-level lifecycle state (not in core.ts)
@@ -428,7 +429,15 @@ export function buildLevelContext(): LevelContext {
         getQualifyingLocNear(target, _hw, _forbidCell, forbidTerrain, forbidMap, _det, _flood) {
             return getQualifyingLocNearFn(pmap, target, forbidTerrain, forbidMap) ?? { ...target };
         },
-        getQualifyingPathLocNear: (target) => ({ ...target }),
+        getQualifyingPathLocNear: (target, hallwaysAllowed, btf, bmf, ftf, fmf, det) =>
+            getQualifyingPathLocNearFn(target, hallwaysAllowed, btf, bmf, ftf, fmf, det, {
+                pmap,
+                cellHasTerrainFlag: (loc, flags) => ctf(pmap, loc, flags),
+                cellFlags: (pos) => pmap[pos.x][pos.y].flags,
+                rng: { randRange },
+                getQualifyingLocNear: (t, _hw, ftf2, fmf2) =>
+                    getQualifyingLocNearFn(pmap, t, ftf2, fmf2),
+            }),
         digDungeon() {
             digDungeon(archCtx);
             rogue.rewardRoomsGenerated = archCtx.rewardRoomsGenerated;

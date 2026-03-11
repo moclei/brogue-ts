@@ -97,6 +97,7 @@ import {
 } from "./combat/combat-attack.js";
 import { buildCombatAttackContext } from "./combat.js";
 import { passableArcCount } from "./architect/helpers.js";
+import { getQualifyingPathLocNear as getQualifyingPathLocNearFn } from "./movement/path-qualifying.js";
 import { buildRefreshDungeonCellFn, buildMessageFns } from "./io-wiring.js";
 import { buildResolvePronounEscapesFn } from "./io/text.js";
 import {
@@ -298,7 +299,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         },
         attack: (attacker, defender, lunge) =>
             attackFn(attacker, defender, lunge, attackCtx),
-        getQualifyingPathLocNear: (target) => target,   // stub — Phase 3a
+        getQualifyingPathLocNear: (t, hw, btf, bmf, ftf, fmf, det) => getQualifyingPathLocNearFn(t, hw, btf, bmf, ftf, fmf, det, { pmap, cellHasTerrainFlag: (p, f) => cellHasTerrainFlagFn(pmap, p, f), cellFlags: (p) => pmap[p.x][p.y].flags, rng: { randRange }, getQualifyingLocNear: (q) => q }),
         surfaceLayerAt: (loc) => pmap[loc.x]?.[loc.y]?.layers[DungeonLayer.Surface] ?? 0,
         clearSurfaceLayer: (loc) => { if (coordinatesAreInMap(loc.x, loc.y)) pmap[loc.x][loc.y].layers[DungeonLayer.Surface] = 0; },
         surfaceLayerHasFlag: (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags),
