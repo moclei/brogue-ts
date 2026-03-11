@@ -450,9 +450,9 @@ export function buildThrowCommandFn(
             DROWS,
             cellHasTerrainFlag,
             cellHasTMFlag,
-            coordinatesAreInMap: (x, y) => coordinatesAreInMap(x, y),
+            coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
             refreshDungeonCell: () => {},
-            spawnDungeonFeature: (x, y, feat, isV, oP) =>
+            spawnDungeonFeature: (x: number, y: number, feat: number, isV: boolean, oP: boolean) =>
                 spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y,
                     feat as never, isV, oP),
             monstersFall: () => {},
@@ -461,12 +461,12 @@ export function buildThrowCommandFn(
             keyOnTileAt: () => null,
             removeCreature: () => false,
             prependCreature: () => {},
-            rand_range: (a, b) => randRange(a, b),
-            rand_percent: (p) => randPercent(p),
+            rand_range: (a: number, b: number) => randRange(a, b),
+            rand_percent: (p: number) => randPercent(p),
             max: Math.max,
             min: Math.min,
-            fillSequentialList: (list, _len) => fillSequentialListFn(list),
-            shuffleList: (list, _len) => shuffleListFn(list),
+            fillSequentialList: (list: number[], _len: number) => fillSequentialListFn(list),
+            shuffleList: (list: number[], _len: number) => shuffleListFn(list),
             exposeTileToFire: () => false,
         } as unknown as EnvironmentContext;
 
