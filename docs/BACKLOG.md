@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-11 (after updateFlavorText wired via buildUpdateFlavorTextFn in io-wiring.ts)
-**Tests at last update:** 88 files · 2262 pass · 64 skip
+**Status:** updated 2026-03-11 (after flashTemporaryAlert wired in buildMessageContext via minimal EffectsContext)
+**Tests at last update:** 88 files · 2263 pass · 63 skip
 
 ---
 
@@ -155,10 +155,12 @@ These don't exist in TS yet. Port the C function, add context plumbing, wire it 
   C: `Time.c` (updateFlavorText). TS: `io-wiring.ts`, `movement.ts`, `ui.ts`.
   test: `tests/ui.test.ts:304`. **M**
 
-- [ ] **`flashTemporaryAlert`** — brief screen flash on notable events (level up, potion
-  identifies, etc.). Currently no-op.
+- [x] **`flashTemporaryAlert`** — brief screen flash on notable events (level up, potion
+  identifies, etc.). Wired via minimal EffectsContext in `buildMessageContext()` in `ui.ts`.
+  pauseBrogue returns false synchronously; animation runs without delay in tests/browser
+  (visual timing deferred until commitDraws is integrated into flash loop).
   C: `IO.c` (flashTemporaryAlert). TS: `ui.ts` display context.
-  test.skip: `tests/ui.test.ts:318`. **M**
+  test: `tests/ui.test.ts:322`. **M**
 
 - [ ] **`updateMonsterCorpseAbsorption`** — advances corpse-absorption state for
   monsters that eat corpses to gain abilities (e.g. wraiths, vampires).

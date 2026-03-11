@@ -319,10 +319,12 @@ it("waitForAcknowledgment() is wired — resolves immediately when platform not 
     await expect(ctx.waitForAcknowledgment()).resolves.toBeUndefined();
 });
 
-it.skip("stub: flashTemporaryAlert() is a no-op (deferred — needs EffectsContext)", () => {
-    // DEFER: port-v2-platform — needs EffectsContext (getCellAppearance, hiliteCell, pauseAnimation).
-    // buildMessageContext().flashTemporaryAlert() at ui.ts:283 remains () => {}.
-    // Deferred Phase 7c; no temporary overlays until appearance system is wired.
+it("flashTemporaryAlert() — wired, does not throw in test environment", () => {
+    // buildMessageContext().flashTemporaryAlert() now calls flashTemporaryAlertFn from effects-alerts.ts.
+    // Uses a minimal EffectsContext (no getCellAppearance / hiliteCell — those aren't used by flashMessage).
+    // pauseBrogue returns false synchronously; time=0 means the animation loop runs 0 iterations.
+    const ctx = buildMessageContext();
+    expect(() => ctx.flashTemporaryAlert(" Alert! ", 0)).not.toThrow();
 });
 
 it("buildInventoryContext().message() queues message in archive (Phase 7a)", async () => {

@@ -62,6 +62,7 @@ import {
     storeColorComponents as storeColorComponentsFn,
     encodeMessageColor as encodeMessageColorFn,
     decodeMessageColor as decodeMessageColorFn,
+    colorFromComponents as colorFromComponentsFn,
 } from "./io/color.js";
 import {
     strLenWithoutEscapes as strLenWithoutEscapesFn,
@@ -79,6 +80,8 @@ import { itemCanBeCalled } from "./items/item-utils.js";
 import type { MessageContext as SyncMessageContext } from "./io/messages-state.js";
 import type { InventoryContext as FullInventoryContext } from "./io/inventory.js";
 import { buildUpdateFlavorTextFn } from "./io-wiring.js";
+import { flashTemporaryAlert as flashTemporaryAlertFn } from "./io/effects-alerts.js";
+import type { EffectsContext } from "./io/effects.js";
 
 // =============================================================================
 // Private helpers
@@ -301,7 +304,19 @@ export function buildMessageContext(): MessageContext {
         },
         pauseBrogue: async () => false,                       // stub — sync/async bridge (Phase 7)
         nextBrogueEvent: async () => fakeEvent(),             // stub — sync/async bridge (Phase 7)
-        flashTemporaryAlert: () => {},                        // stub — needs appearance system
+        flashTemporaryAlert: (msg: string, ms: number) => {
+            const fCtx = {
+                rogue: { playbackFastForward: rogue.playbackFastForward },
+                displayBuffer,
+                strLenWithoutEscapes: strLenWithoutEscapesFn,
+                colorFromComponents: colorFromComponentsFn,
+                applyColorAverage: applyColorAverageFn,
+                plotCharWithColor: (ch: number, pos: { windowX: number; windowY: number }, fg: Color, bg: Color) =>
+                    plotCharWithColorFn(ch, pos, fg, bg, displayBuffer),
+                pauseBrogue: () => false,
+            } as unknown as EffectsContext;
+            flashTemporaryAlertFn(msg, ms, fCtx);
+        },
         updateFlavorText: buildUpdateFlavorTextFn(),
         stripShiftFromMovementKeystroke: (k) => k,
     };
