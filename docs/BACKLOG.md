@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-11 (after debug overlays — all 5 ported and wired)
+**Status:** updated 2026-03-11 (after B12/B24 gas spreading fix — updateEnvironment wired)
 **Tests at last update:** 88 files · 2276 pass · 55 skip
 
 ---
@@ -315,13 +315,17 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   In C, this updates the sidebar/message area via `printMonsterDetails` or `updateFlavorText`.
   C: `IO.c`. TS: `io/input-cursor.ts`. Note: relates to `updateFlavorText` (Priority 4). **M**
 
-- [ ] **B12 — Gas (bloodwort) does not spread** — Gas from a bloodwort plant stays at
+- [x] **B12 — Gas (bloodwort) does not spread** — Gas from a bloodwort plant stays at
   its origin as a single red cloud spot and never dissipates or spreads to adjacent
   cells. In C, gas diffuses and dissipates each turn via `updateEnvironment`.
   Likely cause: `updateEnvironment` not called per turn, OR gas volume not being
   decremented. Relates to Priority 2 item `startLevel updateEnvironment` — but that
   is the level-entry simulation; per-turn gas spreading is a separate call site.
   C: `Time.c` (updateEnvironment → gas diffusion). TS: `time/` or `turn.ts`. **M**
+  Fix: wired real `updateEnvironment` in `buildTurnProcessingContext()` in `turn.ts`,
+  building an `EnvironmentContext` with real cell/map helpers and real
+  `spawnDungeonFeature`. `monstersFall`/`updateFloorItems`/`monstersTurn` stubbed
+  (handled by TurnProcessingContext). Gas now spreads and dissipates each turn.
 
 - [ ] **B20 — Key not consumed after opening locked room** — After using a key to open a
   locked vault/item room door, the key remains in the player's inventory. In C, the key
@@ -347,10 +351,10 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   Likely the map-reveal function is a stub or not wired.
   C: `Items.c` (scrollMagicMapping), `IO.c` (animation). TS: `items/item-handlers.ts`. **M**
 
-- [ ] **B24 — Creeping death / gas clouds do not expand** — Potion of creeping death places
+- [x] **B24 — Creeping death / gas clouds do not expand** — Potion of creeping death places
   initial spores but they do not spread over subsequent turns. Same root cause as B12
   (`updateEnvironment` not called per turn — gas diffusion and terrain promotion both live
-  there). Fix B12 and B24 together.
+  there). Fixed together with B12.
   C: `Time.c` (updateEnvironment). TS: `turn.ts` (per-turn environment update call site). **M**
 
 - [ ] **B13 — Tall grass not trampled on walkover** — Walking over tall grass does not

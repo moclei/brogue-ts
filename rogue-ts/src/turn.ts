@@ -34,7 +34,7 @@ import type { CombatHelperContext } from "./combat/combat-helpers.js";
 import { allocGrid } from "./grid/grid.js";
 import { zeroOutGrid } from "./architect/helpers.js";
 import { FP_FACTOR } from "./math/fixpt.js";
-import { randRange, randPercent, randClumpedRange } from "./math/rng.js";
+import { randRange, randPercent, randClumpedRange, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "./math/rng.js";
 import { nbDirs, coordinatesAreInMap } from "./globals/tables.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
@@ -49,6 +49,8 @@ import { refreshWaypoint as refreshWaypointFn } from "./architect/architect.js";
 import { populateGenericCostMap } from "./movement/cost-maps-fov.js";
 import { CreatureState, GameMode, ALL_ITEMS, LightType } from "./types/enums.js";
 import type { TurnProcessingContext } from "./time/turn-processing.js";
+import { updateEnvironment as updateEnvironmentFn } from "./time/environment.js";
+import type { EnvironmentContext } from "./time/environment.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
 import { applyGradualTileEffectsToCreature as applyGradualTileEffectsFn, playerFalls as playerFallsFn } from "./time/creature-effects.js";
@@ -375,7 +377,24 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         orange, green, red, yellow, darkRed, darkGreen,
 
         // ── Environment / vision ──────────────────────────────────────────────
-        updateEnvironment: () => {},
+        updateEnvironment: () => {
+            const envCtx: EnvironmentContext = {
+                player, rogue, monsters, pmap, levels, tileCatalog, DCOLS, DROWS,
+                dungeonFeatureCatalog: dungeonFeatureCatalog as unknown as EnvironmentContext["dungeonFeatureCatalog"],
+                cellHasTerrainFlag: (pos, flags) => cellHasTerrainFlagFn(pmap, pos, flags),
+                cellHasTMFlag: (pos, flags) => cellHasTMFlagFn(pmap, pos, flags),
+                coordinatesAreInMap: (x, y) => coordinatesAreInMap(x, y),
+                refreshDungeonCell,
+                spawnDungeonFeature: (x, y, feat, v, o) => spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, v, o),
+                monstersFall: () => {}, updateFloorItems: () => {}, monstersTurn: () => {}, keyOnTileAt: () => null,
+                removeCreature: (list, m) => { const i = list.indexOf(m); if (i >= 0) { list.splice(i, 1); return true; } return false; },
+                prependCreature: (list, m) => { list.unshift(m); },
+                rand_range: randRange, rand_percent: randPercent, max: Math.max, min: Math.min,
+                fillSequentialList: (list) => fillSequentialListFn(list), shuffleList: (list) => shuffleListFn(list),
+                exposeTileToFire: () => false,
+            };
+            updateEnvironmentFn(envCtx);
+        },
         updateVision: buildUpdateVisionFn(),
         updateMapToShore: () => {},
         updateSafetyMap: () => {},
