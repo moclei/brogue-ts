@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-12 (B29 fixed)
+**Status:** updated 2026-03-12 (B11 fixed)
 **Tests at last update:** 88 files · 2281 pass · 55 skip
 
 ---
@@ -326,10 +326,16 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   to `io-wiring.ts` (reuses `buildGetCellAppearanceFn`). Both contexts now call real cell
   highlight/refresh. `hiliteTrajectory` correctly draws/erases the bolt path.
 
-- [ ] **B11 — Aiming: no target details shown** — When hovering over a cell during
+- [x] **B11 — Aiming: no target details shown** — When hovering over a cell during
   targeting, no description of the target appears (monster name, item, terrain).
   In C, this updates the sidebar/message area via `printMonsterDetails` or `updateFlavorText`.
   C: `IO.c`. TS: `io/input-cursor.ts`. Note: relates to `updateFlavorText` (Priority 4). **M**
+  Fix: extracted `buildSidebarContext()`, `buildRefreshSideBarWithFocusFn()`, and
+  `buildPrintLocationDescriptionFn()` into new `io/sidebar-wiring.ts`. Wired
+  `refreshSideBar` and `printLocationDescription` in `item-commands.ts` (throw) and
+  `staff-wiring.ts` (staff). Also wired `printMonsterDetails` and `printLocationDescription`
+  in `input-context.ts` (general cursor mode). `printTextBox` now wired in SidebarContext
+  (no-buttons fire-and-forget). `printFloorItemDetails` remains no-op pending `itemDetails` port.
 
 - [x] **B12 — Gas (bloodwort) does not spread** — Gas from a bloodwort plant stays at
   its origin as a single red cloud spot and never dissipates or spreads to adjacent

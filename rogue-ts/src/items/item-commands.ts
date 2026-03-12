@@ -86,6 +86,7 @@ import type { Color, Creature, Item, ItemTable, Pos, RogueEvent } from "../types
 import { printString } from "../io/text.js";
 import { plotCharToBuffer } from "../io/display.js";
 import { buildRefreshDungeonCellFn, buildHiliteCellFn } from "../io-wiring.js";
+import { buildRefreshSideBarWithFocusFn, buildPrintLocationDescriptionFn } from "../io/sidebar-wiring.js";
 
 // =============================================================================
 // ItemCommandDeps — caller-supplied messaging (avoids circular imports)
@@ -308,6 +309,8 @@ export function buildThrowCommandFn(
         const cellHasTMFlag = (loc: Pos, flag: number) => cellHasTMFlagFn(pmap, loc, flag);
         const monsterAtLoc = buildMonsterAtLoc(player, monsters);
         const namingCtx = buildNamingCtx();
+        const refreshSideBarFn = buildRefreshSideBarWithFocusFn();
+        const printLocDescFn = buildPrintLocationDescriptionFn();
 
         // ── ChooseTargetContext ──────────────────────────────────────────────
         const chooseCtx = {
@@ -338,8 +341,8 @@ export function buildThrowCommandFn(
             cellHasTerrainFlag,
             playerCanSeeOrSense: () => false,   // stub — sensory detail
             cellHasTMFlag,
-            refreshSideBar: () => {},           // stub — sidebar rendering
-            printLocationDescription: () => {}, // stub — location description
+            refreshSideBar: refreshSideBarFn,
+            printLocationDescription: printLocDescFn,
             confirmMessages: deps.confirmMessages,
             // moveCursor: awaits waitForEvent() for browser event delivery.
             moveCursor: async (

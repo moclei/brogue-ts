@@ -65,6 +65,7 @@ import {
     buildRefreshDungeonCellFn,
     buildHiliteCellFn,
 } from "../io-wiring.js";
+import { buildRefreshSideBarWithFocusFn, buildPrintLocationDescriptionFn } from "../io/sidebar-wiring.js";
 import { boltCatalog } from "../globals/bolt-catalog.js";
 import { mutationCatalog } from "../globals/mutation-catalog.js";
 import { statusEffectCatalog } from "../globals/status-effects.js";
@@ -154,6 +155,8 @@ export function buildStaffChooseTargetFn() {
             playbackOmniscience: rogue.playbackOmniscience,
         };
         const io = buildMessageFns();
+        const refreshSideBarFn = buildRefreshSideBarWithFocusFn();
+        const printLocDescFn = buildPrintLocationDescriptionFn();
 
         const chooseCtx: ChooseTargetContext = {
             rogue,
@@ -180,8 +183,8 @@ export function buildStaffChooseTargetFn() {
             cellHasTerrainFlag,
             playerCanSeeOrSense: () => false,
             cellHasTMFlag,
-            refreshSideBar: () => {},
-            printLocationDescription: () => {},
+            refreshSideBar: refreshSideBarFn,
+            printLocationDescription: printLocDescFn,
             confirmMessages: io.confirmMessages,
             moveCursor: async (
                 tc: { value: boolean }, ca: { value: boolean }, tk: { value: boolean },

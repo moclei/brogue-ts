@@ -73,6 +73,8 @@ import {
     buildRefreshSideBarFn, buildConfirmFn, buildDisplayLevelFn,
 } from "../io-wiring.js";
 import { buildDebugOverlayFns } from "./debug-overlays.js";
+import { buildSidebarContext, buildPrintLocationDescriptionFn } from "./sidebar-wiring.js";
+import { printMonsterDetails as printMonsterDetailsFn } from "./sidebar-monsters.js";
 import { enableEasyMode as enableEasyModeImpl, type LifecycleContext } from "../game/game-lifecycle.js";
 import { buildLifecycleContext } from "../lifecycle-gameover.js";
 import {
@@ -300,6 +302,7 @@ export function buildInputContext(): InputContext {
     // Shared context factories (built fresh each call so they close
     // over the current mutable state snapshot).
     const moveCtx = () => buildMovementContext();
+    const printLocDesc = buildPrintLocationDescriptionFn();
     const travelCtx = () => buildTravelContext();
     const itemCtx = () => buildItemHandlerContext();
 
@@ -479,16 +482,15 @@ export function buildInputContext(): InputContext {
         // ── Item predicates ───────────────────────────────────────────────────
         itemIsCarried: (item) => itemIsCarriedFn(item, packItems),
 
-        // ── Sidebar focus (stubs — wired in Phase 5) ─────────────────────────
         monsterAtLoc,
         itemAtLoc,
         canSeeMonster: (m) =>
             !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
-        playerCanSeeOrSense: () => false,           // stub — Phase 5
+        playerCanSeeOrSense: () => false,           // stub — sensory detail
         cellHasTMFlag,
-        printMonsterDetails: () => {},
-        printFloorItemDetails: () => {},
-        printLocationDescription: () => {},
+        printMonsterDetails: (monst) => printMonsterDetailsFn(monst, buildSidebarContext()),
+        printFloorItemDetails: () => {},            // stub — itemDetails not yet ported
+        printLocationDescription: printLocDesc,
 
         // ── Targeting / cursor ────────────────────────────────────────────────
         moveCursor: async (targetConfirmed, canceled, tabKey, cursorLoc, theEvent, state, colorsDance, keysMoveCursor, targetCanLeaveMap) =>
