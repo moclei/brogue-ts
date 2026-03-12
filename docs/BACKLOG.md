@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-11 (after B12/B24 gas spreading fix — updateEnvironment wired)
-**Tests at last update:** 88 files · 2276 pass · 55 skip
+**Status:** updated 2026-03-12 (B20 confirmed fixed via applyInstantTileEffectsToCreature, test added)
+**Tests at last update:** 88 files · 2277 pass · 55 skip
 
 ---
 
@@ -327,10 +327,14 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   `spawnDungeonFeature`. `monstersFall`/`updateFloorItems`/`monstersTurn` stubbed
   (handled by TurnProcessingContext). Gas now spreads and dissipates each turn.
 
-- [ ] **B20 — Key not consumed after opening locked room** — After using a key to open a
+- [x] **B20 — Key not consumed after opening locked room** — After using a key to open a
   locked vault/item room door, the key remains in the player's inventory. In C, the key
   is removed on use. Likely `removeItemFromPack` or the key-use handler not called.
   C: `Items.c` (key use, removeItemFromPack). TS: `items/item-handlers.ts`. **S**
+  Fix: Already working — `applyInstantTileEffectsToCreature` calls `keyOnTileAt` then
+  `useKeyAt` which removes the key via `removeItemFromChain`. Was fixed as part of the
+  Priority 4 `applyInstantTileEffectsToCreature` port. Added B20 regression test in
+  `tests/time/creature-effects.test.ts`.
 
 - [ ] **B21 — Captive monster cannot be freed** — Attempting to free a captive monster
   (e.g. caged monkey) always fails; the monster remains captive on every attempt. In C,
