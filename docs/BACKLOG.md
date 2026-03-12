@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-12 (B10 fixed; B27–B32 filed from second playtest session)
-**Tests at last update:** 88 files · 2280 pass · 55 skip
+**Status:** updated 2026-03-12 (B29 fixed)
+**Tests at last update:** 88 files · 2281 pass · 55 skip
 
 ---
 
@@ -268,14 +268,17 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   Fix: same root cause as B8 — `generateItem` stub in machine context set `category=0`;
   `itemName` hit the `default` case. Fixed by wiring real `generateItem`.
 
-- [ ] **B29 — Crash at depth 3 — `buildAMachine` undefined.flags** — Game crashed on
+- [x] **B29 — Crash at depth 3 — `buildAMachine` undefined.flags** — Game crashed on
   descending to depth 3 with: `TypeError: Cannot read properties of undefined (reading 'flags')`
   at `machines.ts:1419`. Stack: `buildAMachine` (recursive) → `addMachines` →
-  `digDungeon` → `startLevel`. Root: `pmap[x][y]` is undefined — a cell coordinate produced
-  by machine layout logic is out of bounds, or `pmap` is accessed before it is fully
-  allocated for the new level. Likely a bounds check missing around room/corridor carving
-  during machine placement.
-  C: `Architect.c` (buildAMachine cell coordinate handling). TS: `architect/machines.ts:1419`. **M**
+  `digDungeon` → `startLevel`.
+  Root cause: blueprints 36 (MT_KEY_LEVITATION_ROOM) and 37 (MT_KEY_WEB_CLIMBING_ROOM) have
+  `featureCount` (9 and 7) exceeding their feature array lengths (7 and 5). C uses a fixed-size
+  `feature[20]` array — extra entries are zero-initialized (no-ops). TS arrays are dynamic,
+  so `blueprint.feature[i]` is undefined for `i >= feature.length`, causing the crash.
+  Fix: guard `blueprint.feature[i]?.flags ?? 0` in the MF_ALTERNATIVE selection loop; add
+  `if (!feature) continue;` in the feature processing loop. Blueprint catalog test documents
+  the known featureCount mismatches. TS: `architect/machines.ts`. **M**
 
 ### P1 — Blocking / crashes (continued)
 
