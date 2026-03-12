@@ -39,6 +39,8 @@ import {
 } from "./monsters/monster-queries.js";
 import { forbiddenFlagsForMonster as forbiddenFlagsForMonsterFn } from "./monsters/monster-spawning.js";
 import { canPass as canPassFn } from "./monsters/monster-movement.js";
+import { demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "./monsters/monster-ally-ops.js";
+import { freeCaptive as freeCaptiveFn } from "./movement/ally-management.js";
 import {
     buildHitList as buildHitListFn,
     attack as attackFn,
@@ -151,14 +153,7 @@ function buildMonsterNameHelper(player: Creature) {
 // buildMovementContext
 // =============================================================================
 
-/**
- * Build a PlayerMoveContext backed by the current game state.
- *
- * Wires real implementations for terrain queries, monster queries, combat
- * (attack, buildHitList, weapon attacks), and turn advancement.
- * Display callbacks, stair transitions, item pickup, and confirm dialogs
- * are stubbed — wired in port-v2-platform.
- */
+/** Build a PlayerMoveContext backed by the current game state. */
 export function buildMovementContext(): PlayerMoveContext {
     const { player, rogue, pmap, monsters, levels, packItems, floorItems, gameConst,
         mutableScrollTable, mutablePotionTable, monsterCatalog } = getGameState();
@@ -381,7 +376,7 @@ export function buildMovementContext(): PlayerMoveContext {
         checkForMissingKeys: (x, y) => checkForMissingKeysFn(x, y, itemHelperCtx),
 
         // ── Ally/captive ──────────────────────────────────────────────────────
-        freeCaptive(monst) { monst.creatureState = CreatureState.Ally; monst.leader = player; },
+        freeCaptive: (m) => freeCaptiveFn(m, { player, pmap, refreshDungeonCell, monsterAtLoc, cellHasTerrainFlag, message: io.message, monsterName: buildMonsterNameHelper(player), demoteMonsterFromLeadership: (x) => demoteMonsterFromLeadershipFn(x, monsters), makeMonsterDropItem: (x) => { if (x.carriedItem) { floorItems.push(x.carriedItem); x.carriedItem = null; } } }),
 
         // ── Map manipulation ──────────────────────────────────────────────────
         promoteTile: (x, y, layer, useFireDF) => promoteTileFn(x, y, layer as DungeonLayer, useFireDF, envCtx),
@@ -442,14 +437,7 @@ export function buildMovementContext(): PlayerMoveContext {
 // buildTravelContext
 // =============================================================================
 
-/**
- * Build a TravelExploreContext backed by the current game state.
- *
- * Wires real implementations for pathfinding (calculateDistances, dijkstraScan),
- * cost maps (populateCreatureCostMap), and player movement (playerMoves).
- * All display callbacks (hilitePath, clearCursorPath, pauseAnimation,
- * nextBrogueEvent, commitDraws, etc.) are stubbed — wired in port-v2-platform.
- */
+/** Build a TravelExploreContext backed by the current game state. */
 export function buildTravelContext(): TravelExploreContext {
     const { player, rogue, pmap, monsters, floorItems, packItems, gameConst, displayBuffer } = getGameState();
     const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn(), refreshSideBar = buildRefreshSideBarFn();

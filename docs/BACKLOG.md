@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-12 (B20 confirmed fixed via applyInstantTileEffectsToCreature, test added)
-**Tests at last update:** 88 files · 2277 pass · 55 skip
+**Status:** updated 2026-03-12 (B21 fixed — freeCaptive stub wired to real ally-management fn)
+**Tests at last update:** 88 files · 2278 pass · 55 skip
 
 ---
 
@@ -336,11 +336,16 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   Priority 4 `applyInstantTileEffectsToCreature` port. Added B20 regression test in
   `tests/time/creature-effects.test.ts`.
 
-- [ ] **B21 — Captive monster cannot be freed** — Attempting to free a captive monster
-  (e.g. caged monkey) always fails; the monster remains captive on every attempt. In C,
-  success/failure depends on a dice roll and the monster's captive flags are cleared on
-  success. Either the roll always fails or the captive-clearing logic is stubbed/missing.
-  C: `Monsters.c` (free captive logic). TS: `monsters/monster-actions.ts` or `turn.ts`. **S**
+- [x] **B21 — Captive monster cannot be freed** — Attempting to free a captive monster
+  (e.g. caged monkey) always fails; the monster remains captive on every attempt.
+  Root cause: `freeCaptive` stub in `movement.ts` set `creatureState=Ally` and `leader=player`
+  but never cleared `MB_CAPTIVE`. On the next bump, the flag was still set → confirm dialog
+  fired again → infinite loop of "freeing" with no visible change.
+  Fix: wired real `freeCaptiveFn` from `ally-management.ts` via inline `AllyManagementContext`
+  in `buildMovementContext()`. Now calls `becomeAllyWith` (demotes from leadership, drops item,
+  clears `MB_CAPTIVE | MB_SEIZED`, sets `MB_FOLLOWER`) and prints the gratitude message.
+  Also trimmed two verbose JSDoc blocks to keep `movement.ts` under 600 lines (596 lines).
+  C: `Movement.c` (freeCaptive, becomeAllyWith). TS: `movement.ts`. test: `player-movement.test.ts`. **S**
 
 - [ ] **B22 — Floor-trap terrain promotion stops after one turn** — After picking up a key
   that triggers a floor-removal trap (floor promotes to chasm), only the first turn of

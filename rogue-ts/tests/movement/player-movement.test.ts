@@ -502,4 +502,25 @@ describe("playerMoves", () => {
 
         expect(turnEndedSpy).toHaveBeenCalledTimes(1);
     });
+
+    // B21 — captive monster cannot be freed
+    it("B21: frees captive monster and clears MB_CAPTIVE on confirm", async () => {
+        const pmap = makePmap();
+        const captive = makeCreature({ loc: { x: 6, y: 5 } });
+        captive.bookkeepingFlags |= MonsterBookkeepingFlag.MB_CAPTIVE;
+        pmap[6][5].flags |= TileFlag.HAS_MONSTER;
+
+        const freeSpy = vi.fn();
+        const ctx = makePlayerMoveContext(pmap, {
+            monsterAtLoc: (loc) => (loc.x === 6 && loc.y === 5 ? captive : null),
+            confirm: async () => true,
+            freeCaptive: freeSpy,
+            playerTurnEnded: () => {},
+        });
+
+        const result = await playerMoves(Direction.Right, ctx);
+
+        expect(result).toBe(true);
+        expect(freeSpy).toHaveBeenCalledWith(captive);
+    });
 });
