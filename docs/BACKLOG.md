@@ -347,7 +347,7 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   Also trimmed two verbose JSDoc blocks to keep `movement.ts` under 600 lines (596 lines).
   C: `Movement.c` (freeCaptive, becomeAllyWith). TS: `movement.ts`. test: `player-movement.test.ts`. **S**
 
-- [ ] **B22 — Floor-trap terrain promotion stops after one turn** — After picking up a key
+- [x] **B22 — Floor-trap terrain promotion stops after one turn** — After picking up a key
   that triggers a floor-removal trap (floor promotes to chasm), only the first turn of
   promotion runs; subsequent turns leave the room unchanged. The promotion chain should
   continue each turn until complete. Likely root: `applyInstantTileEffectsToCreature`

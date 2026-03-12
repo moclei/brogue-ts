@@ -925,8 +925,9 @@ export function fillSpawnMap(
     surfaceTileType: number,
     spawnMap: Grid,
     blockedByOtherLayers: boolean,
-    _refresh: boolean,
+    refresh: boolean,
     superpriority: boolean,
+    refreshDungeonCell?: (loc: Pos) => void,
 ): boolean {
     let accomplishedSomething = false;
 
@@ -956,9 +957,9 @@ export function fillSpawnMap(
                 pmap[i][j].layers[layer] = surfaceTileType;
                 accomplishedSomething = true;
 
-                // Note: refresh-related operations (refreshDungeonCell, applyInstantTileEffectsToCreature,
-                // burnItem) are skipped during dungeon generation (refresh=false).
-                // They will be handled when the full runtime is ported.
+                if (refresh && refreshDungeonCell) {
+                    refreshDungeonCell({ x: i, y: j });
+                }
             } else {
                 spawnMap[i][j] = 0;
             }
@@ -985,6 +986,7 @@ export function spawnDungeonFeature(
     feat: DungeonFeature,
     refreshCell: boolean,
     abortIfBlocking: boolean,
+    refreshDungeonCell?: (loc: Pos) => void,
 ): boolean {
     const blockingMap = allocGrid();
     fillGrid(blockingMap, 0);
@@ -1025,6 +1027,7 @@ export function spawnDungeonFeature(
                     !!(feat.flags & DFFlag.DFF_BLOCKED_BY_OTHER_LAYERS),
                     refreshCell,
                     !!(feat.flags & DFFlag.DFF_SUPERPRIORITY),
+                    refreshDungeonCell,
                 );
                 succeeded = true;
             } else {
@@ -1061,12 +1064,12 @@ export function spawnDungeonFeature(
             for (let i = 0; i < DCOLS; i++) {
                 for (let j = 0; j < DROWS; j++) {
                     if (blockingMap[i][j]) {
-                        spawnDungeonFeature(pmap, tCatalog, dungeonFeatureCatalog, i, j, dungeonFeatureCatalog[feat.subsequentDF], refreshCell, abortIfBlocking);
+                        spawnDungeonFeature(pmap, tCatalog, dungeonFeatureCatalog, i, j, dungeonFeatureCatalog[feat.subsequentDF], refreshCell, abortIfBlocking, refreshDungeonCell);
                     }
                 }
             }
         } else {
-            spawnDungeonFeature(pmap, tCatalog, dungeonFeatureCatalog, x, y, dungeonFeatureCatalog[feat.subsequentDF], refreshCell, abortIfBlocking);
+            spawnDungeonFeature(pmap, tCatalog, dungeonFeatureCatalog, x, y, dungeonFeatureCatalog[feat.subsequentDF], refreshCell, abortIfBlocking, refreshDungeonCell);
         }
     }
 

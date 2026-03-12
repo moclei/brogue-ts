@@ -16,6 +16,7 @@ import {
     nbDirs,
     DIRECTION_COUNT,
 } from "../../src/time/environment.js";
+import { spawnDungeonFeature } from "../../src/architect/machines.js";
 import type { EnvironmentContext } from "../../src/time/environment.js";
 import { DungeonLayer, TileType, StatusEffect } from "../../src/types/enums.js";
 import {
@@ -690,5 +691,88 @@ describe("updateEnvironment", () => {
         };
         updateEnvironment(ctx);
         expect(ctx.spawnDungeonFeature).toHaveBeenCalled();
+    });
+});
+
+// =============================================================================
+// B22 regression — fillSpawnMap calls refreshDungeonCell at runtime
+// =============================================================================
+
+describe("B22 regression — spawnDungeonFeature calls refreshDungeonCell when refreshCell=true", () => {
+    function makeMinimalPmap(dcols: number, drows: number): Pcell[][] {
+        const pmap: Pcell[][] = [];
+        for (let x = 0; x < dcols; x++) {
+            pmap[x] = [];
+            for (let y = 0; y < drows; y++) {
+                pmap[x][y] = makeCell();
+            }
+        }
+        return pmap;
+    }
+
+    function makeMinimalTileCatalog(tileCount: number): FloorTileType[] {
+        return Array.from({ length: tileCount }, () => ({
+            displayChar: 0,
+            foreColor: dummyColor,
+            backColor: dummyColor,
+            drawPriority: 50,
+            chanceToIgnite: 0,
+            fireType: 0,
+            discoverType: 0,
+            promoteType: 0,
+            promoteChance: 0,
+            glowLight: 0 as any,
+            flags: 0,
+            mechFlags: 0,
+            description: "tile",
+            flavorText: "you see a tile.",
+        }));
+    }
+
+    it("calls refreshDungeonCell for each cell placed when refreshCell=true", () => {
+        const DCOLS = 10, DROWS = 10;
+        const pmap = makeMinimalPmap(DCOLS, DROWS);
+        // All tiles have default drawPriority=50 so current (tile 5) >= new (tile 10) passes
+        const tileCatalog = makeMinimalTileCatalog(20);
+        pmap[3][4].layers[DungeonLayer.Dungeon] = 5;
+
+        const feat: DungeonFeature = {
+            tile: 10,
+            layer: DungeonLayer.Dungeon,
+            startProbability: 0,
+            probabilityDecrement: 0,
+            flags: 0,
+            propagationTerrain: 0,
+            subsequentDF: 0,
+        } as unknown as DungeonFeature;
+
+        const refreshSpy = vi.fn();
+        spawnDungeonFeature(pmap, tileCatalog, [], 3, 4, feat, true, false, refreshSpy);
+
+        expect(pmap[3][4].layers[DungeonLayer.Dungeon]).toBe(10);
+        expect(refreshSpy).toHaveBeenCalledWith({ x: 3, y: 4 });
+    });
+
+    it("does NOT call refreshDungeonCell when refreshCell=false", () => {
+        const DCOLS = 10, DROWS = 10;
+        const pmap = makeMinimalPmap(DCOLS, DROWS);
+        const tileCatalog = makeMinimalTileCatalog(20);
+        pmap[3][4].layers[DungeonLayer.Dungeon] = 5;
+
+        const feat: DungeonFeature = {
+            tile: 10,
+            layer: DungeonLayer.Dungeon,
+            startProbability: 0,
+            probabilityDecrement: 0,
+            flags: 0,
+            propagationTerrain: 0,
+            subsequentDF: 0,
+        } as unknown as DungeonFeature;
+
+        const refreshSpy = vi.fn();
+        spawnDungeonFeature(pmap, tileCatalog, [], 3, 4, feat, false, false, refreshSpy);
+
+        expect(pmap[3][4].layers[DungeonLayer.Dungeon]).toBe(10);
+        expect(refreshSpy).not.toHaveBeenCalled();
     });
 });

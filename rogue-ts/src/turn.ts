@@ -385,7 +385,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
                 cellHasTMFlag: (pos, flags) => cellHasTMFlagFn(pmap, pos, flags),
                 coordinatesAreInMap: (x, y) => coordinatesAreInMap(x, y),
                 refreshDungeonCell,
-                spawnDungeonFeature: (x, y, feat, v, o) => spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, v, o),
+                spawnDungeonFeature: (x, y, feat, v, o) => spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, v, o, refreshDungeonCell),
                 monstersFall: () => {}, updateFloorItems: () => {}, monstersTurn: () => {}, keyOnTileAt: () => null,
                 removeCreature: (list, m) => { const i = list.indexOf(m); if (i >= 0) { list.splice(i, 1); return true; } return false; },
                 prependCreature: (list, m) => { list.unshift(m); },

@@ -181,7 +181,7 @@ export function buildMovementContext(): PlayerMoveContext {
         !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE);
 
     const spawnFeature = (x: number, y: number, feat: unknown, rc: boolean, ab: boolean) =>
-        spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, rc, ab);
+        spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, rc, ab, rc ? refreshDungeonCell : undefined);
 
     const monsterStateCtx = buildMonsterStateContext();
     const attackCtx = buildCombatAttackContext();
