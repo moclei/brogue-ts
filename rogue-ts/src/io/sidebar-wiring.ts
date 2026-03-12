@@ -75,7 +75,7 @@ import {
     wrapText as wrapTextFn,
     printStringWithWrapping as printStringWithWrappingFn,
 } from "./text.js";
-import { printTextBox as printTextBoxFn, rectangularShading } from "./inventory.js";
+import { printTextBox as printTextBoxFn } from "./inventory.js";
 import { flavorMessage as flavorMessageFn } from "./messages.js";
 import type { MessageContext as SyncMessageContext } from "./messages-state.js";
 import type { InventoryContext } from "./inventory.js";
@@ -312,25 +312,26 @@ export function buildPrintLocationDescriptionFn(): (x: number, y: number) => voi
             terrainMechFlags: () => 0,
             cellHasTerrainFlag,
             cellHasTMFlag,
-            coordinatesAreInMap: (cx, cy) => !!(pmap[cx]?.[cy]),
-            playerCanSee: (px, py) => !!(pmap[px]?.[py]?.flags & TileFlag.VISIBLE),
+            coordinatesAreInMap: (cx: number, cy: number) => !!(pmap[cx]?.[cy]),
+            playerCanSee: (px: number, py: number) => !!(pmap[px]?.[py]?.flags & TileFlag.VISIBLE),
             monsterAtLoc,
             dormantMonsterAtLoc: () => null,
-            canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
+            canSeeMonster: (m: Creature) => canSeeMonsterFn(m, mqCtx),
             monsterRevealed: () => false,
             refreshDungeonCell: () => {},
             dungeonFeatureCatalog,
-            itemAtLoc: (loc) => floorItems.find(i => i.loc.x === loc.x && i.loc.y === loc.y) ?? null,
+            itemAtLoc: (loc: Pos) => floorItems.find(i => i.loc.x === loc.x && i.loc.y === loc.y) ?? null,
             nbDirs: [],
             spawnDungeonFeature: () => {},
             // DescribeLocationContext extensions:
-            playerCanSeeOrSense: (px, py) =>
+            playerCanSeeOrSense: (px: number, py: number) =>
                 !!(pmap[px]?.[py]?.flags & (TileFlag.VISIBLE | TileFlag.WAS_VISIBLE)),
-            playerCanDirectlySee: (px, py) => !!(pmap[px]?.[py]?.flags & TileFlag.VISIBLE),
+            playerCanDirectlySee: (px: number, py: number) => !!(pmap[px]?.[py]?.flags & TileFlag.VISIBLE),
             itemMagicPolarity: () => 0,
-            monsterName: (m, incArt) => monsterNameFn(m, incArt, mqCtx),
+            monsterName: (m: Creature, incArt: boolean) => monsterNameFn(m, incArt, mqCtx),
             monsterCanSubmergeNow: () => false,
-            describedItemName: (item, maxLen) => itemNameFn(item, false, false,
+            describedItemName: (item: import("../types/types.js").Item, maxLen: number) =>
+                itemNameFn(item, false, false,
                 { gameConstants: {}, depthLevel: rogue.depthLevel, potionTable: [], scrollTable: [],
                   wandTable: [], staffTable: [], ringTable: [], charmTable: [], charmEffectTable: [],
                   playbackOmniscience: rogue.playbackOmniscience,
