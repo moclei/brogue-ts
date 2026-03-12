@@ -62,6 +62,8 @@ import {
     buildExposeCreatureToFireFn,
     buildWakeUpFn,
     buildConfirmFn,
+    buildRefreshDungeonCellFn,
+    buildHiliteCellFn,
 } from "../io-wiring.js";
 import { boltCatalog } from "../globals/bolt-catalog.js";
 import { mutationCatalog } from "../globals/mutation-catalog.js";
@@ -171,8 +173,8 @@ export function buildStaffChooseTargetFn() {
             monsterAtLoc,
             itemAtLoc: (loc) =>
                 floorItems.find(i => i.loc.x === loc.x && i.loc.y === loc.y) ?? null,
-            hiliteCell: () => {},
-            refreshDungeonCell: () => {},
+            hiliteCell: buildHiliteCellFn(),
+            refreshDungeonCell: buildRefreshDungeonCellFn(),
             playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
             monsterIsHidden: () => false,
             cellHasTerrainFlag,

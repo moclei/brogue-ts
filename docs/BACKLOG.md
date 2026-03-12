@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-12 (B21 fixed — freeCaptive stub wired to real ally-management fn)
-**Tests at last update:** 88 files · 2278 pass · 55 skip
+**Status:** updated 2026-03-12 (B10 fixed — bolt path now drawn during targeting)
+**Tests at last update:** 88 files · 2280 pass · 55 skip
 
 ---
 
@@ -305,10 +305,14 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
 
 ### P2 — Visible gameplay divergences
 
-- [ ] **B10 — Aiming: no path shown** — When targeting with the mouse (throw/zap),
+- [x] **B10 — Aiming: no path shown** — When targeting with the mouse (throw/zap),
   the bolt/throw path from player to cursor is not drawn. In C, `chooseTarget` draws
   the path using `drawBoltLine` or similar each cursor move.
   C: `IO.c` (chooseTarget, drawBoltLine). TS: `io/input-cursor.ts`, `items/targeting.ts`. **M**
+  Fix: `hiliteCell` and `refreshDungeonCell` were `() => {}` stubs in `buildStaffChooseTargetFn`
+  (staff-wiring.ts) and `buildThrowCommandFn` (item-commands.ts). Added `buildHiliteCellFn()`
+  to `io-wiring.ts` (reuses `buildGetCellAppearanceFn`). Both contexts now call real cell
+  highlight/refresh. `hiliteTrajectory` correctly draws/erases the bolt path.
 
 - [ ] **B11 — Aiming: no target details shown** — When hovering over a cell during
   targeting, no description of the target appears (monster name, item, terrain).

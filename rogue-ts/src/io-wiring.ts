@@ -87,7 +87,7 @@ import { TileFlag, ButtonFlag } from "./types/flags.js";
 import { hitProbability, monsterDamageAdjustmentAmount } from "./combat/combat-math.js";
 import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
 import { randPercent } from "./math/rng.js";
-import { encodeMessageColor } from "./io/color.js";
+import { encodeMessageColor, applyColorAugment, separateColors } from "./io/color.js";
 import { buildResolvePronounEscapesFn } from "./io/text.js";
 import { boltCatalog } from "./globals/bolt-catalog.js";
 import type { Color, Pos, ItemTable, Item, BrogueButton } from "./types/types.js";
@@ -98,6 +98,7 @@ import {
     plotCharWithColor as plotCharWithColorFn,
     saveDisplayBuffer as saveDisplayBufferFn,
     restoreDisplayBuffer as restoreDisplayBufferFn,
+    mapToWindow,
 } from "./io/display.js";
 import type { DisplayGlyph } from "./types/enums.js";
 import type { SidebarContext } from "./io/sidebar-player.js";
@@ -143,18 +144,22 @@ export function buildGetCellAppearanceFn(): (loc: Pos) => { glyph: DisplayGlyph;
  * game-state references so it reflects the current level state.
  */
 export function buildRefreshDungeonCellFn(): (loc: Pos) => void {
-    const {
-        pmap, tmap, rogue, player, monsters, dormantMonsters,
-        floorItems, monsterCatalog, displayBuffer,
-    } = getGameState();
-    const scentMap = getScentMap() ?? [];
-    const getCellApp = (loc: Pos) => getCellAppearance(
-        loc, pmap, tmap, displayBuffer, rogue, player,
-        monsters, dormantMonsters, floorItems,
-        tileCatalog, dungeonFeatureCatalog, monsterCatalog,
-        terrainRandomValues, displayDetail, scentMap,
-    );
+    const getCellApp = buildGetCellAppearanceFn();
+    const { displayBuffer } = getGameState();
     return (loc: Pos) => refreshDungeonCellFn(loc, getCellApp, displayBuffer);
+}
+
+/** Returns a hiliteCell closure for targeting contexts. C: hiliteCell() in IO.c. */
+export function buildHiliteCellFn(): (x: number, y: number, color: Readonly<Color>, strength: number, distinctColors: boolean) => void {
+    const getCellApp = buildGetCellAppearanceFn();
+    const { displayBuffer } = getGameState();
+    return (x, y, color, strength, distinctColors) => {
+        const { glyph, foreColor, backColor } = getCellApp({ x, y });
+        applyColorAugment(foreColor, color, strength);
+        applyColorAugment(backColor, color, strength);
+        if (distinctColors) separateColors(foreColor, backColor);
+        plotCharWithColorFn(glyph, mapToWindow({ x, y }), foreColor, backColor, displayBuffer);
+    };
 }
 
 // =============================================================================

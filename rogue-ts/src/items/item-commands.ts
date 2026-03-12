@@ -85,6 +85,7 @@ import { COLS, DCOLS, DROWS, DELETE_KEY, ESCAPE_KEY, MESSAGE_LINES, RETURN_KEY }
 import type { Color, Creature, Item, ItemTable, Pos, RogueEvent } from "../types/types.js";
 import { printString } from "../io/text.js";
 import { plotCharToBuffer } from "../io/display.js";
+import { buildRefreshDungeonCellFn, buildHiliteCellFn } from "../io-wiring.js";
 
 // =============================================================================
 // ItemCommandDeps — caller-supplied messaging (avoids circular imports)
@@ -330,9 +331,8 @@ export function buildThrowCommandFn(
             monsterAtLoc,
             itemAtLoc: (loc: Pos) =>
                 floorItems.find(i => i.loc.x === loc.x && i.loc.y === loc.y) ?? null,
-            // Rendering stubs — wired in Phase 5
-            hiliteCell: () => {},
-            refreshDungeonCell: () => {},
+            hiliteCell: buildHiliteCellFn(),
+            refreshDungeonCell: buildRefreshDungeonCellFn(),
             playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
             monsterIsHidden: () => false,       // stub — visibility detail
             cellHasTerrainFlag,
