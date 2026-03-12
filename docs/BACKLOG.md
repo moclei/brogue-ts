@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-12 (B10 fixed — bolt path now drawn during targeting)
+**Status:** updated 2026-03-12 (B10 fixed; B27–B32 filed from second playtest session)
 **Tests at last update:** 88 files · 2280 pass · 55 skip
 
 ---
@@ -268,6 +268,15 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   Fix: same root cause as B8 — `generateItem` stub in machine context set `category=0`;
   `itemName` hit the `default` case. Fixed by wiring real `generateItem`.
 
+- [ ] **B29 — Crash at depth 3 — `buildAMachine` undefined.flags** — Game crashed on
+  descending to depth 3 with: `TypeError: Cannot read properties of undefined (reading 'flags')`
+  at `machines.ts:1419`. Stack: `buildAMachine` (recursive) → `addMachines` →
+  `digDungeon` → `startLevel`. Root: `pmap[x][y]` is undefined — a cell coordinate produced
+  by machine layout logic is out of bounds, or `pmap` is accessed before it is fully
+  allocated for the new level. Likely a bounds check missing around room/corridor carving
+  during machine placement.
+  C: `Architect.c` (buildAMachine cell coordinate handling). TS: `architect/machines.ts:1419`. **M**
+
 ### P1 — Blocking / crashes (continued)
 
 - [x] **B18 — Staff use stalls or silently fails** — Two observed behaviours depending on staff type:
@@ -377,6 +386,38 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `Time.c` (applyInstantTileEffectsToCreature). TS: likely needs porting + wiring
   into `movement.ts` player move context. **M**
 
+- [ ] **B27 — Teleportation scroll — delayed effect + ghost `@`** — Using a scroll of
+  teleportation teleported the player, but required a move action before the teleport
+  visually resolved. The `@` glyph remained at the original position until that next move.
+  Root cause: `teleport()` updates `player.loc` and `pmap` flags in state but
+  `refreshDungeonCell` is not called for the old location immediately — the old cell still
+  has the player glyph in the display buffer until the next full refresh.
+  C: `Items.c` (teleportation scroll → `teleport()`). TS: `items/item-handlers.ts`,
+  `monsters/monster-teleport.ts` (teleport fn). **S**
+
+- [ ] **B28 — Level transition display — fog of war shows wrong level** — Two related
+  symptoms: (a) after using a potion of descent the new (unvisited) level appeared fully
+  explored, showing the previous level's fog state; (b) generally, moving between levels
+  causes the display to show the explored areas of the other level until the game is forced
+  to refresh. Returning to the level and coming back corrects it.
+  Root cause: `displayLevel()` (or equivalent full refresh) is not called after the level
+  transition swaps `pmap`. The display buffer retains the previous level's cell data.
+  C: `RogueMain.c` (startLevel — calls `displayLevel()` after level load).
+  TS: `game/game-level.ts` (startLevel, level swap). **M**
+
+- [ ] **B30 — Ally does not follow player down stairs** — An allied monster did not
+  descend with the player when taking stairs. The ally was still present on the upper level
+  on return. In C, allies adjacent to the player follow through stairs automatically.
+  C: `RogueMain.c` (startLevel — ally follow-through logic). TS: `game/game-level.ts`
+  or `lifecycle.ts` (stair transition, monster carry-over). **M**
+
+- [ ] **B32 — Whip weapon — cannot attack after equipping** — After switching weapon to a
+  whip, the player appeared unable to attack monsters (attacks did not resolve). Whip is a
+  reach weapon (attacks 2 squares away) in C; if reach-weapon attack logic is not ported,
+  neither adjacent nor distant attacks work.
+  Investigate: check if `Movement.c` reach-weapon attack path is wired in `movement.ts`.
+  C: `Movement.c` (playerMoves — reach weapon check). TS: `movement.ts`. **S, investigate first**
+
 ### P3 — Minor / cosmetic
 
 - [ ] **B16 — Title-screen flames speed up on mouse movement** — On the title screen,
@@ -406,6 +447,18 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `Movement.c` or `RogueMain.c` (autoTravel / explore path). TS: `movement/travel-explore.ts`. **S**
 
 ### Needs investigation (not yet classified)
+
+- [ ] **B31 — "The missing item must be replaced" — cannot pick up items in locked room** —
+  After entering a locked room with a key, attempting to pick up items produced a message
+  like "The missing item must be replaced" and no items could be taken. No items had been
+  picked up yet. The level had two locked rooms; this first room contained a key to the
+  second room.
+  In C, vault/machine items are sometimes protected until a condition is met (e.g. the
+  machine considers the item a "required" part of the layout). Investigate whether the
+  machine item-protection logic is incorrectly flagging all items in the room, or whether
+  the key-to-second-room being present triggered an unexpected condition.
+  C: `Items.c` (item pickup, `ITEM_IS_KEY` / machine item protection flags).
+  TS: `items/item-handlers.ts`, `items/item-commands.ts`. **investigate first**
 
 - [ ] **B25 — Items in locked vault appear unidentified** — Two unidentified rings were
   observed in a locked item vault. Verify C behaviour first: in C, vault items are
