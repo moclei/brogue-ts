@@ -322,6 +322,6 @@ export function buildFadeInMonsterFn(): (monst: Creature) => void {
         );
         flashMonster(monst, backColor, 100, {
             setCreaturesWillFlash() { rogue.creaturesWillFlashThisTurn = true; },
-        });
+        } as unknown as CombatDamageContext);
     };
 }

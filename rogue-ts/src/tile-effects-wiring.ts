@@ -211,7 +211,7 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
         clearCellMonsterFlag: () => {},
         prependCreature: () => {},
         applyInstantTileEffectsToCreature: () => {},  // no recursion in this sub-ctx
-        fadeInMonster: (monst) => {
+        fadeInMonster: (monst: Creature) => {
             const { backColor } = getCellAppearance(
                 monst.loc, pmap, tmap, displayBuffer, rogue, player,
                 monsters, dormantMonsters, floorItems,
