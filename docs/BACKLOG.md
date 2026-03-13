@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-12 (B34 fixed; B35 B36 filed; B13 B30 updated; B36 fixed 2026-03-12; B35 fixed 2026-03-12)
-**Tests at last update:** 89 files · 2285 pass · 55 skip
+**Status:** updated 2026-03-12 (B34 fixed; B35 B36 filed; B13 B30 updated; B36 fixed 2026-03-12; B35 fixed 2026-03-12; B27 fixed 2026-03-12)
+**Tests at last update:** 88 files · 2284 pass · 55 skip
 
 ---
 
@@ -397,7 +397,7 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   Fix: resolved as a side-effect of the `applyInstantTileEffectsToCreature` port
   (Priority 4). Confirmed working in playtest.
 
-- [ ] **B27 — Teleportation scroll — delayed effect + ghost `@`** — Using a scroll of
+- [x] **B27 — Teleportation scroll — delayed effect + ghost `@`** — Using a scroll of
   teleportation teleported the player, but required a move action before the teleport
   visually resolved. The `@` glyph remained at the original position until that next move.
   Root cause: `teleport()` updates `player.loc` and `pmap` flags in state but

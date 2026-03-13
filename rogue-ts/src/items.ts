@@ -337,6 +337,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                     const flag = monst === player ? TileFlag.HAS_PLAYER : TileFlag.HAS_MONSTER;
                     if (pmap[monst.loc.x]?.[monst.loc.y]) {
                         pmap[monst.loc.x][monst.loc.y].flags &= ~flag;
+                        refreshDungeonCell(monst.loc);
                     }
                     monst.loc = { ...loc };
                     if (pmap[loc.x]?.[loc.y]) {
