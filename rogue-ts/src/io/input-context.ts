@@ -331,6 +331,7 @@ export function buildInputContext(): InputContext {
     };
 
     const refreshSideBarFn = buildRefreshSideBarFn();
+    const displayLevelFn = buildDisplayLevelFn();
     const io = buildMessageFns();
     const itemCmdDeps = {
         message: (msg: string, flags: number) => io.message(msg, flags),
@@ -406,14 +407,14 @@ export function buildInputContext(): InputContext {
         locIsInWindow: () => false,
 
         // ── Display ───────────────────────────────────────────────────────────
-        displayLevel: buildDisplayLevelFn(),
+        displayLevel: displayLevelFn,
         refreshSideBar: (_x, _y, _justClearing) => refreshSideBarFn(),
         displayInventory: async (categoryMask, requiredFlags, forbiddenFlags, waitForAcknowledge, includeButtons) => {
             await displayInventoryFn(categoryMask, requiredFlags, forbiddenFlags, waitForAcknowledge, includeButtons,
                 buildInventoryContext());
-            // displayInventory restores the display buffer at the end, which wipes any
-            // messages written during item actions (e.g. potion effects). Re-render so
-            // commitDraws() in mainGameLoop flushes the correct message area.
+            // displayInventory restores the display buffer at the end, wiping any dungeon
+            // changes from item effects (e.g. magic mapping). Re-render dungeon + messages.
+            displayLevelFn();
             io.updateMessageDisplay();
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

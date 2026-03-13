@@ -600,6 +600,11 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   intensity per-cell, commits+pauses 50ms per frame. Fast-forward on input interrupt. Respects
   `tileFlags` filter (e.g. MAGIC_MAPPED) via `pmap[i][j].flags`. Last frame fadeOut=0 restores
   cells naturally (hiliteCell intensity=0 = original appearance).
+  Fix (part 4): `displayInventory` in `input-context.ts` calls `restoreDisplayBuffer` at the end,
+  wiping magic-mapped (or any other item-effect) dungeon changes from the display buffer. Next
+  `commitDraws()` then pushes the old undiscovered state back to canvas. Fixed by calling
+  `displayLevelFn()` after `displayInventoryFn` returns, so the buffer reflects current pmap flags
+  before the next commit.
 
 - [ ] **B39 — `flashMonster` stub — no creature flash on hit or status** — `flashMonster`
   is a no-op in all contexts. It briefly changes a creature's display color to give visual
