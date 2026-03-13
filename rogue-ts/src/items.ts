@@ -106,7 +106,7 @@ import {
 } from "./items/monster-spell-effects.js";
 import {
     itemMessageColor, advancementMessageColor, magicMapFlashColor,
-    darkBlue, gray, black, forceFieldColor,
+    darkBlue, gray, black, forceFieldColor, white, minersLightColor,
 } from "./globals/colors.js";
 import { DungeonFeatureType, LightType, BoltType, CharmKind, StatusEffect } from "./types/enums.js";
 import {
@@ -129,6 +129,8 @@ import { buildResolvePronounEscapesFn } from "./io/text.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
 import { createFlare as createFlareFn } from "./light/flares.js";
 import { lightCatalog } from "./globals/light-catalog.js";
+import { extinguishFireOnCreature as extinguishFireOnCreatureFn } from "./time/creature-effects.js";
+import type { CreatureEffectsContext } from "./time/creature-effects.js";
 
 // =============================================================================
 // Private helpers
@@ -220,7 +222,12 @@ export function buildItemHandlerContext(): ItemHandlerContext {
             rogue.playbackOmniscience,
             (a, b) => monstersAreEnemiesFn(a, b, player, cellHasTerrainFlag),
         ),
-        extinguishFireOnCreature: () => {},  // permanent-defer — requires full CreatureEffectsContext
+        extinguishFireOnCreature: (monst: Creature) =>
+            extinguishFireOnCreatureFn(monst, {
+                player, white, minersLightColor, rogue, refreshDungeonCell,
+                updateVision: () => {},
+                message: io.message,
+            } as unknown as CreatureEffectsContext),
         refreshDungeonCell,
         applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
         resolvePronounEscapes: buildResolvePronounEscapesFn(player, pmap, rogue),
@@ -362,7 +369,12 @@ export function buildItemHandlerContext(): ItemHandlerContext {
             });
         },
         exposeCreatureToFire: buildExposeCreatureToFireFn(),
-        extinguishFireOnCreature: () => {},  // permanent-defer — requires full CreatureEffectsContext
+        extinguishFireOnCreature: (monst) =>
+            extinguishFireOnCreatureFn(monst, {
+                player, white, minersLightColor, rogue, refreshDungeonCell,
+                updateVision: () => {},
+                message: io.message,
+            } as unknown as CreatureEffectsContext),
         makePlayerTelepathic(duration) {
             makePlayerTelepathicFn(duration, {
                 player,

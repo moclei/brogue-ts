@@ -637,7 +637,7 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   equipping/unequipping; also wired `displayLevel`).
   C: `Time.c` (updateClairvoyance). TS: `vision-wiring.ts`, `items.ts`, `io/inventory-actions.ts`. **M**
 
-- [ ] **B42 — `extinguishFireOnCreature` stub in item/bolt contexts** — `extinguishFireOnCreature`
+- [x] **B42 — `extinguishFireOnCreature` stub in item/bolt contexts** — `extinguishFireOnCreature`
   is a no-op in the item-handler and bolt contexts (`items.ts` wiring). It is called when
   a water-based bolt or effect hits a burning creature. Without it, fire on a creature
   struck by a water bolt is never extinguished.
