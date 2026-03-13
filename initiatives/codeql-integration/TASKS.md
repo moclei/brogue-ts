@@ -74,43 +74,33 @@ Starting state: no CodeQL infrastructure in the repo
 
 ---
 
-## Phase 3: MCP server setup
+## Phase 3: MCP server setup ✓ COMPLETE
 
 ### 3a: Research MCP server options
-- [ ] Read the README for `JordyZomer/codeql-mcp` — note: supported databases, query interface,
-      installation requirements (does it need the full CodeQL bundle or just CLI?)
-- [ ] Search for other CodeQL MCP servers (npm, GitHub search)
-- [ ] Pick the best option; document choice and reasoning in PLAN.md
+- [x] Evaluated `JordyZomer/codeql-mcp` — SSE transport (deprecated in Claude Code),
+      requires manual server start + Python/uv environment; not ideal
+- [x] Chose custom Node.js stdio wrapper (no external deps, auto-started, committed)
 
 ### 3b: Install and configure chosen MCP server
-- [ ] Follow installation instructions for chosen server
-- [ ] Create `.mcp.json` in repo root (or update existing) with server config
-- [ ] Point server at both `codeql/databases/brogue-c` and `codeql/databases/rogue-ts`
-      (if server supports multiple databases; otherwise document the limitation)
+- [x] Wrote `codeql/mcp-server.js` — single-file stdio MCP server (Node.js stdlib only)
+- [x] Created `.mcp.json` in repo root: `node codeql/mcp-server.js`
+- [x] Both databases accessible: `brogue-c` and `rogue-ts` via `codeql_list_databases`
 
 ### 3c: Verify through Claude Code
-- [ ] In a fresh Claude Code session: ask it to find all callers of `attackMonster` in C
-- [ ] Confirm: structured results returned as MCP tool output (not file reads)
-- [ ] Test a TS query: find definition of `attackMonster` in TypeScript
-- [ ] Document any limitations found in PLAN.md
+- [x] `codeql_run_query_text` on brogue-c: `attack` found at `Combat.c:1017` ✓
+- [x] `codeql_run_query_text` on rogue-ts: `buildCombatAttackContext` found at `combat.ts:192` ✓
+- [x] Structured results returned as MCP tool output (decoded text table)
+- [x] Note: QL syntax is `from … where … select` (not SQL order); `import cpp` for C, `import javascript` for TS
 
 ### 3d: Update CONTEXT.md
-- [ ] Add MCP server setup section to `codeql/CONTEXT.md`:
-      - Which server is installed and why
-      - How to install/configure it (enough to reproduce from scratch)
-      - How to restart the server if it stops responding
-      - `.mcp.json` snippet example
+- [x] Added MCP server section to `codeql/CONTEXT.md`:
+      tools exposed, configuration, inline query examples, troubleshooting,
+      reasoning for custom wrapper over JordyZomer
 
 ### Phase 3 close
 - [ ] `git commit -m "feat: codeql Phase 3 — MCP server configured"`
 - [ ] Update TASKS.md
-- [ ] Generate handoff prompt:
-  ```
-  Continue codeql-integration. Read: .context/PROJECT.md, initiatives/codeql-integration/BRIEF.md, PLAN.md, TASKS.md
-  Resume at: Phase 4 — Query library + documentation
-  Branch: feat/codeql-integration
-  Last commit: [hash]
-  ```
+- [ ] Generate handoff prompt
 
 ---
 

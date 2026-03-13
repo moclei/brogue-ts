@@ -76,7 +76,59 @@ codeql query run \
 
 ## MCP server
 
-> Phase 3 — not yet configured. This section will be completed in Phase 3.
+The project includes a minimal stdio MCP server (`codeql/mcp-server.js`) configured
+in `.mcp.json` at the repo root. Claude Code auto-starts it as a child process — no
+manual server launch needed.
+
+### Configuration (`.mcp.json`)
+
+```json
+{
+  "mcpServers": {
+    "codeql": {
+      "command": "node",
+      "args": ["codeql/mcp-server.js"]
+    }
+  }
+}
+```
+
+### Tools exposed
+
+| Tool | Description |
+|------|-------------|
+| `codeql_list_databases` | List available databases in `codeql/databases/` |
+| `codeql_run_query_file` | Run a committed `.ql` file by path (relative to repo root) |
+| `codeql_run_query_text` | Run inline QL text against a database |
+
+### Running inline queries
+
+For `codeql_run_query_text`, provide a complete QL file including the import:
+
+```ql
+import cpp
+
+from Function f
+where f.getName() = "attack"
+select f.getName(), f.getFile().getBaseName(), f.getLocation().getStartLine()
+```
+
+For TypeScript queries use `import javascript` instead of `import cpp`.
+
+**Important:** QL syntax is `from … where … select` (not `select … from …`).
+
+### Troubleshooting
+
+- If the `codeql` binary is not found, ensure it is in PATH: `which codeql`
+- If databases are missing, re-extract using commands in the **Databases** section above
+- The server writes temporary query files to `os.tmpdir()` and cleans them up
+- To restart: Claude Code restarts the server automatically on next tool use
+
+### Why a custom wrapper instead of JordyZomer/codeql-mcp
+
+JordyZomer's server uses SSE transport (deprecated in Claude Code) and requires
+a separate manual server start + Python/uv environment. The custom wrapper is
+a single committed file, auto-started as stdio, and has zero external dependencies.
 
 ## Full agent instructions
 

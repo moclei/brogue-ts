@@ -159,5 +159,5 @@ simple grep. Can be added incrementally without a formal initiative.
 
 ## Open Questions
 
-- Which MCP server best supports dual-database (C + TS) queries? (resolve in Phase 3)
-- Can the C build be traced on macOS without SDL2? (resolve in Phase 1)
+- ~~Which MCP server best supports dual-database (C + TS) queries?~~ → Custom Node.js stdio wrapper (Phase 3)
+- ~~Can the C build be traced on macOS without SDL2?~~ → Yes, `GRAPHICS=NO TERMINAL=NO SYSTEM=LINUXLIKE` (Phase 1)
