@@ -643,6 +643,25 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `Items.c` (readScroll, drinkPotion, useStaffOrWand effect branches).
   TS: `items/item-handlers.ts`, `items.ts` context stubs. **L**
 
+- [ ] **B46 — Click-to-travel stops after one step** — Clicking on a visible cell more
+  than one step away should pathfind the player there step-by-step, stopping if a
+  monster comes into view, the player bumps something unexpected, or the player presses
+  a key. Instead, the port moves only one step and stops.
+  Root cause: `travelMap` (travel-explore.ts) calls `ctx.pauseAnimation(500, ...)` between
+  each step. `pauseAnimation` in `buildTravelContext` delegates to
+  `platformPauseAndCheckForEvent(500)`, which resolves early on **any** event including
+  `MouseEnteredCell` (hover). After a click, the mouse is still over the dungeon and hover
+  events fire immediately, causing `pauseAnimation` to return `true` → `rogue.disturbed = true`
+  after the first step.
+  In C, `pauseAnimation(500, PAUSE_BEHAVIOR_DEFAULT)` ignores mouse-move events; only
+  keystrokes and mouse-button events interrupt travel.
+  Fix: `pauseAnimation` in `buildTravelContext` should filter out `MouseEnteredCell` events
+  and only return true for keystrokes / mouse-button events. This requires either a
+  targeted version of `pauseAndCheckForEvent` that discards hover events and re-queues
+  them, or a `PAUSE_BEHAVIOR` flag check that maps the C behavior correctly.
+  C: `Movement.c` (travelMap, pauseAnimation). TS: `movement.ts` (buildTravelContext
+  `pauseAnimation` field), `platform.ts` (pauseAndCheckForEvent). **M**
+
 ---
 
 ## Persistence layer (implement as a group)
