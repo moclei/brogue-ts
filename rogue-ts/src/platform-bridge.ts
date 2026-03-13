@@ -16,6 +16,7 @@
  */
 
 let _pause: ((ms: number) => Promise<boolean>) | null = null;
+let _pauseIgnoringHover: ((ms: number) => Promise<boolean>) | null = null;
 
 /**
  * Register the platform's pauseAndCheckForEvent implementation.
@@ -25,6 +26,10 @@ export function registerPauseAndCheckForEvent(fn: (ms: number) => Promise<boolea
     _pause = fn;
 }
 
+export function registerPauseIgnoringHover(fn: (ms: number) => Promise<boolean>): void {
+    _pauseIgnoringHover = fn;
+}
+
 /**
  * Pause for up to `ms` milliseconds, returning true if a user event
  * arrived early.  Falls back to immediate false if the platform is not
@@ -32,4 +37,12 @@ export function registerPauseAndCheckForEvent(fn: (ms: number) => Promise<boolea
  */
 export function platformPauseAndCheckForEvent(ms: number): Promise<boolean> {
     return _pause ? _pause(ms) : Promise.resolve(false);
+}
+
+/**
+ * Like platformPauseAndCheckForEvent but ignores MouseEnteredCell hover events.
+ * Used by travel animation so hover doesn't interrupt pathfinding.
+ */
+export function platformPauseIgnoringHover(ms: number): Promise<boolean> {
+    return _pauseIgnoringHover ? _pauseIgnoringHover(ms) : Promise.resolve(false);
 }

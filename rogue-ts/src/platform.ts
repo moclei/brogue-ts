@@ -28,7 +28,7 @@ import { COLS, ROWS } from "./types/constants.js";
 import { buildInputContext } from "./io/input-context.js";
 import { executeKeystroke } from "./io/input-dispatch.js";
 import { createScreenDisplayBuffer } from "./io/display.js";
-import { registerPauseAndCheckForEvent } from "./platform-bridge.js";
+import { registerPauseAndCheckForEvent, registerPauseIgnoringHover } from "./platform-bridge.js";
 import {
     buildGameMenuButtonState,
     drawGameMenuButtons,
@@ -93,6 +93,7 @@ export function initPlatform(browserConsole: PlatformConsole & { plotChar?: Plot
     _plotChar = browserConsole.plotChar ?? null;
     _prevBuffer = createScreenDisplayBuffer();
     registerPauseAndCheckForEvent(pauseAndCheckForEvent);
+    registerPauseIgnoringHover(pauseAndCheckForEventIgnoringHover);
 }
 
 // =============================================================================
@@ -137,6 +138,36 @@ export async function pauseAndCheckForEvent(ms: number): Promise<boolean> {
     });
 
     return Promise.race([timeoutP, eventP]);
+}
+
+/**
+ * Like pauseAndCheckForEvent, but ignores MouseEnteredCell (hover) events.
+ * Travel animations use this so that mouse movement does not interrupt pathfinding.
+ * C: pauseAnimation(ms, PAUSE_BEHAVIOR_DEFAULT) — ignores mouse-move events.
+ */
+export async function pauseAndCheckForEventIgnoringHover(ms: number): Promise<boolean> {
+    if (!_console) throw new Error("Platform not initialized — call initPlatform() first");
+
+    // Drain a pending hover lookahead without counting it as interruption.
+    if (_lookaheadEvent !== null) {
+        if (_lookaheadEvent.eventType !== EventType.MouseEnteredCell) return true;
+        _lookaheadEvent = null;
+    }
+
+    const deadline = Date.now() + ms;
+    let remaining = ms;
+    while (remaining > 0) {
+        const interrupted = await pauseAndCheckForEvent(remaining);
+        if (!interrupted) return false;
+        // Real event (keystroke or mouse-button)?
+        if (_lookaheadEvent === null || _lookaheadEvent.eventType !== EventType.MouseEnteredCell) {
+            return true;
+        }
+        // Hover event — discard and continue waiting.
+        _lookaheadEvent = null;
+        remaining = deadline - Date.now();
+    }
+    return false;
 }
 
 // =============================================================================

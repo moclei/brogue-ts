@@ -678,7 +678,7 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `Items.c` (readScroll, drinkPotion, useStaffOrWand effect branches).
   TS: `items/item-handlers.ts`, `items.ts` context stubs. **L**
 
-- [ ] **B46 — Click-to-travel stops after one step** — Clicking on a visible cell more
+- [x] **B46 — Click-to-travel stops after one step** — Clicking on a visible cell more
   than one step away should pathfind the player there step-by-step, stopping if a
   monster comes into view, the player bumps something unexpected, or the player presses
   a key. Instead, the port moves only one step and stops.
