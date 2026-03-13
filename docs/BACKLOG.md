@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-12 (B34 fixed; B35 B36 filed; B13 B30 updated; B36 fixed 2026-03-12; B35 fixed 2026-03-12; B27 fixed 2026-03-12; B28 fixed 2026-03-12; B32 deferred; B30 fixed 2026-03-12)
+**Status:** updated 2026-03-12 (B34 fixed; B35 B36 filed; B13 B30 updated; B36 fixed 2026-03-12; B35 fixed 2026-03-12; B27 fixed 2026-03-12; B28 fixed 2026-03-12; B32 deferred; B30 fixed 2026-03-12; B23 fixed 2026-03-12)
 **Tests at last update:** 88 files · 2284 pass · 55 skip
 
 ---
@@ -376,11 +376,15 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   (Priority 4 / B13 root) not firing per-turn, OR `updateEnvironment` promotion chain
   halting. C: `Time.c` (terrain promotion, T_PROMOTES_ON_STEP). TS: `time/`. **M**
 
-- [ ] **B23 — Magic mapping scroll has no effect** — Using a scroll of magic mapping
-  neither reveals the level map nor plays the radial reveal animation (expanding ring
-  centred on player). The map should be fully revealed with a visual sweep effect.
-  Likely the map-reveal function is a stub or not wired.
-  C: `Items.c` (scrollMagicMapping), `IO.c` (animation). TS: `items/item-handlers.ts`. **M**
+- [x] **B23 — Magic mapping scroll has no effect** — Fixed 2026-03-12.
+  Two bugs: (1) GRANITE check was `!== 0` (TileType.NOTHING) instead of
+  `!== TileType.GRANITE` — caused solid-rock cells to be incorrectly magic-mapped.
+  (2) `ctx.displayLevel()` not called after mapping — `colorFlash` is stubbed, so
+  the display never refreshed to show the newly mapped cells. Fix: corrected GRANITE
+  check, added `ctx.displayLevel()` before `colorFlash`. `discover()` for secret
+  tiles remains stub (permanent-defer). Also removed leftover debug console.log from
+  vision-wiring.ts.
+  C: `Items.c` (scrollMagicMapping). TS: `items/item-handlers.ts`, `vision-wiring.ts`. **M**
 
 - [x] **B24 — Creeping death / gas clouds do not expand** — Potion of creeping death places
   initial spores but they do not spread over subsequent turns. Same root cause as B12

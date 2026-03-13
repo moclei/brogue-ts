@@ -23,7 +23,7 @@ import type {
 } from "../types/types.js";
 import {
     ItemCategory, ScrollKind, PotionKind, StaffKind, CharmKind,
-    RingKind, FoodKind, StatusEffect, DungeonLayer, BoltEffect,
+    RingKind, FoodKind, StatusEffect, DungeonLayer, BoltEffect, TileType,
     ALL_ITEMS, HAS_INTRINSIC_POLARITY, CAN_BE_DETECTED,
 } from "../types/enums.js";
 import { ItemFlag, TileFlag, TerrainFlag, TerrainMechFlag } from "../types/flags.js";
@@ -704,7 +704,7 @@ export async function readScroll(theItem: Item, ctx: ItemHandlerContext): Promis
             for (let i = 0; i < DCOLS; i++) {
                 for (let j = 0; j < DROWS; j++) {
                     if (!(ctx.pmap[i][j].flags & TileFlag.DISCOVERED)
-                        && ctx.pmap[i][j].layers[DungeonLayer.Dungeon] !== 0 /* GRANITE */) {
+                        && ctx.pmap[i][j].layers[DungeonLayer.Dungeon] !== TileType.GRANITE) {
                         magicMapCell(i, j, ctx);
                     }
                 }
@@ -717,6 +717,7 @@ export async function readScroll(theItem: Item, ctx: ItemHandlerContext): Promis
                     }
                 }
             }
+            ctx.displayLevel();
             ctx.colorFlash(
                 ctx.magicMapFlashColor, 0, ctx.MAGIC_MAPPED,
                 15, DCOLS + DROWS,

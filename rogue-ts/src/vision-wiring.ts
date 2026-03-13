@@ -267,8 +267,6 @@ export function buildUpdateVisionFn(): (refreshDisplay: boolean) => void {
             floorItems,
         };
 
-        console.log("[updateVision] called, refreshDisplay=", refreshDisplay, "player@", player.loc);
         updateVisionFn(refreshDisplay, safetyCtx);
-        console.log("[updateVision] done, player cell flags=", pmap[player.loc.x]?.[player.loc.y]?.flags?.toString(16));
     };
 }
