@@ -72,6 +72,7 @@ initiatives/         Active initiative docs (BRIEF / PLAN / TASKS)
 initiatives/archive/ Old initiatives from first attempt
 docs/                Reference: PORT_V2.md, FIRST_PORT_ANALYSIS.md
 .context/            PROJECT.md (this file), WORKFLOW.md
+codeql/              CodeQL databases + query library (see codeql/CONTEXT.md); databases/ gitignored
 ```
 
 ---

@@ -22,3 +22,6 @@ gmon.out
 # TypeScript port
 node_modules/
 ts/dist/
+
+# CodeQL — databases are large build artifacts, never committed
+codeql/databases/

@@ -7,48 +7,40 @@ Starting state: no CodeQL infrastructure in the repo
 
 ---
 
-## Phase 1: CLI + C database
+## Phase 1: CLI + C database ✓ COMPLETE
 
 ### 1a: Install CodeQL CLI
-- [ ] Install: `brew install codeql` (or download bundle from GitHub releases)
-- [ ] Verify: `codeql --version`
-- [ ] Confirm language packs: `codeql resolve languages` (should list `cpp` and `javascript`)
+- [x] Install: `brew install codeql` — CodeQL 2.24.3 installed
+- [x] Verify: `codeql --version` — confirmed
+- [x] Confirm language packs: `codeql resolve languages` — cpp and javascript both present
 
 ### 1b: Investigate C build system
-- [ ] Read `Makefile` in repo root — identify the build command and any targets
-- [ ] Determine if build can run on macOS without SDL2/curses
-      (look for a null platform or headless target, e.g. `make PLATFORM=null`)
-- [ ] If fully blocked: document in PLAN.md Open Questions; attempt 1c with `--build-mode=none`
+- [x] Read `Makefile` — build uses GRAPHICS=YES (SDL2) by default
+- [x] Determine headless path: `make GRAPHICS=NO TERMINAL=NO SYSTEM=LINUXLIKE -B`
+      works without SDL2/ncurses (null platform only)
+- [x] No fallback needed — build trace succeeded
 
 ### 1c: Extract C database
-- [ ] Run `codeql database create codeql/databases/brogue-c --language=cpp --command="<build command>" --source-root=.`
-- [ ] If build trace fails: retry with `--build-mode=none`
-- [ ] Verify: `codeql/databases/brogue-c/` directory exists with expected structure
+- [x] `codeql database create codeql/databases/brogue-c --language=cpp --command="make GRAPHICS=NO TERMINAL=NO SYSTEM=LINUXLIKE -B" --source-root=.`
+- [x] Database created successfully
 
 ### 1d: Verify C database
-- [ ] Run a test query: find function named `attackMonster`
-      `codeql query run --database=codeql/databases/brogue-c -- <query>`
-- [ ] Confirm result: file path in `src/brogue/Combat.c` + line number
+- [x] Query for `attack()` → found at `src/brogue/Combat.c:1017` ✓
+      (Note: `attackMonster` doesn't exist in C source; `attack` is the correct name)
+- [x] Query packs installed: `codeql/cpp-all@8.0.0`, `codeql/javascript-all@2.6.23`
+      (stored in `~/.codeql/packages`)
 
 ### 1e: Create folder structure + initial docs
-- [ ] Create `codeql/queries/` with empty `README.md`
-- [ ] Add `codeql/databases/` to `.gitignore`
-- [ ] Write `codeql/CONTEXT.md` (skeleton only — full content in Phase 4):
-      Include: what CodeQL is, what's in this folder, the two databases, "full docs in Phase 4"
-- [ ] Update `PROJECT.md`: add `codeql/` to the repository layout table with brief description
-      and note "see `codeql/CONTEXT.md`"
+- [x] `codeql/queries/c/` and `codeql/queries/ts/` created (separate packs per language)
+- [x] `codeql/queries/README.md` written
+- [x] `codeql/databases/` added to `.gitignore`
+- [x] `codeql/CONTEXT.md` written (skeleton — full content in Phase 4)
+- [x] `PROJECT.md` updated with `codeql/` entry
 
 ### Phase 1 close
-- [ ] `git add` relevant files (exclude `codeql/databases/`)
-- [ ] `git commit -m "feat: codeql Phase 1 — CLI installed, C database extracted"`
-- [ ] Update TASKS.md to reflect current state
-- [ ] Generate handoff prompt:
-  ```
-  Continue codeql-integration. Read: .context/PROJECT.md, initiatives/codeql-integration/BRIEF.md, PLAN.md, TASKS.md
-  Resume at: Phase 2 — TypeScript database
-  Branch: feat/codeql-integration
-  Last commit: [hash]
-  ```
+- [x] `git add` relevant files (databases/ excluded via .gitignore)
+- [x] `git commit -m "feat: codeql Phase 1 — CLI installed, C database extracted"`
+- [x] TASKS.md updated
 
 ---
 
