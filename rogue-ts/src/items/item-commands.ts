@@ -23,7 +23,7 @@
 
 import { getGameState, gameOver } from "../core.js";
 import { buildApplyInstantTileEffectsFn } from "../tile-effects-wiring.js";
-import { waitForEvent, commitDraws } from "../platform.js";
+import { waitForEvent, commitDraws, pauseAndCheckForEvent } from "../platform.js";
 import { moveCursor as moveCursorFn, type MoveCursorContext } from "../io/cursor-move.js";
 import { chooseTarget } from "./targeting.js";
 import { throwItem } from "./throw-item.js";
@@ -61,7 +61,11 @@ import {
 import { distanceBetween } from "../monsters/monster-state.js";
 import { openPathBetween } from "./bolt-geometry.js";
 import { negationWillAffectMonster as negationWillAffectMonsterFn } from "./bolt-helpers.js";
-import { messageColorFromVictim as messageColorFromVictimFn } from "../io/color.js";
+import {
+    messageColorFromVictim as messageColorFromVictimFn,
+    applyColorMultiplier,
+    colorMultiplierFromDungeonLight,
+} from "../io/color.js";
 import { boltCatalog } from "../globals/bolt-catalog.js";
 import { tileCatalog } from "../globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "../globals/dungeon-feature-catalog.js";
@@ -76,7 +80,7 @@ import { itemMagicPolarity as itemMagicPolarityFn } from "./item-generation.js";
 import { coordinatesAreInMap, mapToWindowX, windowToMapX, windowToMapY } from "../globals/tables.js";
 import { randClump, randPercent, randRange, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "../math/rng.js";
 import { playerTurnEnded as playerTurnEndedFn } from "../turn.js";
-import { badMessageColor, black, gray, red, white, itemMessageColor } from "../globals/colors.js";
+import { badMessageColor, black, clairvoyanceColor, gray, red, white, itemMessageColor } from "../globals/colors.js";
 import { anyoneWantABite as anyoneWantABiteFn } from "../combat/combat-helpers.js";
 import type { CombatHelperContext } from "../combat/combat-helpers.js";
 import { AutoTargetMode, CreatureState, DisplayGlyph, DungeonLayer, EventType, GameMode, StatusEffect } from "../types/enums.js";
@@ -84,8 +88,8 @@ import { TerrainFlag, TileFlag } from "../types/flags.js";
 import { COLS, DCOLS, DROWS, DELETE_KEY, ESCAPE_KEY, MESSAGE_LINES, RETURN_KEY } from "../types/constants.js";
 import type { Color, Creature, Item, ItemTable, Pos, RogueEvent } from "../types/types.js";
 import { printString } from "../io/text.js";
-import { plotCharToBuffer } from "../io/display.js";
-import { buildRefreshDungeonCellFn, buildHiliteCellFn } from "../io-wiring.js";
+import { plotCharToBuffer, plotCharWithColor as plotCharWithColorFn, mapToWindow } from "../io/display.js";
+import { buildRefreshDungeonCellFn, buildHiliteCellFn, buildGetCellAppearanceFn } from "../io-wiring.js";
 import { buildRefreshSideBarWithFocusFn, buildPrintLocationDescriptionFn } from "../io/sidebar-wiring.js";
 
 // =============================================================================
@@ -303,7 +307,7 @@ export function buildThrowCommandFn(
     return async (item, _confirmed) => {
         if (!item) return;
 
-        const { rogue, player, pmap, monsters, levels, floorItems, packItems, mutablePotionTable, gameConst } = getGameState();
+        const { rogue, player, pmap, tmap, displayBuffer, monsters, levels, floorItems, packItems, mutablePotionTable, gameConst } = getGameState();
 
         const cellHasTerrainFlag = (loc: Pos, flags: number) => cellHasTerrainFlagFn(pmap, loc, flags);
         const cellHasTMFlag = (loc: Pos, flag: number) => cellHasTMFlagFn(pmap, loc, flag);
@@ -496,14 +500,26 @@ export function buildThrowCommandFn(
                 promoteTileFn(x, y, layer as DungeonLayer, isForced, envCtx),
         };
 
+        const throwCellApp = buildGetCellAppearanceFn();
+        const throwRefreshCell = buildRefreshDungeonCellFn();
+
         const throwCtx: ThrowItemContext = {
             ...hitCtx,
             render: {
                 playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
                 playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-                plotItemAt: () => {},           // stub — cell appearance rendering
-                pauseAnimation: async () => false,
-                refreshDungeonCell: () => {},   // stub — cell rendering
+                plotItemAt(theItem: Item, x: number, y: number): void {
+                    const { backColor } = throwCellApp({ x, y });
+                    const foreColor = { ...(theItem.foreColor ?? white) };
+                    if (pmap[x]?.[y]?.flags & TileFlag.VISIBLE) {
+                        applyColorMultiplier(foreColor, colorMultiplierFromDungeonLight(x, y, tmap));
+                    } else {
+                        applyColorMultiplier(foreColor, clairvoyanceColor);
+                    }
+                    plotCharWithColorFn(theItem.displayChar, mapToWindow({ x, y }), foreColor, backColor, displayBuffer);
+                },
+                pauseAnimation: async (delay: number) => { commitDraws(); return pauseAndCheckForEvent(delay); },
+                refreshDungeonCell: throwRefreshCell,
                 playbackFastForward: rogue.playbackFastForward,
             },
             pmap,

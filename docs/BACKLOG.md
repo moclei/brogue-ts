@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-12 (B33 fixed)
+**Status:** updated 2026-03-12 (B34 fixed)
 **Tests at last update:** 88 files · 2281 pass · 55 skip
 
 ---
@@ -498,12 +498,18 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   io-wiring.ts, item-commands.ts, staff-wiring.ts.
   C: `Items.c` (chooseTarget, moveCursor). TS: `io/cursor-move.ts`. **M**
 
-- [ ] **B34 — No throw animation — projectile teleports to destination** — When throwing
+- [x] **B34 — No throw animation — projectile teleports to destination** — When throwing
   an item (dart, javelin, etc.) the projectile does not animate along its path; it
   instantly appears at the target cell. In C, `throwItem` calls `tileGame` or a bolt
   animation to draw the projectile moving cell-by-cell with brief pauses. The TS port
   skips this animation step.
   C: `Items.c` (throwItem → animation loop). TS: `items/item-handlers.ts`. **S**
+  Fix: wired `render.plotItemAt`, `render.pauseAnimation`, and `render.refreshDungeonCell`
+  in `buildThrowCommandFn()` in `item-commands.ts`. `plotItemAt` reads backColor from
+  `getCellAppearance`, copies item foreColor, applies `colorMultiplierFromDungeonLight`
+  (or `clairvoyanceColor` for non-direct cells), then `plotCharWithColor`. `pauseAnimation`
+  calls `commitDraws()` then `pauseAndCheckForEvent(25ms)` so each frame is flushed before
+  the delay. `refreshDungeonCell` uses `buildRefreshDungeonCellFn()` to restore the cell.
 
 ---
 
