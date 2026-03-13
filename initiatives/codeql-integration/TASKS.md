@@ -98,61 +98,46 @@ Starting state: no CodeQL infrastructure in the repo
       reasoning for custom wrapper over JordyZomer
 
 ### Phase 3 close
-- [ ] `git commit -m "feat: codeql Phase 3 — MCP server configured"`
-- [ ] Update TASKS.md
-- [ ] Generate handoff prompt
+- [x] `git commit -m "feat: codeql Phase 3 — MCP server configured"`
+- [x] Update TASKS.md
+- [x] Generate handoff prompt
 
 ---
 
-## Phase 4: Query library + documentation
+## Phase 4: Query library + documentation ✓ COMPLETE
 
 ### 4a: Write common C queries
-- [ ] `codeql/queries/c-find-callers.ql` — all call sites of a named C function
-- [ ] `codeql/queries/c-find-callees.ql` — all functions called by a named C function
-- [ ] `codeql/queries/c-find-definition.ql` — definition location of a named C function
-- [ ] Test each against `codeql/databases/brogue-c`; verify correct results for known functions
-      (e.g. `attackMonster`, `applyDamageToCreature`)
+- [x] `codeql/queries/c/find-callers.ql` — all call sites of a named C function
+- [x] `codeql/queries/c/find-callees.ql` — all functions called by a named C function
+- [x] `codeql/queries/c/find-definition.ql` — definition location of a named C function
+- [x] Tested against `codeql/databases/brogue-c`; `attack` → Combat.c:1017, 6 callers ✓
 
 ### 4b: Write common TypeScript queries
-- [ ] `codeql/queries/ts-find-callers.ql`
-- [ ] `codeql/queries/ts-find-callees.ql`
-- [ ] `codeql/queries/ts-find-definition.ql`
-- [ ] Test each against `codeql/databases/rogue-ts`; verify correct results
+- [x] `codeql/queries/ts/find-callers.ql`
+- [x] `codeql/queries/ts/find-callees.ql`
+- [x] `codeql/queries/ts/find-definition.ql`
+- [x] Tested against `codeql/databases/rogue-ts`; `buildCombatAttackContext` → combat.ts:192 ✓
 
 ### 4c: Write `codeql/queries/README.md`
-- [ ] One-line description of each query
-- [ ] How to run a query manually via CLI
-- [ ] How the MCP server invokes them (or exposes equivalent tools)
+- [x] Query table with descriptions
+- [x] CLI usage instructions
+- [x] MCP usage instructions
 
 ### 4d: Complete `codeql/CONTEXT.md`
-- [ ] What CodeQL is and why it's here (2-3 sentences)
-- [ ] Folder structure explanation
-- [ ] How to run queries manually (CLI commands)
-- [ ] How to use queries through Claude Code's MCP tools
-- [ ] TS database refresh procedure
-- [ ] Cross-language tracing note: C→TS via `// C: FunctionName()` grep
-- [ ] When NOT to use CodeQL (single-file reads, small targeted searches are fine)
+- [x] What, folder structure, databases, query packs already present from Phase 3
+- [x] Cross-language tracing note (C→TS via `// C: FunctionName()` grep)
+- [x] When NOT to use CodeQL
+- [x] Agent investigation protocol (find → callers → callees → targeted read)
 
 ### 4e: Update `.context/WORKFLOW_v3.md`
-- [ ] Add "CodeQL-first investigation protocol" section:
-      Before reading any file during bug investigation, query CodeQL first to identify
-      the specific functions needed. Read only those — not entire files.
-      Include: query → review results → targeted read workflow
+- [x] Added "CodeQL-first investigation protocol" section with quick reference table
 
 ### 4f: Final checks
-- [ ] `PROJECT.md` entry for `codeql/` is accurate
-- [ ] `codeql/CONTEXT.md` has everything a new session needs to get started
-- [ ] No `codeql/databases/` content is staged (gitignored)
+- [x] `PROJECT.md` entry for `codeql/` is accurate
+- [x] `codeql/CONTEXT.md` complete
+- [x] No `codeql/databases/` content staged (gitignored)
 
 ### Phase 4 close
-- [ ] `git commit -m "feat: codeql Phase 4 — query library and documentation complete"`
-- [ ] Update TASKS.md — mark all phases complete
-- [ ] Update PROJECT.md active initiative (to `port-v2-persistence` or next item)
-- [ ] Final summary:
-  ```
-  codeql-integration complete.
-  Databases: codeql/databases/ (gitignored — re-extract if missing; see CONTEXT.md)
-  Queries: codeql/queries/
-  MCP: configured in .mcp.json
-  Agent instructions: .context/WORKFLOW_v3.md — CodeQL-first protocol
-  ```
+- [x] `git commit -m "feat: codeql Phase 4 — query library and documentation complete"`
+- [x] Update TASKS.md — all phases complete
+- [x] Update PROJECT.md active initiative back to `port-v2-persistence`

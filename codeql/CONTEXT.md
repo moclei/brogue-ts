@@ -130,7 +130,36 @@ JordyZomer's server uses SSE transport (deprecated in Claude Code) and requires
 a separate manual server start + Python/uv environment. The custom wrapper is
 a single committed file, auto-started as stdio, and has zero external dependencies.
 
-## Full agent instructions
+## Cross-language tracing (C → TypeScript)
 
-> Phase 4 — CodeQL-first investigation protocol will be documented here.
-> Until then, see `.context/WORKFLOW_v3.md` once updated.
+To find the TypeScript equivalent of a C function, grep `rogue-ts/src/` for the C function
+name as a comment. Convention in this project: ports include a `// C: FunctionName()`
+reference comment. This is faster than CodeQL for one-off lookups:
+
+```bash
+grep -r "// C: attack" rogue-ts/src/
+```
+
+## When NOT to use CodeQL
+
+CodeQL is best for traversal questions (callers, callees, data flow). Skip it for:
+
+- Reading a single known file — use Read directly
+- Searching for a string pattern — use Grep
+- Finding a file by name — use Glob
+
+Use CodeQL when you would otherwise need to read multiple large files to trace a call chain.
+
+## Agent investigation protocol
+
+Before reading any file during bug investigation:
+
+1. **Find definition** — run `find-definition.ql` (or `codeql_run_query_text`) to confirm
+   which file and line the function lives in. Do not assume from the file name.
+2. **Get callers** — run `find-callers.ql` to see all call sites. This scopes the blast
+   radius before reading anything.
+3. **Get callees** — run `find-callees.ql` to understand what the function depends on.
+4. **Read targeted** — read only the specific functions identified above, not entire files.
+
+This sequence replaces the habit of opening `IO.c` or `lifecycle.ts` top-to-bottom.
+The queries run in 200–800 ms and return structured file + line results.

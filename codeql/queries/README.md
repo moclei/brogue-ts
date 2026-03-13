@@ -2,33 +2,59 @@
 
 Common QL queries for navigating BrogueCE source and the TypeScript port.
 
-> **Phase 4 work item** — queries will be written in Phase 4. This README will be
-> updated with a table of all queries, usage examples, and how to invoke them via MCP.
-
 ## Structure
 
-- `c/` — queries against `codeql/databases/brogue-c` (C game logic)
-- `ts/` — queries against `codeql/databases/rogue-ts` (TypeScript port)
+- `c/` — queries against `codeql/databases/brogue-c` (C game logic, `import cpp`)
+- `ts/` — queries against `codeql/databases/rogue-ts` (TypeScript port, `import javascript`)
 
-Each subdirectory is a separate QL pack (different languages require separate packs).
+Each subdirectory is a separate QL pack with its own dependencies.
 
-## Running a query
+## Query reference
+
+| File | Database | Description |
+|------|----------|-------------|
+| `c/find-definition.ql` | brogue-c | Definition location of a named C function |
+| `c/find-callers.ql` | brogue-c | All call sites of a named C function |
+| `c/find-callees.ql` | brogue-c | All functions called by a named C function |
+| `ts/find-definition.ql` | rogue-ts | Definition location of a named TS function |
+| `ts/find-callers.ql` | rogue-ts | All call sites of a named TS function |
+| `ts/find-callees.ql` | rogue-ts | All functions called by a named TS function |
+
+## Running a query via CLI
 
 ```bash
-# C query
-codeql query run --database=codeql/databases/brogue-c codeql/queries/c/<query>.ql
+# C query (from repo root)
+codeql query run \
+  --database=codeql/databases/brogue-c \
+  codeql/queries/c/find-callers.ql
 
 # TypeScript query
-codeql query run --database=codeql/databases/rogue-ts codeql/queries/ts/<query>.ql
+codeql query run \
+  --database=codeql/databases/rogue-ts \
+  codeql/queries/ts/find-callers.ql
 ```
 
-## Planned queries (Phase 4)
+The function name is set via the `funcName()` predicate at the top of each file.
+Edit it before running, or use `codeql_run_query_text` via MCP and substitute inline.
 
-| File | Description |
-|------|-------------|
-| `c/find-callers.ql` | All call sites of a named C function |
-| `c/find-callees.ql` | All functions called by a named C function |
-| `c/find-definition.ql` | Definition location of a named C function |
-| `ts/find-callers.ql` | All call sites of a named TS function |
-| `ts/find-callees.ql` | All functions called by a named TS function |
-| `ts/find-definition.ql` | Definition location of a named TS function |
+## Running via MCP (Claude Code)
+
+Use the `codeql_run_query_file` tool with a specific function name substituted inline:
+
+```
+codeql_run_query_file:
+  database: brogue-c
+  queryFile: codeql/queries/c/find-callers.ql
+```
+
+Or use `codeql_run_query_text` to run a query with the function name hard-coded:
+
+```ql
+import cpp
+
+from FunctionCall call
+where call.getTarget().getName() = "applyDamageToCreature"
+select call.getEnclosingFunction().getName(),
+       call.getFile().getRelativePath(),
+       call.getLocation().getStartLine()
+```
