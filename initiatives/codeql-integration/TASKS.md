@@ -129,7 +129,7 @@ Starting state: no CodeQL infrastructure in the repo
 - [x] When NOT to use CodeQL
 - [x] Agent investigation protocol (find → callers → callees → targeted read)
 
-### 4e: Update `.context/WORKFLOW_v3.md`
+### 4e: Update `.context/WORKFLOW.md`
 - [x] Added "CodeQL-first investigation protocol" section with quick reference table
 
 ### 4f: Final checks

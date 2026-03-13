@@ -137,7 +137,7 @@ reference comment. This is manual but effective and doesn't require CodeQL.
 
 ### WORKFLOW.md update
 
-Add "CodeQL-first investigation protocol":
+Add "CodeQL-first investigation protocol" to `.context/WORKFLOW.md`:
 > Before reading any file during bug investigation:
 > 1. Use CodeQL to find the function definition (find-definition query)
 > 2. Use CodeQL to get callers and callees
