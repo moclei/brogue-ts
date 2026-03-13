@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-13 (B43 discover/discoverCell wired in item contexts; B41 updateClairvoyance wired; B40 createFlare wired; B38 animation fixed; B37–B45 filed; B32 unblocked; B25/B15 WAI; B31 fixed)
+**Status:** updated 2026-03-13 (B48 filed; B43 discover/discoverCell wired in item contexts; B41 updateClairvoyance wired; B40 createFlare wired; B38 animation fixed; B37–B45 filed; B32 unblocked; B25/B15 WAI; B31 fixed)
 **Tests at last update:** 88 files · 2286 pass · 55 skip
 
 ---
@@ -696,6 +696,21 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   them, or a `PAUSE_BEHAVIOR` flag check that maps the C behavior correctly.
   C: `Movement.c` (travelMap, pauseAnimation). TS: `movement.ts` (buildTravelContext
   `pauseAnimation` field), `platform.ts` (pauseAndCheckForEvent). **M**
+
+- [ ] **B48 — Hover over floor item crashes: `itemName` receives empty item tables** —
+  Hovering the mouse over a scroll (or other unidentified item) on the floor crashes with
+  `TypeError: Cannot read properties of undefined (reading 'identified')` at
+  `itemName (item-naming.ts:255)`.
+  Root cause: `describedItemName` closure in `buildPrintLocationDescriptionFn()`
+  (`io/sidebar-wiring.ts:333`) builds the naming context with empty arrays
+  (`scrollTable: []`, `potionTable: []`, etc.). When `itemName` indexes into
+  `scrollTable[item.kind]`, the entry is `undefined` → crash.
+  Fix: destructure real `mutableScrollTable`, `mutablePotionTable` from `getGameState()`;
+  import read-only `wandTable`, `staffTable`, `ringTable`, `charmTable`, `charmEffectTable`
+  from item-catalog; pass them to the `itemNameFn` context inside `describedItemName`.
+  Stack: `hover-wiring.ts:222` → `sidebar-wiring.ts:306` → `map-queries.ts:685` →
+  `map-queries.ts:661` → `sidebar-wiring.ts:334` → `item-naming.ts:255`.
+  C: `IO.c` (printLocationDescription, itemName). TS: `io/sidebar-wiring.ts`. **S**
 
 - [x] **B47 — Seeded game entry freezes** — Clicking "New Seeded Game" on the title menu
   showed nothing and froze the game. Root cause: `getInputTextString` (IO.c:2720) was a
