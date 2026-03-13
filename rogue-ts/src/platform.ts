@@ -159,8 +159,9 @@ export async function pauseAndCheckForEventIgnoringHover(ms: number): Promise<bo
     while (remaining > 0) {
         const interrupted = await pauseAndCheckForEvent(remaining);
         if (!interrupted) return false;
-        // Real event (keystroke or mouse-button)?
-        if (_lookaheadEvent === null || _lookaheadEvent.eventType !== EventType.MouseEnteredCell) {
+        // Re-read after await — cast to escape TypeScript's stale narrowing.
+        const ev = _lookaheadEvent as RogueEvent | null;
+        if (ev === null || ev.eventType !== EventType.MouseEnteredCell) {
             return true;
         }
         // Hover event — discard and continue waiting.

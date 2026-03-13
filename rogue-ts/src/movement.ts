@@ -60,7 +60,7 @@ import {
     windowToMapX as windowToMapXFn,
     windowToMapY as windowToMapYFn,
 } from "./io/display.js";
-import { platformPauseAndCheckForEvent, platformPauseIgnoringHover } from "./platform-bridge.js";
+import { platformPauseIgnoringHover } from "./platform-bridge.js";
 import { buildUpdateVisionFn } from "./vision-wiring.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
 import {

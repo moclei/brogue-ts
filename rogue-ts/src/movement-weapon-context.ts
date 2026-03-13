@@ -131,7 +131,8 @@ export function buildWeaponAttackContext(): WeaponAttackContext {
                 creatureBlocks, cellBlocks,
             );
         },
-        zap: buildStaffZapFn(),
+        zap: (origin, target, bolt, hideDetails, boltInView) =>
+            buildStaffZapFn()(origin, target, bolt as never, hideDetails, boltInView).then(() => {}),
 
         confirm: () => true,                 // stub — sync context; no async confirm available
         playerCanSeeOrSense: (x, y) =>
