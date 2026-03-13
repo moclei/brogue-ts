@@ -617,6 +617,7 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   `staff-wiring.ts` (1 stub). All replaced with `flashMonsterFn(m, c, s, combatCtx/damageCtx)`.
   `flashMonster` sets `MB_WILL_FLASH` and `creaturesWillFlashThisTurn`; `displayMonsterFlashes`
   (already wired in `input-keystrokes.ts`) handles the actual rendering before next input.
+  ⚠ Awaits playtest confirmation — could not find a seed with a staff/scroll handy to verify.
 
 - [ ] **B40 — `createFlare` stub — no light-flare effect** — `createFlare` is a no-op.
   It creates a brief expanding light burst used for lightning bolt impacts, fire explosions,
