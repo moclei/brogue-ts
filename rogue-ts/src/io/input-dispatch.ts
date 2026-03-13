@@ -44,7 +44,7 @@ import {
 import type { InputContext } from "./input-keystrokes.js";
 import {
     stripShiftFromMovementKeystroke, considerCautiousMode,
-    pauseAnimation, nextKeyPress,
+    pauseAnimation,
 } from "./input-keystrokes.js";
 import { PAUSE_BEHAVIOR_DEFAULT } from "../types/types.js";
 
@@ -101,7 +101,7 @@ export async function confirm(ctx: InputContext, prompt: string, alsoDuringPlayb
  * Show a text-entry prompt and return the entered string.
  * Returns null if the user cancelled (Escape).
  */
-export function getInputTextString(
+export async function getInputTextString(
     ctx: InputContext,
     prompt: string,
     maxLength: number,
@@ -109,7 +109,7 @@ export function getInputTextString(
     promptSuffix: string,
     textEntryType: TextEntryType,
     useDialogBox: boolean,
-): string | null {
+): Promise<string | null> {
     const textEntryBounds: [number, number][] = [
         [" ".charCodeAt(0), "~".charCodeAt(0)],
         [" ".charCodeAt(0), "~".charCodeAt(0)],
@@ -174,7 +174,10 @@ export function getInputTextString(
             { windowX: x + charNum, windowY: y },
             black, white,
         );
-        keystroke = nextKeyPress(ctx, true);
+        let theEvent: RogueEvent;
+        do { theEvent = await ctx.nextBrogueEvent(true, false, false); }
+        while (theEvent.eventType !== EventType.Keystroke);
+        keystroke = theEvent.param1;
 
         if (keystroke === DELETE_KEY && charNum > 0) {
             ctx.printString(suffix, charNum + x - 1, y, gray, black, null);

@@ -137,7 +137,7 @@ export interface ItemHandlerContext {
     discordBlast(source: string, radius: number): void;
 
     // ── Visual effects ──
-    colorFlash(color: Color, flags: number, tileFlags: number, radius: number, maxRadius: number, x: number, y: number): void;
+    colorFlash(color: Color, flags: number, tileFlags: number, radius: number, maxRadius: number, x: number, y: number): void | Promise<void>;
     createFlare(x: number, y: number, lightIndex: number): void;
     displayLevel(): void;
 
@@ -718,7 +718,7 @@ export async function readScroll(theItem: Item, ctx: ItemHandlerContext): Promis
                 }
             }
             ctx.displayLevel();
-            ctx.colorFlash(
+            await ctx.colorFlash(
                 ctx.magicMapFlashColor, 0, ctx.MAGIC_MAPPED,
                 15, DCOLS + DROWS,
                 ctx.player.loc.x, ctx.player.loc.y,
@@ -861,7 +861,7 @@ export async function drinkPotion(theItem: Item, ctx: ItemHandlerContext): Promi
             break;
 
         case PotionKind.Descent:
-            ctx.colorFlash(ctx.darkBlue, 0, ctx.IN_FIELD_OF_VIEW, 3, 3, ctx.player.loc.x, ctx.player.loc.y);
+            await ctx.colorFlash(ctx.darkBlue, 0, ctx.IN_FIELD_OF_VIEW, 3, 3, ctx.player.loc.x, ctx.player.loc.y);
             ctx.message("vapor pours out of the flask and causes the floor to disappear!", 0);
             ctx.spawnDungeonFeature(
                 ctx.player.loc.x, ctx.player.loc.y,

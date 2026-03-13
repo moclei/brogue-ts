@@ -587,6 +587,13 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   cannot tell if a scroll or potion did anything.
   C: `IO.c` (colorFlash). TS: `items.ts`, `items/staff-wiring.ts`, `items/zap-context.ts`,
   `time/creature-effects.ts` (all stub it). **M**
+  Fix (part 1): `buildColorFlashFn()` in `io-wiring.ts` — async single-frame hilite + commitDraws
+  + 50ms pause + restore. Wired all 5 stub sites in `items.ts`.
+  Fix (part 2): Added `await` to both `ctx.colorFlash(...)` call sites in `item-handlers.ts`
+  (magic mapping + potion of descent) so the flash completes before turn processing overwrites it.
+  Also fixed seeded game freeze: `getInputTextString` was sync, spinning on `nextKeyPress`
+  → fake event → infinite loop. Made async using `ctx.nextBrogueEvent` (added to `InputContext`,
+  wired in `input-context.ts`). Filed as **B47** below.
 
 - [ ] **B39 — `flashMonster` stub — no creature flash on hit or status** — `flashMonster`
   is a no-op in all contexts. It briefly changes a creature's display color to give visual
@@ -661,6 +668,16 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   them, or a `PAUSE_BEHAVIOR` flag check that maps the C behavior correctly.
   C: `Movement.c` (travelMap, pauseAnimation). TS: `movement.ts` (buildTravelContext
   `pauseAnimation` field), `platform.ts` (pauseAndCheckForEvent). **M**
+
+- [x] **B47 — Seeded game entry freezes** — Clicking "New Seeded Game" on the title menu
+  showed nothing and froze the game. Root cause: `getInputTextString` (IO.c:2720) was a
+  synchronous function calling `nextKeyPress` → sync `nextBrogueEvent` → `nextKeyOrMouseEvent`
+  which returns a fake event (EventError) in the browser — causing an infinite sync loop.
+  Fix: added `nextBrogueEvent(...)` to `InputContext` (wired in `input-context.ts` as
+  `commitDraws + waitForEvent`); made `getInputTextString` async using
+  `await ctx.nextBrogueEvent(true, false, false)` to filter for keystroke events.
+  C: `IO.c` (getInputTextString:2720). TS: `io/input-dispatch.ts`, `io/input-keystrokes.ts`,
+  `io/input-context.ts`. **S**
 
 ---
 

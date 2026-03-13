@@ -399,11 +399,9 @@ export function buildInputContext(): InputContext {
         rectangularShading: () => {},
 
         // ── Events / timing ───────────────────────────────────────────────────
-        // nextKeyOrMouseEvent is the synchronous fallback used inside
-        // nextBrogueEvent's blocking loops.  On the browser platform all
-        // actual events arrive through waitForEvent() before executeKeystroke
-        // is called, so returning a no-op event here prevents infinite loops.
+        // nextKeyOrMouseEvent: sync fallback; real events arrive via waitForEvent().
         nextKeyOrMouseEvent: () => fakeEvent(),
+        nextBrogueEvent: async (_t, _c, _r) => { commitDraws(); return waitForEvent(); },
         pauseForMilliseconds: () => false,
         locIsInWindow: () => false,
 

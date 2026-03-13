@@ -137,6 +137,7 @@ export interface InputContext {
     // Events / timing
     pauseForMilliseconds(milliseconds: number, behavior: PauseBehavior): boolean;
     nextKeyOrMouseEvent(textInput: boolean, colorsDance: boolean): RogueEvent;
+    nextBrogueEvent(textInput: boolean, colorsDance: boolean, realInputEvenInPlayback: boolean): Promise<RogueEvent>;
     locIsInWindow(pos: WindowPos): boolean;
 
     // Display
