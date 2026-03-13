@@ -33,6 +33,7 @@ import {
     killCreature as killCreatureFn,
     addPoison as addPoisonFn,
     heal as healFn,
+    flashMonster as flashMonsterFn,
 } from "../combat/combat-damage.js";
 import { haste as hasteFn } from "./item-effects.js";
 import { negateCreature as negateCreatureFn } from "../monsters/monster-negate.js";
@@ -414,7 +415,7 @@ export function buildStaffZapFn() {
             addPoison: (monst, tpp, amount) => addPoisonFn(monst, tpp, amount, damageCtx),
             heal: (monst, amount, healsAboveMax) => healFn(monst, amount, healsAboveMax, damageCtx),
             cloneMonster: () => null,       // stub
-            flashMonster: () => {},         // stub — visual only
+            flashMonster: (m, c, s) => flashMonsterFn(m, c, s, damageCtx),
             wakeUp: buildWakeUpFn(player, monsters),
             exposeCreatureToFire: buildExposeCreatureToFireFn(),
             exposeTileToFire: () => false,  // stub — terrain fire

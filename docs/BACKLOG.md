@@ -606,13 +606,17 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   `displayLevelFn()` after `displayInventoryFn` returns, so the buffer reflects current pmap flags
   before the next commit.
 
-- [ ] **B39 — `flashMonster` stub — no creature flash on hit or status** — `flashMonster`
+- [x] **B39 — `flashMonster` stub — no creature flash on hit or status** — `flashMonster`
   is a no-op in all contexts. It briefly changes a creature's display color to give visual
   feedback on attacks, healing, status application, and ability use. Without it, combat
   and spell effects are silent — the player cannot see when a monster is hit, healed,
   slowed, confused, etc.
   C: `IO.c` (flashMonster). TS: `items.ts`, `items/staff-wiring.ts`, `items/zap-context.ts`
   (all stub it). **M**
+  Fix: imported `flashMonster` from `combat/combat-damage.ts` in `items.ts` (4 stubs) and
+  `staff-wiring.ts` (1 stub). All replaced with `flashMonsterFn(m, c, s, combatCtx/damageCtx)`.
+  `flashMonster` sets `MB_WILL_FLASH` and `creaturesWillFlashThisTurn`; `displayMonsterFlashes`
+  (already wired in `input-keystrokes.ts`) handles the actual rendering before next input.
 
 - [ ] **B40 — `createFlare` stub — no light-flare effect** — `createFlare` is a no-op.
   It creates a brief expanding light burst used for lightning bolt impacts, fire explosions,

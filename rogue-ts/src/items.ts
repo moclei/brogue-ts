@@ -42,6 +42,7 @@ import {
     heal as healFn,
     killCreature as killCreatureFn,
     inflictLethalDamage as inflictLethalDamageFn,
+    flashMonster as flashMonsterFn,
 } from "./combat/combat-damage.js";
 import { alertMonster as alertMonsterFn } from "./monsters/monster-state.js";
 import {
@@ -375,12 +376,12 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 monsterRevealed: (m) => monsterRevealedFn(m, player),
                 refreshDungeonCell,
                 refreshSideBar,
-                flashMonster: () => {},        // permanent-defer — visual flash effect only
+                flashMonster: (m, c, s) => flashMonsterFn(m, c, s, combatCtx),
             });
         },
         wakeUp: buildWakeUpFn(player, monsters),
         fadeInMonster: buildFadeInMonsterFn(),
-        flashMonster: () => {},              // permanent-defer — visual flash effect only
+        flashMonster: (m, c, s) => flashMonsterFn(m, c, s, combatCtx),
         aggravateMonsters(range, x, y, color) {
             aggravateMonstersFn(range, x, y, color, {
                 player,
@@ -483,7 +484,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 itemMessageColor,
                 negate: (m) => negateCreature(m, negateCtx),
                 colorFlash: buildColorFlashFn(),
-                flashMonster: () => {},      // permanent-defer — visual flash effect only
+                flashMonster: (m, c, s) => flashMonsterFn(m, c, s, combatCtx),
                 canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
                 messageWithColor: io.messageWithColor,
                 identify: (item) => identifyFn(item, gameConst),
@@ -506,7 +507,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 itemMessageColor,
                 canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
                 colorFlash: buildColorFlashFn(),
-                flashMonster: () => {},      // permanent-defer — visual flash effect only
+                flashMonster: (m, c, s) => flashMonsterFn(m, c, s, combatCtx),
                 messageWithColor: io.messageWithColor,
                 IN_FIELD_OF_VIEW: TileFlag.IN_FIELD_OF_VIEW,
             });
