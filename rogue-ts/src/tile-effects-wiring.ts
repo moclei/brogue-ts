@@ -62,8 +62,8 @@ import {
 } from "./globals/colors.js";
 import { randRange, randPercent, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "./math/rng.js";
 import { DCOLS, DROWS } from "./types/constants.js";
-import { TileFlag } from "./types/flags.js";
-import { ItemCategory } from "./types/enums.js";
+import { TileFlag, ItemFlag } from "./types/flags.js";
+
 import { CreatureState, DungeonLayer } from "./types/enums.js";
 import { INVALID_POS } from "./types/types.js";
 import type { Creature, Pos, Color } from "./types/types.js";
@@ -138,17 +138,17 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
         const machineNum = pmap[loc.x]?.[loc.y]?.machineNumber ?? 0;
         if (player.loc.x === loc.x && player.loc.y === loc.y) {
             const k = packItems.find(it =>
-                (it.category & ItemCategory.KEY) &&
+                (it.flags & ItemFlag.ITEM_IS_KEY) &&
                 keyMatchesLocationFn(it, loc, rogue.depthLevel, machineNum));
             if (k) return k;
         }
         if (pmap[loc.x]?.[loc.y]?.flags & TileFlag.HAS_ITEM) {
             const fi = itemAtLocFn(loc, floorItems);
-            if (fi && (fi.category & ItemCategory.KEY) &&
+            if (fi && (fi.flags & ItemFlag.ITEM_IS_KEY) &&
                 keyMatchesLocationFn(fi, loc, rogue.depthLevel, machineNum)) return fi;
         }
         const monst = monsterAtLoc(loc);
-        if (monst?.carriedItem && (monst.carriedItem.category & ItemCategory.KEY) &&
+        if (monst?.carriedItem && (monst.carriedItem.flags & ItemFlag.ITEM_IS_KEY) &&
             keyMatchesLocationFn(monst.carriedItem, loc, rogue.depthLevel, machineNum))
             return monst.carriedItem;
         return null;

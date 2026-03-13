@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-12 (B34 fixed; B35 B36 filed; B13 B30 updated; B36 fixed 2026-03-12; B35 fixed 2026-03-12; B27 fixed 2026-03-12; B28 fixed 2026-03-12; B32 deferred; B30 fixed 2026-03-12; B23 fixed 2026-03-12; B17 fixed 2026-03-12; B14 fixed 2026-03-12)
+**Status:** updated 2026-03-12 (B34 fixed; B35 B36 filed; B13 B30 updated; B36 fixed 2026-03-12; B35 fixed 2026-03-12; B27 fixed 2026-03-12; B28 fixed 2026-03-12; B32 deferred; B30 fixed 2026-03-12; B23 fixed 2026-03-12; B17 fixed 2026-03-12; B14 fixed 2026-03-12; B25/B15 closed WAI 2026-03-12; B31 fixed 2026-03-12)
 **Tests at last update:** 88 files · 2284 pass · 55 skip
 
 ---
@@ -501,7 +501,7 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
 
 ### Needs investigation (not yet classified)
 
-- [ ] **B31 — "The missing item must be replaced" — cannot pick up items in locked room** —
+- [x] **B31 — "The missing item must be replaced" — cannot pick up items in locked room** —
   After entering a locked room with a key, attempting to pick up items produced a message
   like "The missing item must be replaced" and no items could be taken. No items had been
   picked up yet. The level had two locked rooms; this first room contained a key to the
@@ -512,20 +512,29 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   the key-to-second-room being present triggered an unexpected condition.
   C: `Items.c` (item pickup, `ITEM_IS_KEY` / machine item protection flags).
   TS: `items/item-handlers.ts`, `items/item-commands.ts`. **investigate first**
+  Fix: `keyOnTileAt()` in `movement.ts` and `tile-effects-wiring.ts` was checking
+  `item.category & ItemCategory.KEY` (item is a golden key type) instead of
+  `item.flags & ItemFlag.ITEM_IS_KEY` (item has been designated as a key by the machine
+  architect). Vault items (weapons/armor/wands) have `ITEM_IS_KEY` flag but are not
+  category KEY — so cages closed immediately after level generation.
 
-- [ ] **B25 — Items in locked vault appear unidentified** — Two unidentified rings were
+- [x] **B25 — Items in locked vault appear unidentified** — Two unidentified rings were
   observed in a locked item vault. Verify C behaviour first: in C, vault items are
   standard unidentified items — the vault room type determines *category* but identification
   still requires scrolls/use. If that is correct C behaviour, close as WAI. If C auto-
   identifies vault items on entry, trace the identification call site.
   C: `Architect.c` (vault machine setup, item generation). **investigate first**
+  Resolution: WAI. `generateItem()` produces unidentified items; `Architect.c` never calls
+  `ITEM_IDENTIFIED` on vault items. C behaves identically.
 
-- [ ] **B15 — Item/treasure rooms appearing on depth 1** — Treasure rooms and item
+- [x] **B15 — Item/treasure rooms appearing on depth 1** — Treasure rooms and item
   vaults were observed on the first floor. Unclear if this is intended (some machines
   have no minimum depth in C) or a level-generation depth-guard bug. Investigate:
   read machine catalog minimum-depth conditions in C; compare to TS machine catalog
   and `buildAMachine` depth checks before classifying as bug or acceptable behavior.
   C: `Architect.c` (buildAMachine, machine catalog depth guards). **investigate first**
+  Resolution: WAI. `GlobalsBrogue.c` sets `depthRange [1, 12]` for the Mixed/Single
+  item libraries; both C and TS blueprint-catalog agree. Depth-1 vaults are intended.
 
 - [x] **B33 — Crash when throwing a dart** — Game froze (infinite synchronous loop)
   when the mouse hovered over a cell just below the map boundary during throw targeting.

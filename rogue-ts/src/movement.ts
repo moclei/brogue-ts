@@ -107,7 +107,7 @@ import { allocGrid, freeGrid } from "./grid/grid.js";
 import { dijkstraScan, calculateDistances } from "./dijkstra/dijkstra.js";
 import { FP_FACTOR } from "./math/fixpt.js";
 import { randRange, randPercent, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "./math/rng.js";
-import { TileFlag, TerrainFlag, TerrainMechFlag } from "./types/flags.js";
+import { TileFlag, TerrainFlag, TerrainMechFlag, ItemFlag } from "./types/flags.js";
 import { ItemCategory, CreatureState, DungeonLayer } from "./types/enums.js";
 import {
     ASCEND_KEY, DESCEND_KEY, RETURN_KEY,
@@ -225,15 +225,15 @@ export function buildMovementContext(): PlayerMoveContext {
         keyOnTileAt: (loc: Pos) => {
             const machineNum = pmap[loc.x]?.[loc.y]?.machineNumber ?? 0;
             if (player.loc.x === loc.x && player.loc.y === loc.y) {
-                const k = packItems.find(it => (it.category & ItemCategory.KEY) && keyMatchesLocationFn(it, loc, rogue.depthLevel, machineNum));
+                const k = packItems.find(it => (it.flags & ItemFlag.ITEM_IS_KEY) && keyMatchesLocationFn(it, loc, rogue.depthLevel, machineNum));
                 if (k) return k;
             }
             if (pmap[loc.x][loc.y].flags & TileFlag.HAS_ITEM) {
                 const fi = itemAtLocFn(loc, floorItems);
-                if (fi && (fi.category & ItemCategory.KEY) && keyMatchesLocationFn(fi, loc, rogue.depthLevel, machineNum)) return fi;
+                if (fi && (fi.flags & ItemFlag.ITEM_IS_KEY) && keyMatchesLocationFn(fi, loc, rogue.depthLevel, machineNum)) return fi;
             }
             const monst = monsterAtLoc(loc);
-            if (monst?.carriedItem && (monst.carriedItem.category & ItemCategory.KEY) && keyMatchesLocationFn(monst.carriedItem, loc, rogue.depthLevel, machineNum)) return monst.carriedItem;
+            if (monst?.carriedItem && (monst.carriedItem.flags & ItemFlag.ITEM_IS_KEY) && keyMatchesLocationFn(monst.carriedItem, loc, rogue.depthLevel, machineNum)) return monst.carriedItem;
             return null;
         },
         initializeItem: () => ({}) as any,
