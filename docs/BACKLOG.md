@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-13 (B48 filed; B43 discover/discoverCell wired in item contexts; B41 updateClairvoyance wired; B40 createFlare wired; B38 animation fixed; B37–B45 filed; B32 unblocked; B25/B15 WAI; B31 fixed)
+**Status:** updated 2026-03-13 (B48 fixed — hover crash; B32 fixed — whip zap wired; B43 discover/discoverCell wired in item contexts; B41 updateClairvoyance wired; B40 createFlare wired; B38 animation fixed; B37–B45 filed; B32 unblocked; B25/B15 WAI; B31 fixed)
 **Tests at last update:** 88 files · 2286 pass · 55 skip
 
 ---
@@ -428,7 +428,7 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   `turn-processing.ts` after `applyInstantTileEffectsToCreature`.
   C: `Time.c:2425`. TS: `time/turn-processing.ts`, `turn.ts`, `time/stairs-wiring.ts`. **M**
 
-- [ ] **B32 — Whip weapon — cannot attack after equipping** — After switching weapon to a
+- [x] **B32 — Whip weapon — cannot attack after equipping** — After switching weapon to a
   whip, the player appeared unable to attack monsters (attacks did not resolve). Whip is a
   reach weapon (attacks 2 squares away) in C; if reach-weapon attack logic is not ported,
   neither adjacent nor distant attacks work.
@@ -697,7 +697,7 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `Movement.c` (travelMap, pauseAnimation). TS: `movement.ts` (buildTravelContext
   `pauseAnimation` field), `platform.ts` (pauseAndCheckForEvent). **M**
 
-- [ ] **B48 — Hover over floor item crashes: `itemName` receives empty item tables** —
+- [x] **B48 — Hover over floor item crashes: `itemName` receives empty item tables** —
   Hovering the mouse over a scroll (or other unidentified item) on the floor crashes with
   `TypeError: Cannot read properties of undefined (reading 'identified')` at
   `itemName (item-naming.ts:255)`.

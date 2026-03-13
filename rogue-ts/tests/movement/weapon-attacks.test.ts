@@ -118,7 +118,7 @@ function makeCtx(overrides: Partial<WeaponAttackContext> = {}): WeaponAttackCont
         attack: () => true,
         boltCatalog: [],
         getImpactLoc: (_o, _t) => ({ x: 5, y: 3 }),
-        zap: () => {},
+        zap: async () => {},
         confirm: () => true,
         playerCanSeeOrSense: () => true,
         plotForegroundChar: () => {},
@@ -249,23 +249,23 @@ describe("abortAttack", () => {
 // =============================================================================
 
 describe("handleWhipAttacks", () => {
-    it("returns false when player has no weapon", () => {
+    it("returns false when player has no weapon", async () => {
         const ctx = makeCtx();
         const aborted = { value: false };
-        expect(handleWhipAttacks(ctx.player, 0, aborted, ctx)).toBe(false);
+        expect(await handleWhipAttacks(ctx.player, 0, aborted, ctx)).toBe(false);
     });
 
-    it("returns false when weapon doesn't extend", () => {
+    it("returns false when weapon doesn't extend", async () => {
         const ctx = makeCtx({
             rogue: { weapon: makeWeapon(0), playbackFastForward: false },
         });
         const aborted = { value: false };
-        expect(handleWhipAttacks(ctx.player, 0, aborted, ctx)).toBe(false);
+        expect(await handleWhipAttacks(ctx.player, 0, aborted, ctx)).toBe(false);
     });
 
-    it("returns true and calls zap when a valid target exists", () => {
+    it("returns true and calls zap when a valid target exists", async () => {
         const defender = makeCreature({ loc: { x: 5, y: 3 } });
-        const zapSpy = vi.fn();
+        const zapSpy = vi.fn().mockResolvedValue(undefined);
         const whipBolt = { theChar: 0 } as BoltInfo;
         const boltCatalog: BoltInfo[] = [];
         boltCatalog[BoltType.WHIP] = whipBolt;
@@ -279,19 +279,19 @@ describe("handleWhipAttacks", () => {
         });
 
         const aborted = { value: false };
-        const result = handleWhipAttacks(ctx.player, 0, aborted, ctx);
+        const result = await handleWhipAttacks(ctx.player, 0, aborted, ctx);
         expect(result).toBe(true);
         expect(zapSpy).toHaveBeenCalledTimes(1);
     });
 
-    it("returns false when diagonally blocked", () => {
+    it("returns false when diagonally blocked", async () => {
         const ctx = makeCtx({
             rogue: { weapon: makeWeapon(ItemFlag.ITEM_ATTACKS_EXTEND), playbackFastForward: false },
             diagonalBlocked: () => true,
         });
 
         const aborted = { value: false };
-        expect(handleWhipAttacks(ctx.player, 4, aborted, ctx)).toBe(false);
+        expect(await handleWhipAttacks(ctx.player, 4, aborted, ctx)).toBe(false);
     });
 });
 

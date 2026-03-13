@@ -70,7 +70,7 @@ export interface WeaponAttackContext {
     // ── Bolt system ──
     boltCatalog: readonly BoltInfo[];
     getImpactLoc(origin: Pos, target: Pos, maxDistance: number, returnLastEmpty: boolean, bolt: BoltInfo | null): Pos;
-    zap(origin: Pos, target: Pos, bolt: BoltInfo, hideDetails: boolean, boltInView: boolean): void;
+    zap(origin: Pos, target: Pos, bolt: BoltInfo, hideDetails: boolean, boltInView: boolean): Promise<void>;
 
     // ── UI ──
     confirm(prompt: string, defaultYes: boolean): boolean;
@@ -216,12 +216,12 @@ export function abortAttack(
  * @param aborted - An object with a `value` field; set to true if the player
  *   opted not to attack (as opposed to there being no valid whip target).
  */
-export function handleWhipAttacks(
+export async function handleWhipAttacks(
     attacker: Creature,
     dir: number,
     aborted: { value: boolean },
     ctx: WeaponAttackContext,
-): boolean {
+): Promise<boolean> {
     const isPlayer = attacker === ctx.player;
 
     // Check if attacker has whip capability
@@ -266,7 +266,7 @@ export function handleWhipAttacks(
         attacker.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_SUBMERGED;
         const theBolt: BoltInfo = { ...ctx.boltCatalog[BoltType.WHIP] };
         theBolt.theChar = WHIP_BOLT_CHARS[dir];
-        ctx.zap(originLoc, targetLoc, theBolt, false, false);
+        await ctx.zap(originLoc, targetLoc, theBolt, false, false);
         return true;
     }
     return false;

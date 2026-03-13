@@ -371,7 +371,7 @@ function makePlayerMoveContext(pmap: Pcell[][], overrides: Partial<PlayerMoveCon
         allMonsters: () => [],
         layerWithTMFlag: () => -1,
         layerWithFlag: () => 0,
-        handleWhipAttacks: () => false,
+        handleWhipAttacks: async () => false,
         handleSpearAttacks: () => false,
         buildFlailHitList: () => {},
         buildHitList: () => {},
@@ -429,11 +429,11 @@ describe("playerMoves", () => {
         expect(ctx.player.loc.y).toBe(5);
     });
 
-    it("sets HAS_PLAYER flag on new cell and clears old cell", () => {
+    it("sets HAS_PLAYER flag on new cell and clears old cell", async () => {
         const pmap = makePmap();
         const ctx = makePlayerMoveContext(pmap);
 
-        playerMoves(Direction.Right, ctx);
+        await playerMoves(Direction.Right, ctx);
 
         expect(pmap[5][5].flags & TileFlag.HAS_PLAYER).toBe(0);
         expect(pmap[6][5].flags & TileFlag.HAS_PLAYER).toBeTruthy();
@@ -454,7 +454,7 @@ describe("playerMoves", () => {
         expect(cancelSpy).not.toHaveBeenCalled();
     });
 
-    it("picks up items when moving to a cell with HAS_ITEM", () => {
+    it("picks up items when moving to a cell with HAS_ITEM", async () => {
         const pmap = makePmap();
         pmap[6][5].flags |= TileFlag.HAS_ITEM;
         const pickupSpy = vi.fn();
@@ -462,7 +462,7 @@ describe("playerMoves", () => {
             pickUpItemAt: pickupSpy,
         });
 
-        playerMoves(Direction.Right, ctx);
+        await playerMoves(Direction.Right, ctx);
 
         expect(pickupSpy).toHaveBeenCalledWith({ x: 6, y: 5 });
         expect(ctx.rogue.disturbed).toBe(true);
@@ -478,7 +478,7 @@ describe("playerMoves", () => {
         expect(ctx.player.loc.x).toBe(5); // didn't move
     });
 
-    it("uses stairs when moving to down staircase location", () => {
+    it("uses stairs when moving to down staircase location", async () => {
         const pmap = makePmap();
         const stairsSpy = vi.fn();
         const ctx = makePlayerMoveContext(pmap, {
@@ -486,19 +486,19 @@ describe("playerMoves", () => {
         });
         ctx.rogue.downLoc = { x: 6, y: 5 };
 
-        playerMoves(Direction.Right, ctx);
+        await playerMoves(Direction.Right, ctx);
 
         expect(stairsSpy).toHaveBeenCalledWith(1);
     });
 
-    it("calls playerTurnEnded on successful movement", () => {
+    it("calls playerTurnEnded on successful movement", async () => {
         const pmap = makePmap();
         const turnEndedSpy = vi.fn();
         const ctx = makePlayerMoveContext(pmap, {
             playerTurnEnded: turnEndedSpy,
         });
 
-        playerMoves(Direction.Right, ctx);
+        await playerMoves(Direction.Right, ctx);
 
         expect(turnEndedSpy).toHaveBeenCalledTimes(1);
     });
