@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-13 (B40 createFlare wired; B38 animation fixed; B37–B45 filed; B32 unblocked; B25/B15 WAI; B31 fixed)
+**Status:** updated 2026-03-13 (B41 updateClairvoyance wired; B40 createFlare wired; B38 animation fixed; B37–B45 filed; B32 unblocked; B25/B15 WAI; B31 fixed)
 **Tests at last update:** 88 files · 2284 pass · 55 skip
 
 ---
@@ -629,11 +629,13 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `Light.c` (createFlare, animateFlares). TS: `light/flares.ts`, `items.ts`,
   `tile-effects-wiring.ts`, `vision-wiring.ts`, `turn.ts`, `time/turn-processing.ts`. **S**
 
-- [ ] **B41 — `updateClairvoyance` stub — clairvoyance ring non-functional** —
-  `updateClairvoyance` is a no-op in the item-handler context. The ring of clairvoyance
-  reveals nearby cells as the player moves; without this call those cells are never
-  revealed. Player equips the ring and sees no effect.
-  C: `Time.c` (updateClairvoyance). TS: `items.ts` context (`() => {}`). **M**
+- [x] **B41 — `updateClairvoyance` stub — clairvoyance ring non-functional** —
+  Fixed 2026-03-13. Added `buildUpdateClairvoyanceFn()` to `vision-wiring.ts`: builds
+  a minimal `SafetyMapsContext` cast (pmap, rogue.clairvoyance, player.loc, max/min,
+  discoverCell) and calls `updateClairvoyance`. Wired in `items.ts` (ItemHandlerContext —
+  enchanting a clairvoyance ring) and `io/inventory-actions.ts` (buildEquipCtx —
+  equipping/unequipping; also wired `displayLevel`).
+  C: `Time.c` (updateClairvoyance). TS: `vision-wiring.ts`, `items.ts`, `io/inventory-actions.ts`. **M**
 
 - [ ] **B42 — `extinguishFireOnCreature` stub in item/bolt contexts** — `extinguishFireOnCreature`
   is a no-op in the item-handler and bolt contexts (`items.ts` wiring). It is called when

@@ -16,7 +16,7 @@
  */
 
 import { getGameState, getScentMap } from "./core.js";
-import { updateVision as updateVisionFn } from "./time/safety-maps.js";
+import { updateVision as updateVisionFn, updateClairvoyance as updateClairvoyanceFn } from "./time/safety-maps.js";
 import type { SafetyMapsContext } from "./time/safety-maps.js";
 import { updateLighting as updateLightingFn } from "./light/light.js";
 import type { LightingContext } from "./light/light.js";
@@ -273,6 +273,36 @@ export function buildUpdateVisionFn(): (refreshDisplay: boolean) => void {
         };
 
         updateVisionFn(refreshDisplay, safetyCtx);
+    };
+}
+
+// =============================================================================
+// buildUpdateClairvoyanceFn
+// =============================================================================
+
+/**
+ * Returns a `() => void` closure that runs updateClairvoyance against live
+ * game state. Builds only the SafetyMapsContext fields actually read by
+ * updateClairvoyance (pmap, rogue.clairvoyance, player.loc, DCOLS/DROWS,
+ * max/min, discoverCell).
+ */
+export function buildUpdateClairvoyanceFn(): () => void {
+    return () => {
+        const { pmap, rogue, player } = getGameState();
+        const ctx = {
+            pmap,
+            rogue: { clairvoyance: rogue.clairvoyance },
+            player,
+            DCOLS,
+            DROWS,
+            max: Math.max,
+            min: Math.min,
+            discoverCell: (x: number, y: number) => {
+                pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY;
+                pmap[x][y].flags |= TileFlag.DISCOVERED;
+            },
+        } as unknown as SafetyMapsContext;
+        updateClairvoyanceFn(ctx);
     };
 }
 

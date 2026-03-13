@@ -124,6 +124,7 @@ import {
 } from "./items/staff-wiring.js";
 import type { ItemTable, Creature, Pos } from "./types/types.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn, buildExposeCreatureToFireFn, buildPromptForItemOfTypeFn, buildConfirmFn, buildDisplayLevelFn, buildColorFlashFn } from "./io-wiring.js";
+import { buildUpdateClairvoyanceFn } from "./vision-wiring.js";
 import { buildResolvePronounEscapesFn } from "./io/text.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
 import { createFlare as createFlareFn } from "./light/flares.js";
@@ -523,7 +524,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         // ── Vision / light stubs ────────────────────────────────────────────
         updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
         updateVision: () => {},              // permanent-defer — visual update (wired in turn/lifecycle contexts)
-        updateClairvoyance: () => {},        // permanent-defer — requires SafetyMapsContext
+        updateClairvoyance: buildUpdateClairvoyanceFn(),
         updatePlayerRegenerationDelay() {
             updatePlayerRegenerationDelayFn({
                 player,

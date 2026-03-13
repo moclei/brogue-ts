@@ -35,7 +35,9 @@ import {
     buildMessageFns,
     buildPromptForItemOfTypeFn,
     buildRefreshDungeonCellFn,
+    buildDisplayLevelFn,
 } from "../io-wiring.js";
+import { buildUpdateClairvoyanceFn } from "../vision-wiring.js";
 import { tileCatalog } from "../globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "../globals/dungeon-feature-catalog.js";
 import { wandTable, staffTable, ringTable, charmTable } from "../globals/item-catalog.js";
@@ -82,6 +84,8 @@ function buildEquipCtx() {
         itemName: itemStr,
         updateRingBonuses: () => { updateRingBonusesFn(s); syncEquipState(s); },
         updateEncumbrance: () => updateEncumbranceFn(s),
+        updateClairvoyance: buildUpdateClairvoyanceFn(),
+        displayLevel: buildDisplayLevelFn(),
     };
 }
 
