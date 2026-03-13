@@ -23,12 +23,18 @@ import { buildTravelContext } from "./movement.js";
 import { travel } from "./movement/travel-explore.js";
 import { windowToMapX, windowToMapY, coordinatesAreInMap } from "./globals/tables.js";
 import { EventType } from "./types/enums.js";
-import type { RogueEvent, ScreenDisplayBuffer } from "./types/types.js";
+import type { RogueEvent, ScreenDisplayBuffer, ButtonState } from "./types/types.js";
 import { COLS, ROWS } from "./types/constants.js";
 import { buildInputContext } from "./io/input-context.js";
 import { executeKeystroke } from "./io/input-dispatch.js";
 import { createScreenDisplayBuffer } from "./io/display.js";
 import { registerPauseAndCheckForEvent } from "./platform-bridge.js";
+import {
+    buildGameMenuButtonState,
+    drawGameMenuButtons,
+    findClickedMenuButton,
+} from "./io/menu-bar.js";
+import { actionMenu } from "./io/input-mouse.js";
 
 // =============================================================================
 // Module-level state
@@ -43,6 +49,9 @@ export interface PlatformConsole {
 }
 
 let _console: PlatformConsole | null = null;
+
+/** Bottom-bar action button state. Initialized once when mainGameLoop starts. */
+let _menuState: ButtonState | null = null;
 
 /** Optional plotChar from the browser console (absent in test mocks). */
 type PlotCharFn = (
@@ -239,6 +248,28 @@ export async function processEvent(event: RogueEvent): Promise<void> {
  * autoConfirm is always true for mouse travel — no confirmation dialog.
  */
 async function handleLeftClick(windowX: number, windowY: number): Promise<void> {
+    // Check if click lands on a menu bar button (bottom row).
+    if (_menuState !== null) {
+        const buttonIndex = findClickedMenuButton(_menuState, windowX, windowY);
+        if (buttonIndex !== -1) {
+            const ctx = buildInputContext();
+            if (buttonIndex === 3) {
+                // Menu button: open the action menu sub-panel.
+                const menuX = (_menuState.buttons[3]?.x ?? 0) - 4;
+                const hotkey = await actionMenu(ctx, menuX, ctx.rogue.playbackMode);
+                if (hotkey !== -1) {
+                    await executeKeystroke(ctx, hotkey, false, false);
+                }
+            } else {
+                const hotkey = _menuState.buttons[buttonIndex]?.hotkey[0] ?? -1;
+                if (hotkey !== -1) {
+                    await executeKeystroke(ctx, hotkey, false, false);
+                }
+            }
+            return;
+        }
+    }
+
     const mapX = windowToMapX(windowX);
     const mapY = windowToMapY(windowY);
     if (!coordinatesAreInMap(mapX, mapY)) return;
@@ -285,10 +316,13 @@ async function handleKeystroke(event: RogueEvent): Promise<void> {
 export async function mainGameLoop(): Promise<void> {
     console.log("[mainGameLoop] started");
     const { rogue } = getGameState();
+    _menuState = buildGameMenuButtonState(rogue.playbackMode);
     while (!rogue.gameHasEnded) {
         const event = await waitForEvent();
         await processEvent(event);
+        drawGameMenuButtons(_menuState);
         commitDraws();
     }
+    _menuState = null;
     console.log("[mainGameLoop] ended");
 }
