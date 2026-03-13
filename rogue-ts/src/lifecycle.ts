@@ -20,6 +20,7 @@
  */
 
 import { getGameState, setMonsters, setDormantMonsters, setLevels, getScentMap, setScentMap, setBuildMachineFn } from "./core.js";
+import { commitDraws } from "./platform.js";
 import { initializeRogue as initializeRogueFn } from "./game/game-init.js";
 import { startLevel as startLevelFn } from "./game/game-level.js";
 import { freeEverything as freeEverythingFn } from "./game/game-cleanup.js";
@@ -527,7 +528,6 @@ export function buildLevelContext(): LevelContext {
         updateRingBonuses: () => { const s = buildEquipState(); updateRingBonusesFn(s); syncEquipBonuses(s); },
         updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
         displayLevel() {
-            console.log("[displayLevel/buildLevelContext] called");
             const getCellApp = (loc: { x: number; y: number }) => getCellAppearance(
                 loc, pmap, tmap, displayBuffer, rogue, player,
                 monsters, dormantMonsters, floorItems,
@@ -535,7 +535,7 @@ export function buildLevelContext(): LevelContext {
                 terrainRandomValues, displayDetail, getScentMap() ?? [],
             );
             displayLevelFn(DCOLS, DROWS, (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer));
-            console.log("[displayLevel/buildLevelContext] done");
+            commitDraws();
         },
         refreshSideBar: () => {},
         messageWithColor: () => {},

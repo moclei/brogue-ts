@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-12 (B34 fixed; B35 B36 filed; B13 B30 updated; B36 fixed 2026-03-12; B35 fixed 2026-03-12; B27 fixed 2026-03-12)
+**Status:** updated 2026-03-12 (B34 fixed; B35 B36 filed; B13 B30 updated; B36 fixed 2026-03-12; B35 fixed 2026-03-12; B27 fixed 2026-03-12; B28 fixed 2026-03-12; B32 deferred)
 **Tests at last update:** 88 files · 2284 pass · 55 skip
 
 ---
@@ -406,7 +406,7 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `Items.c` (teleportation scroll → `teleport()`). TS: `items/item-handlers.ts`,
   `monsters/monster-teleport.ts` (teleport fn). **S**
 
-- [ ] **B28 — Level transition display — fog of war shows wrong level** — Two related
+- [x] **B28 — Level transition display — fog of war shows wrong level** — Two related
   symptoms: (a) after using a potion of descent the new (unvisited) level appeared fully
   explored, showing the previous level's fog state; (b) generally, moving between levels
   causes the display to show the explored areas of the other level until the game is forced
@@ -427,8 +427,12 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   whip, the player appeared unable to attack monsters (attacks did not resolve). Whip is a
   reach weapon (attacks 2 squares away) in C; if reach-weapon attack logic is not ported,
   neither adjacent nor distant attacks work.
-  Investigate: check if `Movement.c` reach-weapon attack path is wired in `movement.ts`.
-  C: `Movement.c` (playerMoves — reach weapon check). TS: `movement.ts`. **S, investigate first**
+  Investigated 2026-03-12: `handleWhipAttacks` IS wired in `movement-weapon-context.ts` and
+  `movement.ts`. Root cause: `zap` is permanently stubbed (`() => {}`). When the player moves
+  toward a monster with a whip equipped, `handleWhipAttacks` fires, returns true (consuming
+  the turn), but `zap()` is a no-op so no damage or animation occurs. Fix requires `zap`
+  (port-v2-persistence scope). **DEFERRED — blocked by zap stub**
+  C: `Movement.c` (playerMoves — reach weapon check). TS: `movement-weapon-context.ts`.
 
 - [x] **B35 — Mouse hover: no path highlight or location description** — In normal
   gameplay (outside targeting mode), moving the mouse over the dungeon should:
