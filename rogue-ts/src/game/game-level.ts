@@ -191,6 +191,10 @@ export interface LevelContext {
     restoreItems(): void;
     updateMonsterState(monst: Creature): void;
 
+    // -- Environment simulation -----------------------------------------------
+
+    updateEnvironment(): void;
+
     // -- Memory & vision ------------------------------------------------------
 
     storeMemories(x: number, y: number): void;
@@ -198,6 +202,7 @@ export interface LevelContext {
     discoverCell(x: number, y: number): void;
     updateMapToShore(): void;
     updateRingBonuses(): void;
+    updateMinersLightRadius(): void;
 
     // -- Display & recording --------------------------------------------------
 
@@ -404,6 +409,7 @@ export function startLevel(
     rogue.minersLightRadius += fpFactor * 225n / 100n;
     updateColors(ctx);
     ctx.updateRingBonuses();
+    ctx.updateMinersLightRadius();
 
     let timeAway: number;
 
@@ -534,9 +540,10 @@ export function startLevel(
     player.loc.y = 0;
     const currentTurnNumber = rogue.absoluteTurnNumber;
     timeAway = Math.min(timeAway, 100);
-    // Note: updateEnvironment is called by the context
-    // For now, we just advance the turn counter appropriately.
-    // The actual environment simulation is delegated to the context.
+    while (timeAway-- > 0) {
+        rogue.absoluteTurnNumber = Math.max(currentTurnNumber, timeAway) - timeAway;
+        ctx.updateEnvironment();
+    }
     rogue.absoluteTurnNumber = currentTurnNumber;
     player.loc.x = savedPx;
     player.loc.y = savedPy;

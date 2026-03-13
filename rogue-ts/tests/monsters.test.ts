@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { initGameState, getGameState } from "../src/core.js";
+import { initGameState, getGameState, setBuildMachineFn } from "../src/core.js";
 import { buildMonsterSpawningContext, buildMonsterStateContext } from "../src/monsters.js";
 import { spawnHorde } from "../src/monsters/monster-spawning.js";
 import { decrementMonsterStatus } from "../src/monsters/monster-state.js";
@@ -205,86 +205,207 @@ describe("buildMonsterStateContext — decrementMonsterStatus", () => {
 // Stub audit — known-incomplete behaviours
 // =============================================================================
 
-it.skip("stub: buildMonsterSpawningContext().getQualifyingPathLocNear returns provided loc (stub, not real pathfinding)", () => {
-    // buildMonsterSpawningContext().getQualifyingPathLocNear always returns the provided location.
-    // Real implementation should use Dijkstra-based pathfinding to find an adjacent passable cell.
-    // Required for spawnMinions() to place followers near the leader.
+it("buildMonsterSpawningContext().getQualifyingPathLocNear finds a floor cell near target", () => {
+    // Wired: monsters.ts — real getQualifyingPathLocNearFn with buildQualifyingPathCtx.
+    // All cells start as GRANITE (T_OBSTRUCTS_PASSABILITY = T_DIVIDES_LEVEL blocker),
+    // so the dijkstra pass finds nothing and falls back to the ring search.
+    // Make a floor cell adjacent to (5,5) — it should be returned as the drop location.
+    const { pmap } = getGameState();
+    makeFloorCell(6, 5);
+    const ctx = buildMonsterSpawningContext();
+    // Call with T_DIVIDES_LEVEL blocking, T_OBSTRUCTS_ITEMS forbidden — matching makeMonsterDropItem usage.
+    const result = ctx.getQualifyingPathLocNear({ x: 5, y: 5 }, true, 0, 0, 0, 0, true);
+    // With no restrictions, the cell itself (5,5) is valid — GRANITE has no forbidden flags when all flags are 0.
+    expect(result).not.toBeNull();
+    expect(result.x).toBeGreaterThanOrEqual(0);
+    expect(result.y).toBeGreaterThanOrEqual(0);
 });
 
-it.skip("stub: buildMonsterSpawningContext().randomMatchingLocation returns null (stub, not real random search)", () => {
-    // buildMonsterSpawningContext().randomMatchingLocation always returns null.
-    // Real implementation should scan pmap for matching dungeon/liquid/terrain type.
-    // Required for spawnHorde() random location selection when loc is INVALID_POS.
+it("buildMonsterStateContext().makeMonsterDropItem places item via path search (mirrors Monsters.c:4065)", () => {
+    // Verifies the fix: item lands at a valid floor cell with HAS_ITEM set on pmap,
+    // rather than being pushed directly to floorItems without any location search.
+    const { pmap, floorItems } = getGameState();
+
+    // Clear ALL 4 layers on three adjacent cells so cellHasTerrainFlag returns no flags.
+    // makeFloorCell only sets layer[0] — layers 1-3 remain GRANITE which has T_OBSTRUCTS_ITEMS.
+    for (const [cx, cy] of [[5, 5], [6, 5], [7, 5]]) {
+        for (let layer = 0; layer < NUMBER_TERRAIN_LAYERS; layer++) {
+            pmap[cx][cy].layers[layer] = TileType.NOTHING;
+        }
+        pmap[cx][cy].flags = 0;
+    }
+    // Mark (5,5) as already occupied by an item to force the drop to search elsewhere.
+    pmap[5][5].flags |= TileFlag.HAS_ITEM;
+
+    const monst = makeMonster(MonsterType.MK_GOBLIN);
+    monst.loc = { x: 5, y: 5 };
+    const item = { loc: { x: 0, y: 0 }, category: 1 } as any;
+    monst.carriedItem = item;
+
+    const ctx = buildMonsterStateContext();
+    ctx.makeMonsterDropItem(monst);
+
+    expect(monst.carriedItem).toBeNull();
+    expect(floorItems).toContain(item);
+    // item.loc must be a valid in-map position with HAS_ITEM set on pmap.
+    expect(item.loc.x).toBeGreaterThanOrEqual(0);
+    expect(item.loc.y).toBeGreaterThanOrEqual(0);
+    expect(pmap[item.loc.x][item.loc.y].flags & TileFlag.HAS_ITEM).toBeTruthy();
 });
 
-it.skip("stub: buildMonsterSpawningContext().passableArcCount returns 0 (stub, needs arc counting)", () => {
-    // buildMonsterSpawningContext().passableArcCount returns 0 for all positions.
-    // Real implementation should count how many contiguous arcs of passable terrain surround a cell.
-    // Required for spawnHorde() random location selection (avoids dead-end cells).
+it("buildMonsterSpawningContext().randomMatchingLocation finds a granite cell (Phase 8)", () => {
+    // wired Phase 8: monsters.ts:188 via randomMatchingLocationFn.
+    // All cells start as GRANITE (initGameState default), so terrainType=GRANITE
+    // matches on the first random attempt — result is always non-null.
+    // The old stub always returned null; the real fn returns a valid pos.
+    const ctx = buildMonsterSpawningContext();
+    const result = ctx.randomMatchingLocation(-1, -1, TileType.GRANITE);
+    expect(result).not.toBeNull();
+    expect(result!.x).toBeGreaterThanOrEqual(0);
+    expect(result!.y).toBeGreaterThanOrEqual(0);
 });
 
-it.skip("stub: buildMonsterSpawningContext().buildMachine is a no-op (stub, needs machine builder)", () => {
-    // buildMonsterSpawningContext().buildMachine does nothing.
-    // Real implementation should call buildMachine() from the architect module.
-    // Required for hordes with machine > 0 (machine-associated spawns).
+it("buildMonsterSpawningContext().passableArcCount counts passable arcs (Phase 8)", () => {
+    // wired Phase 8: monsters.ts:189 via passableArcCountFn.
+    // Default pmap (all GRANITE, all layers) — no passable neighbors → 0 arcs.
+    const ctx = buildMonsterSpawningContext();
+    expect(ctx.passableArcCount(10, 10)).toBe(0);
+    // Set neighbor (11,10) to all-NOTHING layers (passable: NOTHING has no T_PATHING_BLOCKER)
+    // → 1 arc (one contiguous passable region around cell (10,10)).
+    const { pmap } = getGameState();
+    for (let layer = 0; layer < NUMBER_TERRAIN_LAYERS; layer++) {
+        pmap[11][10].layers[layer] = TileType.NOTHING;
+    }
+    const ctx2 = buildMonsterSpawningContext();
+    expect(ctx2.passableArcCount(10, 10)).toBe(1);
 });
 
-it.skip("stub: buildMonsterSpawningContext().becomeAllyWith sets Ally state only (stub, needs full wiring)", () => {
-    // buildMonsterSpawningContext().becomeAllyWith only sets creatureState = Ally.
-    // Real implementation should also set bookkeepingFlags, update sightRadius, etc.
-    // Required for HORDE_ALLIED_WITH_PLAYER hordes.
+it("buildMonsterSpawningContext().buildMachine delegates to registered builder", () => {
+    // Wired via getBuildMachineFn() in monsters.ts. lifecycle.ts registers the real
+    // buildAMachine callback via setBuildMachineFn(); tests inject a mock directly.
+    let calledMachineType = -1;
+    let calledX = -1;
+    let calledY = -1;
+    setBuildMachineFn((machineType, x, y) => {
+        calledMachineType = machineType;
+        calledX = x;
+        calledY = y;
+    });
+    try {
+        const ctx = buildMonsterSpawningContext();
+        ctx.buildMachine(3, 10, 5);
+        expect(calledMachineType).toBe(3);
+        expect(calledX).toBe(10);
+        expect(calledY).toBe(5);
+    } finally {
+        setBuildMachineFn(null);
+    }
 });
 
-it.skip("stub: buildMonsterStateContext().closestWaypointIndex returns -1 (stub, needs waypoint distance maps)", () => {
-    // buildMonsterStateContext().closestWaypointIndex always returns -1.
-    // Real implementation requires rogue.wpDistance maps and a full waypoint system.
-    // Required for chooseNewWanderDestination() to pick a wander target.
+
+it("buildMonsterStateContext().closestWaypointIndex uses wpDistance maps (Phase 6)", () => {
+    // closestWaypointIndex is now wired via monster-awareness.ts.
+    // With no wpDistance maps (rogue.wpCount=0), returns -1 (no waypoints).
+    const ctx = buildMonsterStateContext();
+    const monst = makeMonster(MonsterType.MK_GOBLIN);
+    expect(ctx.closestWaypointIndex(monst)).toBe(-1);
 });
 
-it.skip("stub: buildMonsterStateContext().awareOfTarget returns false (stub, needs scent map)", () => {
-    // buildMonsterStateContext().awareOfTarget always returns false.
-    // Real implementation checks scent levels, FOV, and awareness bonuses.
-    // Required for updateMonsterState() to wake sleeping monsters.
+it("buildMonsterStateContext().awareOfTarget uses scent map and FOV (Phase 6)", () => {
+    // awareOfTarget is now wired via monster-awareness.ts.
+    // With stealthRange=0 and no scent, perceived distance=1000 > awareness*3=0 → false.
+    const ctx = buildMonsterStateContext();
+    const monst = makeMonster(MonsterType.MK_GOBLIN);
+    expect(ctx.awareOfTarget(monst, monst)).toBe(false);
 });
 
 it.skip("stub: buildMonsterStateContext().traversiblePathBetween returns false (stub, needs pathfinding)", () => {
-    // buildMonsterStateContext().traversiblePathBetween always returns false.
+    // UPDATE: stub `() => false` in monsters.ts:277. Wired in port-v2-platform.
     // Real implementation runs Dijkstra from monster to target checking avoidedFlags.
     // Required for monsterFleesFrom() distance checks in updateMonsterState().
 });
 
-it.skip("stub: buildMonsterStateContext().extinguishFireOnCreature is a no-op (stub, needs CreatureEffectsContext)", () => {
-    // buildMonsterStateContext().extinguishFireOnCreature does nothing.
-    // Real implementation clears burning status and updates miner's light if player.
-    // Required for decrementMonsterStatus() burning cleanup.
+it("buildMonsterStateContext().extinguishFireOnCreature clears burning status on monster", () => {
+    // extinguishFireOnCreature now wired via extinguishFireOnCreatureFn in monsters.ts.
+    // For non-player creatures, only status[Burning] is cleared; player-specific
+    // effects (foreColor, minersLight, message) are handled inline in turn-processing.ts.
+    const ctx = buildMonsterStateContext();
+    const monst = makeMonster(MonsterType.MK_GOBLIN);
+    monst.status[StatusEffect.Burning] = 5;
+    ctx.extinguishFireOnCreature(monst);
+    expect(monst.status[StatusEffect.Burning]).toBe(0);
 });
 
-it.skip("stub: buildMonsterStateContext().cellHasGas returns false (should detect gas terrain)", () => {
-    // buildMonsterStateContext().cellHasGas(loc) returns false unconditionally.
-    // Real implementation should check the dungeon cell for gas volume > 0,
-    // affecting monster avoidance behaviour in monster-ai.
+it("buildMonsterStateContext().queryCtx.cellHasGas detects gas layer (Phase 6)", () => {
+    // cellHasGas now checks pmap[loc].layers[DungeonLayer.Gas] !== 0.
+    // Clear the gas layer to NOTHING; then expect false.
+    const { pmap } = getGameState();
+    pmap[5][5].layers[2] = TileType.NOTHING;  // DungeonLayer.Gas = 2
+    const ctx = buildMonsterStateContext();
+    expect(ctx.queryCtx.cellHasGas({ x: 5, y: 5 })).toBe(false);
+    // Set a non-zero gas tile; expect true.
+    pmap[5][5].layers[2] = TileType.POISON_GAS;
+    const ctx2 = buildMonsterStateContext();
+    expect(ctx2.queryCtx.cellHasGas({ x: 5, y: 5 })).toBe(true);
 });
 
-it.skip("stub: buildMonsterStateContext().closestWaypointIndexTo returns -1 (needs waypoint maps)", () => {
-    // buildMonsterStateContext().closestWaypointIndexTo() returns -1 always.
-    // Real implementation requires rogue.wpDistance maps populated by
-    // the waypoint system for monster pathfinding.
+it("buildMonsterStateContext().closestWaypointIndexTo uses wpDistance maps (Phase 6)", () => {
+    // closestWaypointIndexTo is now wired via monster-awareness.ts.
+    // With no wpDistance maps, returns -1.
+    const ctx = buildMonsterStateContext();
+    expect(ctx.closestWaypointIndexTo({ x: 5, y: 5 })).toBe(-1);
 });
 
-it.skip("stub: buildMonsterStateContext().burnedTerrainFlagsAtLoc returns 0 (needs terrain history)", () => {
-    // buildMonsterStateContext().burnedTerrainFlagsAtLoc(loc) returns 0.
-    // Real implementation should inspect the burned terrain record at loc
-    // to decide if a monster avoids fire-scarred cells.
+it("buildMonsterStateContext().burnedTerrainFlagsAtLoc checks flammable layers (Phase 6)", () => {
+    // burnedTerrainFlagsAtLoc is now wired via state/helpers.ts.
+    // With default pmap (all NOTHING/non-flammable layers), returns 0.
+    const ctx = buildMonsterStateContext();
+    expect(ctx.burnedTerrainFlagsAtLoc({ x: 0, y: 0 })).toBe(0);
 });
 
-it.skip("stub: buildMonsterStateContext().discoveredTerrainFlagsAtLoc returns 0 (needs terrain history)", () => {
-    // buildMonsterStateContext().discoveredTerrainFlagsAtLoc(loc) returns 0.
-    // Real implementation should return the terrain flags seen at loc during
-    // the current generation for secret-door hunting AI.
+it("buildMonsterStateContext().discoveredTerrainFlagsAtLoc uses real discoveredTerrainFlagsAtLoc", () => {
+    // Wired in port-v2-close-out Phase 3. Returns 0 for non-secret terrain
+    // (most cells); non-zero only when a secret-door tile is present.
+    const ctx = buildMonsterStateContext();
+    expect(ctx.discoveredTerrainFlagsAtLoc({ x: 0, y: 0 })).toBe(0);
 });
 
-it.skip("stub: buildMonsterStateContext().openPathBetween returns false (needs FOV/LOS check)", () => {
-    // buildMonsterStateContext().openPathBetween(a, b) returns false.
-    // Real implementation should check line-of-sight using the dungeon map
-    // to determine whether the monster has an unobstructed path to its target.
+it("buildMonsterStateContext().openPathBetween uses bolt-geometry (Phase 6)", () => {
+    // openPathBetween is now wired via openPathBetweenFn from bolt-geometry.ts.
+    // Adjacent cells with no obstructing terrain → open path.
+    const ctx = buildMonsterStateContext();
+    expect(ctx.openPathBetween({ x: 5, y: 5 }, { x: 5, y: 6 })).toBe(true);
+});
+
+// =============================================================================
+// Stub registry — Monsters.c domain stubs (Phase 3c, port-v2-audit)
+// =============================================================================
+
+it("buildMonsterSpawningContext().drawManacles() sets manacle terrain on adjacent floor cells", () => {
+    // C: Monsters.c:771 — drawManacles() / drawManacle()
+    // drawManacles tries 4 groups of 3 fallback directions (UPLEFT/UP/LEFT, DOWNLEFT/DOWN/LEFT,
+    // UPRIGHT/UP/RIGHT, DOWNRIGHT/DOWN/RIGHT) and places a manacle surface tile on the first
+    // valid floor cell (dungeon=FLOOR, liquid=NOTHING) found in each group.
+    const { pmap } = getGameState();
+    const cx = 5, cy = 5;
+
+    // Set the center and all 8 neighbors to FLOOR with no liquid
+    for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+            pmap[cx + dx][cy + dy].layers[0] = TileType.FLOOR;   // Dungeon
+            pmap[cx + dx][cy + dy].layers[1] = TileType.NOTHING;  // Liquid
+            pmap[cx + dx][cy + dy].layers[2] = TileType.NOTHING;  // Surface (gas)
+        }
+    }
+
+    const ctx = buildMonsterSpawningContext();
+    ctx.drawManacles({ x: cx, y: cy });
+
+    // Each group should place exactly one manacle. With all neighbors open, the first
+    // direction in each group is used: UPLEFT(4), DOWNLEFT(5), UPRIGHT(6), DOWNRIGHT(7).
+    // DungeonLayer.Surface = 3 (index 3 in layers array)
+    expect(pmap[cx - 1][cy - 1].layers[3]).toBe(TileType.MANACLE_TL);  // UPLEFT
+    expect(pmap[cx - 1][cy + 1].layers[3]).toBe(TileType.MANACLE_BL);  // DOWNLEFT
+    expect(pmap[cx + 1][cy - 1].layers[3]).toBe(TileType.MANACLE_TR);  // UPRIGHT
+    expect(pmap[cx + 1][cy + 1].layers[3]).toBe(TileType.MANACLE_BR);  // DOWNRIGHT
 });

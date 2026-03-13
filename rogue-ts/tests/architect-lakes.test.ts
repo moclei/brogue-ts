@@ -8,6 +8,7 @@ import {
     finishWalls,
     liquidType,
     fillLake,
+    lakeFloodFill,
     lakeDisruptsPassability,
     designLakes,
     createWreath,
@@ -16,6 +17,7 @@ import {
     buildABridge,
     cleanUpLakeBoundaries,
     removeDiagonalOpenings,
+    type BuildBridgeContext,
 } from "../src/architect/lakes.js";
 import { TileType, DungeonLayer } from "../src/types/enums.js";
 import { DCOLS, DROWS, NUMBER_TERRAIN_LAYERS } from "../src/types/constants.js";
@@ -405,5 +407,194 @@ describe("fillLakes", () => {
         expect(pmap[10][10].layers[DungeonLayer.Liquid]).not.toBe(TileType.NOTHING);
         expect(pmap[11][10].layers[DungeonLayer.Liquid]).not.toBe(TileType.NOTHING);
         expect(pmap[12][10].layers[DungeonLayer.Liquid]).not.toBe(TileType.NOTHING);
+    });
+});
+
+// =============================================================================
+// cleanUpLakeBoundaries — Architect.c:1856 / lakes.ts:45
+// =============================================================================
+
+describe("cleanUpLakeBoundaries", () => {
+    it("replaces a wall between two identical lake cells with the lake type", () => {
+        // pmap is all FLOOR; add a WALL between two DEEP_WATER cells
+        const pmap = makePmap(TileType.FLOOR);
+        pmap[10][10].layers[DungeonLayer.Dungeon] = TileType.WALL;
+        pmap[9][10].layers[DungeonLayer.Liquid] = TileType.DEEP_WATER;
+        pmap[11][10].layers[DungeonLayer.Liquid] = TileType.DEEP_WATER;
+
+        cleanUpLakeBoundaries(pmap);
+
+        // The wall cell should now have DEEP_WATER in its liquid layer
+        expect(pmap[10][10].layers[DungeonLayer.Liquid]).toBe(TileType.DEEP_WATER);
+    });
+
+    it("does not modify walls between cells with different lake types", () => {
+        const pmap = makePmap(TileType.FLOOR);
+        pmap[10][10].layers[DungeonLayer.Dungeon] = TileType.WALL;
+        // Left is DEEP_WATER, right is LAVA — different lake types
+        pmap[9][10].layers[DungeonLayer.Liquid] = TileType.DEEP_WATER;
+        pmap[11][10].layers[DungeonLayer.Liquid] = TileType.LAVA;
+
+        cleanUpLakeBoundaries(pmap);
+
+        // Wall should remain unchanged (no matching lake pair)
+        expect(pmap[10][10].layers[DungeonLayer.Dungeon]).toBe(TileType.WALL);
+    });
+});
+
+// =============================================================================
+// removeDiagonalOpenings — Architect.c:1913 / lakes.ts:122
+// =============================================================================
+
+describe("removeDiagonalOpenings", () => {
+    it("fills one wall of a 2x2 diagonal opening", () => {
+        const pmap = makePmap(TileType.FLOOR);
+
+        // Diagonal opening at (10,10)-(11,11):
+        //   (10,10)=FLOOR (11,10)=WALL
+        //   (10,11)=WALL  (11,11)=FLOOR
+        pmap[11][10].layers[DungeonLayer.Dungeon] = TileType.WALL;
+        pmap[10][11].layers[DungeonLayer.Dungeon] = TileType.WALL;
+
+        removeDiagonalOpenings(pmap);
+
+        // At least one of the two walls should now be FLOOR
+        const nw = pmap[11][10].layers[DungeonLayer.Dungeon];
+        const sw = pmap[10][11].layers[DungeonLayer.Dungeon];
+        expect(nw === TileType.FLOOR || sw === TileType.FLOOR).toBe(true);
+    });
+
+    it("does not modify cells inside machines (machineNumber != 0)", () => {
+        const pmap = makePmap(TileType.FLOOR);
+        pmap[11][10].layers[DungeonLayer.Dungeon] = TileType.WALL;
+        pmap[10][11].layers[DungeonLayer.Dungeon] = TileType.WALL;
+        // Mark the cell that would be chosen as a machine cell
+        pmap[11][10].machineNumber = 1;
+        pmap[10][11].machineNumber = 1;
+
+        removeDiagonalOpenings(pmap);
+
+        // Neither wall should have been changed
+        expect(pmap[11][10].layers[DungeonLayer.Dungeon]).toBe(TileType.WALL);
+        expect(pmap[10][11].layers[DungeonLayer.Dungeon]).toBe(TileType.WALL);
+    });
+});
+
+// =============================================================================
+// lakeFloodFill — Architect.c:2569 / lakes.ts:300
+// =============================================================================
+
+describe("lakeFloodFill", () => {
+    it("marks connected floor cells reachable from a start point", () => {
+        // 3×3 floor area in an otherwise granite map
+        const pmap = makePmap(TileType.GRANITE);
+        for (let x = 5; x <= 7; x++) {
+            for (let y = 5; y <= 7; y++) {
+                pmap[x][y].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+            }
+        }
+
+        const floodMap = allocGrid();
+        fillGrid(floodMap, 0);
+        const grid = allocGrid();
+        fillGrid(grid, 0);
+        const lakeMap = allocGrid();
+        fillGrid(lakeMap, 0);
+
+        lakeFloodFill(pmap, 6, 6, floodMap, grid, lakeMap, 0, 0);
+
+        // All 9 floor cells should be marked
+        let count = 0;
+        for (let x = 5; x <= 7; x++) {
+            for (let y = 5; y <= 7; y++) {
+                if (floodMap[x][y]) count++;
+            }
+        }
+        expect(count).toBe(9);
+
+        // Granite cells should not be marked
+        expect(floodMap[4][6]).toBe(0);
+        expect(floodMap[8][6]).toBe(0);
+    });
+
+    it("stops at lakeMap boundaries", () => {
+        const pmap = makePmap(TileType.FLOOR);
+        const floodMap = allocGrid();
+        fillGrid(floodMap, 0);
+        const grid = allocGrid();
+        fillGrid(grid, 0);
+        const lakeMap = allocGrid();
+        fillGrid(lakeMap, 0);
+
+        // Mark the cell at (10, 10) as a lake boundary — flood fill should not cross it
+        lakeMap[10][10] = 1;
+
+        lakeFloodFill(pmap, 5, 5, floodMap, grid, lakeMap, 0, 0);
+
+        // (10, 10) should not be flooded
+        expect(floodMap[10][10]).toBe(0);
+        // (5, 5) should be flooded
+        expect(floodMap[5][5]).toBe(1);
+    });
+});
+
+// =============================================================================
+// buildABridge — Architect.c:2786 / lakes.ts:569
+// =============================================================================
+
+describe("buildABridge", () => {
+    beforeEach(() => seedRandomGenerator(12345n));
+
+    it("returns false when no bridge opportunity exists", () => {
+        const pmap = makePmap(TileType.GRANITE); // all granite — no passable anchor
+        const ctx: BuildBridgeContext = {
+            depthLevel: 1,
+            depthAccelerator: 10,
+            pathingDistance: () => 1000,
+        };
+        expect(buildABridge(pmap, ctx)).toBe(false);
+    });
+
+    it("builds a horizontal bridge across a chasm gap", () => {
+        const pmap = makePmap(TileType.GRANITE);
+
+        // Two independent horizontal bridge setups at cols 20 and 50 (redundancy
+        // guards against either anchor being in the two positions that buildABridge
+        // skips due to shuffled iteration — probability both skipped ≈ 0.06%).
+        // Rows 1..DROWS-2: rows 0 and DROWS-1 stay GRANITE as barriers.
+        // For rows 2..DROWS-3, both adjacent rows also have chasm → foundExposure=true.
+        for (let j = 1; j <= DROWS - 2; j++) {
+            pmap[20][j].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+            for (let x = 21; x <= 24; x++) {
+                pmap[x][j].layers[DungeonLayer.Dungeon] = TileType.CHASM;
+            }
+            pmap[25][j].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+            pmap[50][j].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+            for (let x = 51; x <= 54; x++) {
+                pmap[x][j].layers[DungeonLayer.Dungeon] = TileType.CHASM;
+            }
+            pmap[55][j].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+        }
+
+        const ctx: BuildBridgeContext = {
+            depthLevel: 1,
+            depthAccelerator: 10,
+            pathingDistance: () => 1000, // guarantee ratio check passes
+        };
+
+        expect(buildABridge(pmap, ctx)).toBe(true);
+
+        // One of the two setups should have 4 bridge planks in the liquid layer
+        let bridgeCount = 0;
+        for (let j = 0; j < DROWS; j++) {
+            for (let x = 21; x <= 24; x++) {
+                if (pmap[x][j].layers[DungeonLayer.Liquid] === TileType.BRIDGE) bridgeCount++;
+            }
+            for (let x = 51; x <= 54; x++) {
+                if (pmap[x][j].layers[DungeonLayer.Liquid] === TileType.BRIDGE) bridgeCount++;
+            }
+        }
+        expect(bridgeCount).toBe(4);
     });
 });

@@ -564,3 +564,136 @@ describe("monstersTurn", () => {
         expect(ctx.spawnDungeonFeature).toHaveBeenCalledWith(5, 5, 42, true, false);
     });
 });
+
+// =============================================================================
+// Stub registry — Monsters.c domain stubs (Phase 3c, port-v2-audit)
+// =============================================================================
+
+
+// monsterBlinkToPreferenceMap and monsterBlinkToSafety are implemented in
+// monsters/monster-blink-ai.ts — tests live in monster-blink-ai.test.ts.
+
+// ──────────────────────────────────────────────────────────────────────────────
+// updateMonsterCorpseAbsorption — Monsters.c:3250
+// ──────────────────────────────────────────────────────────────────────────────
+import {
+    updateMonsterCorpseAbsorption,
+} from "../../src/monsters/monster-corpse-absorption.js";
+import type { CorpseAbsorptionContext } from "../../src/monsters/monster-corpse-absorption.js";
+import { BoltType, StatusEffect } from "../../src/types/enums.js";
+
+function makeAbsorptionCtx(overrides: Partial<CorpseAbsorptionContext> = {}): CorpseAbsorptionContext {
+    return {
+        canSeeMonster: () => false,
+        monsterName: (m, art) => (art ? "the " : "") + m.info.monsterName,
+        getAbsorbingText: () => "eating",
+        boltAbilityDescription: () => "can teleport",
+        behaviorDescription: () => "flies",
+        abilityDescription: () => "poisons on hit",
+        resolvePronounEscapes: (msg) => msg,
+        messageWithColor: vi.fn(),
+        goodMessageColor: { red: 100, green: 100, blue: 100, rand: 0, colorDances: false },
+        advancementMessageColor: { red: 50, green: 100, blue: 60, rand: 0, colorDances: false },
+        MB_ABSORBING: MonsterBookkeepingFlag.MB_ABSORBING,
+        MB_SUBMERGED: MonsterBookkeepingFlag.MB_SUBMERGED,
+        MONST_FIERY: MonsterBehaviorFlag.MONST_FIERY,
+        MONST_FLIES: MonsterBehaviorFlag.MONST_FLIES,
+        MONST_IMMUNE_TO_FIRE: MonsterBehaviorFlag.MONST_IMMUNE_TO_FIRE,
+        MONST_INVISIBLE: MonsterBehaviorFlag.MONST_INVISIBLE,
+        MONST_RESTRICTED_TO_LIQUID: MonsterBehaviorFlag.MONST_RESTRICTED_TO_LIQUID,
+        MONST_SUBMERGES: MonsterBehaviorFlag.MONST_SUBMERGES,
+        STATUS_BURNING: StatusEffect.Burning,
+        STATUS_LEVITATING: StatusEffect.Levitating,
+        STATUS_IMMUNE_TO_FIRE: StatusEffect.ImmuneToFire,
+        STATUS_INVISIBLE: StatusEffect.Invisible,
+        BOLT_NONE: BoltType.NONE,
+        unflag: (f) => Math.log2(f),
+        ...overrides,
+    };
+}
+
+describe("updateMonsterCorpseAbsorption", () => {
+    it("returns false and does nothing when corpseAbsorptionCounter < 0", () => {
+        const monst = makeCreature({
+            corpseAbsorptionCounter: -1,
+            bookkeepingFlags: 0,
+        });
+        const result = updateMonsterCorpseAbsorption(monst, makeAbsorptionCtx());
+        expect(result).toBe(false);
+        expect(monst.corpseAbsorptionCounter).toBe(-2); // decremented in else-if branch
+    });
+
+    it("returns true and sets ticksUntilTurn when monster is absorbing at corpse loc (counter > 1)", () => {
+        const monst = makeCreature({
+            loc: { x: 3, y: 4 },
+            targetCorpseLoc: { x: 3, y: 4 },
+            bookkeepingFlags: MonsterBookkeepingFlag.MB_ABSORBING,
+            corpseAbsorptionCounter: 5,
+            ticksUntilTurn: 0,
+        } as Partial<Creature>);
+        const result = updateMonsterCorpseAbsorption(monst, makeAbsorptionCtx());
+        expect(result).toBe(true);
+        expect(monst.ticksUntilTurn).toBe(100);
+        expect(monst.corpseAbsorptionCounter).toBe(4); // decremented
+        // Ability not yet assigned
+        expect(monst.info.abilityFlags).toBe(0);
+    });
+
+    it("assigns ability flag and sends messages when counter reaches 0", () => {
+        const messageWithColor = vi.fn();
+        const abilityFlag = MonsterAbilityFlag.MA_POISONS;
+        const monst = makeCreature({
+            loc: { x: 2, y: 2 },
+            targetCorpseLoc: { x: 2, y: 2 },
+            bookkeepingFlags: MonsterBookkeepingFlag.MB_ABSORBING,
+            corpseAbsorptionCounter: 1,
+            absorptionFlags: abilityFlag,
+            absorbBehavior: false,
+            absorptionBolt: BoltType.NONE,
+            targetCorpseName: "rat",
+            newPowerCount: 2,
+        } as Partial<Creature>);
+        const ctx = makeAbsorptionCtx({
+            canSeeMonster: () => true,
+            messageWithColor,
+        });
+        const result = updateMonsterCorpseAbsorption(monst, ctx);
+        expect(result).toBe(true);
+        expect(monst.info.abilityFlags & abilityFlag).toBeTruthy();
+        expect(monst.newPowerCount).toBe(1);
+        expect(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_ABSORBING).toBe(0);
+        expect(messageWithColor).toHaveBeenCalledTimes(2);
+    });
+
+    it("assigns behavior flag when absorbBehavior is true", () => {
+        const behaviorFlag = MonsterBehaviorFlag.MONST_FLIES;
+        const monst = makeCreature({
+            loc: { x: 2, y: 2 },
+            targetCorpseLoc: { x: 2, y: 2 },
+            bookkeepingFlags: MonsterBookkeepingFlag.MB_ABSORBING,
+            corpseAbsorptionCounter: 1,
+            absorptionFlags: behaviorFlag,
+            absorbBehavior: true,
+            absorptionBolt: BoltType.NONE,
+            targetCorpseName: "bat",
+            newPowerCount: 1,
+        } as Partial<Creature>);
+        updateMonsterCorpseAbsorption(monst, makeAbsorptionCtx());
+        expect(monst.info.flags & behaviorFlag).toBeTruthy();
+    });
+
+    it("clears MB_ABSORBING and resets when counter expires away from corpse", () => {
+        const monst = makeCreature({
+            loc: { x: 0, y: 0 },
+            targetCorpseLoc: { x: 5, y: 5 },
+            bookkeepingFlags: MonsterBookkeepingFlag.MB_ABSORBING,
+            corpseAbsorptionCounter: 1, // will reach 0 after decrement
+            absorptionFlags: 42,
+            absorptionBolt: BoltType.NONE,
+        } as Partial<Creature>);
+        const result = updateMonsterCorpseAbsorption(monst, makeAbsorptionCtx());
+        expect(result).toBe(false);
+        expect(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_ABSORBING).toBe(0);
+        expect(monst.absorptionFlags).toBe(0);
+    });
+});

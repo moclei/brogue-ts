@@ -16,6 +16,7 @@
  */
 
 import { getGameState, gameOver } from "./core.js";
+import { buildApplyInstantTileEffectsFn } from "./tile-effects-wiring.js";
 import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
     terrainFlags as terrainFlagsFn,
@@ -26,15 +27,33 @@ import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
 import { alertMonster as alertMonsterFn } from "./monsters/monster-state.js";
 import { monsterWillAttackTarget as monsterWillAttackTargetFn } from "./monsters/monster-queries.js";
 import { monsterIsInClass as monsterIsInClassFn } from "./monsters/monster-queries.js";
+import { unAlly as unAllyFn, checkForContinuedLeadership as checkForContinuedLeadershipFn, demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "./monsters/monster-ally-ops.js";
+import { buildResolvePronounEscapesFn, getMonsterDFMessage as getMonsterDFMessageFn } from "./io/text.js";
 import {
     white, red, poisonColor,
     goodMessageColor, badMessageColor, itemMessageColor,
 } from "./globals/colors.js";
 import { TileFlag } from "./types/flags.js";
 import { CreatureState, GameMode } from "./types/enums.js";
+import { flashMonster } from "./combat/combat-damage.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { AttackContext } from "./combat/combat-attack.js";
 import type { Creature, Pos } from "./types/types.js";
+import { getCellAppearance } from "./io/cell-appearance.js";
+import { terrainRandomValues, displayDetail } from "./render-state.js";
+import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
+import { updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, equipItem as equipItemFn } from "./items/item-usage.js";
+import { buildEquipState, syncEquipBonuses, syncEquipState } from "./items/equip-helpers.js";
+import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
+import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
+import { tileCatalog } from "./globals/tile-catalog.js";
+import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
+import {
+    attackVerb as attackVerbFn,
+    anyoneWantABite as anyoneWantABiteFn,
+} from "./combat/combat-helpers.js";
+import type { CombatHelperContext } from "./combat/combat-helpers.js";
+import { monsterText } from "./globals/monster-text.js";
 
 // =============================================================================
 // Private helpers
@@ -63,6 +82,8 @@ function buildMonsterName(player: Creature) {
  */
 export function buildCombatDamageContext(): CombatDamageContext {
     const { player, rogue, pmap, monsters, floorItems, monsterCatalog } = getGameState();
+    const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn(), refreshSideBar = buildRefreshSideBarFn();
+    const resolvePronounEscapes = buildResolvePronounEscapesFn(player, pmap, rogue);
 
     const canSeeMonster = (m: Creature): boolean =>
         !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE);
@@ -76,20 +97,23 @@ export function buildCombatDamageContext(): CombatDamageContext {
         canSeeMonster,
         canDirectlySeeMonster: canSeeMonster,
 
-        wakeUp(monst) {
-            // Simplified: set state to TrackingScent (real wakeUp needs MonsterStateContext).
-            monst.creatureState = CreatureState.TrackingScent;
-        },
+        wakeUp: buildWakeUpFn(player, monsters),
 
-        // ── Platform stubs (wired in port-v2-platform) ────────────────────────
-        spawnDungeonFeature: () => {},
-        refreshSideBar: () => {},
-        combatMessage: () => {},
-        messageWithColor: () => {},
-        message: () => {},
-        refreshDungeonCell: () => {},
-        applyInstantTileEffectsToCreature: () => {},
-        fadeInMonster: () => {},
+        spawnDungeonFeature(x, y, featureIndex, probability, _isGas) {
+            const feat = dungeonFeatureCatalog[featureIndex];
+            if (!feat) return;
+            const scaled = probability === 100
+                ? feat
+                : { ...feat, startProbability: Math.floor(feat.startProbability * probability / 100) };
+            spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, scaled as never, true, false);
+        },
+        refreshSideBar,
+        combatMessage: io.combatMessage,
+        messageWithColor: (text, color) => io.messageWithColor(text, color, 0),
+        message: io.message,
+        refreshDungeonCell,
+        applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
+        fadeInMonster: buildFadeInMonsterFn(),
 
         monsterName: buildMonsterName(player),
 
@@ -125,20 +149,26 @@ export function buildCombatDamageContext(): CombatDamageContext {
         },
         prependCreature(monst) { monsters.unshift(monst); },
 
-        // ── Leadership stubs (wired in monsters.ts) ───────────────────────────
-        anyoneWantABite: () => false,
-        demoteMonsterFromLeadership: () => {},
-        checkForContinuedLeadership: () => {},
+        // ── Leadership ────────────────────────────────────────────────────────
+        anyoneWantABite: (decedent) => anyoneWantABiteFn(decedent, {
+            player,
+            iterateAllies: () => monsters.filter(m => m.creatureState === CreatureState.Ally),
+            randRange: (lo: number, hi: number) => randRange(lo, hi),
+            isPosInMap: (loc: Pos) => coordinatesAreInMap(loc.x, loc.y),
+            monsterAvoids: () => false,
+        } as unknown as CombatHelperContext),
+        demoteMonsterFromLeadership: (monst) => demoteMonsterFromLeadershipFn(monst, monsters),
+        checkForContinuedLeadership: (monst) => checkForContinuedLeadershipFn(monst, monsters),
 
-        // ── Message stubs (wired in port-v2-platform) ─────────────────────────
-        getMonsterDFMessage: () => "",
-        resolvePronounEscapes: (text) => text,
+        // ── Message ───────────────────────────────────────────────────────────
+        getMonsterDFMessage: (id) => getMonsterDFMessageFn(id),
+        resolvePronounEscapes,
 
         monsterCatalog,
 
-        // ── Status clear stubs (wired in items.ts / ui.ts) ───────────────────
-        updateEncumbrance: () => {},
-        updateMinersLightRadius: () => {},
+        // ── Equipment updates ─────────────────────────────────────────────────
+        updateEncumbrance: () => updateEncumbranceFn(buildEquipState()),
+        updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
         updateVision: () => {},
 
         badMessageColor,
@@ -220,14 +250,24 @@ export function buildCombatAttackContext(): AttackContext {
         splitMonster: () => {},
 
         // ── Display ───────────────────────────────────────────────────────────
-        attackVerb: () => "hits",   // stub — needs attacker + monster text table
+        attackVerb: (attacker, damagePercent) => attackVerbFn(attacker, damagePercent, monsterText, {
+            player,
+            weapon: rogue.weapon,
+            canSeeMonster: (m: Creature) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+        } as unknown as CombatHelperContext),
         messageColorFromVictim: (defender) =>
             defender === player ? badMessageColor : goodMessageColor,
 
-        // ── Item / weapon ops stubs (wired in items.ts) ───────────────────────
+        // ── Item / weapon ops ─────────────────────────────────────────────────
         decrementWeaponAutoIDTimer: () => {},
         rechargeItemsIncrementally: () => {},
-        equipItem: () => {},
+        equipItem: (item, force) => {
+            const s = buildEquipState();
+            equipItemFn(item, force, null, { state: s, message: () => {}, itemName: () => "item",
+                updateRingBonuses: () => { updateRingBonusesFn(s); syncEquipBonuses(s); },
+                updateEncumbrance: () => updateEncumbranceFn(s) });
+            syncEquipState(s);
+        },
         itemName: () => "item",
         checkForDisenchantment: () => {},
         strengthCheck: () => {},
@@ -253,7 +293,35 @@ export function buildCombatAttackContext(): AttackContext {
         },
 
         // ── Ally ops ─────────────────────────────────────────────────────────
-        unAlly: () => {},   // stub — wired in monsters.ts
+        unAlly: (monst) => unAllyFn(monst),
         alertMonster: (monst) => alertMonsterFn(monst, player),
+    };
+}
+
+// =============================================================================
+// buildFadeInMonsterFn — Monsters.c:904
+// =============================================================================
+
+/**
+ * Returns a `fadeInMonster(monst)` closure that flashes the monster with the
+ * background colour of its current cell — the visual cue for a monster
+ * appearing (summoned, revealed, etc.).
+ *
+ * C: void fadeInMonster(creature *monst) — calls getCellAppearance then
+ *    flashMonster(monst, &bColor, 100).
+ */
+export function buildFadeInMonsterFn(): (monst: Creature) => void {
+    return (monst) => {
+        const { rogue, pmap, tmap, displayBuffer, player, monsters,
+            dormantMonsters, floorItems, monsterCatalog, scentMap } = getGameState();
+        const { backColor } = getCellAppearance(
+            monst.loc, pmap, tmap, displayBuffer, rogue, player,
+            monsters, dormantMonsters, floorItems,
+            tileCatalog, dungeonFeatureCatalog, monsterCatalog,
+            terrainRandomValues, displayDetail, scentMap ?? [],
+        );
+        flashMonster(monst, backColor, 100, {
+            setCreaturesWillFlash() { rogue.creaturesWillFlashThisTurn = true; },
+        } as unknown as CombatDamageContext);
     };
 }

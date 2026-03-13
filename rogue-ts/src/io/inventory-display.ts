@@ -11,7 +11,7 @@
  */
 
 import type { Color, Item, BrogueButton } from "../types/types.js";
-import { type DisplayGlyph, ItemCategory } from "../types/enums.js";
+import { type DisplayGlyph, ItemCategory, ALL_ITEMS } from "../types/enums.js";
 import { ButtonDrawState } from "../types/enums.js";
 import {
     COLS,
@@ -32,6 +32,8 @@ import {
     DOWN_ARROW,
     NUMPAD_2,
     NUMPAD_8,
+    ESCAPE_KEY,
+    ACKNOWLEDGE_KEY,
 } from "../types/constants.js";
 import { ButtonFlag, ItemFlag } from "../types/flags.js";
 import {
@@ -396,4 +398,61 @@ export async function displayInventory(
     ctx.restoreDisplayBuffer(rbuf);
 
     return theKey;
+}
+
+// =============================================================================
+// PromptItemContext + promptForItemOfType — Items.c:7586
+// =============================================================================
+
+/**
+ * Extension of InventoryContext with the extra fields needed by promptForItemOfType.
+ */
+export interface PromptItemContext extends InventoryContext {
+    temporaryMessage(msg: string, flags: number): void;
+    numberOfMatchingPackItems(category: number, requiredFlags: number, forbiddenFlags: number): number;
+}
+
+/**
+ * Show a temporary prompt, display the inventory filtered to matching items,
+ * and return the selected Item, or null if cancelled.
+ *
+ * C: `promptForItemOfType` in Items.c:7586
+ */
+export async function promptForItemOfType(
+    category: number,
+    requiredFlags: number,
+    forbiddenFlags: number,
+    prompt: string,
+    allowInventoryActions: boolean,
+    ctx: PromptItemContext,
+): Promise<Item | null> {
+    if (!ctx.numberOfMatchingPackItems(ALL_ITEMS, requiredFlags, forbiddenFlags)) {
+        return null;
+    }
+
+    ctx.temporaryMessage(prompt, 0);
+
+    const keystroke = await displayInventory(
+        category, requiredFlags, forbiddenFlags, false, allowInventoryActions, ctx,
+    );
+
+    if (!keystroke) return null;
+
+    const code = keystroke.charCodeAt(0);
+    if (code < "a".charCodeAt(0) || code > "z".charCodeAt(0)) {
+        ctx.confirmMessages();
+        if (code !== ESCAPE_KEY && code !== ACKNOWLEDGE_KEY) {
+            ctx.message("Invalid entry.", 0);
+        }
+        return null;
+    }
+
+    const theItem = ctx.packItems.find(item => item.inventoryLetter === keystroke) ?? null;
+    if (!theItem) {
+        ctx.confirmMessages();
+        ctx.message("No such item.", 0);
+        return null;
+    }
+
+    return theItem;
 }

@@ -130,15 +130,15 @@ export interface TurnProcessingContext {
     // Combat helpers
     inflictDamage(attacker: Creature | null, defender: Creature, damage: number, flashColor: Color, showDamage: boolean): boolean;
     killCreature(monst: Creature, administrativeDeath: boolean): void;
-    combatMessage(msg: string, color: Color | null): void;
-    displayCombatText(): void;
+    combatMessage(msg: string, color: Color | null): void | Promise<void>;
+    displayCombatText(): void | Promise<void>;
     messageColorFromVictim(monst: Creature): Color;
     addPoison(monst: Creature, totalDamage: number, concentrationIncrement: number): void;
     flashMonster(monst: Creature, color: Color, strength: number): void;
 
     // UI
-    message(msg: string, flags: number): void;
-    messageWithColor(msg: string, color: Color, flags: number): void;
+    message(msg: string, flags: number): void | Promise<void>;
+    messageWithColor(msg: string, color: Color, flags: number): void | Promise<void>;
     flavorMessage(msg: string): void;
     refreshDungeonCell(loc: Pos): void;
     displayLevel(): void;
@@ -146,7 +146,7 @@ export interface TurnProcessingContext {
     refreshSideBar(x: number, y: number, forceFullUpdate: boolean): void;
     gameOver(message: string, showScore: boolean): void;
     confirm(message: string, isDangerous: boolean): boolean;
-    flashMessage(msg: string, x: number, y: number, duration: number, foreColor: Color, backColor: Color): void;
+    flashMessage(msg: string, x: number, y: number, duration: number, foreColor: Color, backColor: Color): void | Promise<void>;
     recordKeystroke(key: number, shift: boolean, alt: boolean): void;
     confirmMessages(): void;
     pauseAnimation(duration: number, behavior: any): boolean;
@@ -195,7 +195,7 @@ export interface TurnProcessingContext {
     monstersFall(): void;
     decrementPlayerStatus(): void;
     playerFalls(): void;
-    handleHealthAlerts(): void;
+    handleHealthAlerts(): void | Promise<void>;
     updateScent(): void;
     currentStealthRange(): number;
 
@@ -215,6 +215,9 @@ export interface TurnProcessingContext {
     rand_percent(chance: number): boolean;
     max(a: number, b: number): number;
     min(a: number, b: number): number;
+
+    // Ally stair follow
+    monstersApproachStairs(): void;
 }
 
 // =============================================================================
@@ -425,9 +428,9 @@ export function recordCurrentCreatureHealths(
  *
  * C: void playerTurnEnded()
  */
-export function playerTurnEnded(
+export async function playerTurnEnded(
     ctx: TurnProcessingContext,
-): void {
+): Promise<void> {
     let fastForward = false;
 
     handleXPXP(ctx);
@@ -437,7 +440,7 @@ export function playerTurnEnded(
     if (ctx.player.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_FALLING) {
         ctx.playerFalls();
         if (!ctx.rogue.gameHasEnded) {
-            ctx.handleHealthAlerts();
+            await ctx.handleHealthAlerts();
         }
         return;
     }
@@ -714,7 +717,7 @@ export function playerTurnEnded(
                         const article = ctx.isVowelish(buf2[0]) ? "n" : "";
                         const buf = `you ${senseVerb} a${article} ${buf2[0]}`;
                         if (ctx.rogue.cautiousMode) {
-                            ctx.message(buf + ".", 1); // REQUIRE_ACKNOWLEDGMENT
+                            await ctx.message(buf + ".", 1); // REQUIRE_ACKNOWLEDGMENT
                         } else {
                             ctx.combatMessage(buf, null);
                         }
@@ -795,6 +798,7 @@ export function playerTurnEnded(
         if (ctx.rogue.gameHasEnded) {
             return;
         }
+        ctx.monstersApproachStairs();
 
         if (ctx.player.currentHP > ctx.player.info.maxHP) {
             ctx.player.currentHP = ctx.player.info.maxHP;
@@ -802,7 +806,7 @@ export function playerTurnEnded(
 
         if (ctx.player.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_FALLING) {
             ctx.playerFalls();
-            ctx.handleHealthAlerts();
+            await ctx.handleHealthAlerts();
             return;
         }
     } while (ctx.player.status[StatusEffect.Paralyzed]);
@@ -835,10 +839,10 @@ export function playerTurnEnded(
                 turnsToShore = Math.floor(ctx.player.status[StatusEffect.Levitating] * 100 / ctx.player.movementSpeed);
             }
             if (turnsRequiredToShore === turnsToShore || turnsRequiredToShore + 1 === turnsToShore) {
-                ctx.message("better head back to solid ground!", 1); // REQUIRE_ACKNOWLEDGMENT
+                await ctx.message("better head back to solid ground!", 1); // REQUIRE_ACKNOWLEDGMENT
                 ctx.rogue.receivedLevitationWarning = true;
             } else if (turnsRequiredToShore > turnsToShore && turnsRequiredToShore < 10000) {
-                ctx.message("you're past the point of no return!", 1); // REQUIRE_ACKNOWLEDGMENT
+                await ctx.message("you're past the point of no return!", 1); // REQUIRE_ACKNOWLEDGMENT
                 ctx.rogue.receivedLevitationWarning = true;
             }
         }
@@ -849,7 +853,7 @@ export function playerTurnEnded(
     ctx.removeDeadMonsters();
     ctx.rogue.playbackBetweenTurns = true;
     ctx.RNGCheck();
-    ctx.handleHealthAlerts();
+    await ctx.handleHealthAlerts();
 
     if (ctx.rogue.flareCount > 0) {
         ctx.animateFlares(ctx.rogue.flares, ctx.rogue.flareCount);

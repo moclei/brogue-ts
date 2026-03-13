@@ -45,3 +45,7 @@
 - `debug-player-placement.test.ts` needs to be rewritten as integration test once wiring layer exists
 - 26 logic files over 600 lines need splitting — PLAN.md has the full list with sizes
 - No stub files introduced during scaffold; any stubs present are inherited and already tracked
+
+---
+
+> CLOSED — all phases complete. Archived by port-v2-close-out Phase 1a.

@@ -20,14 +20,20 @@ Port V2 is underway. Full plan: `docs/PORT_V2.md`.
 3. Follow the session protocol described in `PLAN.md` exactly
 4. Work on one phase at a time; stop and commit when the phase is done
 
-**Current active initiative:** `port-v2-audit`
+**Current active initiative:** `port-v2-persistence`
 
-**Why this initiative:** Before continuing implementation, we are auditing every C source function
-against the TS port. The V2 port copied game logic from V1 (which had known gaps in the IO rendering
-layer). The audit determines what is correctly implemented, what is stubbed, and what is missing
-entirely. Do not implement any fixes during this initiative — record findings only.
+**Why this initiative:** All domain functions are wired, all stubs are classified, and a full
+browser playtest was completed. The remaining work is the persistence layer: save/load
+(.broguesave), recordings (.broguerec), playback, and file browser UI.
 
-**After this initiative:** The audit's `docs/audit/summary.md` will define the next initiative.
+**Previous initiatives (all complete):**
+- `port-v2-audit` — all gap files in `docs/audit/`, all stubs tracked
+- `port-v2-fix-rendering` — rendering, crash fix, item system, monster AI, power tables (Phases 1–5a)
+- `port-v2-domain-gaps` — all 72 MISSING core domain functions implemented
+- `port-v2-platform` — browser platform, IO, menus, entry point (Phases 1–6)
+- `port-v2-verify-mechanics` — NEEDS-VERIFICATION review, targeting UI, charmRechargeDelay fix
+- `port-v2-playtest` — wiring, stub classification, browser playtest (87 files, 2220 pass, 86 skip)
+- `port-v2-close-out` — threw/call wired, async cascade, stub audit, Light.c verification, playtest bugs B1–B15 filed. Phases 1–6 complete. Phase 7 (backlog clearance) ongoing via `docs/BACKLOG.md` (88 files, 2242 pass, 82 skip)
 
 First attempt (reference only, do not modify): `ts/`
 

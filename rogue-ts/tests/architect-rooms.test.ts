@@ -285,6 +285,51 @@ describe("chooseRandomDoorSites", () => {
 });
 
 // =============================================================================
+// attachHallwayTo — Architect.c:2205 / rooms.ts:372
+// =============================================================================
+
+describe("attachHallwayTo", () => {
+    beforeEach(() => seedRandomGenerator(12345n));
+
+    it("carves a hallway from a valid door site and updates doorSites", () => {
+        const grid = allocGrid();
+        // 5×5 room near the center
+        for (let i = 35; i <= 39; i++) {
+            for (let j = 12; j <= 16; j++) {
+                grid[i][j] = 1;
+            }
+        }
+
+        const doorSites = chooseRandomDoorSites(grid);
+        const validDirs = doorSites.filter(d => d.x !== -1).length;
+        expect(validDirs).toBeGreaterThan(0); // sanity: room has door sites
+
+        const beforeCount = validLocationCount(grid, 1);
+        attachHallwayTo(grid, doorSites);
+
+        // Hallway adds cells to the grid
+        expect(validLocationCount(grid, 1)).toBeGreaterThan(beforeCount);
+    });
+
+    it("returns without modifying the grid when no valid door site exists", () => {
+        const grid = allocGrid();
+        grid[1][1] = 1; // tiny room near the map edge — all four hallway endpoints out of map
+
+        // All door sites invalid
+        const doorSites = [
+            { x: -1, y: -1 },
+            { x: -1, y: -1 },
+            { x: -1, y: -1 },
+            { x: -1, y: -1 },
+        ];
+
+        const beforeCount = validLocationCount(grid);
+        attachHallwayTo(grid, doorSites);
+        expect(validLocationCount(grid)).toBe(beforeCount);
+    });
+});
+
+// =============================================================================
 // designRandomRoom
 // =============================================================================
 

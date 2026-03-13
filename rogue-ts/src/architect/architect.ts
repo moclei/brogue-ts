@@ -18,8 +18,8 @@
  *  License, or (at your option) any later version.
  */
 
-import type { Pcell, Pos, DungeonProfile, DungeonFeature, GameConstants, FloorTileType, AutoGenerator, Blueprint } from "../types/types.js";
-import { TileType, DungeonLayer, DungeonProfileType } from "../types/enums.js";
+import type { Pcell, Pos, DungeonProfile, DungeonFeature, GameConstants, FloorTileType, AutoGenerator, Blueprint, Creature } from "../types/types.js";
+import { TileType, DungeonLayer, DungeonProfileType, CreatureState } from "../types/enums.js";
 import {
     DCOLS, DROWS, ROOM_TYPE_COUNT,
     MAX_WAYPOINT_COUNT, WAYPOINT_SIGHT_RADIUS,
@@ -29,6 +29,7 @@ import {
     TerrainFlag, TerrainMechFlag, TileFlag,
     T_PATHING_BLOCKER, T_OBSTRUCTS_SCENT,
     IS_IN_MACHINE,
+    MonsterBehaviorFlag, MonsterBookkeepingFlag,
 } from "../types/flags.js";
 import { nbDirs, coordinatesAreInMap } from "../globals/tables.js";
 import { cellHasTerrainFlag, cellHasTMFlag } from "../state/helpers.js";
@@ -602,12 +603,25 @@ export function refreshWaypoint(
     wpDistance: Grid,
     wpCoord: Pos,
     populateGenericCostMap: (costMap: Grid) => void,
+    monsters?: Creature[],
 ): void {
     const costMap = allocGrid();
     populateGenericCostMap(costMap);
 
-    // In the full game, sleeping/immobile/captive monsters are marked as PDS_FORBIDDEN.
-    // That will be added when monsters are ported.
+    // C: Architect.c:3019 — sleeping, immobile, or captive monsters block the
+    // waypoint cost map so other monsters path around them.
+    if (monsters) {
+        for (const monst of monsters) {
+            if (
+                (monst.creatureState === CreatureState.Sleeping ||
+                    (monst.info.flags & MonsterBehaviorFlag.MONST_IMMOBILE) ||
+                    (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_CAPTIVE)) &&
+                costMap[monst.loc.x][monst.loc.y] >= 0
+            ) {
+                costMap[monst.loc.x][monst.loc.y] = PDS_FORBIDDEN;
+            }
+        }
+    }
 
     fillGrid(wpDistance, 30000);
     wpDistance[wpCoord.x][wpCoord.y] = 0;
@@ -627,6 +641,7 @@ export function setUpWaypoints(
     pmap: Pcell[][],
     populateGenericCostMap: (costMap: Grid) => void,
     getFOVMask: (grid: Grid, x: number, y: number, maxRadius: bigint, forbiddenTerrain: number, forbiddenFlags: number, cautiousOnWalls: boolean) => void,
+    monsters?: Creature[],
 ): { wpCoordinates: Pos[]; wpDistance: Grid[] } {
     const grid = allocGrid();
     fillGrid(grid, 0);
@@ -661,7 +676,7 @@ export function setUpWaypoints(
     // Calculate distance maps for all waypoints
     for (let i = 0; i < wpCoordinates.length; i++) {
         const dist = allocGrid();
-        refreshWaypoint(dist, wpCoordinates[i], populateGenericCostMap);
+        refreshWaypoint(dist, wpCoordinates[i], populateGenericCostMap, monsters);
         wpDistance.push(dist);
     }
 

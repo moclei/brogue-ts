@@ -12,7 +12,7 @@
  *  License, or (at your option) any later version.
  */
 
-import type { Creature, Pos, StatusEffectInfo } from "../types/types.js";
+import type { Color, Creature, Pos, StatusEffectInfo } from "../types/types.js";
 import { StatusEffect, CreatureState } from "../types/enums.js";
 import {
     MonsterBehaviorFlag,
@@ -23,6 +23,7 @@ import {
     T_HARMFUL_TERRAIN,
 } from "../types/flags.js";
 import { distanceBetween } from "./monster-state.js";
+import { getLineCoordinates } from "../items/bolt-geometry.js";
 
 // ============================================================================
 // Creature list management — array-based (no linked lists)
@@ -188,7 +189,7 @@ export function monsterSummons(
 
 // ============================================================================
 // Helper function stubs — monstUseMagic, monsterBlinkToPreferenceMap,
-//   monsterBlinkToSafety, updateMonsterCorpseAbsorption
+//   monsterBlinkToSafety
 // These require deep magic / blink systems not yet ported.
 // ============================================================================
 
@@ -214,13 +215,6 @@ export function monsterBlinkToPreferenceMapStub(
  * Stub: returns false — full blink-to-safety not yet ported.
  */
 export function monsterBlinkToSafetyStub(_monst: Creature): boolean {
-    return false;
-}
-
-/**
- * Stub: returns false — full corpse absorption not yet ported.
- */
-export function updateMonsterCorpseAbsorptionStub(_monst: Creature): boolean {
     return false;
 }
 
@@ -336,34 +330,17 @@ export function traversiblePathBetween(
     y2: number,
     ctx: TraversiblePathContext,
 ): boolean {
-    const x1 = monst.loc.x;
-    const y1 = monst.loc.y;
+    const targetLoc = { x: x2, y: y2 };
+    // C: getLineCoordinates(coords, originLoc, targetLoc, &boltCatalog[BOLT_NONE])
+    // Uses fixed-point bolt-path geometry, not Bresenham.
+    const coords = getLineCoordinates(monst.loc, targetLoc);
 
-    const dx = Math.abs(x2 - x1);
-    const dy = Math.abs(y2 - y1);
-    const sx = x1 < x2 ? 1 : -1;
-    const sy = y1 < y2 ? 1 : -1;
-
-    let cx = x1;
-    let cy = y1;
-    let err = dx - dy;
-
-    // Walk the Bresenham line; skip origin; return true when we reach target
-    for (let step = 0; step < dx + dy + 2; step++) {
-        if (cx === x2 && cy === y2) {
+    for (const coord of coords) {
+        if (coord.x === x2 && coord.y === y2) {
             return true;
         }
-        if (ctx.monsterAvoids(monst, { x: cx, y: cy }) && !(cx === x1 && cy === y1)) {
+        if (ctx.monsterAvoids(monst, coord)) {
             return false;
-        }
-        const e2 = 2 * err;
-        if (e2 > -dy) {
-            err -= dy;
-            cx += sx;
-        }
-        if (e2 < dx) {
-            err += dx;
-            cy += sy;
         }
     }
 
@@ -671,11 +648,37 @@ export interface MoveAllyContext {
     MB_SEIZED: number;
     MB_FOLLOWER: number;
     MB_SUBMERGED: number;
+    MB_DOES_NOT_TRACK_LEADER: number;
     STATUS_INVISIBLE: number;
     STATUS_IMMUNE_TO_FIRE: number;
+    MONST_MAINTAINS_DISTANCE: number;
+    MONST_FLITS: number;
+    MONST_IMMOBILE: number;
+    MONSTER_TRACKING_SCENT: number;
+    attackWouldBeFutile(monst: Creature, target: Creature): boolean;
+    monsterHasBoltEffect(monst: Creature, effectType: number): number;
+    BE_BLINKING: number;
 
     allySafetyMap: number[][];
     distanceBetween(loc1: Pos, loc2: Pos): number;
+
+    // Corpse-eating branch (C:3208)
+    isPosInMap(pos: Pos): boolean;
+    STATUS_POISONED: number;
+    STATUS_BURNING: number;
+    canSeeMonster(monst: Creature): boolean;
+    monsterName(monst: Creature, includeArticle: boolean): string;
+    getMonsterAbsorbingText(monst: Creature): string;
+    goodMessageColor: Readonly<Color>;
+    messageWithColor(msg: string, color: Readonly<Color>, flags: number): void | Promise<void>;
+    MB_ABSORBING: number;
+
+    // Mill-about / scent-follow (C:3222)
+    inFieldOfView(loc: Pos): boolean;
+    monsterMillAbout(monst: Creature, chance: number): void;
+    MB_GIVEN_UP_ON_SCENT: number;
+    scentMap: number[][];
+    scentDirection(monst: Creature): number;
 }
 
 /**
@@ -749,6 +752,7 @@ export function moveAlly(monst: Creature, ctx: MoveAllyContext): void {
     // Weak allies flee if in presence of enemies
     if (ctx.allyFlees(monst, closestMonster)) {
         if (
+            ctx.monsterHasBoltEffect(monst, ctx.BE_BLINKING) &&
             (monst.info.flags & ctx.MONST_ALWAYS_USE_ABILITY || ctx.rng.randPercent(30)) &&
             ctx.monsterBlinkToSafety(monst)
         ) {
@@ -793,18 +797,90 @@ export function moveAlly(monst: Creature, ctx: MoveAllyContext): void {
     } else {
         leashLength = 4;
     }
+    // C:3142 — if adjacent to enemy, extend leash (or max out if enemy is faster and tracking)
+    if (shortestDistance === 1 && closestMonster) {
+        if (
+            closestMonster.movementSpeed < monst.movementSpeed &&
+            !(closestMonster.info.flags & (ctx.MONST_FLITS | ctx.MONST_IMMOBILE)) &&
+            closestMonster.creatureState === ctx.MONSTER_TRACKING_SCENT
+        ) {
+            leashLength = Math.max(ctx.DCOLS, ctx.DROWS);
+        } else {
+            leashLength++;
+        }
+    }
 
-    // Attack or pursue nearest enemy within leash
-    if (closestMonster && ctx.distanceBetween(monst.loc, closestMonster.loc) <= leashLength) {
+    // Attack or pursue nearest enemy within leash (C:3153)
+    if (
+        closestMonster &&
+        (ctx.distanceBetween({ x, y }, ctx.player.loc) < leashLength ||
+            !!(monst.bookkeepingFlags & ctx.MB_DOES_NOT_TRACK_LEADER)) &&
+        !(monst.info.flags & ctx.MONST_MAINTAINS_DISTANCE) &&
+        !ctx.attackWouldBeFutile(monst, closestMonster)
+    ) {
         ctx.pathTowardCreature(monst, closestMonster);
         return;
     }
 
-    // Return to leader
-    if (monst.leader) {
-        if (ctx.distanceBetween(monst.loc, monst.leader.loc) > 1) {
+    // Corpse-eating branch (C:3208)
+    if (
+        ctx.isPosInMap(monst.targetCorpseLoc) &&
+        !monst.status[ctx.STATUS_POISONED] &&
+        (!monst.status[ctx.STATUS_BURNING] || !!monst.status[ctx.STATUS_IMMUNE_TO_FIRE])
+    ) {
+        ctx.moveMonsterPassivelyTowards(monst, monst.targetCorpseLoc, false);
+        if (
+            monst.loc.x === monst.targetCorpseLoc.x &&
+            monst.loc.y === monst.targetCorpseLoc.y &&
+            !(monst.bookkeepingFlags & ctx.MB_ABSORBING)
+        ) {
+            if (ctx.canSeeMonster(monst)) {
+                const monstName = ctx.monsterName(monst, true);
+                const absorbText = ctx.getMonsterAbsorbingText(monst);
+                void ctx.messageWithColor(
+                    `${monstName} begins ${absorbText} the fallen ${monst.targetCorpseName}.`,
+                    ctx.goodMessageColor, 0,
+                );
+            }
+            monst.corpseAbsorptionCounter = 20;
+            monst.bookkeepingFlags |= ctx.MB_ABSORBING;
+        }
+        return;
+    }
+
+    // Mill about if close to player or doesn't track leader (C:3222)
+    if (
+        (monst.bookkeepingFlags & ctx.MB_DOES_NOT_TRACK_LEADER) ||
+        (ctx.distanceBetween({ x, y }, ctx.player.loc) < 3 && ctx.inFieldOfView({ x, y }))
+    ) {
+        monst.bookkeepingFlags &= ~ctx.MB_GIVEN_UP_ON_SCENT;
+        ctx.monsterMillAbout(monst, 30);
+        return;
+    }
+
+    // Follow scent back to leader (C:3228)
+    if (
+        !(monst.bookkeepingFlags & ctx.MB_GIVEN_UP_ON_SCENT) &&
+        ctx.distanceBetween({ x, y }, ctx.player.loc) > 10 &&
+        ctx.monsterBlinkToPreferenceMap(monst, ctx.scentMap, true)
+    ) {
+        monst.ticksUntilTurn = monst.attackSpeed *
+            ((monst.info.flags & ctx.MONST_CAST_SPELLS_SLOWLY) ? 2 : 1);
+        return;
+    }
+
+    const scentDir = ctx.scentDirection(monst);
+    if (scentDir === ctx.NO_DIRECTION || (monst.bookkeepingFlags & ctx.MB_GIVEN_UP_ON_SCENT)) {
+        monst.bookkeepingFlags |= ctx.MB_GIVEN_UP_ON_SCENT;
+        if (monst.leader) {
             ctx.pathTowardCreature(monst, monst.leader);
         }
+    } else {
+        const targetLoc: Pos = {
+            x: x + ctx.nbDirs[scentDir][0],
+            y: y + ctx.nbDirs[scentDir][1],
+        };
+        ctx.moveMonsterPassivelyTowards(monst, targetLoc, false);
     }
 }
 

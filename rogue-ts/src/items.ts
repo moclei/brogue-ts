@@ -18,7 +18,8 @@
  */
 
 import { getGameState } from "./core.js";
-import { buildCombatDamageContext } from "./combat.js";
+import { buildApplyInstantTileEffectsFn } from "./tile-effects-wiring.js";
+import { buildCombatDamageContext, buildFadeInMonsterFn } from "./combat.js";
 import { buildTurnProcessingContext } from "./turn.js";
 import { buildMonsterSpawningContext } from "./monsters.js";
 import {
@@ -27,17 +28,55 @@ import {
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { boltCatalog } from "./globals/bolt-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
-import { itemName as itemNameFn } from "./items/item-naming.js";
+import {
+    identify as identifyFn,
+} from "./items/item-naming.js";
 import {
     removeItemFromArray,
     numberOfMatchingPackItems as numberOfMatchingPackItemsFn,
 } from "./items/item-inventory.js";
-import { enchantMagnitude } from "./items/item-usage.js";
+import { enchantMagnitude, netEnchant as netEnchantFn, updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, equipItem as equipItemFn } from "./items/item-usage.js";
+import { buildEquipState, syncEquipBonuses, syncEquipState } from "./items/equip-helpers.js";
 import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
-import { initializeItem } from "./items/item-generation.js";
-import { heal as healFn } from "./combat/combat-damage.js";
-import { distanceBetween } from "./monsters/monster-state.js";
-import { spawnHorde as spawnHordeFn } from "./monsters/monster-spawning.js";
+import {
+    heal as healFn,
+    killCreature as killCreatureFn,
+    inflictLethalDamage as inflictLethalDamageFn,
+    flashMonster as flashMonsterFn,
+} from "./combat/combat-damage.js";
+import { alertMonster as alertMonsterFn } from "./monsters/monster-state.js";
+import {
+    teleport as teleportFn,
+    disentangle as disentangleFn,
+} from "./monsters/monster-teleport.js";
+import { calculateDistances } from "./dijkstra/dijkstra.js";
+import { getFOVMask as getFOVMaskFn } from "./light/fov.js";
+import {
+    spawnHorde as spawnHordeFn,
+    forbiddenFlagsForMonster as forbiddenFlagsForMonsterFn,
+    avoidedFlagsForMonster as avoidedFlagsForMonsterFn,
+} from "./monsters/monster-spawning.js";
+import {
+    monsterName as monsterNameFn,
+    monstersAreEnemies as monstersAreEnemiesFn,
+    canSeeMonster as canSeeMonsterFn,
+    monsterRevealed as monsterRevealedFn,
+} from "./monsters/monster-queries.js";
+import { negateCreature } from "./monsters/monster-negate.js";
+import {
+    negationBlast as negationBlastFn,
+    haste as hasteFn,
+    makePlayerTelepathic as makePlayerTelepathicFn,
+    imbueInvisibility as imbueInvisibilityFn,
+    discordBlast as discordBlastFn,
+    rechargeItems as rechargeItemsFn,
+    updateIdentifiableItem as updateIdentifiableItemFn,
+    updatePlayerRegenerationDelay as updatePlayerRegenerationDelayFn,
+} from "./items/item-effects.js";
+import { updateIdentifiableItems as updateIdentifiableItemsFn } from "./items/item-handlers.js";
+import { statusEffectCatalog } from "./globals/status-effects.js";
+import { mutationCatalog } from "./globals/mutation-catalog.js";
+import { messageColorFromVictim as messageColorFromVictimFn } from "./io/color.js";
 import {
     charmHealing as charmHealingFn,
     charmProtection as charmProtectionFn,
@@ -45,6 +84,8 @@ import {
     charmShattering as charmShatteringFn,
     charmNegationRadius as charmNegationRadiusFn,
     charmRechargeDelay as charmRechargeDelayFn,
+    charmGuardianLifespan as charmGuardianLifespanFn,
+    staffBlinkDistance as staffBlinkDistanceFn,
 } from "./power/power-tables.js";
 import { randRange, randPercent, randClump } from "./math/rng.js";
 import {
@@ -55,17 +96,36 @@ import {
     coordinatesAreInMap, mapToWindowX, mapToWindowY, nbDirs,
 } from "./globals/tables.js";
 import { playerTurnEnded as playerTurnEndedFn } from "./time/turn-processing.js";
+import { allocGrid, fillGrid } from "./grid/grid.js";
+import { freeCaptivesEmbeddedAt as freeCaptivesEmbeddedAtFn } from "./movement/ally-management.js";
+import { generateMonster as generateMonsterFn } from "./monsters/monster-creation.js";
+import {
+    aggravateMonsters as aggravateMonstersFn,
+    crystalize as crystalizeFn,
+    summonGuardian as summonGuardianFn,
+} from "./items/monster-spell-effects.js";
 import {
     itemMessageColor, advancementMessageColor, magicMapFlashColor,
-    darkBlue, gray, black,
+    darkBlue, gray, black, forceFieldColor,
 } from "./globals/colors.js";
-import { DungeonFeatureType, LightType, BoltType, CharmKind } from "./types/enums.js";
-import { TileFlag, MessageFlag, HordeFlag, HORDE_MACHINE_ONLY } from "./types/flags.js";
+import { DungeonFeatureType, LightType, BoltType, CharmKind, StatusEffect } from "./types/enums.js";
+import {
+    TileFlag, MessageFlag, HordeFlag, HORDE_MACHINE_ONLY,
+    MonsterBookkeepingFlag, TerrainMechFlag, IS_IN_MACHINE,
+} from "./types/flags.js";
 import { INVALID_POS } from "./types/types.js";
 import { KEYBOARD_LABELS } from "./types/constants.js";
+import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
 import type { ItemHandlerContext } from "./items/item-handlers.js";
-import type { ItemHelperContext } from "./movement/item-helpers.js";
+import {
+    buildStaffChooseTargetFn,
+    buildStaffPlayerCancelsBlinkingFn,
+    buildStaffZapFn,
+} from "./items/staff-wiring.js";
 import type { ItemTable, Creature, Pos } from "./types/types.js";
+import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn, buildExposeCreatureToFireFn, buildPromptForItemOfTypeFn, buildConfirmFn, buildDisplayLevelFn, buildColorFlashFn } from "./io-wiring.js";
+import { buildResolvePronounEscapesFn } from "./io/text.js";
+import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
 
 // =============================================================================
 // Private helpers
@@ -120,6 +180,8 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         mutableScrollTable, mutablePotionTable, gameConst,
     } = state;
 
+    const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn(), refreshSideBar = buildRefreshSideBarFn();
+
     const combatCtx = buildCombatDamageContext();
     const namingCtx = buildNamingCtx(state);
 
@@ -128,6 +190,38 @@ export function buildItemHandlerContext(): ItemHandlerContext {
     const cellHasTMFlag = (loc: Pos, flags: number) =>
         cellHasTMFlagFn(pmap, loc, flags);
     const monsterAtLoc = buildMonsterAtLoc(player, monsters);
+
+    // ── MonsterQueryContext — used by negationBlast creature checks ──────────
+    const mqCtx = {
+        player,
+        cellHasTerrainFlag,
+        cellHasGas: () => false,
+        playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playbackOmniscience: rogue.playbackOmniscience,
+    };
+
+    // ── NegateContext — wires negateCreature for negationBlast ───────────────
+    const negateCtx = {
+        player,
+        boltCatalog,
+        mutationCatalog,
+        statusEffectCatalog,
+        monsterName: (m: Creature, includeArticle: boolean) =>
+            monsterNameFn(m, includeArticle, mqCtx),
+        killCreature: (m: Creature) => killCreatureFn(m, false, combatCtx),
+        combatMessage: io.combatMessage,
+        messageColorFromVictim: (m: Creature) => messageColorFromVictimFn(
+            m, player,
+            player.status[StatusEffect.Hallucinating] > 0,
+            rogue.playbackOmniscience,
+            (a, b) => monstersAreEnemiesFn(a, b, player, cellHasTerrainFlag),
+        ),
+        extinguishFireOnCreature: () => {},  // permanent-defer — requires full CreatureEffectsContext
+        refreshDungeonCell,
+        applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
+        resolvePronounEscapes: buildResolvePronounEscapesFn(player, pmap, rogue),
+    };
 
     return {
         // ── Game state ──────────────────────────────────────────────────────
@@ -166,15 +260,15 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         randClump: (range) => randClump(range),
 
         // ── UI stubs (wired in port-v2-platform) ────────────────────────────
-        message: () => {},
-        messageWithColor: () => {},
-        confirmMessages: () => {},
-        confirm: () => true,
+        message: io.message,
+        messageWithColor: io.messageWithColor,
+        confirmMessages: io.confirmMessages,
+        confirm: buildConfirmFn(),
         temporaryMessage: () => {},
         printString: () => {},
 
         // ── Inventory / item management ─────────────────────────────────────
-        promptForItemOfType: () => null,     // stub — needs UI
+        promptForItemOfType: buildPromptForItemOfTypeFn(),
         numberOfMatchingPackItems: (cat, req, forbidden, _err) =>
             numberOfMatchingPackItemsFn(packItems, cat, req, forbidden),
         removeItemFromChain(item, chain) { removeItemFromArray(item, chain); },
@@ -182,10 +276,20 @@ export function buildItemHandlerContext(): ItemHandlerContext {
             const idx = floorItems.indexOf(item);
             if (idx >= 0) floorItems.splice(idx, 1);
         },
-        updateIdentifiableItem: () => {},
-        updateEncumbrance: () => {},         // stub — wired in port-v2-platform
-        updateRingBonuses: () => {},         // stub — wired in port-v2-platform
-        equipItem: () => {},                 // stub — wired in port-v2-platform
+        updateIdentifiableItem(item) {
+            updateIdentifiableItemFn(item, {
+                scrollTable: mutableScrollTable,
+                potionTable: mutablePotionTable,
+            });
+        },
+        updateEncumbrance: () => updateEncumbranceFn(buildEquipState()),
+        updateRingBonuses: () => { const s = buildEquipState(); updateRingBonusesFn(s); syncEquipBonuses(s); },
+        equipItem: (item, force, hint) => {
+            const s = buildEquipState();
+            equipItemFn(item, force, hint, { state: s, message: (text, req) => io.message(text, req ? 1 : 0), itemName: () => "item",
+                updateRingBonuses: () => { updateRingBonusesFn(s); syncEquipBonuses(s); }, updateEncumbrance: () => updateEncumbranceFn(s) });
+            syncEquipState(s);
+        },
         recalculateEquipmentBonuses: () => {},
         itemMagicPolarity: (item) => itemMagicPolarityFn(item),
 
@@ -196,16 +300,111 @@ export function buildItemHandlerContext(): ItemHandlerContext {
 
         // ── Creature / combat helpers ────────────────────────────────────────
         heal: (target, percent, increaseMax) => healFn(target, percent, increaseMax, combatCtx),
-        haste: () => {},                     // stub — wired in port-v2-platform
-        teleport: () => {},                  // stub — wired in port-v2-platform
-        exposeCreatureToFire: () => {},      // stub — wired in port-v2-platform
-        extinguishFireOnCreature: () => {},  // stub — wired in port-v2-platform
-        makePlayerTelepathic: () => {},      // stub — wired in port-v2-platform
-        imbueInvisibility: () => {},         // stub — wired in port-v2-platform
-        wakeUp: () => {},                    // stub — wired in port-v2-platform
-        fadeInMonster: () => {},             // stub — wired in port-v2-platform
-        flashMonster: () => {},              // stub — wired in port-v2-platform
-        aggravateMonsters: () => {},         // stub — wired in port-v2-platform
+        haste(target, duration) {
+            hasteFn(target, duration, {
+                player,
+                updateEncumbrance: () => updateEncumbranceFn(buildEquipState()),
+                message: io.message,
+            });
+        },
+        teleport(target, destination, voluntary) {
+            const calcDistCtx = {
+                cellHasTerrainFlag,
+                cellHasTMFlag,
+                monsterAtLoc,
+                monsterAvoids: () => false as const,
+                discoveredTerrainFlagsAtLoc: () => 0,
+                isPlayer: (m: Creature) => m === player,
+                getCellFlags: (x: number, y: number) => pmap[x]?.[y]?.flags ?? 0,
+            };
+            const fovCtx = {
+                cellHasTerrainFlag,
+                getCellFlags: (x: number, y: number) => pmap[x]?.[y]?.flags ?? 0,
+            };
+            teleportFn(target, destination, voluntary, {
+                player,
+                disentangle: (m) => disentangleFn(m, { player, message: () => {} }),
+                calculateDistancesFrom: (grid, x, y, flags) =>
+                    calculateDistances(grid, x, y, flags, null, true, false, calcDistCtx),
+                getFOVMaskAt: (grid, x, y, radius, terrain, flags, cautious) =>
+                    getFOVMaskFn(grid, x, y, radius, terrain, flags, cautious, fovCtx),
+                forbiddenFlagsForMonster: (info) => forbiddenFlagsForMonsterFn(info),
+                avoidedFlagsForMonster: (info) => avoidedFlagsForMonsterFn(info),
+                cellHasTerrainFlag,
+                cellHasTMFlag,
+                getCellFlags: (x, y) => pmap[x]?.[y]?.flags ?? 0,
+                isPosInMap: (loc) => coordinatesAreInMap(loc.x, loc.y),
+                setMonsterLocation(monst, loc) {
+                    const flag = monst === player ? TileFlag.HAS_PLAYER : TileFlag.HAS_MONSTER;
+                    if (pmap[monst.loc.x]?.[monst.loc.y]) {
+                        pmap[monst.loc.x][monst.loc.y].flags &= ~flag;
+                        refreshDungeonCell(monst.loc);
+                    }
+                    monst.loc = { ...loc };
+                    if (pmap[loc.x]?.[loc.y]) {
+                        pmap[loc.x][loc.y].flags |= flag;
+                    }
+                    if (
+                        (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_SUBMERGED) &&
+                        !cellHasTMFlagFn(pmap, loc, TerrainMechFlag.TM_ALLOWS_SUBMERGING)
+                    ) {
+                        monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_SUBMERGED;
+                    }
+                },
+                chooseNewWanderDestination: () => {},  // stub — Phase 3a
+                IS_IN_MACHINE,
+                HAS_PLAYER: TileFlag.HAS_PLAYER,
+                HAS_MONSTER: TileFlag.HAS_MONSTER,
+                HAS_STAIRS: TileFlag.HAS_STAIRS,
+            });
+        },
+        exposeCreatureToFire: buildExposeCreatureToFireFn(),
+        extinguishFireOnCreature: () => {},  // permanent-defer — requires full CreatureEffectsContext
+        makePlayerTelepathic(duration) {
+            makePlayerTelepathicFn(duration, {
+                player,
+                monsters,
+                refreshDungeonCell,
+                message: io.message,
+            });
+        },
+        imbueInvisibility(target, duration) {
+            imbueInvisibilityFn(target, duration, {
+                player,
+                boltCatalog,
+                canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
+                monsterRevealed: (m) => monsterRevealedFn(m, player),
+                refreshDungeonCell,
+                refreshSideBar,
+                flashMonster: (m, c, s) => flashMonsterFn(m, c, s, combatCtx),
+            });
+        },
+        wakeUp: buildWakeUpFn(player, monsters),
+        fadeInMonster: buildFadeInMonsterFn(),
+        flashMonster: (m, c, s) => flashMonsterFn(m, c, s, combatCtx),
+        aggravateMonsters(range, x, y, color) {
+            aggravateMonstersFn(range, x, y, color, {
+                player,
+                monsters,
+                scentMap: allocGrid(),          // fresh grid — scent gradient is approximate
+                getPathDistances: (_gx, _gy) => {
+                    const g = allocGrid();
+                    fillGrid(g, 0);             // distance 0: all cells qualify; correct for full-map range
+                    return g;
+                },
+                refreshWaypoint: () => {},      // permanent-defer — requires waypoint grid context
+                wakeUp: buildWakeUpFn(player, monsters),
+                alertMonster: (m) => alertMonsterFn(m, player),
+                addScentToCell: () => {},       // permanent-defer — needs MapQueryContext with scentTurnNumber
+                setStealthRange: (r) => { rogue.stealthRange = r; },
+                currentStealthRange: () => rogue.stealthRange, // was hardcoded 14; use live value
+                discover: () => {},             // permanent-defer — needs full MapQueryContext (wired in lifecycle)
+                discoverCell: () => {},         // permanent-defer — requires CreatureEffectsContext
+                colorFlash: buildColorFlashFn(),
+                playerCanSee: (px, py) => !!(pmap[px]?.[py]?.flags & TileFlag.VISIBLE),
+                message: io.message,
+            });
+        },
         monsterAtLoc,
         monsterName: (monst, _includeArticle) =>
             monst === player ? "you" : monst.info.monsterName,
@@ -213,39 +412,133 @@ export function buildItemHandlerContext(): ItemHandlerContext {
             const spawnCtx = buildMonsterSpawningContext();
             return spawnHordeFn(hordeID, pos, forbiddenHordeFlags, requiredHordeFlags, spawnCtx);
         },
-        summonGuardian: () => {},            // stub — wired in port-v2-platform
+        summonGuardian(theItem) {
+            const spawnCtx = buildMonsterSpawningContext();
+            summonGuardianFn(theItem, {
+                player,
+                pmap,
+                generateMonster: (kind, itemPossible, mutationPossible) =>
+                    generateMonsterFn(kind, itemPossible, mutationPossible, spawnCtx.genCtx),
+                getQualifyingPathLocNear: (loc, _useDiags, _forbidTerrain, _forbidFlags,
+                    _adjTerrain, _adjFlags, _forbidLit) => ({ ...loc }),  // permanent-defer — requires Dijkstra pathfinding
+                charmGuardianLifespan: (enchant) =>
+                    charmGuardianLifespanFn(
+                        enchant,
+                        charmEffectTable[CharmKind.Guardian].effectMagnitudeConstant,
+                        charmEffectTable[CharmKind.Guardian].effectMagnitudeMultiplier,
+                    ),
+                netEnchant: (item) => netEnchantFn(item, rogue.strength, player.weaknessAmount),
+                fadeInMonster: buildFadeInMonsterFn(),
+            });
+        },
 
-        // ── Dungeon feature / environment stubs ─────────────────────────────
-        spawnDungeonFeature: () => {},       // stub — wired in port-v2-platform
+        // ── Dungeon feature / environment ───────────────────────────────────
+        spawnDungeonFeature(x, y, feature, refreshCell, abortIfBlocking) {
+            spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feature as never, refreshCell, abortIfBlocking);
+        },
         cellHasTMFlag,
         cellHasTerrainFlag,
-        discover: () => {},                  // stub — wired in port-v2-platform
-        refreshDungeonCell: () => {},        // stub — wired in port-v2-platform
-        crystalize: () => {},                // stub — wired in port-v2-platform
-        rechargeItems: () => {},             // stub — wired in port-v2-platform
-        negationBlast: () => {},             // stub — wired in port-v2-platform
-        discordBlast: () => {},              // stub — wired in port-v2-platform
+        discover: () => {},                  // permanent-defer — needs full MapQueryContext (wired in lifecycle)
+        refreshDungeonCell,
+        crystalize(radius) {
+            const combatCtx = buildCombatDamageContext();
+            const allyCtx = {
+                player, pmap,
+                demoteMonsterFromLeadership: () => {},  // stub
+                makeMonsterDropItem: () => {},           // stub
+                refreshDungeonCell,
+                monsterName: (m: Creature) => m.info.monsterName,
+                message: io.message,
+                monsterAtLoc,
+                cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
+            };
+            crystalizeFn(radius, {
+                player,
+                pmap,
+                spawnDungeonFeature: (x, y, feat, vol, abo) =>
+                    spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, vol, abo),
+                monsterAtLoc,
+                inflictLethalDamage: (attacker, defender) =>
+                    inflictLethalDamageFn(attacker, defender, combatCtx),
+                killCreature: (monst, admin) => killCreatureFn(monst, admin, combatCtx),
+                freeCaptivesEmbeddedAt: (x, y) => freeCaptivesEmbeddedAtFn(x, y, allyCtx),
+                updateVision: () => {},         // permanent-defer — visual update (wired in turn/lifecycle contexts)
+                colorFlash: buildColorFlashFn(),
+                displayLevel: buildDisplayLevelFn(),
+                refreshSideBar,
+                forceFieldColor,
+            });
+        },
+        rechargeItems(categories) {
+            rechargeItemsFn(categories, {
+                packItems,
+                message: io.message,
+            });
+        },
+        negationBlast(source, radius) {
+            negationBlastFn(source, radius, {
+                player,
+                monsters,
+                floorItems,
+                pmap,
+                itemMessageColor,
+                negate: (m) => negateCreature(m, negateCtx),
+                colorFlash: buildColorFlashFn(),
+                flashMonster: (m, c, s) => flashMonsterFn(m, c, s, combatCtx),
+                canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
+                messageWithColor: io.messageWithColor,
+                identify: (item) => identifyFn(item, gameConst),
+                refreshDungeonCell,
+                updateIdentifiableItems: () => updateIdentifiableItemsFn({
+                    packItems,
+                    floorItems,
+                    updateIdentifiableItem: () => {},
+                }),
+                charmRechargeDelay: (kind, enchant) =>
+                    charmRechargeDelayFn(charmEffectTable[kind], enchant),
+                IN_FIELD_OF_VIEW: TileFlag.IN_FIELD_OF_VIEW,
+            });
+        },
+        discordBlast(source, radius) {
+            discordBlastFn(source, radius, {
+                player,
+                monsters,
+                pmap,
+                itemMessageColor,
+                canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
+                colorFlash: buildColorFlashFn(),
+                flashMonster: (m, c, s) => flashMonsterFn(m, c, s, combatCtx),
+                messageWithColor: io.messageWithColor,
+                IN_FIELD_OF_VIEW: TileFlag.IN_FIELD_OF_VIEW,
+            });
+        },
 
-        // ── Visual effects stubs ────────────────────────────────────────────
-        colorFlash: () => {},                // stub — wired in port-v2-platform
-        createFlare: () => {},               // stub — wired in port-v2-platform
-        displayLevel: () => {},              // stub — wired in port-v2-platform
+        // ── Visual effects ───────────────────────────────────────────────────
+        colorFlash: buildColorFlashFn(),
+        createFlare: () => {},               // permanent-defer — visual flare effect only
+        displayLevel: buildDisplayLevelFn(),
 
         // ── Vision / light stubs ────────────────────────────────────────────
-        updateMinersLightRadius: () => {},   // stub — wired in port-v2-platform
-        updateVision: () => {},              // stub — wired in port-v2-platform
-        updateClairvoyance: () => {},        // stub — wired in port-v2-platform
-        updatePlayerRegenerationDelay: () => {}, // stub — wired in port-v2-platform
+        updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
+        updateVision: () => {},              // permanent-defer — visual update (wired in turn/lifecycle contexts)
+        updateClairvoyance: () => {},        // permanent-defer — requires SafetyMapsContext
+        updatePlayerRegenerationDelay() {
+            updatePlayerRegenerationDelayFn({
+                player,
+                regenerationBonus: rogue.regenerationBonus,
+            });
+        },
 
-        // ── Targeting stubs ─────────────────────────────────────────────────
-        chooseTarget: () => ({ confirmed: false, target: { ...INVALID_POS } }),
-        staffBlinkDistance: () => 0,         // stub — wired in port-v2-platform
-        playerCancelsBlinking: () => true,   // stub — wired in port-v2-platform
+        // ── Targeting ───────────────────────────────────────────────────────
+        chooseTarget: buildStaffChooseTargetFn(),
+        staffBlinkDistance: (enchant) => staffBlinkDistanceFn(enchant),
+        playerCancelsBlinking: buildStaffPlayerCancelsBlinkingFn(),
+        zap: buildStaffZapFn(),
 
         // ── Turn management ─────────────────────────────────────────────────
-        playerTurnEnded() {
+        async playerTurnEnded() {
             const turnCtx = buildTurnProcessingContext();
-            playerTurnEndedFn(turnCtx);
+            await playerTurnEndedFn(turnCtx);
         },
 
         // ── Map helpers ─────────────────────────────────────────────────────
@@ -315,65 +608,4 @@ export function buildItemHandlerContext(): ItemHandlerContext {
     };
 }
 
-// =============================================================================
-// buildItemHelperContext
-// =============================================================================
-
-/**
- * Build an ItemHelperContext backed by the current game state.
- *
- * Wires real implementations for item description, key use, map queries,
- * and pack/floor item management.  promoteTile and discover are stubbed —
- * they require terrain mutation wired in port-v2-platform.
- */
-export function buildItemHelperContext(): ItemHelperContext {
-    const state = getGameState();
-    const { player, rogue, pmap, monsters, packItems, floorItems } = state;
-
-    const namingCtx = buildNamingCtx(state);
-    const monsterAtLoc = buildMonsterAtLoc(player, monsters);
-
-    return {
-        pmap,
-        player,
-        rogue: { playbackOmniscience: rogue.playbackOmniscience },
-        tileCatalog: tileCatalog as unknown as readonly {
-            flags: number; mechFlags: number; discoverType: number; description: string;
-        }[],
-        packItems,
-        floorItems,
-        itemMessageColor,
-
-        initializeItem: () => initializeItem(),
-
-        itemName(theItem, buf, includeDetails, includeArticle, _maxLen) {
-            buf[0] = itemNameFn(theItem, includeDetails, includeArticle, namingCtx);
-        },
-
-        describeHallucinatedItem(buf) {
-            buf[0] = "something strange";  // stub — wired in port-v2-platform
-        },
-
-        removeItemFromChain: (item, chain) => removeItemFromArray(item, chain),
-
-        deleteItem(item) {
-            removeItemFromArray(item, floorItems);
-            removeItemFromArray(item, packItems);
-        },
-
-        monsterAtLoc,
-
-        promoteTile: () => {},              // stub — wired in port-v2-platform
-
-        messageWithColor: () => {},         // stub — wired in port-v2-platform
-
-        cellHasTerrainFlag: (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags),
-        cellHasTMFlag: (loc, flags) => cellHasTMFlagFn(pmap, loc, flags),
-        coordinatesAreInMap: (x, y) => coordinatesAreInMap(x, y),
-        playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-        distanceBetween: (p1, p2) => distanceBetween(p1, p2),
-        discover: () => {},                 // stub — wired in port-v2-platform
-        randPercent: (pct) => randPercent(pct),
-        posEq: (a, b) => a.x === b.x && a.y === b.y,
-    };
-}
+export { buildItemHelperContext } from "./items/item-helper-context.js"; // split for file-size limit

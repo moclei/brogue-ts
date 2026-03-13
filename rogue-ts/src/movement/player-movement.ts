@@ -162,10 +162,10 @@ export interface PlayerMoveContext {
     useStairs(direction: number): void;
 
     // ── Game flow ──
-    playerTurnEnded(): void;
+    playerTurnEnded(): void | Promise<void>;
     recordKeystroke(key: number, shift: boolean, ctrl: boolean): void;
     cancelKeystroke(): void;
-    confirm(prompt: string, defaultYes: boolean): boolean;
+    confirm(prompt: string, defaultYes: boolean): boolean | Promise<boolean>;
 
     // ── Messages ──
     message(msg: string, flags: number): void;
@@ -342,10 +342,10 @@ function oppositeDir(dir: number): number {
  *
  * C: boolean playerMoves(short direction)
  */
-export function playerMoves(
+export async function playerMoves(
     direction: number,
     ctx: PlayerMoveContext,
-): boolean {
+): Promise<boolean> {
     const initialDirection = direction;
     const { pmap, player } = ctx;
     const x = player.loc.x;
@@ -392,7 +392,7 @@ export function playerMoves(
                 }
             }
 
-            if (nearLava && !ctx.confirm("Risk stumbling into lava?", false)) {
+            if (nearLava && !(await ctx.confirm("Risk stumbling into lava?", false))) {
                 ctx.cancelKeystroke();
                 return false;
             }
@@ -433,7 +433,7 @@ export function playerMoves(
                 committed = true;
                 ctx.message(tileCatalog[pmap[newX][newY].layers[layer]].flavorText, 0);
                 ctx.promoteTile(newX, newY, layer, false);
-                ctx.playerTurnEnded();
+                await ctx.playerTurnEnded();
                 return true;
             }
         }
@@ -474,7 +474,7 @@ export function playerMoves(
                 nbDirs: ctx.nbDirs,
                 moveMonster: ctx.moveMonster,
             });
-            ctx.playerTurnEnded();
+            await ctx.playerTurnEnded();
             return true;
         }
         if (specialAttackAborted.value) {
@@ -487,7 +487,7 @@ export function playerMoves(
             // ── Free captive? ──
             if (defender.bookkeepingFlags & MonsterBookkeepingFlag.MB_CAPTIVE) {
                 const monstName = ctx.monsterName(defender, false);
-                if (committed || ctx.confirm(`Free the captive ${monstName}?`, false)) {
+                if (committed || (await ctx.confirm(`Free the captive ${monstName}?`, false))) {
                     committed = true;
                     if (
                         ctx.cellHasTMFlag({ x: newX, y: newY }, TerrainMechFlag.TM_PROMOTES_WITH_KEY) &&
@@ -497,7 +497,7 @@ export function playerMoves(
                     }
                     ctx.freeCaptive(defender);
                     player.ticksUntilTurn += player.attackSpeed;
-                    ctx.playerTurnEnded();
+                    await ctx.playerTurnEnded();
                     return true;
                 } else {
                     ctx.cancelKeystroke();
@@ -527,7 +527,7 @@ export function playerMoves(
                     committed = true;
                     if (ctx.randPercent(25)) {
                         ctx.vomit(player);
-                        ctx.playerTurnEnded();
+                        await ctx.playerTurnEnded();
                         return false;
                     }
                 }
@@ -554,7 +554,7 @@ export function playerMoves(
                     nbDirs: ctx.nbDirs,
                     moveMonster: ctx.moveMonster,
                 });
-                ctx.playerTurnEnded();
+                await ctx.playerTurnEnded();
                 return true;
             }
         }
@@ -578,7 +578,7 @@ export function playerMoves(
                             moveMonster: ctx.moveMonster,
                         });
                         ctx.message(`you struggle but ${monstName} is holding your legs!`, 0);
-                        ctx.playerTurnEnded();
+                        await ctx.playerTurnEnded();
                         return true;
                     } else {
                         ctx.message(`you cannot move; ${monstName} is holding your legs!`, 0);
@@ -617,7 +617,7 @@ export function playerMoves(
                 ctx.cellHasTMFlag({ x: newX, y: newY }, TerrainMechFlag.TM_PROMOTES_ON_PLAYER_ENTRY)
             ) &&
             !ctx.cellHasTMFlag({ x: newX, y: newY }, TerrainMechFlag.TM_IS_SECRET) &&
-            !ctx.confirm("Dive into the depths?", false)
+            !(await ctx.confirm("Dive into the depths?", false))
         ) {
             ctx.cancelKeystroke();
             return false;
@@ -631,7 +631,7 @@ export function playerMoves(
             player.status[StatusEffect.ImmuneToFire] <= 1 &&
             ctx.cellHasTerrainFlag({ x: newX, y: newY }, TerrainFlag.T_IS_FIRE) &&
             !ctx.cellHasTMFlag({ x: newX, y: newY }, TerrainMechFlag.TM_EXTINGUISHES_FIRE) &&
-            !ctx.confirm("Venture into flame?", false)
+            !(await ctx.confirm("Venture into flame?", false))
         ) {
             ctx.cancelKeystroke();
             return false;
@@ -649,7 +649,7 @@ export function playerMoves(
                 !(ctx.rogue.armor.flags & ItemFlag.ITEM_RUNIC_IDENTIFIED) ||
                 ctx.rogue.armor.enchant2 !== ArmorEnchant.Respiration
             ) &&
-            !ctx.confirm("Venture into dangerous gas?", false)
+            !(await ctx.confirm("Venture into dangerous gas?", false))
         ) {
             ctx.cancelKeystroke();
             return false;
@@ -674,7 +674,7 @@ export function playerMoves(
                     !ctx.cellHasTerrainType({ x: newX, y: newY }, TileType.GAS_TRAP_CONFUSION)
                 )
             ) &&
-            !ctx.confirm("Step onto the pressure plate?", false)
+            !(await ctx.confirm("Step onto the pressure plate?", false))
         ) {
             ctx.cancelKeystroke();
             return false;
@@ -733,7 +733,7 @@ export function playerMoves(
                     moveMonster: ctx.moveMonster,
                 });
                 committed = true;
-                ctx.playerTurnEnded();
+                await ctx.playerTurnEnded();
                 return true;
             } else {
                 if (!ctx.rogue.automationActive) {
@@ -750,7 +750,7 @@ export function playerMoves(
             committed = true;
             if (ctx.randPercent(25)) {
                 ctx.vomit(player);
-                ctx.playerTurnEnded();
+                await ctx.playerTurnEnded();
                 return true;
             }
         }
@@ -824,7 +824,7 @@ export function playerMoves(
                 ctx.playerRecoversFromAttacking(anyAttackHit);
             }
 
-            ctx.playerTurnEnded();
+            await ctx.playerTurnEnded();
         }
     } else if (ctx.cellHasTerrainFlag({ x: newX, y: newY }, TerrainFlag.T_OBSTRUCTS_PASSABILITY)) {
         // ── Bumped into a wall or closed door ──
@@ -856,10 +856,10 @@ export function playerMoves(
  *
  * C: void playerRuns(short direction)
  */
-export function playerRuns(
+export async function playerRuns(
     direction: number,
     ctx: PlayerRunContext,
-): void {
+): Promise<void> {
     ctx.rogue.disturbed = !!ctx.player.status[StatusEffect.Confused];
 
     // Record initial cardinal passability around the player.
@@ -873,7 +873,7 @@ export function playerRuns(
     }
 
     while (!ctx.rogue.disturbed) {
-        if (!playerMoves(direction, ctx)) {
+        if (!await playerMoves(direction, ctx)) {
             ctx.rogue.disturbed = true;
             break;
         }

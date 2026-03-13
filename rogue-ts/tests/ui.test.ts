@@ -9,6 +9,8 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { initGameState, getGameState } from "../src/core.js";
+import { shuffleTerrainColors, terrainRandomValues } from "../src/render-state.js";
+import { seedRandomGenerator } from "../src/math/rng.js";
 import {
     buildDisplayContext,
     buildMessageContext,
@@ -268,81 +270,273 @@ import type { Color } from "../src/types/types.js";
 // Stub registry — behaviors deferred to port-v2-platform
 // =============================================================================
 
-it.skip("stub: refreshDungeonCell() is a no-op (should redraw one dungeon cell on screen)", () => {
-    // buildDisplayContext().refreshDungeonCell(loc) does nothing.
-    // Real implementation should recompute the cell's appearance and push it
-    // to the canvas/terminal at the correct window coordinates.
+it.skip("stub: refreshDungeonCell() is a no-op in buildDisplayContext() (needs getCellAppearance)", () => {
+    // ui.ts:242 still has () => {} stub.
+    // Real implementation requires the getCellAppearance / dungeon appearance system
+    // to recompute cell visuals; wired via buildRefreshDungeonCellFn() in movement/combat/items.
+    // Deferred until port-v2-platform wires full appearance system into buildDisplayContext().
 });
 
-it.skip("stub: refreshSideBar() is a no-op (should redraw the right-hand entity sidebar)", () => {
-    // buildDisplayContext().refreshSideBar(-1, -1, false) does nothing.
-    // Real implementation should enumerate nearby monsters/items and render
-    // their health bars and names in the 20-column sidebar region.
+it.skip("stub: refreshSideBar() is a no-op in buildDisplayContext() (needs appearance system)", () => {
+    // ui.ts:243 still has () => {} stub.
+    // Wired in combat/movement/items via buildRefreshSideBarFn(); buildDisplayContext() deferred
+    // until port-v2-platform provides the full appearance system.
 });
 
-it.skip("stub: plotCharWithColor() is a no-op (should write a char+colors to screen buffer)", () => {
-    // buildDisplayContext().plotCharWithColor(ch, pos, fg, bg) does nothing.
-    // Real implementation should set the glyph and color at the given window
-    // position in the live display buffer and mark the cell dirty.
+it.skip("stub: plotCharWithColor() requires a rendered display buffer (IO integration)", () => {
+    // C: IO.c plotCharWithColor() — wired in ui.ts:244 via plotCharWithColorFn.
+    // Functional in browser; unit tests lack a rendered display buffer with proper cell state.
+    // IO integration test only; deferred to port-v2-platform.
 });
 
-it.skip("stub: overlayDisplayBuffer() is a no-op (should merge an overlay onto screen)", () => {
-    // buildDisplayContext().overlayDisplayBuffer(dbuf) does nothing.
-    // Real implementation should alpha-blend the overlay cells over the current
-    // screen buffer, applying the opacity field from each cell.
+it.skip("stub: overlayDisplayBuffer() requires a rendered display buffer (IO integration)", () => {
+    // C: IO.c overlayDisplayBuffer() — wired in ui.ts:246 via applyOverlayFn.
+    // Functional in browser; unit tests lack a rendered display buffer for meaningful assertions.
+    // IO integration test only; deferred to port-v2-platform.
 });
 
-it.skip("stub: clearDisplayBuffer() is a no-op (should blank all cells in a buffer)", () => {
-    // buildDisplayContext().clearDisplayBuffer(dbuf) does nothing.
-    // Real implementation should set every cell's character to ' ', zero all
-    // color components, and zero opacity.
+it.skip("stub: clearDisplayBuffer() wired to io/display; full integration test deferred", () => {
+    // C: IO.c clearDisplayBuffer() — wired in ui.ts:249 via clearDisplayBufferFn.
+    // Functional in browser; basic clear already exercised via buildButtonContext smoke tests.
+    // Full integration test (verify all cells blanked) deferred to port-v2-platform.
 });
 
-it.skip("stub: updateFlavorText() is a no-op (should render flavor text at ROWS-2)", () => {
-    // buildDisplayContext().updateFlavorText() does nothing.
-    // Real implementation should recompute the terrain/item flavor string for
-    // the cell under the cursor and render it in the flavor line.
+it("updateFlavorText() is wired — no throw when rogue.disturbed is false", () => {
+    // buildDisplayContext().updateFlavorText() now calls updateFlavorTextFn via buildUpdateFlavorTextFn().
+    // When rogue.disturbed is false (test default), the function is a no-op (no flavor line rendered).
+    // Verifies the context wiring does not throw; full render coverage is a browser integration test.
+    const ctx = buildDisplayContext();
+    expect(() => ctx.updateFlavorText()).not.toThrow();
+    const msgCtx = buildMessageContext();
+    expect(() => msgCtx.updateFlavorText()).not.toThrow();
 });
 
-it.skip("stub: waitForAcknowledgment() is a no-op (should block until keypress)", () => {
-    // buildMessageContext().waitForAcknowledgment() does nothing.
-    // Real implementation should await nextBrogueEvent and discard the result,
-    // used to make the player acknowledge --MORE-- before continuing.
+it("waitForAcknowledgment() is wired — resolves immediately when platform not initialised (tests)", async () => {
+    // waitForAcknowledgment() in buildMessageContext() now uses waitForEvent() via the async bridge.
+    // In test context, waitForEvent() throws (platform not initialised) → caught → resolves immediately.
+    // In-browser it awaits space/escape/click before returning.
+    const ctx = buildMessageContext();
+    await expect(ctx.waitForAcknowledgment()).resolves.toBeUndefined();
 });
 
-it.skip("stub: flashTemporaryAlert() is a no-op (should show a brief overlay alert)", () => {
-    // buildMessageContext().flashTemporaryAlert(msg, ms) does nothing.
-    // Real implementation should render msg in the message area for `ms`
-    // milliseconds, then restore the previous display state.
+it("flashTemporaryAlert() — wired, does not throw in test environment", () => {
+    // buildMessageContext().flashTemporaryAlert() now calls flashTemporaryAlertFn from effects-alerts.ts.
+    // Uses a minimal EffectsContext (no getCellAppearance / hiliteCell — those aren't used by flashMessage).
+    // pauseBrogue returns false synchronously; time=0 means the animation loop runs 0 iterations.
+    const ctx = buildMessageContext();
+    expect(() => ctx.flashTemporaryAlert(" Alert! ", 0)).not.toThrow();
 });
 
-it.skip("stub: buildInventoryContext().message() is a no-op (should queue display message)", () => {
-    // buildInventoryContext().message(msg, flags) does nothing.
-    // Real implementation should call buildMessageContext()'s message pipeline
-    // to archive and display the string in the 3-row message area.
+it("buildInventoryContext().message() queues message in archive (Phase 7a)", async () => {
+    // buildInventoryContext().message(msg, flags) now wired to real message pipeline.
+    const ctx = buildInventoryContext();
+    await ctx.message("test message", 0);
+    const { messageState } = getGameState();
+    // archive position advanced = message was queued
+    expect(messageState.archivePosition).toBeGreaterThan(0);
 });
 
-it.skip("stub: buildInventoryContext().confirmMessages() is a no-op (should mark messages confirmed)", () => {
-    // buildInventoryContext().confirmMessages() does nothing.
-    // Real implementation should set messagesUnconfirmed = 0 and redraw the
-    // message area without highlighting.
+it("buildInventoryContext().confirmMessages() marks messages confirmed (Phase 7a)", () => {
+    // buildInventoryContext().confirmMessages() now wired to real confirmMessages.
+    const { messageState } = getGameState();
+    messageState.messagesUnconfirmed = 3;
+    const ctx = buildInventoryContext();
+    ctx.confirmMessages();
+    expect(messageState.messagesUnconfirmed).toBe(0);
 });
 
-it.skip("stub: buildInventoryContext() item actions are no-ops (should dispatch to handlers)", () => {
-    // apply(), equip(), unequip(), drop(), throwCommand(), relabel(), call()
-    // all do nothing.  Real implementations should call the corresponding item
-    // handler functions (drinkPotion, wield, removeItem, etc.) and re-render.
+it("buildInventoryContext() item actions wired (Phase 7c)", () => {
+    // equip(), unequip(), drop(), relabel() now call real handlers from inventory-actions.ts.
+    // throwCommand() and call() remain stubbed until Phase 8.
+    // Smoke test: calling with null item returns a Promise without throwing.
+    const ctx = buildInventoryContext();
+    const result = ctx.equip(null as never);
+    expect(result).toBeInstanceOf(Promise);
 });
 
-it.skip("stub: buildButtonContext().strLenWithoutEscapes() returns s.length (should skip escapes)", () => {
-    // Currently returns the raw string length.
-    // Real implementation should subtract 4 bytes per COLOR_ESCAPE sequence
-    // so that button widths are computed without counting escape chars.
+it("buildButtonContext().strLenWithoutEscapes() skips COLOR_ESCAPE sequences (Phase 9b-4)", () => {
+    // C: Combat.c strLenWithoutEscapes — each escape is 4 bytes (char 25 + 3 data bytes).
+    // Wired via strLenWithoutEscapesFn in ui.ts:530.
+    const ctx = buildButtonContext();
+    expect(ctx.strLenWithoutEscapes("hello")).toBe(5);
+    const esc4 = String.fromCharCode(25, 0, 0, 0);
+    expect(ctx.strLenWithoutEscapes(esc4 + "hello")).toBe(5);
+    expect(ctx.strLenWithoutEscapes("ab" + esc4 + "cd")).toBe(4);
 });
 
-it.skip("stub: buildButtonContext() color ops are no-ops (should compute button gradients)", () => {
-    // applyColorAverage(), bakeColor(), separateColors(), decodeMessageColor(),
-    // encodeMessageColor() and plotCharToBuffer() are all no-ops or minimal stubs.
-    // Real implementations should use the io-color / io-display math so that
-    // buttons render with correct gradient highlights and hover states.
+// =============================================================================
+// Stub registry — Buttons.c wiring stubs (Phase 3d, port-v2-audit)
+// =============================================================================
+
+it.skip("stub: initializeButtonState() is a no-op in input context (permanent — signature mismatch)", () => {
+    // C: Buttons.c:175 — initializeButtonState()
+    // io/input-context.ts has () => {} stub. The TS domain function (io/buttons.ts) returns a new
+    // ButtonState rather than mutating a passed-in struct (TS/C signature mismatch).
+    // buttonInputLoop calls it directly so this context slot is never needed.
+    // Permanently acceptable stub — documented in TASKS.md ## Deferred.
+});
+
+it("buttonInputLoop() wired in input context — delegates to io/buttons (Phase 7c)", async () => {
+    // C: Buttons.c:323 — buttonInputLoop()
+    // io/input-context.ts now delegates to buttonInputLoopFn + buildButtonContext().
+    // Platform not initialised → nextBrogueEvent falls back to escape key → loop exits.
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    const ctx = buildInputContext();
+    const result = ctx.buttonInputLoop([], 0, 0, 0, 0, 0, null);
+    expect(result).toBeInstanceOf(Promise);
+    const chosen = await result;
+    expect(chosen).toBe(-1);
+});
+
+it("buttonInputLoop() wired in ui/inventory context — delegates to io/buttons (Phase 7c)", async () => {
+    // C: Buttons.c:323 — buttonInputLoop()
+    // buildInventoryContext().buttonInputLoop now delegates to buttonInputLoopFn.
+    // Platform not initialised → nextBrogueEvent falls back to escape key → loop exits.
+    const ctx = buildInventoryContext();
+    const result = ctx.buttonInputLoop([], 0, 0, 0, 0, 0);
+    expect(result).toBeInstanceOf(Promise);
+    const { chosenButton } = await result;
+    expect(chosenButton).toBe(-1);
+});
+
+it("buildButtonContext() color ops are wired to real io/ implementations (Phase 9b-4)", () => {
+    // applyColorAverage, bakeColor, separateColors, encodeMessageColor, decodeMessageColor,
+    // plotCharToBuffer all wired in ui.ts:527–534.
+    const ctx = buildButtonContext();
+    // applyColorAverage blends base toward target
+    const base: Color = { red: 100, green: 0, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false };
+    const target: Color = { red: 0, green: 0, blue: 100, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false };
+    ctx.applyColorAverage(base, target, 50);
+    expect(base.red).toBe(50);
+    expect(base.blue).toBe(50);
+    // encodeMessageColor produces a 4-byte escape sequence starting with char 25
+    const encoded = ctx.encodeMessageColor(target);
+    expect(encoded.length).toBe(4);
+    expect(encoded.charCodeAt(0)).toBe(25); // COLOR_ESCAPE
+    // strLenWithoutEscapes strips the escape — 4-byte prefix not counted
+    expect(ctx.strLenWithoutEscapes(encoded + "hi")).toBe(2);
+});
+
+// =============================================================================
+// Stub registry — IO.c domain stubs (Phase 3b, port-v2-audit)
+// =============================================================================
+
+it("displayLevel() is wired in buildInputContext() and buildItemHandlerContext() (Phase 7)", async () => {
+    // C: IO.c:910 — displayLevel(). Now wired via buildDisplayLevelFn() in io-wiring.ts
+    // in items.ts and input-context.ts. Previously stubbed as () => {}.
+    initGameState();
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    expect(() => buildInputContext().displayLevel()).not.toThrow();
+});
+
+it("shuffleTerrainColors() populates terrainRandomValues (Phase 7a)", () => {
+    // C: IO.c:966 — shuffleTerrainColors() now wired in lifecycle.ts and turn.ts.
+    // Seed the RNG so randRange returns non-zero values, then reset all and shuffle.
+    seedRandomGenerator(12345n);
+    for (let i = 0; i < 10; i++) for (let j = 0; j < 10; j++) terrainRandomValues[i][j].fill(0);
+    shuffleTerrainColors(100, true);
+    // After a full reset, at least one cell in the grid should have a non-zero value.
+    let found = false;
+    outer: for (let i = 0; i < 10; i++) {
+        for (let j = 0; j < 10; j++) {
+            if (terrainRandomValues[i][j].some((v) => v !== 0)) { found = true; break outer; }
+        }
+    }
+    expect(found).toBe(true);
+});
+
+it("printHelpScreen() renders help overlay without throwing (Phase 7c)", async () => {
+    // C: IO.c:4066 — printHelpScreen() in io/overlay-screens.ts.
+    // Now async with optional waitFn; passes overlayWaitFn from input-context
+    // (which awaits one event, falling back to no-op when platform not initialised).
+    initGameState();
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    const ctx = buildInputContext();
+    await expect(Promise.resolve(ctx.printHelpScreen())).resolves.not.toThrow();
+});
+
+it("displayFeatsScreen() renders feats overlay without throwing (Phase 7c)", async () => {
+    // C: IO.c:4188 — displayFeatsScreen() in io/overlay-screens.ts.
+    // Now async with optional waitFn.
+    initGameState();
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    const ctx = buildInputContext();
+    await expect(Promise.resolve(ctx.displayFeatsScreen())).resolves.not.toThrow();
+});
+
+it("printDiscoveriesScreen() renders discoveries overlay without throwing (Phase 7c)", async () => {
+    // C: IO.c:4240 — printDiscoveriesScreen() in io/overlay-screens.ts.
+    // Now async with optional waitFn.
+    initGameState();
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    const ctx = buildInputContext();
+    await expect(Promise.resolve(ctx.printDiscoveriesScreen())).resolves.not.toThrow();
+});
+
+it("printSeed() wired: displays seed via message system (Phase 7a)", async () => {
+    // C: IO.c:4391 — printSeed() now wired in io/input-context.ts.
+    // Calling it should not throw; it emits the seed as a message.
+    initGameState();
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    const ctx = buildInputContext();
+    expect(() => ctx.printSeed()).not.toThrow();
+});
+
+it("displayGrid() wired: renders numeric grid overlay without throwing", async () => {
+    // C: IO.c:4339 — displayGrid()
+    // Iterates DCOLS×DROWS, maps grid values to a blue→red→green color scale,
+    // and calls plotCharWithColor for each visible cell.
+    initGameState();
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    const ctx = buildInputContext();
+    const grid: number[][] = Array.from({ length: 79 }, () => new Array(29).fill(0));
+    expect(() => ctx.displayGrid(grid)).not.toThrow();
+});
+
+it("displayWaypoints() wired: renders waypoint distances without throwing", async () => {
+    // C: IO.c:2206 — displayWaypoints()
+    // Highlights cells near waypoints with white tint, then calls temporaryMessage + displayLevel.
+    initGameState();
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    const ctx = buildInputContext();
+    expect(() => ctx.displayWaypoints()).not.toThrow();
+});
+
+it("displayMachines() wired: renders machine numbers without throwing", async () => {
+    // C: IO.c:2226 — displayMachines()
+    // Overlays machine number glyphs and random per-machine background colors.
+    initGameState();
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    const ctx = buildInputContext();
+    expect(() => ctx.displayMachines()).not.toThrow();
+});
+
+it("displayChokeMap() wired: renders choke distances without throwing", async () => {
+    // C: IO.c:2264 — displayChokeMap()
+    // Colors cells by chokeMap value; gate sites tinted teal, others red gradient.
+    initGameState();
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    const ctx = buildInputContext();
+    expect(() => ctx.displayChokeMap()).not.toThrow();
+});
+
+it("displayLoops() wired: renders loop/chokepoint cells without throwing", async () => {
+    // C: IO.c:2289 — displayLoops()
+    // Highlights IN_LOOP cells (yellow) and IS_CHOKEPOINT cells (teal).
+    initGameState();
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    const ctx = buildInputContext();
+    expect(() => ctx.displayLoops()).not.toThrow();
+});
+
+it.skip("stub: saveRecording() is a no-op (DEFER: port-v2-persistence)", () => {
+    // DEFER: port-v2-persistence — serialise recording buffer to file/browser storage.
+    // C: RogueMain.c — saveRecording() called from gameOver() and victory().
+    // lifecycle.ts:buildLifecycleContext() has saveRecording: (_f) => {} stub.
+});
+
+it.skip("stub: saveRecordingNoPrompt() is a no-op (DEFER: port-v2-persistence)", () => {
+    // DEFER: port-v2-persistence — silent recording save without player prompt.
+    // C: RogueMain.c — saveRecordingNoPrompt() called from gameOver() and victory() in server mode.
+    // lifecycle.ts:buildLifecycleContext() has saveRecordingNoPrompt: (_f) => {} stub.
 });

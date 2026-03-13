@@ -16,7 +16,7 @@
  *  License, or (at your option) any later version.
  */
 
-import { getGameState } from "./core.js";
+import { getGameState, setVictory } from "./core.js";
 import { buildCombatAttackContext } from "./combat.js";
 import { buildMonsterStateContext } from "./monsters.js";
 import { buildTurnProcessingContext } from "./turn.js";
@@ -25,10 +25,8 @@ import {
     cellHasTMFlag as cellHasTMFlagFn,
     cellHasTerrainType as cellHasTerrainTypeFn,
     terrainFlags as terrainFlagsFn,
-    terrainMechFlags as terrainMechFlagsFn,
-    discoveredTerrainFlagsAtLoc as discoveredTerrainFlagsAtLocFn,
 } from "./state/helpers.js";
-import { coordinatesAreInMap, nbDirs } from "./globals/tables.js";
+import { coordinatesAreInMap, nbDirs, mapToWindowX as mapToWindowXFn, mapToWindowY as mapToWindowYFn } from "./globals/tables.js";
 import { diagonalBlocked as diagonalBlockedFn } from "./combat/combat-math.js";
 import {
     monsterAvoids as monsterAvoidsFn,
@@ -38,19 +36,57 @@ import {
     monsterRevealed as monsterRevealedFn,
     monstersAreEnemies as monstersAreEnemiesFn,
     monsterWillAttackTarget as monsterWillAttackTargetFn,
-    monsterIsHidden as monsterIsHiddenFn,
-    monsterIsInClass as monsterIsInClassFn,
 } from "./monsters/monster-queries.js";
 import { forbiddenFlagsForMonster as forbiddenFlagsForMonsterFn } from "./monsters/monster-spawning.js";
+import { canPass as canPassFn } from "./monsters/monster-movement.js";
+import { demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "./monsters/monster-ally-ops.js";
+import { freeCaptive as freeCaptiveFn } from "./movement/ally-management.js";
 import {
     buildHitList as buildHitListFn,
     attack as attackFn,
 } from "./combat/combat-attack.js";
 import {
+    hilitePath as hilitePathFn,
+    clearCursorPath as clearCursorPathFn,
+    hiliteCell as hiliteCellFn,
+} from "./io/targeting.js";
+import {
+    applyColorAugment as applyColorAugmentFn,
+    separateColors as separateColorsFn,
+} from "./io/color.js";
+import {
+    mapToWindow as mapToWindowFn,
+    plotCharWithColor as plotCharWithColorFn,
+    windowToMapX as windowToMapXFn,
+    windowToMapY as windowToMapYFn,
+} from "./io/display.js";
+import { platformPauseAndCheckForEvent } from "./platform-bridge.js";
+import { buildUpdateVisionFn } from "./vision-wiring.js";
+import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
+import {
     playerRecoversFromAttacking as playerRecoversFromAttackingFn,
     playerTurnEnded as playerTurnEndedFn,
 } from "./time/turn-processing.js";
-import { monsterShouldFall as monsterShouldFallFn } from "./time/creature-effects.js";
+import {
+    monsterShouldFall as monsterShouldFallFn,
+    updatePlayerUnderwaterness as updatePlayerUnderwaternessFn,
+} from "./time/creature-effects.js";
+import { promoteTile as promoteTileFn } from "./time/environment.js";
+import { useKeyAt as useKeyAtFn, checkForMissingKeys as checkForMissingKeysFn } from "./movement/item-helpers.js";
+import { getQualifyingPathLocNear as getQualifyingPathLocNearFn } from "./movement/path-qualifying.js";
+import { pickUpItemAt as pickUpItemAtFn } from "./items/pickup.js";
+import { removeItemAt as removeItemAtFn } from "./items/floor-items.js";
+import { identifyItemKind as identifyItemKindFn, itemName as itemNameFn } from "./items/item-naming.js";
+import {
+    numberOfItemsInPack as numberOfItemsInPackFn,
+    itemWillStackWithPack as itemWillStackWithPackFn,
+    removeItemFromArray as removeItemFromArrayFn,
+    addItemToPack as addItemToPackFn,
+    deleteItem as deleteItemFn,
+} from "./items/item-inventory.js";
+import { wandTable, staffTable, ringTable, charmTable } from "./globals/item-catalog.js";
+import type { ItemTable } from "./types/types.js";
+import { keyMatchesLocation as keyMatchesLocationFn } from "./items/item-utils.js";
 import { layerWithTMFlag as layerWithTMFlagFn, layerWithFlag as layerWithFlagFn } from "./movement/map-queries.js";
 import {
     handleWhipAttacks as handleWhipAttacksFn,
@@ -58,32 +94,38 @@ import {
     buildFlailHitList as buildFlailHitListFn,
     abortAttack as abortAttackFn,
 } from "./movement/weapon-attacks.js";
-import { randValidDirectionFrom as randValidDirectionFromFn, playerMoves as playerMovesFn } from "./movement/player-movement.js";
+import { randValidDirectionFrom as randValidDirectionFromFn, playerMoves as playerMovesFn, vomit as vomitFn } from "./movement/player-movement.js";
 import { populateCreatureCostMap as populateCreatureCostMapFn } from "./movement/cost-maps-fov.js";
-import { boltCatalog } from "./globals/bolt-catalog.js";
+import { buildCostMapFovContext } from "./movement-cost-map.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
+import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
 import { backgroundMessageColor, lightBlue, white, black } from "./globals/colors.js";
 import { itemAtLoc as itemAtLocFn, numberOfMatchingPackItems as numberOfMatchingPackItemsFn } from "./items/item-inventory.js";
 import { monsterDamageAdjustmentAmount as monsterDamageAdjustmentAmountFn } from "./combat/combat-math.js";
 import { allocGrid, freeGrid } from "./grid/grid.js";
 import { dijkstraScan, calculateDistances } from "./dijkstra/dijkstra.js";
 import { FP_FACTOR } from "./math/fixpt.js";
-import { randRange, randPercent } from "./math/rng.js";
-import { TileFlag, TerrainFlag, TerrainMechFlag } from "./types/flags.js";
+import { randRange, randPercent, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "./math/rng.js";
+import { TileFlag, TerrainFlag, TerrainMechFlag, ItemFlag } from "./types/flags.js";
 import { ItemCategory, CreatureState, DungeonLayer } from "./types/enums.js";
 import {
     ASCEND_KEY, DESCEND_KEY, RETURN_KEY,
     DCOLS, DROWS,
 } from "./types/constants.js";
 import { INVALID_POS } from "./types/types.js";
-import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
 import type { CalculateDistancesContext } from "./dijkstra/dijkstra.js";
 import type { PlayerMoveContext } from "./movement/player-movement.js";
+import { useStairs as useStairsFn } from "./movement/travel-explore.js";
 import type { TravelExploreContext } from "./movement/travel-explore.js";
-import type { CostMapFovContext } from "./movement/cost-maps-fov.js";
-import type { WeaponAttackContext, BoltInfo } from "./movement/weapon-attacks.js";
+import { startLevel as startLevelFn } from "./lifecycle.js";
+import { commitDraws } from "./platform.js";
 import type { Creature, Pos, RogueEvent } from "./types/types.js";
+import type { EnvironmentContext } from "./time/environment.js";
+import type { CreatureEffectsContext } from "./time/creature-effects.js";
+import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildGetCellAppearanceFn, buildConfirmFn, buildUpdateFlavorTextFn } from "./io-wiring.js";
+import { buildWeaponAttackContext } from "./movement-weapon-context.js";
+export { buildWeaponAttackContext };
 
 // =============================================================================
 // Private helpers
@@ -98,7 +140,6 @@ function buildMonsterAtLocHelper(player: Creature, monsters: Creature[]) {
         return null;
     };
 }
-
 function buildMonsterNameHelper(player: Creature) {
     return function monsterName(monst: Creature, includeArticle: boolean): string {
         if (monst === player) return "you";
@@ -108,78 +149,27 @@ function buildMonsterNameHelper(player: Creature) {
         return `${pfx}${monst.info.monsterName}`;
     };
 }
-
-/** Build a WeaponAttackContext for whip/spear/flail attacks. */
-function buildWeaponAttackContext(): WeaponAttackContext {
-    const { player, rogue, pmap, monsters } = getGameState();
-    const attackCtx = buildCombatAttackContext();
-
-    const cellHasTerrainFlag = (pos: Pos, flags: number) =>
-        cellHasTerrainFlagFn(pmap, pos, flags);
-    const monsterAtLoc = buildMonsterAtLocHelper(player, monsters);
-    const canSeeMonster = (m: Creature) =>
-        !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE);
-
-    return {
-        pmap,
-        player,
-        rogue: { weapon: rogue.weapon, playbackFastForward: rogue.playbackFastForward },
-        nbDirs,
-        coordinatesAreInMap: (x, y) => coordinatesAreInMap(x, y),
-        isPosInMap: (pos) => coordinatesAreInMap(pos.x, pos.y),
-        cellHasTerrainFlag,
-        diagonalBlocked: (x1, y1, x2, y2, _isPlayer) =>
-            diagonalBlockedFn(x1, y1, x2, y2, (pos) => terrainFlagsFn(pmap, pos)),
-        monsterAtLoc,
-        canSeeMonster,
-        monsterIsHidden: (m, observer) => monsterIsHiddenFn(m, observer, {
-            player, cellHasTerrainFlag,
-            cellHasGas: () => false,
-            playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-            playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-            playbackOmniscience: false,
-        }),
-        monsterWillAttackTarget: (a, d) =>
-            monsterWillAttackTargetFn(a, d, player, cellHasTerrainFlag),
-        monsterIsInClass: (m, cls) => monsterIsInClassFn(m, monsterClassCatalog[cls]),
-        monstersAreEnemies: (a, b) => monstersAreEnemiesFn(a, b, player, cellHasTerrainFlag),
-        monsterName: buildMonsterNameHelper(player),
-        distanceBetween: (a, b) => distanceBetween(a, b),
-
-        itemName: () => "item",             // stub — real name in port-v2-platform
-
-        attack: (attacker, defender, lunge) =>
-            attackFn(attacker, defender, lunge, attackCtx),
-
-        boltCatalog: boltCatalog as unknown as readonly BoltInfo[],
-        getImpactLoc: (_origin, target) => ({ ...target }),  // stub
-        zap: () => {},                       // stub — wired in port-v2-platform
-
-        confirm: () => true,                 // stub — wired in port-v2-platform
-        playerCanSeeOrSense: (x, y) =>
-            !!(pmap[x]?.[y]?.flags & (TileFlag.VISIBLE | TileFlag.WAS_VISIBLE)),
-        plotForegroundChar: () => {},         // stub — wired in port-v2-platform
-        pauseAnimation: () => {},             // stub — wired in port-v2-platform
-        refreshDungeonCell: () => {},         // stub — wired in port-v2-platform
-        lightBlue,
-        allMonsters: () => monsters,
-    };
-}
-
 // =============================================================================
 // buildMovementContext
 // =============================================================================
 
-/**
- * Build a PlayerMoveContext backed by the current game state.
- *
- * Wires real implementations for terrain queries, monster queries, combat
- * (attack, buildHitList, weapon attacks), and turn advancement.
- * Display callbacks, stair transitions, item pickup, and confirm dialogs
- * are stubbed — wired in port-v2-platform.
- */
+/** Build a PlayerMoveContext backed by the current game state. */
 export function buildMovementContext(): PlayerMoveContext {
-    const { player, rogue, pmap, monsters, packItems } = getGameState();
+    const { player, rogue, pmap, monsters, levels, packItems, floorItems, gameConst,
+        mutableScrollTable, mutablePotionTable, monsterCatalog } = getGameState();
+    const namingCtx = {
+        gameConstants: gameConst,
+        depthLevel: rogue.depthLevel,
+        potionTable: mutablePotionTable,
+        scrollTable: mutableScrollTable,
+        wandTable: wandTable as unknown as ItemTable[],
+        staffTable: staffTable as unknown as ItemTable[],
+        ringTable: ringTable as unknown as ItemTable[],
+        charmTable: charmTable as unknown as ItemTable[],
+        playbackOmniscience: rogue.playbackOmniscience,
+        monsterClassName: (classId: number) => monsterCatalog[classId]?.monsterName ?? "creature",
+    };
+    const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn();
 
     const cellHasTerrainFlag = (pos: Pos, flags: number) =>
         cellHasTerrainFlagFn(pmap, pos, flags);
@@ -190,8 +180,101 @@ export function buildMovementContext(): PlayerMoveContext {
     const canSeeMonster = (m: Creature) =>
         !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE);
 
+    const spawnFeature = (x: number, y: number, feat: unknown, rc: boolean, ab: boolean) =>
+        spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, rc, ab, rc ? refreshDungeonCell : undefined);
+
     const monsterStateCtx = buildMonsterStateContext();
     const attackCtx = buildCombatAttackContext();
+
+    // Partial EnvironmentContext for promoteTile (unused fields stubbed).
+    // fillSequentialList/shuffleList must be real: activateMachine fills and
+    // shuffles sCols/sRows before iterating pmap; stubs leave them undefined
+    // and pmap[undefined] crashes.  monstersTurn remains stubbed (complex wiring).
+    const envCtx = {
+        pmap, rogue, tileCatalog, dungeonFeatureCatalog, DCOLS, DROWS, monsters, levels,
+        refreshDungeonCell, spawnDungeonFeature: spawnFeature, cellHasTerrainFlag, cellHasTMFlag,
+        coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
+        monstersFall: () => {}, updateFloorItems: () => {}, monstersTurn: () => {}, keyOnTileAt: () => null,
+        removeCreature: () => false, prependCreature: () => {},
+        rand_range: (a: number, b: number) => randRange(a, b), rand_percent: (p: number) => randPercent(p),
+        max: Math.max, min: Math.min,
+        fillSequentialList: (list: number[], _len: number) => fillSequentialListFn(list),
+        shuffleList: (list: number[], _len: number) => shuffleListFn(list),
+        exposeTileToFire: () => false,
+    } as unknown as EnvironmentContext;
+
+    // Partial ItemHelperContext for useKeyAt/checkForMissingKeys.
+    const itemHelperCtx = {
+        pmap, player, tileCatalog,
+        rogue: { playbackOmniscience: rogue.playbackOmniscience ?? false },
+        packItems, floorItems,
+        cellHasTerrainFlag, cellHasTMFlag,
+        coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
+        promoteTile: (x: number, y: number, layer: number, isVolatile: boolean) =>
+            promoteTileFn(x, y, layer as DungeonLayer, isVolatile, envCtx),
+        messageWithColor: io.messageWithColor,
+        itemMessageColor: { red: 100, green: 100, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false },
+        removeItemFromChain: (item: any, chain: any[]) => removeItemFromArrayFn(item, chain),
+        deleteItem: (item: any) => deleteItemFn(item),
+        monsterAtLoc,
+        playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        distanceBetween,
+        discover: (x: number, y: number) => { if (coordinatesAreInMap(x, y)) pmap[x][y].flags |= TileFlag.DISCOVERED; },
+        randPercent,
+        posEq: (a: Pos, b: Pos) => a.x === b.x && a.y === b.y,
+        keyOnTileAt: (loc: Pos) => {
+            const machineNum = pmap[loc.x]?.[loc.y]?.machineNumber ?? 0;
+            if (player.loc.x === loc.x && player.loc.y === loc.y) {
+                const k = packItems.find(it => (it.flags & ItemFlag.ITEM_IS_KEY) && keyMatchesLocationFn(it, loc, rogue.depthLevel, machineNum));
+                if (k) return k;
+            }
+            if (pmap[loc.x][loc.y].flags & TileFlag.HAS_ITEM) {
+                const fi = itemAtLocFn(loc, floorItems);
+                if (fi && (fi.flags & ItemFlag.ITEM_IS_KEY) && keyMatchesLocationFn(fi, loc, rogue.depthLevel, machineNum)) return fi;
+            }
+            const monst = monsterAtLoc(loc);
+            if (monst?.carriedItem && (monst.carriedItem.flags & ItemFlag.ITEM_IS_KEY) && keyMatchesLocationFn(monst.carriedItem, loc, rogue.depthLevel, machineNum)) return monst.carriedItem;
+            return null;
+        },
+        initializeItem: () => ({}) as any,
+        itemName: (item: any, buf: string[], inclDetails: boolean, inclArticle: boolean) => { buf[0] = itemNameFn(item, inclDetails, inclArticle, namingCtx); },
+        describeHallucinatedItem: (buf: string[]) => { buf[0] = "something"; },
+    } as unknown as import("./movement/item-helpers.js").ItemHelperContext;
+
+    // Partial QualifyingPathContext for getQualifyingPathLocNear.
+    const pathCtx = {
+        pmap,
+        cellHasTerrainFlag,
+        cellFlags: (pos: Pos) => pmap[pos.x][pos.y].flags,
+        rng: { randRange: (lo: number, hi: number) => randRange(lo, hi) },
+        // Fallback is rare (only when dijkstra finds no path); return target as last resort.
+        getQualifyingLocNear: (t: Pos) => t,
+    } as unknown as import("./movement/path-qualifying.js").QualifyingPathContext;
+
+    // Context for pickUpItemAt.
+    const pickupCtx = {
+        player, rogue, pmap, monsters, packItems, floorItems,
+        gameConst,
+        tileCatalog,
+        itemAtLoc: (loc: Pos) => itemAtLocFn(loc, floorItems),
+        identifyItemKind: (item: any) => identifyItemKindFn(item, gameConst, { scrollTable: mutableScrollTable, potionTable: mutablePotionTable }),
+        wandKindData: (kind: number) => wandTable[kind] ?? null,
+        numberOfItemsInPack: () => numberOfItemsInPackFn(packItems),
+        itemWillStackWithPack: (item: any) => itemWillStackWithPackFn(item, packItems),
+        removeItemFromFloor: (item: any) => removeItemFromArrayFn(item, floorItems),
+        addItemToPack: (item: any) => addItemToPackFn(item, packItems),
+        deleteItem: (item: any) => deleteItemFn(item),
+        removeItemAt: (loc: Pos) => removeItemAtFn(loc, { pmap, tileCatalog, cellHasTMFlag,
+            promoteTile: (x: number, y: number, layer: number, isVol: boolean) => promoteTileFn(x, y, layer as DungeonLayer, isVol, envCtx) }),
+        numberOfMatchingPackItems: (cat: number, req: number, forb: number) => numberOfMatchingPackItemsFn(packItems, cat, req, forb),
+        getRandomMonsterSpawnLocation: (): Pos => ({ x: 0, y: 0 }),  // stub — DEFER: port-v2-platform
+        generateMonster: () => ({}) as any,                           // stub — DEFER: port-v2-platform
+        itemName: (item: any, buf: string[], inclDetails: boolean, inclArticle: boolean) => { buf[0] = itemNameFn(item, inclDetails, inclArticle, namingCtx); },
+        messageWithColor: io.messageWithColor,
+        message: io.message,
+        itemMessageColor: { red: 100, green: 100, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false },
+        badMessageColor: { red: 100, green: 0, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false },
+    } as unknown as import("./items/pickup.js").PickUpItemAtContext;
 
     function randValidDirectionFrom(
         monst: Creature, x: number, y: number, respectAvoidance: boolean,
@@ -272,7 +355,8 @@ export function buildMovementContext(): PlayerMoveContext {
             monst.loc = { x: nx, y: ny };
             pmap[nx][ny].flags |= TileFlag.HAS_MONSTER;
         },
-        getQualifyingPathLocNear: (target) => ({ ...target }),  // stub — wired in port-v2-platform
+        getQualifyingPathLocNear: (target, hallwaysAllowed, blockTF, blockMF, forbidTF, forbidMF, det) =>
+            getQualifyingPathLocNearFn(target, hallwaysAllowed, blockTF, blockMF, forbidTF, forbidMF, det, pathCtx),
 
         // ── Items ─────────────────────────────────────────────────────────────
         keyInPackFor(loc) {
@@ -287,55 +371,51 @@ export function buildMovementContext(): PlayerMoveContext {
                 return false;
             }) ?? null;
         },
-        useKeyAt: () => {},              // stub — wired in port-v2-platform
-        pickUpItemAt: () => {},          // stub — wired in port-v2-platform
-        checkForMissingKeys: () => {},   // stub — wired in port-v2-platform
+        useKeyAt: (item, x, y) => useKeyAtFn(item, x, y, itemHelperCtx),
+        pickUpItemAt: (loc) => pickUpItemAtFn(loc, pickupCtx),
+        checkForMissingKeys: (x, y) => checkForMissingKeysFn(x, y, itemHelperCtx),
 
         // ── Ally/captive ──────────────────────────────────────────────────────
-        freeCaptive(monst) {  // minimal: ally the creature and message
-            monst.creatureState = CreatureState.Ally;
-            monst.leader = player;
-        },
+        freeCaptive: (m) => freeCaptiveFn(m, { player, pmap, refreshDungeonCell, monsterAtLoc, cellHasTerrainFlag, message: io.message, monsterName: buildMonsterNameHelper(player), demoteMonsterFromLeadership: (x) => demoteMonsterFromLeadershipFn(x, monsters), makeMonsterDropItem: (x) => { if (x.carriedItem) { floorItems.push(x.carriedItem); x.carriedItem = null; } } }),
 
-        // ── Map manipulation (stubs — wired in port-v2-platform) ─────────────
-        promoteTile: () => {},
-        refreshDungeonCell: () => {},
-        discoverCell(x, y) {
-            // Inline: mark the cell discovered (stub for visual effects)
-            if (coordinatesAreInMap(x, y)) {
-                pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY;
-                pmap[x][y].flags |= TileFlag.DISCOVERED;
-            }
+        // ── Map manipulation ──────────────────────────────────────────────────
+        promoteTile: (x, y, layer, useFireDF) => promoteTileFn(x, y, layer as DungeonLayer, useFireDF, envCtx),
+        refreshDungeonCell,
+        discoverCell: (x, y) => { if (coordinatesAreInMap(x, y)) { pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY; pmap[x][y].flags |= TileFlag.DISCOVERED; } },
+        spawnDungeonFeature: spawnFeature,
+        dungeonFeatureCatalog,
+        useStairs: (delta) => {
+            console.log("[playerMoves] useStairs called delta=%d", delta);
+            useStairsFn(delta, buildTravelContext());
         },
-        spawnDungeonFeature: () => {},
-        dungeonFeatureCatalog: dungeonFeatureCatalog as unknown as readonly never[],
-
-        // ── Stairs (stub — wired in port-v2-platform) ────────────────────────
-        useStairs: () => {},
 
         // ── Game flow ────────────────────────────────────────────────────────
-        playerTurnEnded() {
-            const turnCtx = buildTurnProcessingContext();
-            playerTurnEndedFn(turnCtx);
-        },
-        recordKeystroke: () => {},       // stub — wired in port-v2-platform
-        cancelKeystroke: () => {},       // stub — wired in port-v2-platform
-        confirm: () => true,             // stub — wired in port-v2-platform
+        playerTurnEnded: async () => { await playerTurnEndedFn(buildTurnProcessingContext()); },
+        recordKeystroke: () => {},       // DEFER: port-v2-persistence (input recording layer)
+        cancelKeystroke: () => {},       // DEFER: port-v2-persistence (input recording layer)
+        confirm: buildConfirmFn(),
 
         // ── Messages (stubs — wired in port-v2-platform) ─────────────────────
-        message: () => {},
-        messageWithColor: () => {},
-        combatMessage: () => {},
+        message: io.message,
+        messageWithColor: io.messageWithColor,
+        combatMessage: io.combatMessage,
         backgroundMessageColor,
 
-        // ── RNG ───────────────────────────────────────────────────────────────
         randPercent: (pct) => randPercent(pct),
         randRange: (lo, hi) => randRange(lo, hi),
 
-        // ── Vomit ────────────────────────────────────────────────────────────
-        vomit: () => {},                 // stub — spawnDungeonFeature is stub
-
-        // ── isDisturbed ───────────────────────────────────────────────────────
+        // ── Vomit / isDisturbed ───────────────────────────────────────────────
+        vomit(monst) {
+            vomitFn(monst, {
+                player,
+                dungeonFeatureCatalog,
+                spawnDungeonFeature: spawnFeature,
+                canDirectlySeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+                monsterName: buildMonsterNameHelper(player),
+                combatMessage: io.combatMessage,
+                automationActive: rogue.automationActive,
+            });
+        },
         isDisturbed(x, y): boolean {
             for (let i = 0; i < 8; i++) {
                 const nx = x + nbDirs[i][0];
@@ -357,16 +437,10 @@ export function buildMovementContext(): PlayerMoveContext {
 // buildTravelContext
 // =============================================================================
 
-/**
- * Build a TravelExploreContext backed by the current game state.
- *
- * Wires real implementations for pathfinding (calculateDistances, dijkstraScan),
- * cost maps (populateCreatureCostMap), and player movement (playerMoves).
- * All display callbacks (hilitePath, clearCursorPath, pauseAnimation,
- * nextBrogueEvent, commitDraws, etc.) are stubbed — wired in port-v2-platform.
- */
+/** Build a TravelExploreContext backed by the current game state. */
 export function buildTravelContext(): TravelExploreContext {
-    const { player, rogue, pmap, monsters, floorItems, packItems, gameConst } = getGameState();
+    const { player, rogue, pmap, monsters, floorItems, packItems, gameConst, displayBuffer } = getGameState();
+    const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn(), refreshSideBar = buildRefreshSideBarFn();
 
     const cellHasTerrainFlag = (pos: Pos, flags: number) =>
         cellHasTerrainFlagFn(pmap, pos, flags);
@@ -376,6 +450,25 @@ export function buildTravelContext(): TravelExploreContext {
     const canSeeMonster = (m: Creature) =>
         !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE);
     const monsterStateCtx = buildMonsterStateContext();
+
+    // Minimal context for cursor-path highlighting (hilitePath, clearCursorPath)
+    const pathHighlightCtx = {
+        rogue: { playbackMode: rogue.playbackMode },
+        pmap,
+        refreshDungeonCell,
+    } as unknown as import("./io/targeting.js").TargetingContext;
+
+    // Context for hiliteCell: needs cell appearance + color ops + plotCharWithColor
+    const getCellApp = buildGetCellAppearanceFn();
+    const hiliteCellCtx = {
+        ...pathHighlightCtx,
+        getCellAppearance: getCellApp,
+        applyColorAugment: applyColorAugmentFn,
+        separateColors: separateColorsFn,
+        plotCharWithColor: (g: number, wp: { windowX: number; windowY: number }, fg: unknown, bg: unknown) =>
+            plotCharWithColorFn(g as never, wp, fg as never, bg as never, displayBuffer),
+        mapToWindow: mapToWindowFn,
+    } as unknown as import("./io/targeting.js").TargetingContext;
 
     return {
         // ── Map state ─────────────────────────────────────────────────────────
@@ -398,14 +491,14 @@ export function buildTravelContext(): TravelExploreContext {
         // ── Creature helpers ──────────────────────────────────────────────────
         monsterAtLoc,
         canSeeMonster,
-        canPass: (_m, blocker) => !!(blocker.info?.flags & 0), // stub — wired in port-v2-platform
+        canPass: (mover, blocker) => canPassFn(mover, blocker, player, cellHasTerrainFlag),
         monstersAreTeammates: (a, b) => a.leader === b || b.leader === a,
         monstersAreEnemies: (a, b) => monstersAreEnemiesFn(a, b, player, cellHasTerrainFlag),
         monsterDamageAdjustmentAmount: (m) =>
             Number(monsterDamageAdjustmentAmountFn(m, player)),
 
         // ── Player movement ───────────────────────────────────────────────────
-        playerMoves: (dir) => playerMovesFn(dir, buildMovementContext()),
+        playerMoves: async (dir) => await playerMovesFn(dir, buildMovementContext()),
 
         // ── Distance / pathfinding ────────────────────────────────────────────
         allocGrid: () => allocGrid(),
@@ -441,27 +534,31 @@ export function buildTravelContext(): TravelExploreContext {
         numberOfMatchingPackItems: (cat, req, forbidden, _isBlessed) =>
             numberOfMatchingPackItemsFn(packItems, cat, req, forbidden),
 
-        // ── UI stubs (wired in port-v2-platform) ─────────────────────────────
-        message: () => {},
-        messageWithColor: () => {},
-        confirmMessages: () => {},
-        hiliteCell: () => {},
-        refreshDungeonCell: () => {},
-        refreshSideBar: () => {},
-        updateFlavorText: () => {},
-        clearCursorPath: () => {},
-        hilitePath: () => {},
+        // ── UI ────────────────────────────────────────────────────────────────
+        message: io.message,
+        messageWithColor: io.messageWithColor,
+        confirmMessages: io.confirmMessages,
+        hiliteCell: (x, y, color, strength, flash) => hiliteCellFn(x, y, color, strength, flash, hiliteCellCtx),
+        refreshDungeonCell,
+        refreshSideBar,
+        updateFlavorText: buildUpdateFlavorTextFn(),
+        clearCursorPath: () => clearCursorPathFn(pathHighlightCtx),
+        hilitePath: (path, steps, remove) => hilitePathFn(path, steps, remove, pathHighlightCtx),
         getPlayerPathOnMap: () => 0,
-        commitDraws: () => {},
-        pauseAnimation: async () => false,
+        commitDraws: () => commitDraws(),
+        pauseAnimation: async (ms, _behavior) => { commitDraws(); return platformPauseAndCheckForEvent(ms); },
         recordMouseClick: () => {},
-        mapToWindowX: (x) => x,
-        mapToWindowY: (y) => y,
-        windowToMapX: (wx) => wx,
-        windowToMapY: (wy) => wy,
-        updatePlayerUnderwaterness: () => {},
-        updateVision: () => {},
-        nextBrogueEvent: (_event: RogueEvent) => {},   // stub — wired in port-v2-platform
+        mapToWindowX: (x) => mapToWindowXFn(x),
+        mapToWindowY: (y) => mapToWindowYFn(y),
+        windowToMapX: (wx) => windowToMapXFn(wx),
+        windowToMapY: (wy) => windowToMapYFn(wy),
+        updatePlayerUnderwaterness: () => updatePlayerUnderwaternessFn({
+            player, rogue: rogue as unknown as CreatureEffectsContext["rogue"], pmap,
+            cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
+            updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); }, updateVision: buildUpdateVisionFn(), displayLevel: () => {},
+        } as unknown as CreatureEffectsContext),
+        updateVision: buildUpdateVisionFn(),
+        nextBrogueEvent: (_event: RogueEvent) => {},   // permanent-defer — cursor event loop not needed in movement context
         executeMouseClick: () => {},
         printString: () => {},
 
@@ -472,9 +569,12 @@ export function buildTravelContext(): TravelExploreContext {
         lightBlue,
         backgroundMessageColor,
 
-        // ── Level transitions (stubs — wired in port-v2-platform) ────────────
-        startLevel: () => {},
-        victory: () => {},
+        // ── Level transitions ─────────────────────────────────────────────────
+        startLevel: (oldLevel, dir) => {
+            console.log("[useStairs] startLevel called oldLevel=%d dir=%d", oldLevel, dir);
+            startLevelFn(oldLevel, dir);
+        },
+        victory: (isDescending) => setVictory(isDescending),
 
         // ── FP math ───────────────────────────────────────────────────────────
         fpFactor: Number(FP_FACTOR),
@@ -492,106 +592,5 @@ export function buildTravelContext(): TravelExploreContext {
     };
 }
 
-// =============================================================================
-// buildCostMapFovContext
-// =============================================================================
-
-/**
- * Build a CostMapFovContext backed by the current game state.
- *
- * Wires real terrain queries and cell flag access.
- * Display callbacks (refreshDungeonCell, messageWithColor) and cosmetic RNG
- * are stubbed — wired in port-v2-platform.
- */
-export function buildCostMapFovContext(): CostMapFovContext {
-    const { player, rogue, pmap, tmap, floorItems } = getGameState();
-
-    const cellHasTerrainFlag = (pos: Pos, flags: number) =>
-        cellHasTerrainFlagFn(pmap, pos, flags);
-    const cellHasTMFlag = (pos: Pos, flags: number) =>
-        cellHasTMFlagFn(pmap, pos, flags);
-
-    const monsterStateCtx = buildMonsterStateContext();
-
-    return {
-        // ── Map state ─────────────────────────────────────────────────────────
-        pmap,
-        tmap,
-        player,
-        rogue: {
-            depthLevel: rogue.depthLevel,
-            automationActive: rogue.automationActive,
-            playerTurnNumber: rogue.playerTurnNumber,
-            xpxpThisTurn: rogue.xpxpThisTurn,
-            mapToShore: rogue.mapToShore ?? Array.from({ length: DCOLS }, () => new Array(DROWS).fill(0)),
-        },
-        tileCatalog: tileCatalog as unknown as CostMapFovContext["tileCatalog"],
-
-        // ── Map helpers ───────────────────────────────────────────────────────
-        cellHasTerrainFlag,
-        cellHasTMFlag,
-        terrainFlags: (pos) => terrainFlagsFn(pmap, pos),
-        terrainMechFlags: (pos) => terrainMechFlagsFn(pmap, pos),
-        discoveredTerrainFlagsAtLoc: (pos) => discoveredTerrainFlagsAtLocFn(
-            pmap, pos, tileCatalog,
-            (tileType) => tileCatalog[tileCatalog[tileType]?.discoverType ?? 0]?.flags ?? 0,
-        ),
-        monsterAvoids: (m, pos) => monsterAvoidsFn(m, pos, monsterStateCtx),
-        canPass: (_m, _blocker) => false,   // stub
-        distanceBetween: (a, b) => distanceBetween(a, b),
-
-        // ── Creature helpers ──────────────────────────────────────────────────
-        monsterAtLoc: buildMonsterAtLocHelper(player, []),
-        playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-        playerCanSeeOrSense: (x, y) =>
-            !!(pmap[x]?.[y]?.flags & (TileFlag.VISIBLE | TileFlag.WAS_VISIBLE)),
-
-        // ── Item helpers ──────────────────────────────────────────────────────
-        itemAtLoc: (loc) => itemAtLocFn(loc, floorItems),
-        itemName: (_item, buf) => { buf[0] = "item"; },  // stub
-
-        // ── UI stubs (wired in port-v2-platform) ─────────────────────────────
-        messageWithColor: () => {},
-        refreshDungeonCell: () => {},
-        discoverCell: (x, y) => {
-            if (x >= 0 && x < DCOLS && y >= 0 && y < DROWS) {
-                pmap[x][y].flags |= TileFlag.DISCOVERED;
-            }
-        },
-        storeMemories: () => {},             // stub — wired in port-v2-platform
-        layerWithTMFlag: (x, y, flag) =>
-            layerWithTMFlagFn(pmap, x, y, flag) as DungeonLayer,
-
-        // ── Color constants ───────────────────────────────────────────────────
-        itemMessageColor: { red: 100, green: 100, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false },
-        backgroundMessageColor,
-
-        // ── Item category constant ────────────────────────────────────────────
-        KEY: ItemCategory.KEY,
-
-        // ── Cosmetic RNG (stubs — wired in port-v2-platform) ─────────────────
-        assureCosmeticRNG: () => {},
-        restoreRNG: () => {},
-
-        // ── getLocationFlags ──────────────────────────────────────────────────
-        getLocationFlags(x, y, limitToPlayerKnowledge) {
-            const cell = pmap[x][y];
-            if (
-                limitToPlayerKnowledge &&
-                (cell.flags & (TileFlag.DISCOVERED | TileFlag.MAGIC_MAPPED)) &&
-                !(pmap[x][y].flags & TileFlag.VISIBLE)
-            ) {
-                return {
-                    tFlags: cell.rememberedTerrainFlags,
-                    tmFlags: cell.rememberedTMFlags,
-                    cellFlags: cell.rememberedCellFlags,
-                };
-            }
-            return {
-                tFlags: terrainFlagsFn(pmap, { x, y }),
-                tmFlags: terrainMechFlagsFn(pmap, { x, y }),
-                cellFlags: cell.flags,
-            };
-        },
-    };
-}
+// buildCostMapFovContext moved to movement-cost-map.ts to stay under 600 lines.
+export { buildCostMapFovContext } from "./movement-cost-map.js";

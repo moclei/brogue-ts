@@ -31,9 +31,16 @@ import {
     accuracyFraction,
     defenseFraction,
     charmProtection,
+    charmHealing,
+    charmShattering,
+    charmGuardianLifespan,
+    charmNegationRadius,
+    charmEffectDuration,
+    charmRechargeDelay,
     wandDominate,
     runicWeaponChance,
 } from "../src/power/power-tables.js";
+import { charmEffectTable } from "../src/globals/item-catalog.js";
 
 // Helper: convert integer enchant level to Fixpt (multiply by FP_FACTOR)
 function enc(n: number): bigint {
@@ -207,6 +214,92 @@ describe("Charm protection", () => {
     it("charmProtection returns positive values", () => {
         // enchant 3, effectMagnitudeMultiplier = 150
         expect(charmProtection(enc(3), 150)).toBeGreaterThan(0);
+    });
+});
+
+describe("Charm healing", () => {
+    // Health charm: effectMagnitudeMultiplier = 20 (item-catalog.ts charmEffectTable Health entry)
+    it("returns 0 at enchant 0", () => {
+        expect(charmHealing(enc(0), 20)).toBe(0);
+    });
+
+    it("scales with enchant level (enc(3) → 60%)", () => {
+        // floor(20 * 3) = 60, clamped to 0..100
+        expect(charmHealing(enc(3), 20)).toBe(60);
+    });
+
+    it("clamps to 100 at high enchant", () => {
+        // floor(20 * 10) = 200, clamped to 100
+        expect(charmHealing(enc(10), 20)).toBe(100);
+    });
+});
+
+describe("Charm shattering", () => {
+    // Shattering charm: effectMagnitudeConstant = 4
+    it("returns constant + enchant level", () => {
+        expect(charmShattering(enc(1), 4)).toBe(5);  // 4 + 1
+        expect(charmShattering(enc(3), 4)).toBe(7);  // 4 + 3
+    });
+});
+
+describe("Charm guardian lifespan", () => {
+    // Guardian charm: effectMagnitudeConstant = 4, effectMagnitudeMultiplier = 2
+    it("returns constant + multiplier * enchant", () => {
+        expect(charmGuardianLifespan(enc(1), 4, 2)).toBe(6);  // 4 + 2*1
+        expect(charmGuardianLifespan(enc(3), 4, 2)).toBe(10); // 4 + 2*3
+    });
+});
+
+describe("Charm negation radius", () => {
+    // Negation charm: effectMagnitudeConstant = 1, effectMagnitudeMultiplier = 3
+    it("returns constant + multiplier * enchant", () => {
+        expect(charmNegationRadius(enc(1), 1, 3)).toBe(4);  // 1 + 3*1
+        expect(charmNegationRadius(enc(2), 1, 3)).toBe(7);  // 1 + 3*2
+    });
+});
+
+describe("Charm effect duration", () => {
+    // Haste charm: effectDurationBase = 7, uses POW_120_CHARM_INCREMENT
+    // charmEffectTable[CharmKind.Haste] — index varies; use the actual catalog entry
+    const hasteEntry = charmEffectTable.find(e => e.effectDurationBase === 7)!;
+
+    it("returns positive duration at enchant 1", () => {
+        expect(charmEffectDuration(hasteEntry, 1)).toBeGreaterThan(0);
+    });
+
+    it("increases with enchant level", () => {
+        expect(charmEffectDuration(hasteEntry, 3)).toBeGreaterThan(
+            charmEffectDuration(hasteEntry, 1)
+        );
+    });
+});
+
+describe("Charm recharge delay", () => {
+    // Verified against C PowerTables.c:212-218.
+    // C: rechargeDelayDuration * fp_pow(rechargeDelayBase, enchant) / FP_FACTOR
+    // rechargeDelayBase is a fixed-point value (e.g. FP_FACTOR * 65 / 100 = 42598 for haste).
+    // The previous TS formula had an extra * FP_FACTOR / 100n — confirmed bug, now fixed.
+    //
+    // Cross-validation (haste charm: rechargeDelayDuration=800, rechargeDelayBase=42598):
+    //   enchant=1: effectDuration=8, decay=floor(800*42598/65536)=519  → delay=527
+    //   enchant=2: effectDuration=10, decay=floor(800*floor(42598²/65536)/65536)=337 → delay=347
+    //   enchant=5: delay must be below enchant=1 (shorter recharge at higher enchant)
+    const hasteEntry = charmEffectTable.find(e => e.effectDurationBase === 7)!;
+
+    it("returns at least rechargeDelayMinTurns at enchant 1", () => {
+        expect(charmRechargeDelay(hasteEntry, 1)).toBeGreaterThanOrEqual(hasteEntry.rechargeDelayMinTurns);
+    });
+
+    it("returns correct value at enchant 1 (cross-validated vs C)", () => {
+        expect(charmRechargeDelay(hasteEntry, 1)).toBe(527);
+    });
+
+    it("returns correct value at enchant 2 (cross-validated vs C)", () => {
+        expect(charmRechargeDelay(hasteEntry, 2)).toBe(347);
+    });
+
+    it("decreases with enchant level (higher enchant = shorter recharge)", () => {
+        expect(charmRechargeDelay(hasteEntry, 5)).toBeLessThan(charmRechargeDelay(hasteEntry, 1));
     });
 });
 

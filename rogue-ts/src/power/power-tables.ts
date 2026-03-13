@@ -514,11 +514,15 @@ export function charmEffectDuration(entry: CharmEffectTableEntry, enchant: numbe
 
 /**
  * Charm recharge delay: effect duration + decay curve.
+ *
+ * C: rechargeDelayDuration * fp_pow(rechargeDelayBase, enchant) / FP_FACTOR
+ * rechargeDelayBase is already stored as a fixed-point value (e.g. FP_FACTOR * 65 / 100),
+ * so it is passed directly to fpPow — no further scaling needed.
  */
 export function charmRechargeDelay(entry: CharmEffectTableEntry, enchant: number): number {
     const e = clamp(enchant, 1, 50);
     const delay = charmEffectDuration(entry, e)
-        + Number(BigInt(entry.rechargeDelayDuration) * fpPow(BigInt(entry.rechargeDelayBase) * FP_FACTOR / 100n, e) / FP_FACTOR);
+        + Number(BigInt(entry.rechargeDelayDuration) * fpPow(BigInt(entry.rechargeDelayBase), e) / FP_FACTOR);
     return Math.max(entry.rechargeDelayMinTurns, delay);
 }
 

@@ -925,8 +925,9 @@ export function fillSpawnMap(
     surfaceTileType: number,
     spawnMap: Grid,
     blockedByOtherLayers: boolean,
-    _refresh: boolean,
+    refresh: boolean,
     superpriority: boolean,
+    refreshDungeonCell?: (loc: Pos) => void,
 ): boolean {
     let accomplishedSomething = false;
 
@@ -956,9 +957,9 @@ export function fillSpawnMap(
                 pmap[i][j].layers[layer] = surfaceTileType;
                 accomplishedSomething = true;
 
-                // Note: refresh-related operations (refreshDungeonCell, applyInstantTileEffectsToCreature,
-                // burnItem) are skipped during dungeon generation (refresh=false).
-                // They will be handled when the full runtime is ported.
+                if (refresh && refreshDungeonCell) {
+                    refreshDungeonCell({ x: i, y: j });
+                }
             } else {
                 spawnMap[i][j] = 0;
             }
@@ -985,6 +986,7 @@ export function spawnDungeonFeature(
     feat: DungeonFeature,
     refreshCell: boolean,
     abortIfBlocking: boolean,
+    refreshDungeonCell?: (loc: Pos) => void,
 ): boolean {
     const blockingMap = allocGrid();
     fillGrid(blockingMap, 0);
@@ -1025,6 +1027,7 @@ export function spawnDungeonFeature(
                     !!(feat.flags & DFFlag.DFF_BLOCKED_BY_OTHER_LAYERS),
                     refreshCell,
                     !!(feat.flags & DFFlag.DFF_SUPERPRIORITY),
+                    refreshDungeonCell,
                 );
                 succeeded = true;
             } else {
@@ -1061,12 +1064,12 @@ export function spawnDungeonFeature(
             for (let i = 0; i < DCOLS; i++) {
                 for (let j = 0; j < DROWS; j++) {
                     if (blockingMap[i][j]) {
-                        spawnDungeonFeature(pmap, tCatalog, dungeonFeatureCatalog, i, j, dungeonFeatureCatalog[feat.subsequentDF], refreshCell, abortIfBlocking);
+                        spawnDungeonFeature(pmap, tCatalog, dungeonFeatureCatalog, i, j, dungeonFeatureCatalog[feat.subsequentDF], refreshCell, abortIfBlocking, refreshDungeonCell);
                     }
                 }
             }
         } else {
-            spawnDungeonFeature(pmap, tCatalog, dungeonFeatureCatalog, x, y, dungeonFeatureCatalog[feat.subsequentDF], refreshCell, abortIfBlocking);
+            spawnDungeonFeature(pmap, tCatalog, dungeonFeatureCatalog, x, y, dungeonFeatureCatalog[feat.subsequentDF], refreshCell, abortIfBlocking, refreshDungeonCell);
         }
     }
 
@@ -1416,7 +1419,7 @@ export function buildAMachine(
     for (let j = 0; j <= 1; j++) {
         let totalFreq = 0;
         for (let i = 0; i < blueprint.featureCount; i++) {
-            if (blueprint.feature[i].flags & alternativeFlags[j]) {
+            if ((blueprint.feature[i]?.flags ?? 0) & alternativeFlags[j]) {
                 skipFeature[i] = true;
                 totalFreq++;
             }
@@ -1424,7 +1427,7 @@ export function buildAMachine(
         if (totalFreq > 0) {
             let randIndex = randRange(1, totalFreq);
             for (let i = 0; i < blueprint.featureCount; i++) {
-                if (blueprint.feature[i].flags & alternativeFlags[j]) {
+                if ((blueprint.feature[i]?.flags ?? 0) & alternativeFlags[j]) {
                     if (randIndex === 1) {
                         skipFeature[i] = false; // This alternative gets built
                         break;
@@ -1450,6 +1453,10 @@ export function buildAMachine(
         if (skipFeature[feat]) continue;
 
         const feature = blueprint.feature[feat];
+        // C uses a fixed-size feature[20] array; featureCount can exceed the
+        // number of initializers. Entries beyond the initializer list are zero
+        // in C (no-op). Guard against undefined to match that behavior.
+        if (!feature) continue;
 
         // Distance bounds
         const distanceBound: [number, number] = [0, 10000];

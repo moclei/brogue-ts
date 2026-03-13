@@ -81,8 +81,8 @@ export interface AttackContext extends CombatMathContext, CombatDamageContext {
     splitMonster(defender: Creature, attacker: Creature): void;
 
     // ── Display ──
-    /** Get the attack verb based on damage percentage. */
-    attackVerb(damagePercent: number): string;
+    /** Get the attack verb for an attacker at a given damage percentage. */
+    attackVerb(attacker: Creature, damagePercent: number): string;
     /** Get a color based on the victim for combat messages. */
     messageColorFromVictim(defender: Creature): Color;
     /** Get a monster's display name for combat messages. */
@@ -586,7 +586,7 @@ export function attack(
                     BigInt(attacker.info.damage.upperBound - attacker.info.damage.lowerBound) * adjustment / FP_FACTOR
                 );
                 const damagePercent = Math.max(damage - lowerAdjusted, 0) * 100 / Math.max(1, rangeAdjusted);
-                const verb = ctx.attackVerb(damagePercent);
+                const verb = ctx.attackVerb(attacker, damagePercent);
                 const hitMsg = `${attackerName} ${verb} ${defenderName}${explicationClause}`;
 
                 if (sightUnseen) {

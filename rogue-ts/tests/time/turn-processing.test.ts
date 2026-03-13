@@ -259,6 +259,7 @@ function makeCtx(overrides: Partial<TurnProcessingContext> = {}): TurnProcessing
         rand_percent: () => false,
         max: Math.max,
         min: Math.min,
+        monstersApproachStairs: () => {},
         ...overrides,
     };
 }

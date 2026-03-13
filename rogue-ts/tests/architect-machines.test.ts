@@ -25,6 +25,7 @@ import { TileFlag, BlueprintFlag, MachineFeatureFlag, IS_IN_MACHINE, DFFlag } fr
 import { allocGrid, fillGrid, type Grid } from "../src/grid/grid.js";
 import { seedRandomGenerator } from "../src/math/rng.js";
 import { tileCatalog } from "../src/globals/tile-catalog.js";
+import { blueprintCatalog } from "../src/globals/blueprint-catalog.js";
 import type { Pcell, CellDisplayBuffer, Blueprint, DungeonFeature, DungeonProfile } from "../src/types/types.js";
 
 // =============================================================================
@@ -796,5 +797,33 @@ describe("fillInteriorForVestibuleMachine", () => {
         }
         expect(count).toBeGreaterThanOrEqual(5);
         expect(count).toBeLessThanOrEqual(10);
+    });
+});
+
+// =============================================================================
+// B29 regression: blueprint featureCount vs feature array length
+// =============================================================================
+
+describe("blueprintCatalog featureCount integrity (B29)", () => {
+    // C uses a fixed-size feature[20] array; entries beyond the initializer list
+    // are zero-initialized (no-op features). TS uses a dynamic array, so
+    // featureCount > feature.length causes buildAMachine to access undefined.
+    // Guards in buildAMachine handle this, but the catalog should be audited.
+    it("no blueprint has featureCount exceeding feature array length", () => {
+        const violations: string[] = [];
+        blueprintCatalog.forEach((bp, i) => {
+            if (bp.featureCount > bp.feature.length) {
+                violations.push(
+                    `index ${i} "${bp.name}": featureCount=${bp.featureCount} > feature.length=${bp.feature.length}`,
+                );
+            }
+        });
+        // These two C blueprints have featureCount > initializer count (zero entries
+        // fill the remainder in C's fixed array). The guard in buildAMachine handles
+        // them, but document the known cases here so regressions are visible.
+        expect(violations).toEqual([
+            'index 36 "Levitation challenge -- key on an altar, room filled with pit, levitation or lever elsewhere on level, bridge appears when you grab the key/lever.": featureCount=9 > feature.length=7',
+            'index 37 "Web climbing -- key on an altar, room filled with pit, spider at altar to shoot webs, bridge appears when you grab the key": featureCount=7 > feature.length=5',
+        ]);
     });
 });

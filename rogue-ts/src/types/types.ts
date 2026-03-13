@@ -535,6 +535,7 @@ export interface PlayerCharacter {
     rewardRoomsGenerated: number;
     machineNumber: number;
     sidebarLocationList: Pos[];
+    scentMap: number[][] | null;
     mapToShore: number[][] | null;
     mapToSafeTerrain: number[][] | null;
     recording: boolean;

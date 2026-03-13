@@ -16,11 +16,13 @@
  *  License, or (at your option) any later version.
  */
 
-import type { Color, ScreenDisplayBuffer } from "../types/types.js";
+import type { Color, ScreenDisplayBuffer, Creature, Pcell, PlayerCharacter } from "../types/types.js";
 import type { DisplayGlyph } from "../types/enums.js";
 import { COLS, ROWS, COLOR_ESCAPE } from "../types/constants.js";
+import { MonsterBehaviorFlag, TileFlag } from "../types/flags.js";
 import { decodeMessageColor } from "./color.js";
 import { plotCharToBuffer, locIsInWindow } from "./display.js";
+import { monsterText } from "../globals/monster-text.js";
 
 // =============================================================================
 // String measurement
@@ -299,6 +301,101 @@ export function splitLines(
             start = end + 1;
         }
     }
+}
+
+// =============================================================================
+// Monster pronoun resolution
+// =============================================================================
+
+/**
+ * Returns the DFMessage for a monster from the monsterText catalog.
+ * Empty string if none is defined.
+ *
+ * C: monsterText[monsterID].DFMessage (inline in Combat.c)
+ */
+export function getMonsterDFMessage(monsterID: number): string {
+    return monsterText[monsterID]?.DFMessage ?? "";
+}
+
+/**
+ * Replace pronoun escape sequences ($HESHE, $HIMHER, $HISHER, $HIMSELFHERSELF)
+ * with the appropriate pronoun for the given creature.
+ *
+ * Gender is determined by: player → "you"; invisible non-omniscient → "it";
+ * MONST_MALE → "he/him/his/himself"; MONST_FEMALE → "she/her/her/herself";
+ * else → "it/it/its/itself".
+ *
+ * After a `.` the next pronoun token is capitalized (e.g. "$HESHE" → "He").
+ *
+ * C: resolvePronounEscapes() in Monsters.c:435
+ */
+export function buildResolvePronounEscapesFn(
+    player: Creature,
+    pmap: Pcell[][],
+    rogue: Pick<PlayerCharacter, "playbackOmniscience">,
+): (text: string, monst: Creature) => string {
+    return function resolvePronounEscapes(text: string, monst: Creature): string {
+        // Pronoun table: [escape, you, he, she, it]
+        const pronouns: string[][] = [
+            ["$HESHE",           "you",      "he",      "she",      "it"      ],
+            ["$HIMHER",          "you",      "him",     "her",      "it"      ],
+            ["$HISHER",          "your",     "his",     "her",      "its"     ],
+            ["$HIMSELFHERSELF",  "yourself", "himself", "herself",  "itself"  ],
+        ];
+
+        let gender: number; // index 0=you, 1=he, 2=she, 3=it
+        if (monst === player) {
+            gender = 0;
+        } else if (!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE) && !rogue.playbackOmniscience) {
+            gender = 3;
+        } else if (monst.info.flags & MonsterBehaviorFlag.MONST_MALE) {
+            gender = 1;
+        } else if (monst.info.flags & MonsterBehaviorFlag.MONST_FEMALE) {
+            gender = 2;
+        } else {
+            gender = 3;
+        }
+
+        let result = "";
+        let capitalize = false;
+        let i = 0;
+
+        while (i < text.length) {
+            if (text.charCodeAt(i) === COLOR_ESCAPE) {
+                // Skip 4-byte color escape sequence unchanged
+                result += text.substring(i, i + 4);
+                i += 4;
+            } else if (text[i] === "$") {
+                let matched = false;
+                for (const row of pronouns) {
+                    const token = row[0];
+                    if (text.startsWith(token, i)) {
+                        let replacement = row[1 + gender];
+                        if (capitalize) {
+                            replacement = replacement.charAt(0).toUpperCase() + replacement.slice(1);
+                            capitalize = false;
+                        }
+                        result += replacement;
+                        i += token.length;
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched) {
+                    result += text[i++];
+                }
+            } else {
+                if (text[i] === ".") {
+                    capitalize = true;
+                } else if (text[i] !== " ") {
+                    capitalize = false;
+                }
+                result += text[i++];
+            }
+        }
+
+        return result;
+    };
 }
 
 // =============================================================================

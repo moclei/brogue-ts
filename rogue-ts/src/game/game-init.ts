@@ -258,7 +258,7 @@ export interface GameInitContext {
     message(msg: string, flags: number): void;
     messageWithColor(msg: string, color: Readonly<Color>, flags: number): void;
     flavorMessage(msg: string): void;
-    encodeMessageColor(buf: string[], pos: number, color: Readonly<Color>): void;
+    encodeMessageColor(color: Readonly<Color>): string;
 
     // -- Color references -----------------------------------------------------
 
@@ -420,15 +420,17 @@ export function initializeGameVariant(ctx: GameInitContext): void {
 export function welcome(ctx: GameInitContext): void {
     ctx.message("Hello and welcome, adventurer, to the Dungeons of Doom!", 0);
 
-    // Build colored "Retrieve the Amulet of Yendor from the Nth floor" message
-    const parts: string[] = [];
-    parts.push("Retrieve the ");
-    // Note: in TS we use string concatenation instead of C-style encodeMessageColor
-    // The actual color encoding is done in the message renderer
-    parts.push("Amulet of Yendor");
+    // Build colored "Retrieve the Amulet of Yendor from the Nth floor" message.
+    // Mirrors C: encodeMessageColor(buf, strlen(buf), &itemMessageColor) before "Amulet of Yendor",
+    // then encodeMessageColor(buf, strlen(buf), &white) to reset color.
     const suffix = getOrdinalSuffix(ctx.gameConst.amuletLevel);
-    parts.push(` from the ${ctx.gameConst.amuletLevel}${suffix} floor and escape with it!`);
-    ctx.message(parts.join(""), 0);
+    const msg =
+        "Retrieve the " +
+        ctx.encodeMessageColor(ctx.itemMessageColor) +
+        "Amulet of Yendor" +
+        ctx.encodeMessageColor(ctx.white) +
+        ` from the ${ctx.gameConst.amuletLevel}${suffix} floor and escape with it!`;
+    ctx.message(msg, 0);
 
     if (ctx.KEYBOARD_LABELS) {
         ctx.messageWithColor(
@@ -483,6 +485,11 @@ export function initializeRogue(ctx: GameInitContext, seed: bigint): void {
     rogue.highScoreSaved = false;
     rogue.cautiousMode = false;
     rogue.milliseconds = 0;
+
+    // Set variant-specific game constants (numberPotionKinds, numberScrollKinds,
+    // deepestLevel, etc.). In C this is called from MainMenu before initializeRogue;
+    // in TS the menu-level call is a no-op stub, so we call it here.
+    initializeGameVariant(ctx);
 
     // Allocate metered items and feat records
     rogue.meteredItems = [];

@@ -365,18 +365,18 @@ describe("autoRest", () => {
         expect(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_ALREADY_SEEN).toBe(0);
     });
 
-    it("sets automationActive during rest and clears it after", () => {
+    it("sets automationActive during rest and clears it after", async () => {
         const ctx = makeCtx();
         ctx.player.currentHP = 100;
         ctx.player.info.maxHP = 100;
         (ctx.playerTurnEnded as ReturnType<typeof vi.fn>).mockImplementation(() => {
             ctx.rogue.disturbed = true;
         });
-        autoRest(ctx);
+        await autoRest(ctx);
         expect(ctx.rogue.automationActive).toBe(false);
     });
 
-    it("rests while HP is below max", () => {
+    it("rests while HP is below max", async () => {
         const ctx = makeCtx();
         ctx.player.currentHP = 50;
         ctx.player.info.maxHP = 100;
@@ -387,57 +387,57 @@ describe("autoRest", () => {
                 ctx.player.currentHP = 100; // healed
             }
         });
-        autoRest(ctx);
+        await autoRest(ctx);
         expect(turnCount).toBeGreaterThanOrEqual(3);
         expect(ctx.recordKeystroke).toHaveBeenCalled();
     });
 
-    it("stops when disturbed", () => {
+    it("stops when disturbed", async () => {
         const ctx = makeCtx();
         ctx.player.currentHP = 50;
         ctx.player.info.maxHP = 100;
         (ctx.pauseAnimation as ReturnType<typeof vi.fn>).mockReturnValue(true);
-        autoRest(ctx);
+        await autoRest(ctx);
         // Should only call playerTurnEnded once since pauseAnimation returns true
         expect(ctx.playerTurnEnded).toHaveBeenCalledTimes(1);
     });
 
-    it("rests for 100 turns when player is already at full HP with no statuses", () => {
+    it("rests for 100 turns when player is already at full HP with no statuses", async () => {
         const ctx = makeCtx();
         ctx.player.currentHP = 100;
         ctx.player.info.maxHP = 100;
-        autoRest(ctx);
+        await autoRest(ctx);
         expect(ctx.playerTurnEnded).toHaveBeenCalledTimes(100);
     });
 });
 
 describe("manualSearch", () => {
-    it("records SEARCH_KEY keystroke", () => {
+    it("records SEARCH_KEY keystroke", async () => {
         const ctx = makeCtx();
         // Stop playerTurnEnded from doing anything complex
-        manualSearch(ctx);
+        await manualSearch(ctx);
         expect(ctx.recordKeystroke).toHaveBeenCalledWith("s", false, false);
     });
 
-    it("increments search status", () => {
+    it("increments search status", async () => {
         const ctx = makeCtx();
         ctx.player.status[StatusEffect.Searching] = 2;
-        manualSearch(ctx);
+        await manualSearch(ctx);
         expect(ctx.player.status[StatusEffect.Searching]).toBe(3);
     });
 
-    it("initializes search status if <= 0", () => {
+    it("initializes search status if <= 0", async () => {
         const ctx = makeCtx();
         ctx.player.status[StatusEffect.Searching] = 0;
-        manualSearch(ctx);
+        await manualSearch(ctx);
         expect(ctx.player.maxStatus[StatusEffect.Searching]).toBe(5);
         expect(ctx.player.status[StatusEffect.Searching]).toBe(1);
     });
 
-    it("performs final large search on 5th search in a row", () => {
+    it("performs final large search on 5th search in a row", async () => {
         const ctx = makeCtx();
         ctx.player.status[StatusEffect.Searching] = 4;
-        manualSearch(ctx);
+        await manualSearch(ctx);
         expect(ctx.search).toHaveBeenCalledWith(expect.any(Number));
         // strength should be max(160, awarenessBonus + 30)
         const callArgs = (ctx.search as ReturnType<typeof vi.fn>).mock.calls[0];
@@ -446,9 +446,9 @@ describe("manualSearch", () => {
         expect(ctx.player.status[StatusEffect.Searching]).toBe(0);
     });
 
-    it("calls playerTurnEnded and sets justSearched", () => {
+    it("calls playerTurnEnded and sets justSearched", async () => {
         const ctx = makeCtx();
-        manualSearch(ctx);
+        await manualSearch(ctx);
         expect(ctx.rogue.justSearched).toBe(true);
         expect(ctx.playerTurnEnded).toHaveBeenCalled();
     });

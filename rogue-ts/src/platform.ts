@@ -23,11 +23,19 @@ import { buildTravelContext } from "./movement.js";
 import { travel } from "./movement/travel-explore.js";
 import { windowToMapX, windowToMapY, coordinatesAreInMap } from "./globals/tables.js";
 import { EventType } from "./types/enums.js";
-import type { RogueEvent, ScreenDisplayBuffer } from "./types/types.js";
+import type { RogueEvent, ScreenDisplayBuffer, ButtonState } from "./types/types.js";
 import { COLS, ROWS } from "./types/constants.js";
 import { buildInputContext } from "./io/input-context.js";
 import { executeKeystroke } from "./io/input-dispatch.js";
 import { createScreenDisplayBuffer } from "./io/display.js";
+import { registerPauseAndCheckForEvent } from "./platform-bridge.js";
+import {
+    buildGameMenuButtonState,
+    drawGameMenuButtons,
+    findClickedMenuButton,
+} from "./io/menu-bar.js";
+import { actionMenu } from "./io/input-mouse.js";
+import { buildHoverHandlerFn, buildClearHoverPathFn } from "./io/hover-wiring.js";
 
 // =============================================================================
 // Module-level state
@@ -42,6 +50,13 @@ export interface PlatformConsole {
 }
 
 let _console: PlatformConsole | null = null;
+
+/** Bottom-bar action button state. Initialized once when mainGameLoop starts. */
+let _menuState: ButtonState | null = null;
+
+// Hover handler and path-clear function, initialized lazily in mainGameLoop.
+let _hoverHandler: ((mapX: number, mapY: number) => void) | null = null;
+let _clearHoverPath: (() => void) | null = null;
 
 /** Optional plotChar from the browser console (absent in test mocks). */
 type PlotCharFn = (
@@ -77,6 +92,7 @@ export function initPlatform(browserConsole: PlatformConsole & { plotChar?: Plot
     _console = browserConsole;
     _plotChar = browserConsole.plotChar ?? null;
     _prevBuffer = createScreenDisplayBuffer();
+    registerPauseAndCheckForEvent(pauseAndCheckForEvent);
 }
 
 // =============================================================================
@@ -200,6 +216,10 @@ export async function processEvent(event: RogueEvent): Promise<void> {
     const { rogue } = getGameState();
     if (rogue.gameHasEnded) return;
 
+    if (event.eventType !== EventType.MouseEnteredCell) {
+        console.log("[processEvent] type=%s param1=%s", event.eventType, event.param1);
+    }
+
     switch (event.eventType) {
         case EventType.Keystroke:
             await handleKeystroke(event);
@@ -233,6 +253,30 @@ export async function processEvent(event: RogueEvent): Promise<void> {
  * autoConfirm is always true for mouse travel — no confirmation dialog.
  */
 async function handleLeftClick(windowX: number, windowY: number): Promise<void> {
+    // Check if click lands on a menu bar button (bottom row).
+    if (_menuState !== null) {
+        const buttonIndex = findClickedMenuButton(_menuState, windowX, windowY);
+        if (buttonIndex !== -1) {
+            const ctx = buildInputContext();
+            if (buttonIndex === 3) {
+                // Menu button: open the action menu sub-panel.
+                const menuX = (_menuState.buttons[3]?.x ?? 0) - 4;
+                const hotkey = await actionMenu(ctx, menuX, ctx.rogue.playbackMode);
+                if (hotkey !== -1) {
+                    await executeKeystroke(ctx, hotkey, false, false);
+                }
+            } else {
+                const hotkey = _menuState.buttons[buttonIndex]?.hotkey[0] ?? -1;
+                if (hotkey !== -1) {
+                    await executeKeystroke(ctx, hotkey, false, false);
+                }
+            }
+            return;
+        }
+    }
+
+    _clearHoverPath?.();
+
     const mapX = windowToMapX(windowX);
     const mapY = windowToMapY(windowY);
     if (!coordinatesAreInMap(mapX, mapY)) return;
@@ -251,18 +295,23 @@ async function handleRightClick(_windowX: number, _windowY: number): Promise<voi
 }
 
 /**
- * Mouse hover: update the sidebar to reflect the hovered cell.
- * Stubbed — port-v2-platform Phase 3: call display.refreshSideBar(mapX, mapY, false).
+ * Mouse hover: draw path highlight from player to cursor cell and print
+ * location description.  Wired in B35.
  */
-function handleHover(_windowX: number, _windowY: number): void {
-    // stub — port-v2-platform Phase 3
+function handleHover(windowX: number, windowY: number): void {
+    if (!_hoverHandler) return;
+    const mapX = windowToMapX(windowX);
+    const mapY = windowToMapY(windowY);
+    _hoverHandler(mapX, mapY);
 }
 
 /**
  * Keystroke: dispatch to the appropriate game action via executeKeystroke.
+ * Clears hover path before acting (path should not persist after the player moves).
  * Wired in port-v2-platform Phase 4.
  */
 async function handleKeystroke(event: RogueEvent): Promise<void> {
+    _clearHoverPath?.();
     const ctx = buildInputContext();
     await executeKeystroke(ctx, event.param1, event.controlKey, event.shiftKey);
 }
@@ -277,9 +326,19 @@ async function handleKeystroke(event: RogueEvent): Promise<void> {
  * Never synchronously blocks — all waiting is done via await.
  */
 export async function mainGameLoop(): Promise<void> {
+    console.log("[mainGameLoop] started");
     const { rogue } = getGameState();
+    _menuState = buildGameMenuButtonState(rogue.playbackMode);
+    _hoverHandler = buildHoverHandlerFn();
+    _clearHoverPath = buildClearHoverPathFn();
     while (!rogue.gameHasEnded) {
         const event = await waitForEvent();
         await processEvent(event);
+        drawGameMenuButtons(_menuState);
+        commitDraws();
     }
+    _menuState = null;
+    _hoverHandler = null;
+    _clearHoverPath = null;
+    console.log("[mainGameLoop] ended");
 }

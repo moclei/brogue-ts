@@ -21,6 +21,9 @@
  */
 
 import { getGameState } from "./core.js";
+import { waitForEvent, commitDraws, pauseAndCheckForEvent } from "./platform.js";
+import { buttonInputLoop as buttonInputLoopFn, drawButton as drawButtonFn, initializeButton as initializeButtonFn } from "./io/buttons.js";
+import { equip as equipFn, unequip as unequipFn, drop as dropFn, relabel as relabelFn } from "./io/inventory-actions.js";
 import { itemName as itemNameFn } from "./items/item-naming.js";
 import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
 import { numberOfItemsInPack as numberOfItemsInPackFn } from "./items/item-inventory.js";
@@ -28,8 +31,14 @@ import { apply as applyFn } from "./items/item-handlers.js";
 import { buildItemHandlerContext } from "./items.js";
 import { wandTable, staffTable, ringTable, charmTable } from "./globals/item-catalog.js";
 import { mapToWindowX, mapToWindowY } from "./globals/tables.js";
-import { white, gray, black } from "./globals/colors.js";
-import { EventType } from "./types/enums.js";
+import { white, gray, black, itemColor, goodMessageColor, badMessageColor, interfaceBoxColor, itemMessageColor } from "./globals/colors.js";
+import { EventType, DisplayGlyph, ItemCategory } from "./types/enums.js";
+import { ItemFlag, ButtonFlag } from "./types/flags.js";
+import {
+    COLS, ROWS, INTERFACE_OPACITY, KEYBOARD_LABELS,
+    APPLY_KEY, EQUIP_KEY, UNEQUIP_KEY, DROP_KEY, THROW_KEY, RELABEL_KEY, CALL_KEY,
+    UP_KEY, DOWN_KEY, UP_ARROW, DOWN_ARROW, NUMPAD_8, NUMPAD_2,
+} from "./types/constants.js";
 import type { ItemTable } from "./types/types.js";
 import type {
     MessageState, ScreenDisplayBuffer, SavedDisplayBuffer,
@@ -41,7 +50,7 @@ import {
     plotCharToBuffer as plotCharToBufferFn,
     saveDisplayBuffer as saveDisplayBufferFn,
     restoreDisplayBuffer as restoreDisplayBufferFn,
-    overlayDisplayBuffer as overlayDisplayBufferFn,
+    applyOverlay as applyOverlayFn,
     clearDisplayBuffer as clearDisplayBufferFn,
     createScreenDisplayBuffer as createScreenDisplayBufferFn,
     locIsInWindow as locIsInWindowFn,
@@ -50,12 +59,29 @@ import {
     applyColorAverage as applyColorAverageFn,
     bakeColor as bakeColorFn,
     separateColors as separateColorsFn,
-} from "./io/color.js";
-import {
+    storeColorComponents as storeColorComponentsFn,
     encodeMessageColor as encodeMessageColorFn,
     decodeMessageColor as decodeMessageColorFn,
+    colorFromComponents as colorFromComponentsFn,
 } from "./io/color.js";
-import { strLenWithoutEscapes as strLenWithoutEscapesFn } from "./io/text.js";
+import {
+    strLenWithoutEscapes as strLenWithoutEscapesFn,
+    printStringWithWrapping as printStringWithWrappingFn,
+    wrapText as wrapTextFn,
+    upperCase as upperCaseFn,
+} from "./io/text.js";
+import {
+    message as messageFn,
+    messageWithColor as messageWithColorFn,
+    confirmMessages as confirmMessagesFn,
+} from "./io/messages.js";
+import { buildThrowCommandFn, buildCallCommandFn } from "./items/item-commands.js";
+import { itemCanBeCalled } from "./items/item-utils.js";
+import type { MessageContext as SyncMessageContext } from "./io/messages-state.js";
+import type { InventoryContext as FullInventoryContext } from "./io/inventory.js";
+import { buildUpdateFlavorTextFn } from "./io-wiring.js";
+import { flashTemporaryAlert as flashTemporaryAlertFn } from "./io/effects-alerts.js";
+import type { EffectsContext } from "./io/effects.js";
 
 // =============================================================================
 // Private helpers
@@ -114,10 +140,10 @@ export interface MessageContext {
     restoreDisplayBuffer(saved: Readonly<SavedDisplayBuffer>): void;
     refreshSideBar(x: number, y: number, forceFullUpdate: boolean): void;
     refreshDungeonCell(loc: Pos): void;
-    waitForAcknowledgment(): void;
+    waitForAcknowledgment(): void | Promise<void>;
     pauseBrogue(ms: number, behavior: PauseBehavior): Promise<boolean>;
     nextBrogueEvent(textInput: boolean, colorsDance: boolean, realInput: boolean): Promise<RogueEvent>;
-    flashTemporaryAlert(msg: string, ms: number): void;
+    flashTemporaryAlert(msg: string, ms: number): void | Promise<void>;
     updateFlavorText(): void;
     stripShiftFromMovementKeystroke(keystroke: number): number;
 }
@@ -224,12 +250,12 @@ export function buildDisplayContext(): DisplayContext {
         refreshSideBar: () => {},                             // stub — needs appearance system
         plotCharWithColor: (ch, pos, fg, bg) =>
             { plotCharWithColorFn(ch, pos, fg, bg, displayBuffer); },
-        overlayDisplayBuffer: (dbuf) => overlayDisplayBufferFn(displayBuffer, dbuf),
+        overlayDisplayBuffer: (dbuf) => applyOverlayFn(displayBuffer, dbuf),
         saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
         restoreDisplayBuffer: (saved) => restoreDisplayBufferFn(displayBuffer, saved),
         clearDisplayBuffer: clearDisplayBufferFn,
         createScreenDisplayBuffer: createScreenDisplayBufferFn,
-        updateFlavorText: () => {},                           // stub — needs appearance system
+        updateFlavorText: buildUpdateFlavorTextFn(),
     };
 }
 
@@ -253,16 +279,46 @@ export function buildMessageContext(): MessageContext {
         displayBuffer,
         plotCharWithColor: (ch, pos, fg, bg) =>
             { plotCharWithColorFn(ch, pos, fg, bg, displayBuffer); },
-        overlayDisplayBuffer: (dbuf) => overlayDisplayBufferFn(displayBuffer, dbuf),
+        overlayDisplayBuffer: (dbuf) => applyOverlayFn(displayBuffer, dbuf),
         saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
         restoreDisplayBuffer: (saved) => restoreDisplayBufferFn(displayBuffer, saved),
         refreshSideBar: () => {},                             // stub — needs appearance system
         refreshDungeonCell: () => {},                         // stub — needs appearance system
-        waitForAcknowledgment: () => {},                      // stub — sync/async bridge (Phase 7)
+        waitForAcknowledgment: async (): Promise<void> => {
+            if (rogue.autoPlayingLevel || (rogue.playbackMode && !rogue.playbackOOS)) {
+                return;
+            }
+            try {
+                commitDraws();
+                let event = await waitForEvent();
+                while (!(
+                    (event.eventType === EventType.Keystroke &&
+                        (event.param1 === 32 /* space */ || event.param1 === 0x1b /* escape */)) ||
+                    event.eventType === EventType.MouseUp
+                )) {
+                    event = await waitForEvent();
+                }
+            } catch {
+                // Platform not initialised (tests) — acknowledge immediately
+            }
+        },
         pauseBrogue: async () => false,                       // stub — sync/async bridge (Phase 7)
         nextBrogueEvent: async () => fakeEvent(),             // stub — sync/async bridge (Phase 7)
-        flashTemporaryAlert: () => {},                        // stub — needs appearance system
-        updateFlavorText: () => {},                           // stub — needs appearance system
+        flashTemporaryAlert: async (msg: string, ms: number) => {
+            const fCtx = {
+                rogue: { playbackFastForward: rogue.playbackFastForward },
+                displayBuffer,
+                strLenWithoutEscapes: strLenWithoutEscapesFn,
+                colorFromComponents: colorFromComponentsFn,
+                applyColorAverage: applyColorAverageFn,
+                plotCharWithColor: (ch: number, pos: { windowX: number; windowY: number }, fg: Color, bg: Color) =>
+                    plotCharWithColorFn(ch, pos, fg, bg, displayBuffer),
+                commitDraws,
+                pauseBrogue: (milliseconds: number) => pauseAndCheckForEvent(milliseconds),
+            } as unknown as EffectsContext;
+            await flashTemporaryAlertFn(msg, ms, fCtx);
+        },
+        updateFlavorText: buildUpdateFlavorTextFn(),
         stripShiftFromMovementKeystroke: (k) => k,
     };
 }
@@ -279,8 +335,8 @@ export function buildMessageContext(): MessageContext {
  * throw/relabel/call dialogs remain stubbed until the button and dialog
  * systems are fully wired in Phase 7.
  */
-export function buildInventoryContext(): InventoryContext {
-    const { rogue, packItems, displayBuffer, mutablePotionTable, mutableScrollTable, gameConst } = getGameState();
+export function buildInventoryContext(): FullInventoryContext {
+    const { rogue, pmap, packItems, displayBuffer, mutablePotionTable, mutableScrollTable, gameConst } = getGameState();
     const namingCtx = {
         gameConstants: gameConst,
         depthLevel: rogue.depthLevel,
@@ -301,26 +357,202 @@ export function buildInventoryContext(): InventoryContext {
         itemMagicPolarity: (item) => itemMagicPolarityFn(item),
         numberOfItemsInPack: () =>
             numberOfItemsInPackFn(packItems),
-        message: () => {},                                    // stub — needs message context wiring
-        confirmMessages: () => {},                            // stub — needs message context wiring
-        buttonInputLoop: async () => ({ chosenButton: -1, event: fakeEvent() }), // stub — Phase 7
-        overlayDisplayBuffer: (dbuf) => overlayDisplayBufferFn(displayBuffer, dbuf),
+        message: (() => {
+            const mc = buildMessageContext() as unknown as SyncMessageContext;
+            return (msg: string, flags: number) => messageFn(mc, msg, flags);
+        })(),
+        confirmMessages: (() => {
+            const mc = buildMessageContext() as unknown as SyncMessageContext;
+            return () => confirmMessagesFn(mc);
+        })(),
+        buttonInputLoop: (buttons, count, winX, winY, winWidth, winHeight) =>
+            buttonInputLoopFn(buttons, count, winX, winY, winWidth, winHeight, buildButtonContext()),
+        overlayDisplayBuffer: (dbuf) => applyOverlayFn(displayBuffer, dbuf),
         saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
         restoreDisplayBuffer: (saved) => restoreDisplayBufferFn(displayBuffer, saved),
         clearDisplayBuffer: clearDisplayBufferFn,
         createScreenDisplayBuffer: createScreenDisplayBufferFn,
         mapToWindowX,
         mapToWindowY,
-        apply: (item) => { applyFn(item, buildItemHandlerContext()); },
-        equip: async () => {},                                // stub — dialog not yet ported
-        unequip: async () => {},                              // stub — dialog not yet ported
-        drop: async () => {},                                 // stub — dialog not yet ported
-        throwCommand: async () => {},                         // stub — dialog not yet ported
-        relabel: async () => {},                              // stub — dialog not yet ported
-        call: async () => {},                                 // stub — dialog not yet ported
+        apply: (item) => applyFn(item, buildItemHandlerContext()),
+        equip: (item) => equipFn(item),
+        unequip: (item) => unequipFn(item),
+        drop: (item) => dropFn(item),
+        throwCommand: (() => {
+            const mc = buildMessageContext() as unknown as SyncMessageContext;
+            const deps = {
+                message: (msg: string, flags: number) => messageFn(mc, msg, flags),
+                messageWithColor: (msg: string, color: Readonly<Color> | null, flags: number) =>
+                    messageWithColorFn(mc, msg, color ?? white, flags),
+                confirmMessages: () => confirmMessagesFn(mc),
+            };
+            return buildThrowCommandFn(deps);
+        })(),
+        relabel: (item) => relabelFn(item),
+        call: (() => {
+            const mc = buildMessageContext() as unknown as SyncMessageContext;
+            const deps = {
+                message: (msg: string, flags: number) => messageFn(mc, msg, flags),
+                messageWithColor: (msg: string, color: Readonly<Color> | null, flags: number) =>
+                    messageWithColorFn(mc, msg, color ?? white, flags),
+                confirmMessages: () => confirmMessagesFn(mc),
+            };
+            return buildCallCommandFn(deps);
+        })(),
         white,
         gray,
         black,
+        // ── Color / text ops ─────────────────────────────────────────────────
+        applyColorAverage: applyColorAverageFn,
+        encodeMessageColor: encodeMessageColorFn,
+        storeColorComponents: storeColorComponentsFn,
+        upperCase: upperCaseFn,
+        strLenWithoutEscapes: strLenWithoutEscapesFn,
+        wrapText: wrapTextFn,
+        printStringWithWrapping: printStringWithWrappingFn,
+        // ── Rendering ops ────────────────────────────────────────────────────
+        plotCharToBuffer: plotCharToBufferFn,
+        drawButton: (button, highlight, dbuf) =>
+            drawButtonFn(button, highlight, dbuf, buildButtonContext()),
+        // ── Item detail panel ────────────────────────────────────────────────
+        // Ported from C: printCarriedItemDetails → printTextBox (IO.c:4964)
+        printCarriedItemDetails: async (theItem, x, y, width, includeButtons) => {
+            const textBuf = itemNameFn(theItem, true, true, namingCtx);
+            const bgColor = { ...black, red: 5, green: 5, blue: 20 };
+
+            // Build action buttons matching C's printCarriedItemDetails setup.
+            const whiteEsc = encodeMessageColorFn(white);
+            const keyEsc   = encodeMessageColorFn(itemMessageColor);
+            const mkBtn = (text: string, key: number) => {
+                const b = initializeButtonFn();
+                b.flags |= ButtonFlag.B_WIDE_CLICK_AREA;
+                b.text = text;
+                b.hotkey = [key];
+                return b;
+            };
+            const actionButtons = includeButtons ? (() => {
+                const bs = [];
+                if (theItem.category & (ItemCategory.FOOD | ItemCategory.SCROLL | ItemCategory.POTION | ItemCategory.WAND | ItemCategory.STAFF | ItemCategory.CHARM)) {
+                    bs.push(mkBtn(`   ${keyEsc}a${whiteEsc}pply   `, APPLY_KEY));
+                }
+                if (theItem.category & (ItemCategory.ARMOR | ItemCategory.WEAPON | ItemCategory.RING)) {
+                    if (theItem.flags & ItemFlag.ITEM_EQUIPPED) {
+                        bs.push(mkBtn(`  ${keyEsc}r${whiteEsc}emove   `, UNEQUIP_KEY));
+                    } else {
+                        bs.push(mkBtn(`   ${keyEsc}e${whiteEsc}quip   `, EQUIP_KEY));
+                    }
+                }
+                bs.push(mkBtn(`   ${keyEsc}d${whiteEsc}rop    `, DROP_KEY));
+                bs.push(mkBtn(`   ${keyEsc}t${whiteEsc}hrow   `, THROW_KEY));
+                if (KEYBOARD_LABELS) {
+                    if (itemCanBeCalled(theItem)) {
+                        bs.push(mkBtn(`   ${keyEsc}c${whiteEsc}all    `, CALL_KEY));
+                    }
+                    bs.push(mkBtn(`  ${keyEsc}R${whiteEsc}elabel  `, RELABEL_KEY));
+                }
+                return bs;
+            })() : [];
+
+            // Invisible up/down navigation buttons (C: printCarriedItemDetails).
+            const navUp   = initializeButtonFn();
+            navUp.flags   = ButtonFlag.B_ENABLED;
+            navUp.text    = "";
+            navUp.hotkey  = [UP_KEY, NUMPAD_8, UP_ARROW];
+            navUp.symbol  = [];
+            const navDown = initializeButtonFn();
+            navDown.flags = ButtonFlag.B_ENABLED;
+            navDown.text  = "";
+            navDown.hotkey = [DOWN_KEY, NUMPAD_2, DOWN_ARROW];
+            navDown.symbol = [];
+
+            // Compute button positions below text (C: printTextBox layout).
+            let padLines = 0;
+            if (actionButtons.length > 0) {
+                padLines = 2;
+                let bx = x + width;
+                let by = y + 999; // placeholder until we know lastY
+                // We'll fix by after computing lastY; store relative offset for now.
+                actionButtons.forEach(btn => {
+                    if (btn.flags & ButtonFlag.B_DRAW) {
+                        bx -= strLenWithoutEscapesFn(btn.text) + 2;
+                        btn.x = bx;
+                        btn.y = by; // will be overwritten below
+                        if (bx < x) {
+                            bx = x + width - (strLenWithoutEscapesFn(btn.text) + 2);
+                            by += 2;
+                            padLines += 2;
+                            btn.x = bx;
+                            btn.y = by;
+                        }
+                    }
+                });
+            }
+
+            // Render text to buffer; lastY is the bottom of the wrapped text.
+            const dbuf = createScreenDisplayBufferFn();
+            clearDisplayBufferFn(dbuf);
+            const lastY = printStringWithWrappingFn(textBuf, x, y, width, white, bgColor, dbuf);
+
+            // Fix button y positions now that we know lastY.
+            if (actionButtons.length > 0) {
+                const baseBy = lastY + 2;
+                // Recompute properly with correct baseBy
+                let bx2 = x + width;
+                let by2 = baseBy;
+                padLines = 2;
+                actionButtons.forEach(btn => {
+                    if (btn.flags & ButtonFlag.B_DRAW) {
+                        bx2 -= strLenWithoutEscapesFn(btn.text) + 2;
+                        btn.x = bx2;
+                        btn.y = by2;
+                        if (bx2 < x) {
+                            bx2 = x + width - (strLenWithoutEscapesFn(btn.text) + 2);
+                            by2 += 2;
+                            padLines += 2;
+                            btn.x = bx2;
+                            btn.y = by2;
+                        }
+                    }
+                });
+            }
+
+            // Set opacity on full box (text + button rows) — C: rectangularShading.
+            for (let ci = x; ci < x + width && ci < COLS; ci++) {
+                for (let cj = y; cj <= lastY + padLines && cj < ROWS; cj++) {
+                    dbuf.cells[ci][cj].opacity = INTERFACE_OPACITY;
+                }
+            }
+            applyOverlayFn(displayBuffer, dbuf);
+
+            // buttonInputLoop handles drawing + input; nav buttons let arrow keys page.
+            const allButtons = [...actionButtons, navUp, navDown];
+            const loopHeight = lastY - y + 1 + padLines;
+            const result = await buttonInputLoopFn(
+                allButtons, allButtons.length,
+                x, y, width, loopHeight,
+                buildButtonContext(),
+            );
+            const chosen = allButtons[result.chosenButton];
+            return chosen ? (chosen.hotkey[0] ?? -1) : -1;
+        },
+        // ── Cursor path ──────────────────────────────────────────────────────
+        clearCursorPath: () => {
+            if (!rogue.playbackMode) {
+                for (let i = 0; i < pmap.length; i++) {
+                    for (let j = 0; j < pmap[i].length; j++) {
+                        pmap[i][j].flags &= ~0x100000;        // IS_IN_PATH = Fl(20)
+                    }
+                }
+            }
+        },
+        // ── Colors ───────────────────────────────────────────────────────────
+        itemColor,
+        goodMessageColor,
+        badMessageColor,
+        interfaceBoxColor,
+        // ── Glyphs ───────────────────────────────────────────────────────────
+        G_GOOD_MAGIC: DisplayGlyph.G_GOOD_MAGIC,
+        G_BAD_MAGIC: DisplayGlyph.G_BAD_MAGIC,
     };
 }
 
@@ -358,12 +590,17 @@ export function buildButtonContext(): ButtonContext {
         locIsInWindow: locIsInWindowFn,
         createScreenDisplayBuffer: createScreenDisplayBufferFn,
         clearDisplayBuffer: clearDisplayBufferFn,
-        overlayDisplayBuffer: (dbuf) => overlayDisplayBufferFn(displayBuffer, dbuf),
+        overlayDisplayBuffer: (dbuf) => applyOverlayFn(displayBuffer, dbuf),
         saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
         restoreDisplayBuffer: (saved) => restoreDisplayBufferFn(displayBuffer, saved),
         // -- Async bridge: these MUST return Promises -------------------------
-        // Real event dispatch wired in Phase 7 when browser platform is connected.
-        nextBrogueEvent: async () => fakeEvent(),
+        // waitForEvent() throws when platform not initialised (tests); fall back
+        // to an escape keystroke so button loops terminate cleanly.
+        nextBrogueEvent: async () => {
+            try { commitDraws(); return await waitForEvent(); } catch {
+                return { eventType: EventType.Keystroke, param1: 0x1b, param2: 0, controlKey: false, shiftKey: false };
+            }
+        },
         pauseBrogue: async () => false,
         pauseAnimation: async () => false,
     };

@@ -60,9 +60,26 @@ Note: source is 1,875 lines; 4-file split required by 600-line hard constraint.
 - [ ] Walk around, pick up an item, fight a monster, use a scroll — no crashes
 - [ ] Record any new bugs found in a new `playtest-v2/` initiative (do not fix inline)
 
+## Phase 8: Targeting UI Domain Functions
+*Deferred from port-v2-domain-gaps. These require the IO targeting layer (Phase 3) as a base.*
+**COMPLETED in port-v2-verify-mechanics Phases 1a–1d.**
+
+- [x] Implement `moveCursor` — verify-mechanics Phase 1b
+- [x] Implement `nextTargetAfter` — verify-mechanics Phase 1b
+- [x] Implement `chooseTarget` — verify-mechanics Phase 1d
+- [x] Implement `hiliteTrajectory` — verify-mechanics Phase 1c
+- [x] Implement `playerCancelsBlinking` — verify-mechanics Phase 1c
+- [x] Implement `inscribeItem` — verify-mechanics Phase 1b
+- [x] Implement `itemCanBeCalled` — verify-mechanics Phase 1b
+
 ## Completion
-- [ ] Game is playable end-to-end in browser
+- [x] Game is playable end-to-end in browser — verified in port-v2-playtest Phase 8
 - [x] No synchronous event polling spin loops
 - [x] All files under 600 lines
-- [ ] All stubs have paired `test.skip` entries
-- [ ] Committed: "feat: port-v2 platform — browser IO and game loop complete"
+- [x] All stubs have paired `test.skip` entries — verified in port-v2-verify-mechanics Phase 6
+- [x] Committed
+
+---
+
+> CLOSED — all phases complete including Phase 8 (completed in port-v2-verify-mechanics).
+> Archived by port-v2-close-out Phase 1a.

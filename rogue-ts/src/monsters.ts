@@ -15,14 +15,23 @@
  *  License, or (at your option) any later version.
  */
 
-import { getGameState } from "./core.js";
+import { getGameState, getBuildMachineFn } from "./core.js";
 import { buildCombatDamageContext } from "./combat.js";
 import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
     cellHasTMFlag as cellHasTMFlagFn,
     terrainFlags as terrainFlagsFn,
     cellHasTerrainType as cellHasTerrainTypeFn,
+    burnedTerrainFlagsAtLoc as burnedTerrainFlagsAtLocFn,
+    discoveredTerrainFlagsAtLoc as discoveredTerrainFlagsAtLocFn,
 } from "./state/helpers.js";
+import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
+import {
+    awareOfTarget as awareOfTargetFn,
+    closestWaypointIndex as closestWaypointIndexFn,
+    closestWaypointIndexTo as closestWaypointIndexToFn,
+} from "./monsters/monster-awareness.js";
+import type { AwarenessContext } from "./monsters/monster-awareness.js";
 import {
     inflictDamage as inflictDamageFn,
     killCreature as killCreatureFn,
@@ -32,16 +41,28 @@ import { monsterCanSubmergeNow } from "./monsters/monster-spawning.js";
 import { hordeCatalog } from "./globals/horde-catalog.js";
 import { mutationCatalog } from "./globals/mutation-catalog.js";
 import { allocGrid, fillGrid } from "./grid/grid.js";
+import { openPathBetween as openPathBetweenFn } from "./items/bolt-geometry.js";
+import { passableArcCount as passableArcCountFn, randomMatchingLocation as randomMatchingLocationFn } from "./architect/helpers.js";
+import { tileCatalog } from "./globals/tile-catalog.js";
 import { randRange, randPercent } from "./math/rng.js";
-import { coordinatesAreInMap } from "./globals/tables.js";
+import { coordinatesAreInMap, posNeighborInDirection } from "./globals/tables.js";
 import { DCOLS, DROWS, MAX_WAYPOINT_COUNT } from "./types/constants.js";
-import { TileFlag } from "./types/flags.js";
-import { CreatureState, GameMode } from "./types/enums.js";
+import { TileFlag, MonsterBookkeepingFlag, TerrainFlag, T_DIVIDES_LEVEL } from "./types/flags.js";
+import { GameMode, DungeonLayer, TileType } from "./types/enums.js";
+import { extinguishFireOnCreature as extinguishFireOnCreatureFn } from "./time/creature-effects.js";
+import type { CreatureEffectsContext } from "./time/creature-effects.js";
+import { white, minersLightColor } from "./globals/colors.js";
 import type { SpawnContext } from "./monsters/monster-spawning.js";
+import { monsterAvoids as monsterAvoidsFn } from "./monsters/monster-state.js";
 import type { MonsterStateContext } from "./monsters/monster-state.js";
+import { traversiblePathBetween as traversiblePathBetweenFn } from "./monsters/monster-actions.js";
 import type { MonsterQueryContext } from "./monsters/monster-queries.js";
 import type { MonsterGenContext } from "./monsters/monster-creation.js";
-import type { Creature, Pos } from "./types/types.js";
+import { becomeAllyWith as becomeAllyWithFn } from "./monsters/monster-lifecycle.js";
+import type { Creature, Pos, Item, Pcell } from "./types/types.js";
+import { buildRefreshDungeonCellFn, buildMessageFns } from "./io-wiring.js";
+import { getQualifyingPathLocNear as getQualifyingPathLocNearFn } from "./movement/path-qualifying.js";
+import type { QualifyingPathContext } from "./movement/path-qualifying.js";
 
 // =============================================================================
 // Private helpers
@@ -55,6 +76,87 @@ function buildMonsterAtLoc(player: Creature, monsters: Creature[]) {
         }
         return null;
     };
+}
+
+/**
+ * Builds a minimal QualifyingPathContext for item drop location searches.
+ */
+function buildQualifyingPathCtx(
+    pmap: Pcell[][],
+    cellHasTerrainFlagFn: (loc: Pos, flags: number) => boolean,
+): QualifyingPathContext {
+    return {
+        pmap,
+        cellHasTerrainFlag: cellHasTerrainFlagFn,
+        cellFlags: (pos) => pmap[pos.x]?.[pos.y]?.flags ?? 0,
+        getQualifyingLocNear(target, _hallwaysAllowed, forbiddenTerrainFlags, forbiddenMapFlags, deterministic) {
+            // Fallback ring-search used when dijkstra finds no path-reachable cell.
+            // Mirrors C getQualifyingLocNear() (Grid.c) with blockingMap=null, forbidLiquid=false.
+            const maxK = Math.max(DCOLS, DROWS);
+            let candidateLocs = 0;
+            for (let k = 0; k < maxK && !candidateLocs; k++) {
+                for (let i = target.x - k; i <= target.x + k; i++) {
+                    for (let j = target.y - k; j <= target.y + k; j++) {
+                        if (
+                            coordinatesAreInMap(i, j) &&
+                            (i === target.x - k || i === target.x + k || j === target.y - k || j === target.y + k) &&
+                            !cellHasTerrainFlagFn({ x: i, y: j }, forbiddenTerrainFlags) &&
+                            !(pmap[i][j].flags & forbiddenMapFlags)
+                        ) {
+                            candidateLocs++;
+                        }
+                    }
+                }
+            }
+            if (!candidateLocs) return null;
+            let idx = deterministic ? 1 + Math.floor(candidateLocs / 2) : randRange(1, candidateLocs);
+            for (let k = 0; k < maxK; k++) {
+                for (let i = target.x - k; i <= target.x + k; i++) {
+                    for (let j = target.y - k; j <= target.y + k; j++) {
+                        if (
+                            coordinatesAreInMap(i, j) &&
+                            (i === target.x - k || i === target.x + k || j === target.y - k || j === target.y + k) &&
+                            !cellHasTerrainFlagFn({ x: i, y: j }, forbiddenTerrainFlags) &&
+                            !(pmap[i][j].flags & forbiddenMapFlags)
+                        ) {
+                            if (--idx === 0) return { x: i, y: j };
+                        }
+                    }
+                }
+            }
+            return null;
+        },
+        rng: { randRange },
+    };
+}
+
+/**
+ * Drops monst's carried item at the nearest valid floor location.
+ * Mirrors C Monsters.c:4065 — makeMonsterDropItem().
+ */
+export function doMakeMonsterDropItem(
+    monst: Creature,
+    pmap: Pcell[][],
+    floorItems: Item[],
+    cellHasTerrainFlagFn: (loc: Pos, flags: number) => boolean,
+    refreshDungeonCell: (loc: Pos) => void,
+): void {
+    if (!monst.carriedItem) return;
+    const item = monst.carriedItem;
+    const dropLoc = getQualifyingPathLocNearFn(
+        monst.loc, true,
+        T_DIVIDES_LEVEL, 0,
+        TerrainFlag.T_OBSTRUCTS_ITEMS, TileFlag.HAS_PLAYER | TileFlag.HAS_STAIRS | TileFlag.HAS_ITEM,
+        false,
+        buildQualifyingPathCtx(pmap, cellHasTerrainFlagFn),
+    );
+    item.loc = { ...dropLoc };
+    const idx = floorItems.indexOf(item);
+    if (idx !== -1) floorItems.splice(idx, 1);
+    floorItems.push(item);
+    pmap[dropLoc.x][dropLoc.y].flags |= TileFlag.HAS_ITEM;
+    monst.carriedItem = null;
+    refreshDungeonCell(dropLoc);
 }
 
 // =============================================================================
@@ -72,8 +174,9 @@ function buildMonsterAtLoc(player: Creature, monsters: Creature[]) {
 export function buildMonsterSpawningContext(): SpawnContext {
     const {
         player, rogue, pmap, monsters, monsterCatalog,
-        gameConst, monsterItemsHopper,
+        gameConst, monsterItemsHopper, floorItems,
     } = getGameState();
+    const refreshDungeonCell = buildRefreshDungeonCellFn();
 
     const combatCtx = buildCombatDamageContext();
 
@@ -112,7 +215,10 @@ export function buildMonsterSpawningContext(): SpawnContext {
         // ── Map mutation ──────────────────────────────────────────────────────
         monsterAtLoc,
         killCreature: (creature, quiet) => killCreatureFn(creature, quiet, combatCtx),
-        buildMachine: () => {},         // stub — wired in port-v2-platform
+        buildMachine: (machineType, x, y) => {
+            const fn = getBuildMachineFn();
+            if (fn) fn(machineType, x, y);
+        },
         setCellFlag(loc, flag) {
             if (coordinatesAreInMap(loc.x, loc.y)) {
                 pmap[loc.x][loc.y].flags |= flag;
@@ -123,7 +229,7 @@ export function buildMonsterSpawningContext(): SpawnContext {
                 pmap[loc.x][loc.y].flags &= ~flag;
             }
         },
-        refreshDungeonCell: () => {},   // stub — wired in port-v2-platform
+        refreshDungeonCell,
 
         // ── Visibility ────────────────────────────────────────────────────────
         playerCanSeeOrSense: (x, y) =>
@@ -131,23 +237,74 @@ export function buildMonsterSpawningContext(): SpawnContext {
 
         // ── Ally management ───────────────────────────────────────────────────
         becomeAllyWith(creature) {
-            // Minimal: set ally state and link to player.
-            // Full implementation (sound, bookkeepingFlags, etc.) wired in port-v2-platform.
-            creature.creatureState = CreatureState.Ally;
-            creature.leader = player;
+            becomeAllyWithFn(creature, {
+                player,
+                demoteMonsterFromLeadership(monst) {
+                    // Simplified: single-level follower reassignment.
+                    // Full multi-level iteration deferred to port-v2-platform.
+                    monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_LEADER;
+                    monst.mapToMe = null;
+                    let newLeader: Creature | null = null;
+                    for (const follower of monsters) {
+                        if (follower === monst || follower.leader !== monst) continue;
+                        if (follower.bookkeepingFlags & MonsterBookkeepingFlag.MB_BOUND_TO_LEADER) {
+                            follower.leader = null;
+                            follower.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_FOLLOWER;
+                        } else if (newLeader) {
+                            follower.leader = newLeader;
+                        } else {
+                            newLeader = follower;
+                            follower.bookkeepingFlags |= MonsterBookkeepingFlag.MB_LEADER;
+                            follower.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_FOLLOWER;
+                        }
+                    }
+                },
+                makeMonsterDropItem: (monst) =>
+                    doMakeMonsterDropItem(monst, pmap, floorItems, cellHasTerrainFlag, refreshDungeonCell),
+                refreshDungeonCell,
+            });
         },
 
-        // ── Decorative stubs ──────────────────────────────────────────────────
-        drawManacles: () => {},         // stub — wired in port-v2-platform
+        // ── Decorative ───────────────────────────────────────────────────────
+        drawManacles: (loc) => {
+            // C: Monsters.c:771 — drawManacles / drawManacle
+            // Indexed by direction (0=UP,1=DOWN,2=LEFT,3=RIGHT,4=UPLEFT,5=DOWNLEFT,6=UPRIGHT,7=DOWNRIGHT)
+            const manacles: TileType[] = [
+                TileType.MANACLE_T, TileType.MANACLE_B, TileType.MANACLE_L, TileType.MANACLE_R,
+                TileType.MANACLE_TL, TileType.MANACLE_BL, TileType.MANACLE_TR, TileType.MANACLE_BR,
+            ];
+            // Four groups of fallback directions; try each in order, stop on first success
+            const fallback = [
+                [4, 0, 2], // UPLEFT, UP, LEFT
+                [5, 1, 2], // DOWNLEFT, DOWN, LEFT
+                [6, 0, 3], // UPRIGHT, UP, RIGHT
+                [7, 1, 3], // DOWNRIGHT, DOWN, RIGHT
+            ];
+            const tryPlace = (dir: number): boolean => {
+                const newLoc = posNeighborInDirection(loc, dir);
+                if (!coordinatesAreInMap(newLoc.x, newLoc.y)) return false;
+                const cell = pmap[newLoc.x][newLoc.y];
+                if (cell.layers[DungeonLayer.Dungeon] !== TileType.FLOOR) return false;
+                if (cell.layers[DungeonLayer.Liquid] !== TileType.NOTHING) return false;
+                cell.layers[DungeonLayer.Surface] = manacles[dir];
+                return true;
+            };
+            for (const group of fallback) {
+                for (const dir of group) {
+                    if (tryPlace(dir)) break;
+                }
+            }
+        },
 
         // ── Grid ops ─────────────────────────────────────────────────────────
         allocGrid,
         fillGrid,
 
-        // ── Complex pathfinding stubs (wired in port-v2-platform) ─────────────
-        getQualifyingPathLocNear: (loc) => ({ x: loc.x, y: loc.y }),
-        randomMatchingLocation: () => null,
-        passableArcCount: () => 0,
+        // ── Complex pathfinding ───────────────────────────────────────────────
+        getQualifyingPathLocNear: (loc, hallwaysAllowed, blockingTerrainFlags, blockingMapFlags, forbiddenTerrainFlags, forbiddenMapFlags, deterministic) =>
+            getQualifyingPathLocNearFn(loc, hallwaysAllowed, blockingTerrainFlags, blockingMapFlags, forbiddenTerrainFlags, forbiddenMapFlags, deterministic, buildQualifyingPathCtx(pmap, cellHasTerrainFlag)),
+        randomMatchingLocation: (dt, lt, tt) => randomMatchingLocationFn(pmap, tileCatalog, dt, lt, tt),
+        passableArcCount: (x, y) => passableArcCountFn(pmap, x, y),
 
         // ── Cell flags ────────────────────────────────────────────────────────
         getPmapFlags: (loc) => pmap[loc.x]?.[loc.y]?.flags ?? 0,
@@ -167,6 +324,7 @@ export function buildMonsterSpawningContext(): SpawnContext {
  */
 export function buildMonsterStateContext(): MonsterStateContext {
     const { player, rogue, pmap, monsters, floorItems } = getGameState();
+    const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn();
 
     const combatCtx = buildCombatDamageContext();
 
@@ -180,13 +338,13 @@ export function buildMonsterStateContext(): MonsterStateContext {
     const queryCtx: MonsterQueryContext = {
         player,
         cellHasTerrainFlag,
-        cellHasGas: (_loc) => false,     // stub
+        cellHasGas: (loc) => !!(pmap[loc.x]?.[loc.y]?.layers[DungeonLayer.Gas]),
         playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
         playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
         playbackOmniscience: rogue.playbackOmniscience,
     };
 
-    return {
+    const stateCtx: MonsterStateContext = {
         player,
         monsters,
         rng: { randRange, randPercent: (pct) => randPercent(pct) },
@@ -204,21 +362,48 @@ export function buildMonsterStateContext(): MonsterStateContext {
         // ── Creature queries ──────────────────────────────────────────────────
         monsterAtLoc,
 
-        // ── Waypoint system (stubs — needs wpDistance maps) ───────────────────
+        // ── Waypoint system ───────────────────────────────────────────────────
         waypointCount: rogue.wpCount,
         maxWaypointCount: MAX_WAYPOINT_COUNT,
-        closestWaypointIndex: () => -1,         // stub
-        closestWaypointIndexTo: () => -1,       // stub
+        closestWaypointIndex: (monst) =>
+            closestWaypointIndexFn(monst, rogue.wpCount, rogue.wpDistance, DCOLS),
+        closestWaypointIndexTo: (loc) =>
+            closestWaypointIndexToFn(loc, rogue.wpCount, rogue.wpDistance),
 
-        // ── Terrain analysis (stubs — needs burn/secret tile logic) ───────────
-        burnedTerrainFlagsAtLoc: () => 0,       // stub
-        discoveredTerrainFlagsAtLoc: () => 0,   // stub
-        passableArcCount: () => 0,              // stub
+        // ── Terrain analysis ──────────────────────────────────────────────────
+        burnedTerrainFlagsAtLoc: (loc) => burnedTerrainFlagsAtLocFn(pmap, loc),
+        discoveredTerrainFlagsAtLoc: (pos) => discoveredTerrainFlagsAtLocFn(
+            pmap, pos, tileCatalog,
+            (tileType) => {
+                const df = tileCatalog[tileType]?.discoverType ?? 0;
+                return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
+            },
+        ),
+        passableArcCount: (x, y) => passableArcCountFn(pmap, x, y),
 
-        // ── Awareness (stubs — needs scent map and FOV) ───────────────────────
-        awareOfTarget: () => false,             // stub
-        openPathBetween: () => false,           // stub
-        traversiblePathBetween: () => false,    // stub
+        // ── Awareness ────────────────────────────────────────────────────────
+        awareOfTarget: (observer, target) => {
+            const scentMap = rogue.scentMap ?? [];
+            const awarenessCtx: AwarenessContext = {
+                player,
+                scentMap: scentMap as number[][],
+                scentTurnNumber: rogue.scentTurnNumber,
+                stealthRange: rogue.stealthRange,
+                openPathBetween: (l1, l2) =>
+                    openPathBetweenFn(l1, l2, (pos) => cellHasTerrainFlagFn(pmap, pos, TerrainFlag.T_OBSTRUCTS_PASSABILITY)),
+                inFieldOfView: (loc) => !!(pmap[loc.x]?.[loc.y]?.flags & TileFlag.IN_FIELD_OF_VIEW),
+                randPercent: (pct) => randPercent(pct),
+            };
+            return awareOfTargetFn(observer, target, awarenessCtx);
+        },
+        openPathBetween: (l1, l2) =>
+            openPathBetweenFn(l1, l2, (pos) => cellHasTerrainFlagFn(pmap, pos, TerrainFlag.T_OBSTRUCTS_PASSABILITY)),
+        traversiblePathBetween: (monst, x, y) =>
+            traversiblePathBetweenFn(monst, x, y, {
+                monsterAvoids: (m, loc) => monsterAvoidsFn(m, loc, stateCtx),
+                DCOLS,
+                DROWS,
+            }),
         inFieldOfView: (loc) =>
             !!(pmap[loc.x]?.[loc.y]?.flags & TileFlag.IN_FIELD_OF_VIEW),
 
@@ -227,19 +412,24 @@ export function buildMonsterStateContext(): MonsterStateContext {
         inflictDamage: (attacker, defender, damage) =>
             inflictDamageFn(attacker, defender, damage, null, false, combatCtx),
         killCreature: (monst, quiet) => killCreatureFn(monst, quiet, combatCtx),
-        extinguishFireOnCreature: () => {},     // stub — wired in port-v2-platform
-        makeMonsterDropItem(monst) {
-            if (monst.carriedItem) {
-                floorItems.push(monst.carriedItem);
-                monst.carriedItem = null;
-            }
-        },
+        extinguishFireOnCreature: (monst) =>
+            extinguishFireOnCreatureFn(monst, {
+                player,
+                white,
+                minersLightColor,
+                rogue,
+                refreshDungeonCell,
+                updateVision: () => {},  // monster-only path; player handled in turn-processing.ts
+                message: io.message,
+            } as unknown as CreatureEffectsContext),
+        makeMonsterDropItem: (monst) =>
+            doMakeMonsterDropItem(monst, pmap, floorItems, cellHasTerrainFlag, refreshDungeonCell),
 
         // ── UI stubs (wired in port-v2-platform) ──────────────────────────────
-        refreshDungeonCell: () => {},
-        message: () => {},
-        messageWithColor: () => {},
-        combatMessage: () => {},
+        refreshDungeonCell,
+        message: io.message,
+        messageWithColor: io.message,
+        combatMessage: (text) => io.combatMessage(text, null),
         playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
 
         // ── Player equipment stubs ────────────────────────────────────────────
@@ -261,4 +451,5 @@ export function buildMonsterStateContext(): MonsterStateContext {
         DCOLS,
         DROWS,
     };
+    return stateCtx;
 }

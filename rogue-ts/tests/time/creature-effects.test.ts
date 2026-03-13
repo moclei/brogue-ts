@@ -1113,6 +1113,19 @@ describe("applyInstantTileEffectsToCreature", () => {
         applyInstantTileEffectsToCreature(ctx.player, ctx);
         expect(ctx.gameOver).toHaveBeenCalled();
     });
+
+    // B20 — key is consumed when player enters a cell with TM_PROMOTES_WITH_KEY
+    it("calls useKeyAt when key is found on tile (B20)", () => {
+        const ctx = makeCtx();
+        const theKey = makeItem();
+        ctx.player.loc = { x: 3, y: 3 };
+        (ctx.cellHasTMFlag as any).mockImplementation((_pos: Pos, flag: number) => {
+            return !!(flag & TerrainMechFlag.TM_PROMOTES_WITH_KEY);
+        });
+        (ctx.keyOnTileAt as any).mockReturnValue(theKey);
+        applyInstantTileEffectsToCreature(ctx.player, ctx);
+        expect(ctx.useKeyAt).toHaveBeenCalledWith(theKey, 3, 3);
+    });
 });
 
 // =============================================================================

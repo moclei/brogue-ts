@@ -338,6 +338,32 @@ export function checkForDisenchantment(
 }
 
 /**
+ * Whether the item's effective enchant level is known to the player.
+ * For staves: ITEM_MAX_CHARGES_KNOWN suffices. For all others: ITEM_IDENTIFIED.
+ *
+ * C: enchantLevelKnown(const item *theItem) — Items.c:1142
+ */
+export function enchantLevelKnown(theItem: Item): boolean {
+    if ((theItem.category & ItemCategory.STAFF) && (theItem.flags & ItemFlag.ITEM_MAX_CHARGES_KNOWN)) {
+        return true;
+    }
+    return !!(theItem.flags & ItemFlag.ITEM_IDENTIFIED);
+}
+
+/**
+ * The effective enchant level used for enchant-swap comparisons and mutation.
+ * Wands use charges; everything else uses enchant1.
+ *
+ * C: effectiveEnchantLevel(const item *theItem) — Items.c:1152
+ */
+export function effectiveEnchantLevel(theItem: Item): number {
+    if (theItem.category & ItemCategory.WAND) {
+        return theItem.charges;
+    }
+    return theItem.enchant1;
+}
+
+/**
  * Whether picking up this item is possible (pack has room, or item will stack).
  *
  * C: inlined in pickUpItemAt()
@@ -348,4 +374,22 @@ export function canPickUpItem(theItem: Item, packItems: Item[]): boolean {
         || !!(theItem.category & ItemCategory.GOLD)
         || itemWillStackWithPack(theItem, packItems)
     );
+}
+
+// =============================================================================
+// deleteItem
+// =============================================================================
+
+/**
+ * Free an item. In C, this calls free(theItem).
+ * In TypeScript, GC handles memory — callers must remove the item from any
+ * arrays it belongs to (via removeItemFromArray) before calling this.
+ *
+ * C: deleteItem(item *theItem) — Items.c:7938
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function deleteItem(_item: Item): void {
+    // No-op: JavaScript GC handles memory cleanup automatically.
+    // The caller is responsible for removing the item from floorItems/packItems
+    // via removeItemFromArray before calling this.
 }

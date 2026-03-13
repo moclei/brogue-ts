@@ -5,6 +5,11 @@
 
 import { describe, it, expect } from "vitest";
 import {
+    populateMonsters,
+    spawnPeriodicHorde,
+} from "../../src/monsters/monster-spawning.js";
+import type { SpawnContext } from "../../src/monsters/monster-spawning.js";
+import {
     pickHordeType,
     forbiddenFlagsForMonster,
     avoidedFlagsForMonster,
@@ -268,5 +273,56 @@ describe("monsterCanSubmergeNow", () => {
 
         const result = monsterCanSubmergeNow(monst, cellHasTMFlag, cellHasTerrainFlag);
         expect(result).toBe(false);
+    });
+});
+
+// =============================================================================
+// populateMonsters — Monsters.c:1071
+// =============================================================================
+
+describe("populateMonsters", () => {
+    it("is a no-op when monstersEnabled is false", () => {
+        const monsters: any[] = [];
+        const ctx = { monstersEnabled: false, monsters } as unknown as SpawnContext;
+        populateMonsters(ctx);
+        expect(monsters).toHaveLength(0);
+    });
+
+    it.skip("spawns ~6 + randPercent(60) monsters at depth 1 (integration: requires full SpawnContext)", () => {
+        // UPDATE: full integration test requires wired buildMonsterSpawningContext() with real map.
+        // Indirect coverage via seed-determinism.test.ts full digDungeon pipeline.
+        // Full unit test deferred to port-v2-platform.
+    });
+});
+
+// =============================================================================
+// getRandomMonsterSpawnLocation — Monsters.c:1086
+// =============================================================================
+
+it.skip("getRandomMonsterSpawnLocation: not a standalone TS export — injected as callback to spawnPeriodicHorde", () => {
+    // DEFER: port-v2-platform — not a standalone TS export; injected as callback.
+    // C: getRandomMonsterSpawnLocation allocates a grid, calculates player-distance,
+    // filters via getTerrainGrid, then picks a random far-from-player cell.
+    // TS: callers inject this logic as a callback.
+    // Full implementation requires: allocGrid + calculateDistances + getTerrainGrid + randomLocationInGrid.
+});
+
+// =============================================================================
+// spawnPeriodicHorde — Monsters.c:1115
+// =============================================================================
+
+describe("spawnPeriodicHorde", () => {
+    it("is a no-op when monstersEnabled is false", () => {
+        const monsters: any[] = [];
+        const ctx = { monstersEnabled: false, monsters } as unknown as SpawnContext;
+        spawnPeriodicHorde(ctx, () => ({ x: 10, y: 10 }));
+        expect(monsters).toHaveLength(0);
+    });
+
+    it("is a no-op when getRandomMonsterSpawnLocation returns null", () => {
+        const monsters: any[] = [];
+        const ctx = { monstersEnabled: true, monsters } as unknown as SpawnContext;
+        spawnPeriodicHorde(ctx, () => null);
+        expect(monsters).toHaveLength(0);
     });
 });

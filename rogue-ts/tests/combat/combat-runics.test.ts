@@ -161,7 +161,7 @@ function makeRunicCtx(player: Creature, overrides?: Partial<RunicContext>): Runi
         applyArmorRunicEffect: () => "",
         specialHit: vi.fn(),
         splitMonster: vi.fn(),
-        attackVerb: () => "hit",
+        attackVerb: (_attacker, _pct) => "hit",
         messageColorFromVictim: () => red,
         decrementWeaponAutoIDTimer: vi.fn(),
         rechargeItemsIncrementally: vi.fn(),

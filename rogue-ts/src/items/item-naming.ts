@@ -505,6 +505,24 @@ export function magicPolarityRevealedItemKindCount(
     return count;
 }
 
+/** Mutable scroll/potion flavor tables to sync identification state into. */
+export type MutableFlavorTables = { scrollTable?: ItemTable[]; potionTable?: ItemTable[] };
+
+/** After writing identified=true to a catalog entry, mirror it in the mutable copy. */
+function syncIdentifiedToMutable(
+    category: number,
+    kind: number,
+    mutableTables: MutableFlavorTables | undefined,
+): void {
+    if (!mutableTables) return;
+    const mutableTable = category === ItemCategory.SCROLL ? mutableTables.scrollTable
+        : category === ItemCategory.POTION ? mutableTables.potionTable
+        : null;
+    if (mutableTable && kind >= 0 && kind < mutableTable.length) {
+        mutableTable[kind].identified = true;
+    }
+}
+
 /**
  * Try to identify the last item kind in a given category with a polarity constraint.
  *
@@ -514,6 +532,7 @@ export function tryIdentifyLastItemKind(
     category: number,
     polarityConstraint: number,
     gc: GameConstants,
+    mutableTables?: MutableFlavorTables,
 ): void {
     const table = getTableForCategory(category);
     if (!table) return;
@@ -523,12 +542,14 @@ export function tryIdentifyLastItemKind(
     if (lastKind >= 0) {
         if (polarityConstraint === MAGIC_POLARITY_ANY) {
             table[lastKind].identified = true;
+            syncIdentifiedToMutable(category, lastKind, mutableTables);
         } else {
             const oppositePol = polarityConstraint * -1;
             const oppositeRevealed = magicPolarityRevealedItemKindCount(category, oppositePol, gc);
             const oppositeCount = itemKindCount(category, oppositePol, gc);
             if (table[lastKind].magicPolarityRevealed || oppositeRevealed === oppositeCount) {
                 table[lastKind].identified = true;
+                syncIdentifiedToMutable(category, lastKind, mutableTables);
             }
         }
     }
@@ -539,7 +560,11 @@ export function tryIdentifyLastItemKind(
  *
  * C: tryIdentifyLastItemKinds(category)
  */
-export function tryIdentifyLastItemKinds(category: number, gc: GameConstants): void {
+export function tryIdentifyLastItemKinds(
+    category: number,
+    gc: GameConstants,
+    mutableTables?: MutableFlavorTables,
+): void {
     let categoryCount = 1;
 
     if (category === HAS_INTRINSIC_POLARITY) {
@@ -549,8 +574,8 @@ export function tryIdentifyLastItemKinds(category: number, gc: GameConstants): v
     for (let i = 0; i < categoryCount; i++) {
         const loopCat = categoryCount === 1 ? category : Fl(i);
         if (category & HAS_INTRINSIC_POLARITY & loopCat) {
-            tryIdentifyLastItemKind(loopCat, MAGIC_POLARITY_BENEVOLENT, gc);
-            tryIdentifyLastItemKind(loopCat, MAGIC_POLARITY_MALEVOLENT, gc);
+            tryIdentifyLastItemKind(loopCat, MAGIC_POLARITY_BENEVOLENT, gc, mutableTables);
+            tryIdentifyLastItemKind(loopCat, MAGIC_POLARITY_MALEVOLENT, gc, mutableTables);
         }
     }
 }
@@ -563,7 +588,11 @@ export function tryIdentifyLastItemKinds(category: number, gc: GameConstants): v
  * Note: Does NOT call updateRingBonuses() — that's a gameplay effect
  * handled by the caller.
  */
-export function identifyItemKind(theItem: Item, gc: GameConstants): void {
+export function identifyItemKind(
+    theItem: Item,
+    gc: GameConstants,
+    mutableTables?: MutableFlavorTables,
+): void {
     const table = getTableForCategory(theItem.category);
     if (!table) return;
 
@@ -594,7 +623,8 @@ export function identifyItemKind(theItem: Item, gc: GameConstants): void {
 
     if (tableCount) {
         table[theItem.kind].identified = true;
-        tryIdentifyLastItemKinds(theItem.category, gc);
+        syncIdentifiedToMutable(theItem.category, theItem.kind, mutableTables);
+        tryIdentifyLastItemKinds(theItem.category, gc, mutableTables);
     }
 }
 
@@ -604,13 +634,13 @@ export function identifyItemKind(theItem: Item, gc: GameConstants): void {
  * C: identify(item *theItem)
  * Note: Does NOT call updateRingBonuses() — that's handled by the caller.
  */
-export function identify(theItem: Item, gc: GameConstants): void {
+export function identify(theItem: Item, gc: GameConstants, mutableTables?: MutableFlavorTables): void {
     theItem.flags |= ItemFlag.ITEM_IDENTIFIED;
     theItem.flags &= ~ItemFlag.ITEM_CAN_BE_IDENTIFIED;
     if (theItem.flags & ItemFlag.ITEM_RUNIC) {
         theItem.flags |= (ItemFlag.ITEM_RUNIC_IDENTIFIED | ItemFlag.ITEM_RUNIC_HINTED);
     }
-    identifyItemKind(theItem, gc);
+    identifyItemKind(theItem, gc, mutableTables);
 }
 
 // =============================================================================

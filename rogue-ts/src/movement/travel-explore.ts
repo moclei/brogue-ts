@@ -82,7 +82,7 @@ export interface TravelExploreContext {
     monsterDamageAdjustmentAmount(monst: Creature): number;
 
     // --- Player movement ---
-    playerMoves(direction: Direction): boolean;
+    playerMoves(direction: Direction): boolean | Promise<boolean>;
 
     // --- Distance/pathfinding ---
     allocGrid(): number[][];
@@ -308,7 +308,7 @@ export async function travelRoute(
             const neighborX = ctx.player.loc.x + ctx.nbDirs[dir][0];
             const neighborY = ctx.player.loc.y + ctx.nbDirs[dir][1];
             if (neighborX === path[i].x && neighborY === path[i].y) {
-                if (!ctx.playerMoves(dir as Direction)) {
+                if (!await ctx.playerMoves(dir as Direction)) {
                     ctx.rogue.disturbed = true;
                 }
                 if (await ctx.pauseAnimation(25, 0 /* PAUSE_BEHAVIOR_DEFAULT */)) {
@@ -359,7 +359,7 @@ export async function travelMap(
                 distanceMap[newX][newY] < distanceMap[currentX][currentY] &&
                 !ctx.diagonalBlocked(currentX, currentY, newX, newY, true)
             ) {
-                if (!ctx.playerMoves(dir as Direction)) {
+                if (!await ctx.playerMoves(dir as Direction)) {
                     ctx.rogue.disturbed = true;
                 }
                 if (await ctx.pauseAnimation(500, 0 /* PAUSE_BEHAVIOR_DEFAULT */)) {
@@ -414,7 +414,7 @@ export async function travel(
                 ctx.nbDirs[i][0] === target.x - ctx.player.loc.x &&
                 ctx.nbDirs[i][1] === target.y - ctx.player.loc.y
             ) {
-                ctx.playerMoves(i as Direction);
+                await ctx.playerMoves(i as Direction);
                 break;
             }
         }
@@ -628,7 +628,7 @@ export async function startFighting(
     ctx.rogue.disturbed = false;
 
     do {
-        if (!ctx.playerMoves(dir)) {
+        if (!await ctx.playerMoves(dir)) {
             break;
         }
         if (await ctx.pauseAnimation(1, 0 /* PAUSE_BEHAVIOR_DEFAULT */)) {
@@ -738,7 +738,7 @@ export async function explore(
 
         if (dir === NO_DIRECTION) {
             ctx.rogue.disturbed = true;
-        } else if (!ctx.playerMoves(dir)) {
+        } else if (!await ctx.playerMoves(dir)) {
             ctx.rogue.disturbed = true;
         } else {
             madeProgress = true;

@@ -66,6 +66,7 @@ export interface InputRogueState {
     cursorMode: boolean;
     cursorLoc: Pos;
     cursorPathIntensity: number;
+    sidebarLocationList: Pos[];
     upLoc: Pos;
     downLoc: Pos;
     playerTurnNumber: number;
@@ -136,6 +137,7 @@ export interface InputContext {
     // Events / timing
     pauseForMilliseconds(milliseconds: number, behavior: PauseBehavior): boolean;
     nextKeyOrMouseEvent(textInput: boolean, colorsDance: boolean): RogueEvent;
+    nextBrogueEvent(textInput: boolean, colorsDance: boolean, realInputEvenInPlayback: boolean): Promise<RogueEvent>;
     locIsInWindow(pos: WindowPos): boolean;
 
     // Display
@@ -143,19 +145,19 @@ export interface InputContext {
     refreshSideBar(x: number, y: number, justClearing: boolean): void;
     displayInventory(categoryMask: number, titleFlags: number, focusFlags: number, includeDetails: boolean, includeButtons: boolean): void | Promise<void>;
     displayMessageArchive(): void;
-    printHelpScreen(): void;
-    displayFeatsScreen(): void;
-    printDiscoveriesScreen(): void;
-    flashTemporaryAlert(msg: string, time: number): void;
+    printHelpScreen(): void | Promise<void>;
+    displayFeatsScreen(): void | Promise<void>;
+    printDiscoveriesScreen(): void | Promise<void>;
+    flashTemporaryAlert(msg: string, time: number): void | Promise<void>;
     displayMonsterFlashes(flashAll: boolean): void;
     setGraphicsMode(mode: number): number;
 
     // Game actions
     playerMoves(direction: number): void;
     playerRuns(direction: number): void;
-    playerTurnEnded(): void;
-    autoRest(): void;
-    manualSearch(): void;
+    playerTurnEnded(): void | Promise<void>;
+    autoRest(): void | Promise<void>;
+    manualSearch(): void | Promise<void>;
     travel(loc: Pos, autoConfirm: boolean): void | Promise<void>;
     travelRoute(path: Pos[], steps: number): void | Promise<void>;
     equip(item: Item | null): void | Promise<void>;
@@ -166,7 +168,7 @@ export interface InputContext {
     relabel(item: Item | null): void | Promise<void>;
     call(item: Item | null): void | Promise<void>;
     swapLastEquipment(): void;
-    enableEasyMode(): void;
+    enableEasyMode(): void | Promise<void>;
     saveGame(): void;
     gameOver(message: string, showHighScores: boolean): void;
     printSeed(): void;
@@ -197,11 +199,11 @@ export interface InputContext {
         cursorLoc: { value: Pos },
         theEvent: { value: RogueEvent },
         state: ButtonState,
-        doButtons: boolean,
-        cursorMode: boolean,
-        restingAllowed: boolean,
-    ): boolean;
-    nextTargetAfter(monst: Creature | null, outLoc: { value: Pos }, currentLoc: Pos, mode: number, reverse: boolean): boolean;
+        colorsDance: boolean,
+        keysMoveCursor: boolean,
+        targetCanLeaveMap: boolean,
+    ): Promise<boolean>;
+    nextTargetAfter(theItem: Item | null, outLoc: { value: Pos }, currentLoc: Pos, mode: number, reverse: boolean): boolean;
     hilitePath(path: Pos[], steps: number, unhilite: boolean): void;
     clearCursorPath(): void;
     hiliteCell(x: number, y: number, color: Readonly<Color>, opacity: number, flash: boolean): void;

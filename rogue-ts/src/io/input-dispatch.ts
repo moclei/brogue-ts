@@ -44,7 +44,7 @@ import {
 import type { InputContext } from "./input-keystrokes.js";
 import {
     stripShiftFromMovementKeystroke, considerCautiousMode,
-    pauseAnimation, nextKeyPress,
+    pauseAnimation,
 } from "./input-keystrokes.js";
 import { PAUSE_BEHAVIOR_DEFAULT } from "../types/types.js";
 
@@ -101,7 +101,7 @@ export async function confirm(ctx: InputContext, prompt: string, alsoDuringPlayb
  * Show a text-entry prompt and return the entered string.
  * Returns null if the user cancelled (Escape).
  */
-export function getInputTextString(
+export async function getInputTextString(
     ctx: InputContext,
     prompt: string,
     maxLength: number,
@@ -109,7 +109,7 @@ export function getInputTextString(
     promptSuffix: string,
     textEntryType: TextEntryType,
     useDialogBox: boolean,
-): string | null {
+): Promise<string | null> {
     const textEntryBounds: [number, number][] = [
         [" ".charCodeAt(0), "~".charCodeAt(0)],
         [" ".charCodeAt(0), "~".charCodeAt(0)],
@@ -174,7 +174,10 @@ export function getInputTextString(
             { windowX: x + charNum, windowY: y },
             black, white,
         );
-        keystroke = nextKeyPress(ctx, true);
+        let theEvent: RogueEvent;
+        do { theEvent = await ctx.nextBrogueEvent(true, false, false); }
+        while (theEvent.eventType !== EventType.Keystroke);
+        keystroke = theEvent.param1;
 
         if (keystroke === DELETE_KEY && charNum > 0) {
             ctx.printString(suffix, charNum + x - 1, y, gray, black, null);
@@ -290,25 +293,25 @@ export async function executeKeystroke(
                 considerCautiousMode(ctx);
                 ctx.rogue.justRested = true;
                 ctx.recordKeystroke(REST_KEY, false, false);
-                ctx.playerTurnEnded();
+                await ctx.playerTurnEnded();
                 break;
             case AUTO_REST_KEY:
                 ctx.rogue.justRested = true;
-                ctx.autoRest();
+                await ctx.autoRest();
                 break;
             case SEARCH_KEY:
                 if (controlKey) {
                     ctx.rogue.disturbed = false;
                     ctx.rogue.automationActive = true;
                     do {
-                        ctx.manualSearch();
+                        await ctx.manualSearch();
                         if (pauseAnimation(ctx, 80, PAUSE_BEHAVIOR_DEFAULT)) {
                             ctx.rogue.disturbed = true;
                         }
                     } while (ctx.player.status[ctx.STATUS_SEARCHING] < 5 && !ctx.rogue.disturbed);
                     ctx.rogue.automationActive = false;
                 } else {
-                    ctx.manualSearch();
+                    await ctx.manualSearch();
                 }
                 break;
             case INVENTORY_KEY:
@@ -378,13 +381,13 @@ export async function executeKeystroke(
                 ctx.displayMessageArchive();
                 break;
             case BROGUE_HELP_KEY:
-                ctx.printHelpScreen();
+                await ctx.printHelpScreen();
                 break;
             case FEATS_KEY:
-                ctx.displayFeatsScreen();
+                await ctx.displayFeatsScreen();
                 break;
             case DISCOVERIES_KEY:
-                ctx.printDiscoveriesScreen();
+                await ctx.printDiscoveriesScreen();
                 break;
             case CREATE_ITEM_MONSTER_KEY:
                 if (ctx.DEBUG) ctx.dialogCreateItemOrMonster();
@@ -430,7 +433,7 @@ export async function executeKeystroke(
                 ctx.printSeed();
                 break;
             case EASY_MODE_KEY:
-                ctx.enableEasyMode();
+                await ctx.enableEasyMode();
                 break;
             case PRINTSCREEN_KEY:
                 if (ctx.takeScreenshot()) {
@@ -455,9 +458,9 @@ export async function executeKeystroke(
         ctx.hideCursor();
         considerCautiousMode(ctx);
         if (controlKey || shiftKey) {
-            ctx.playerRuns(direction);
+            await ctx.playerRuns(direction);
         } else {
-            ctx.playerMoves(direction);
+            await ctx.playerMoves(direction);
         }
         ctx.refreshSideBar(-1, -1, false);
     }

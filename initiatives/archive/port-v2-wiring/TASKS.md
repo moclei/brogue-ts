@@ -63,3 +63,7 @@
 - [x] Zero unpaired stubs — all stubs have corresponding test.skip entries
 - [x] All domain files under 600 lines — core.ts 356, turn.ts 392, combat.ts 259, monsters.ts 264, items.ts 378, movement.ts 574, ui.ts 358
 - [x] `rogue-ts/src/` committed: "feat: port-v2 wiring layer — domain context builders complete" — commit 991ccb0
+
+---
+
+> CLOSED — all phases complete. Archived by port-v2-close-out Phase 1a.

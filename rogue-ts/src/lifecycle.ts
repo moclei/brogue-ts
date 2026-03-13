@@ -19,7 +19,8 @@
  *  License, or (at your option) any later version.
  */
 
-import { getGameState, setMonsters, setDormantMonsters, setLevels } from "./core.js";
+import { getGameState, setMonsters, setDormantMonsters, setLevels, getScentMap, setScentMap, setBuildMachineFn } from "./core.js";
+import { commitDraws } from "./platform.js";
 import { initializeRogue as initializeRogueFn } from "./game/game-init.js";
 import { startLevel as startLevelFn } from "./game/game-level.js";
 import { freeEverything as freeEverythingFn } from "./game/game-cleanup.js";
@@ -28,6 +29,7 @@ import { lightCatalog } from "./globals/light-catalog.js";
 import { LightType, DungeonLayer, MonsterType } from "./types/enums.js";
 import { meteredItemsGenerationTable, lumenstoneDistribution,
     scrollTable, potionTable } from "./globals/item-catalog.js";
+import { featCatalog } from "./globals/feat-catalog.js";
 import { autoGeneratorCatalog } from "./globals/autogenerator-catalog.js";
 import { blueprintCatalog } from "./globals/blueprint-catalog.js";
 import { hordeCatalog } from "./globals/horde-catalog.js";
@@ -43,11 +45,12 @@ import { TileFlag } from "./types/flags.js";
 import { seedRandomGenerator, randRange, rand64bits, randPercent, randClump, clamp } from "./math/rng.js";
 import { FP_FACTOR } from "./math/fixpt.js";
 import { allocGrid, fillGrid, freeGrid } from "./grid/grid.js";
+import { terrainRandomValues, displayDetail, shuffleTerrainColors as shuffleTerrainColorsFn } from "./render-state.js";
 import { zeroOutGrid } from "./architect/helpers.js";
 import { distanceBetween } from "./monsters/monster-state.js";
 import { calculateDistances, pathingDistance as pathingDistanceFn } from "./dijkstra/dijkstra.js";
 import type { CalculateDistancesContext } from "./dijkstra/dijkstra.js";
-import { applyColorAverage } from "./io/color.js";
+import { applyColorAverage, encodeMessageColor } from "./io/color.js";
 import { buildTurnProcessingContext } from "./turn.js";
 import { buildMonsterSpawningContext } from "./monsters.js";
 import { digDungeon, placeStairs, initializeLevel, setUpWaypoints,
@@ -58,24 +61,40 @@ import { getFOVMask } from "./light/fov.js";
 import { populateGenericCostMap } from "./movement/cost-maps-fov.js";
 import { populateItems } from "./items/item-population.js";
 import { populateMonsters } from "./monsters/monster-spawning.js";
-import { generateItem } from "./items/item-generation.js";
-import { addItemToPack, numberOfMatchingPackItems, itemAtLoc as itemAtLocFn } from "./items/item-inventory.js";
-import { identify, shuffleFlavors } from "./items/item-naming.js";
-import { equipItem, recalculateEquipmentBonuses } from "./items/item-usage.js";
-import type { EquipmentState, EquipContext } from "./items/item-usage.js";
-import type { MachineItem } from "./architect/machines.js";
+import { generateItem, itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
+import { placeItemAt as placeItemAtFn } from "./items/floor-items.js";
+import { addItemToPack, numberOfMatchingPackItems, itemAtLoc as itemAtLocFn, deleteItem as deleteItemFn } from "./items/item-inventory.js";
+import { identify, shuffleFlavors, itemColors, itemTitles } from "./items/item-naming.js";
+import { equipItem, recalculateEquipmentBonuses, updateRingBonuses as updateRingBonusesFn, updateEncumbrance as updateEncumbranceFn } from "./items/item-usage.js";
+import type { EquipContext } from "./items/item-usage.js";
+import { buildEquipState, syncEquipBonuses, syncEquipState } from "./items/equip-helpers.js";
+import { buildAMachine, type MachineItem } from "./architect/machines.js";
 import { initializeGender, initializeStatus, generateMonster } from "./monsters/monster-creation.js";
 import { createMonsterOps, toggleMonsterDormancy } from "./monsters/monster-ops.js";
 import { blackOutScreen } from "./io/display.js";
+import {
+    getCellAppearance,
+    refreshDungeonCell as refreshDungeonCellFn,
+    displayLevel as displayLevelFn,
+} from "./io/cell-appearance.js";
 import { clearMessageArchive } from "./io/messages.js";
 import { deleteAllFlares } from "./light/flares.js";
-import { cellHasTerrainFlag as ctf, cellHasTMFlag as ctmf, terrainFlags as tf } from "./state/helpers.js";
+import {
+    cellHasTerrainFlag as ctf,
+    cellHasTMFlag as ctmf,
+    terrainFlags as tf,
+    discoveredTerrainFlagsAtLoc as discoveredTerrainFlagsAtLocFn,
+} from "./state/helpers.js";
 import { passableArcCount, cellIsPassableOrDoor, randomMatchingLocation } from "./architect/helpers.js";
 import { synchronizePlayerTimeState } from "./time/turn-processing.js";
 import type { Creature, Color, Item, LevelData } from "./types/types.js";
 import type { GameInitContext } from "./game/game-init.js";
 import type { LevelContext } from "./game/game-level.js";
 import type { CleanupContext } from "./game/game-cleanup.js";
+import { buildMessageFns } from "./io-wiring.js";
+import { buildUpdateVisionFn } from "./vision-wiring.js";
+import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
+import { getQualifyingPathLocNear as getQualifyingPathLocNearFn } from "./movement/path-qualifying.js";
 
 // =============================================================================
 // Module-level lifecycle state (not in core.ts)
@@ -83,21 +102,9 @@ import type { CleanupContext } from "./game/game-cleanup.js";
 
 let dynamicColors: Color[] = dynamicColorsBounds.map(([start]) => ({ ...start }));
 
-let displayDetail: number[][] = allocGrid();
-
-let terrainRandomValues: number[][][] = (() => {
-    const t: number[][][] = [];
-    for (let i = 0; i < DCOLS; i++) {
-        t[i] = [];
-        for (let j = 0; j < DROWS; j++) { t[i][j] = new Array(8).fill(0); }
-    }
-    return t;
-})();
-
 let safetyMap: number[][] | null = allocGrid();
 let allySafetyMap: number[][] | null = allocGrid();
 let chokeMap: number[][] | null = allocGrid();
-let scentMap: number[][] | null = null;
 let purgatory: Creature[] = [];
 let previousGameSeed: bigint = 0n;
 
@@ -132,7 +139,13 @@ function makeCostMapCtx() {
     return {
         cellHasTerrainFlag: (pos: { x: number; y: number }, flags: number) => ctf(pmap, pos, flags),
         cellHasTMFlag: (pos: { x: number; y: number }, flags: number) => ctmf(pmap, pos, flags),
-        discoveredTerrainFlagsAtLoc: (_pos: { x: number; y: number }) => 0,
+        discoveredTerrainFlagsAtLoc: (pos: { x: number; y: number }) => discoveredTerrainFlagsAtLocFn(
+            pmap, pos, tileCatalog,
+            (tileType) => {
+                const df = tileCatalog[tileType]?.discoverType ?? 0;
+                return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
+            },
+        ),
     } as unknown as import("./movement/cost-maps-fov.js").CostMapFovContext;
 }
 
@@ -146,33 +159,18 @@ function makeCalcDistCtx(): CalculateDistancesContext {
             return monsters.find(m => m.loc.x === pos.x && m.loc.y === pos.y) ?? null;
         },
         monsterAvoids: () => false,
-        discoveredTerrainFlagsAtLoc: () => 0,
+        discoveredTerrainFlagsAtLoc: (pos) => discoveredTerrainFlagsAtLocFn(
+            pmap, pos, tileCatalog,
+            (tileType) => {
+                const df = tileCatalog[tileType]?.discoverType ?? 0;
+                return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
+            },
+        ),
         isPlayer: (m: Creature) => m === player,
         getCellFlags: (x: number, y: number) => pmap[x][y].flags,
     };
 }
 
-function syncEquipBonuses(state: EquipmentState): void {
-    const { rogue } = getGameState();
-    rogue.clairvoyance = state.clairvoyance;
-    rogue.stealthBonus = state.stealthBonus;
-    rogue.regenerationBonus = state.regenerationBonus;
-    rogue.lightMultiplier = state.lightMultiplier;
-    rogue.transference = state.transference;
-    rogue.wisdomBonus = state.wisdomBonus;
-    rogue.reaping = state.reaping;
-}
-
-function buildEquipState(rogue: ReturnType<typeof getGameState>["rogue"], player: Creature): EquipmentState {
-    return {
-        player, weapon: rogue.weapon, armor: rogue.armor,
-        ringLeft: rogue.ringLeft, ringRight: rogue.ringRight,
-        strength: rogue.strength, clairvoyance: rogue.clairvoyance,
-        stealthBonus: rogue.stealthBonus, regenerationBonus: rogue.regenerationBonus,
-        lightMultiplier: rogue.lightMultiplier, awarenessBonus: 0,
-        transference: rogue.transference, wisdomBonus: rogue.wisdomBonus, reaping: rogue.reaping,
-    };
-}
 
 // =============================================================================
 // buildGameInitContext
@@ -184,10 +182,11 @@ export function buildGameInitContext(): GameInitContext {
         mutableScrollTable, mutablePotionTable, messageState, displayBuffer,
         monsters, dormantMonsters, floorItems, packItems, monsterItemsHopper,
     } = getGameState();
+    const { message, messageWithColor } = buildMessageFns();
 
     return {
         rogue, player, gameConst, gameVariant, monsterCatalog,
-        meteredItemsGenerationTable, featTable: [],
+        meteredItemsGenerationTable, featTable: featCatalog,
         lightCatalog, MINERS_LIGHT: LightType.MINERS_LIGHT,
         dynamicColorsBounds, dynamicColors,
         displayDetail, terrainRandomValues,
@@ -202,8 +201,8 @@ export function buildGameInitContext(): GameInitContext {
         safetyMap: safetyMap!,
         allySafetyMap: allySafetyMap!,
         chokeMap: chokeMap!,
-        scentMap,
-        setScentMap(map) { scentMap = map; },
+        scentMap: getScentMap(),
+        setScentMap,
         seedRandomGenerator, rand_range: randRange, rand_64bits: rand64bits,
         allocGrid, fillGrid, zeroOutGrid, freeGrid, distanceBetween,
         generateItem(category, kind) {
@@ -215,28 +214,34 @@ export function buildGameInitContext(): GameInitContext {
             });
         },
         addItemToPack(item) { return addItemToPack(item, packItems); },
-        identify(item) { identify(item, gameConst); },
+        identify(item) { identify(item, gameConst, { scrollTable: mutableScrollTable, potionTable: mutablePotionTable }); },
         equipItem(item, willUnequip, swapItem) {
-            const state = buildEquipState(rogue, player);
+            const state = buildEquipState();
             const equipCtx: EquipContext = {
                 state,
-                message: () => {},
-                updateRingBonuses: () => {},
-                updateEncumbrance: () => {},
+                message: (text, _ack) => message(text, 0),
+                updateRingBonuses: () => { updateRingBonusesFn(state); syncEquipBonuses(state); },
+                updateEncumbrance: () => updateEncumbranceFn(state),
                 itemName: (i) => i.displayChar ? String.fromCharCode(i.displayChar) : "?",
             };
             equipItem(item, willUnequip, swapItem, equipCtx);
-            syncEquipBonuses(state);
+            syncEquipState(state);
         },
         recalculateEquipmentBonuses() {
-            const state = buildEquipState(rogue, player);
+            const state = buildEquipState();
             recalculateEquipmentBonuses(state);
             syncEquipBonuses(state);
         },
         initializeGender(monst) { initializeGender(monst, { randRange, randPercent }); },
         initializeStatus(monst) { initializeStatus(monst, monst === player); },
         initRecording: () => {},
-        shuffleFlavors() { shuffleFlavors(gameConst, randRange, randPercent); },
+        shuffleFlavors() {
+            shuffleFlavors(gameConst, randRange, randPercent);
+            // itemName reads mutablePotionTable/mutableScrollTable (shallow copies of catalog
+            // arrays). Sync the shuffled flavor values so itemName sees the randomized strings.
+            for (let i = 0; i < mutablePotionTable.length; i++) mutablePotionTable[i].flavor = itemColors[i];
+            for (let i = 0; i < mutableScrollTable.length; i++) mutableScrollTable[i].flavor = itemTitles[i];
+        },
         resetDFMessageEligibility() { resetDFMessageEligibility(dungeonFeatureCatalog); },
         deleteMessages() {
             for (let i = 0; i < messageState.displayedMessage.length; i++) {
@@ -247,8 +252,8 @@ export function buildGameInitContext(): GameInitContext {
         clearMessageArchive() { clearMessageArchive(messageState); },
         blackOutScreen(dbuf) { blackOutScreen(dbuf); },
         displayBuffer,
-        message: () => {}, messageWithColor: () => {}, flavorMessage: () => {},
-        encodeMessageColor: () => {},
+        message, messageWithColor, flavorMessage: () => {},
+        encodeMessageColor,
         itemMessageColor, white, backgroundMessageColor,
         initializeGameVariantBrogue() {
             gameConst.numberScrollKinds = mutableScrollTable.length;
@@ -289,10 +294,10 @@ export function buildGameInitContext(): GameInitContext {
 
 export function buildLevelContext(): LevelContext {
     const {
-        rogue, player, gameConst, pmap,
+        rogue, player, gameConst, pmap, tmap,
         monsters, dormantMonsters, floorItems, packItems,
         mutableScrollTable, mutablePotionTable, monsterItemsHopper,
-        monsterCatalog,
+        monsterCatalog, displayBuffer,
     } = getGameState();
 
     const fovCtx = makeFovCtx();
@@ -349,8 +354,32 @@ export function buildLevelContext(): LevelContext {
             staleLoopMap: rogue.staleLoopMap,
             gameConstants: gameConst, monsterOps,
             itemOps: {
-                generateItem: () => ({ category: 0, kind: 0, quantity: 1, flags: 0, keyLoc: [], originDepth: 0 } as unknown as Item),
-                deleteItem: () => {}, placeItemAt: () => {}, removeItemFromArray: () => {},
+                generateItem: (category: number, kind: number) => generateItem(category, kind, {
+                    rng: { randRange, randPercent, randClump }, gameConstants: gameConst,
+                    depthLevel: rogue.depthLevel, scrollTable: mutableScrollTable,
+                    potionTable: mutablePotionTable, depthAccelerator: gameConst.depthAccelerator,
+                    chooseVorpalEnemy,
+                }),
+                deleteItem: () => {},
+                placeItemAt(item: MachineItem, loc: import("./types/types.js").Pos) {
+                    placeItemAtFn(item as unknown as Item, loc, {
+                        pmap, floorItems: floorItems as any,
+                        tileCatalog: tileCatalog as any,
+                        dungeonFeatureCatalog: dungeonFeatureCatalog as any,
+                        itemMagicPolarity: (i) => itemMagicPolarityFn(i as unknown as Item),
+                        cellHasTerrainFlag: (pos, flags) => ctf(pmap, pos, flags),
+                        cellHasTMFlag: (pos, flags) => ctmf(pmap, pos, flags),
+                        playerCanSee: () => false,
+                        itemName: (_i, buf) => { buf[0] = "item"; },
+                        message: () => {},
+                        spawnDungeonFeature: () => {},
+                        promoteTile: () => {},
+                        discover: () => {},
+                        refreshDungeonCell: () => {},
+                        REQUIRE_ACKNOWLEDGMENT: 1,
+                    });
+                },
+                removeItemFromArray: () => {},
                 itemIsHeavyWeapon: () => false, itemIsPositivelyEnchanted: () => false,
             },
             analyzeMap: analyzeMapWrap,
@@ -372,11 +401,17 @@ export function buildLevelContext(): LevelContext {
         packItems: packItems as unknown as MachineItem[],
     };
 
+    // Register machine builder so buildMonsterSpawningContext().buildMachine can call it.
+    setBuildMachineFn((machineType, x, y) => {
+        buildAMachine(archCtx.machineContext, machineType, x, y, 0, null, null, null);
+        rogue.machineNumber = archCtx.machineContext.machineNumber;
+    });
+
     return {
         rogue, player, gameConst, FP_FACTOR,
         levels: getGameState().levels, pmap,
         monsters, dormantMonsters, floorItems, setMonsters, setDormantMonsters,
-        scentMap, setScentMap(map) { scentMap = map; },
+        scentMap: getScentMap(), setScentMap,
         dynamicColors, dynamicColorsBounds,
         levelFeelings: [
             { message: "You sense a very powerful presence on this level.", color: goodMessageColor },
@@ -395,7 +430,15 @@ export function buildLevelContext(): LevelContext {
         getQualifyingLocNear(target, _hw, _forbidCell, forbidTerrain, forbidMap, _det, _flood) {
             return getQualifyingLocNearFn(pmap, target, forbidTerrain, forbidMap) ?? { ...target };
         },
-        getQualifyingPathLocNear: (target) => ({ ...target }),
+        getQualifyingPathLocNear: (target, hallwaysAllowed, btf, bmf, ftf, fmf, det) =>
+            getQualifyingPathLocNearFn(target, hallwaysAllowed, btf, bmf, ftf, fmf, det, {
+                pmap,
+                cellHasTerrainFlag: (loc, flags) => ctf(pmap, loc, flags),
+                cellFlags: (pos) => pmap[pos.x][pos.y].flags,
+                rng: { randRange },
+                getQualifyingLocNear: (t, _hw, ftf2, fmf2) =>
+                    getQualifyingLocNearFn(pmap, t, ftf2, fmf2),
+            }),
         digDungeon() {
             digDungeon(archCtx);
             rogue.rewardRoomsGenerated = archCtx.rewardRoomsGenerated;
@@ -447,10 +490,10 @@ export function buildLevelContext(): LevelContext {
             );
         },
         setUpWaypoints() {
-            const r = setUpWaypoints(pmap, costMapWrap, getFOVMaskWrap);
+            const r = setUpWaypoints(pmap, costMapWrap, getFOVMaskWrap, monsters);
             rogue.wpDistance = r.wpDistance;
         },
-        shuffleTerrainColors: () => {},
+        shuffleTerrainColors: (pct, reset) => shuffleTerrainColorsFn(pct, reset),
         numberOfMatchingPackItems: (cat, flags, flags2, _useFlags) =>
             numberOfMatchingPackItems(packItems, cat, flags, flags2),
         itemAtLoc: (loc) => itemAtLocFn(loc, floorItems),
@@ -463,7 +506,14 @@ export function buildLevelContext(): LevelContext {
                 chooseVorpalEnemy,
             });
         },
-        placeItemAt(item, loc) { item.loc = { ...loc }; floorItems.push(item); },
+        placeItemAt(item, loc) {
+            item.loc = { ...loc };
+            const idx = floorItems.indexOf(item);
+            if (idx >= 0) floorItems.splice(idx, 1);
+            floorItems.unshift(item);
+            pmap[loc.x][loc.y].flags |= TileFlag.HAS_ITEM;
+        },
+        updateEnvironment: () => {},
         restoreMonster: () => {},
         restoreItems: () => {},
         updateMonsterState: () => {},
@@ -472,11 +522,21 @@ export function buildLevelContext(): LevelContext {
             cell.rememberedTerrainFlags = tf(pmap, { x, y });
             cell.rememberedCellFlags = cell.flags;
         },
-        updateVision: () => {},
-        discoverCell: (x, y) => { pmap[x][y].flags |= TileFlag.DISCOVERED; },
+        updateVision: buildUpdateVisionFn(),
+        discoverCell: (x, y) => { pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY; pmap[x][y].flags |= TileFlag.DISCOVERED; },
         updateMapToShore() { rogue.mapToShore = updateMapToShore(pmap); },
-        updateRingBonuses: () => {},
-        displayLevel: () => {},
+        updateRingBonuses: () => { const s = buildEquipState(); updateRingBonusesFn(s); syncEquipBonuses(s); },
+        updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
+        displayLevel() {
+            const getCellApp = (loc: { x: number; y: number }) => getCellAppearance(
+                loc, pmap, tmap, displayBuffer, rogue, player,
+                monsters, dormantMonsters, floorItems,
+                tileCatalog, dungeonFeatureCatalog, monsterCatalog,
+                terrainRandomValues, displayDetail, getScentMap() ?? [],
+            );
+            displayLevelFn(DCOLS, DROWS, (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer));
+            commitDraws();
+        },
         refreshSideBar: () => {},
         messageWithColor: () => {},
         RNGCheck: () => {},
@@ -497,13 +557,13 @@ export function buildCleanupContext(): CleanupContext {
     return {
         rogue, player, gameConst, levels, setLevels,
         monsters, dormantMonsters, floorItems, packItems, monsterItemsHopper,
-        purgatory, safetyMap, allySafetyMap, chokeMap, scentMap,
+        purgatory, safetyMap, allySafetyMap, chokeMap, scentMap: getScentMap(),
         setSafetyMap(map) { safetyMap = map; },
         setAllySafetyMap(map) { allySafetyMap = map; },
         setChokeMap(map) { chokeMap = map; },
-        setScentMap(map) { scentMap = map; },
+        setScentMap,
         freeGrid,
-        deleteItem: () => {},
+        deleteItem: deleteItemFn,
         deleteAllFlares() { deleteAllFlares(rogue); },
     };
 }
@@ -518,6 +578,12 @@ export function getPreviousGameSeed(): bigint { return previousGameSeed; }
 /** Initialize game state for a new game from seed (0 = random). */
 export function initializeRogue(seed: bigint): void {
     dynamicColors = dynamicColorsBounds.map(([start]) => ({ ...start }));
+    // Re-allocate grids freed by freeEverything() — matches C initializeRogue behavior.
+    // Without this, a second game (die → new game) passes null grids to buildLevelContext
+    // and crashes when analyzeMap/machineContext access chokeMap[i][j].
+    if (!safetyMap) safetyMap = allocGrid();
+    if (!allySafetyMap) allySafetyMap = allocGrid();
+    if (!chokeMap) chokeMap = allocGrid();
     initializeRogueFn(buildGameInitContext(), seed);
 }
 
@@ -530,3 +596,5 @@ export function startLevel(oldLevel: number, stairDirection: number): void {
 export function freeEverything(): void {
     freeEverythingFn(buildCleanupContext());
 }
+/** Read the current chokepoint map (null until first level). */
+export function getChokeMap(): number[][] | null { return chokeMap; }

@@ -133,7 +133,7 @@ export interface LifecycleContext {
     deleteMessages(): void;
     displayMoreSign(): void;
     displayMoreSignWithoutWaitingForAcknowledgment(): void;
-    flashTemporaryAlert(msg: string, time: number): void;
+    flashTemporaryAlert(msg: string, time: number): void | Promise<void>;
     confirm(prompt: string, alsoDuringPlayback: boolean): boolean;
 
     // -- Input ----------------------------------------------------------------
@@ -164,7 +164,7 @@ export interface LifecycleContext {
     // -- Player display -------------------------------------------------------
 
     refreshDungeonCell(loc: { x: number; y: number }): void;
-    encodeMessageColor(buf: string[], pos: number, color: Readonly<Color>): void;
+    encodeMessageColor(color: Readonly<Color>): string;
 
     // -- Color references -----------------------------------------------------
 
@@ -624,20 +624,20 @@ export function victory(ctx: LifecycleContext, superVictory: boolean): void {
 /**
  * Port of C `enableEasyMode()`.
  */
-export function enableEasyMode(ctx: LifecycleContext): void {
+export async function enableEasyMode(ctx: LifecycleContext): Promise<void> {
     const { rogue, player } = ctx;
 
     if (rogue.mode === GameMode.Easy) {
-        ctx.message("Alas, all hope of salvation is lost. You shed scalding tears at your plight.", 0);
+        await ctx.message("Alas, all hope of salvation is lost. You shed scalding tears at your plight.", 0);
         return;
     }
-    ctx.message(
+    await ctx.message(
         "A dark presence surrounds you, whispering promises of stolen power.",
         MessageFlag.REQUIRE_ACKNOWLEDGMENT,
     );
-    if (ctx.confirm("Succumb to demonic temptation (i.e. enable Easy Mode)?", false)) {
+    if (await ctx.confirm("Succumb to demonic temptation (i.e. enable Easy Mode)?", false)) {
         ctx.recordKeystroke(EASY_MODE_KEY, false, true);
-        ctx.message("An ancient and terrible evil burrows into your willing flesh!", MessageFlag.REQUIRE_ACKNOWLEDGMENT);
+        await ctx.message("An ancient and terrible evil burrows into your willing flesh!", MessageFlag.REQUIRE_ACKNOWLEDGMENT);
         rogue.mode = GameMode.Easy;
         setPlayerDisplayChar(player, rogue.mode);
         ctx.refreshDungeonCell(player.loc);
@@ -646,7 +646,7 @@ export function enableEasyMode(ctx: LifecycleContext): void {
         ctx.message("You have a feeling that you will take 20% as much damage from now on.", 0);
         ctx.message("But great power comes at a great price -- specifically, a 90% income tax rate.", 0);
     } else {
-        ctx.message("The evil dissipates, hissing, from the air around you.", 0);
+        await ctx.message("The evil dissipates, hissing, from the air around you.", 0);
     }
 }
 

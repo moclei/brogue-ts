@@ -18,7 +18,7 @@
 
 import type { Color, ScreenDisplayBuffer, Pos, Creature, Item, Pcell, FloorTileType } from "../types/types.js";
 import type { DisplayGlyph } from "../types/enums.js";
-import { StatusEffect, DungeonLayer } from "../types/enums.js";
+import { ItemCategory, StatusEffect, DungeonLayer } from "../types/enums.js";
 import { ROWS } from "../types/constants.js";
 import { TileFlag } from "../types/flags.js";
 import { clamp } from "../math/rng.js";
@@ -458,11 +458,26 @@ export function printCarriedItemDetails(
     return ctx.printTextBox(textBuf, x, y, width, white, { ...black, red: 5, green: 5, blue: 20 });
 }
 
+/** Category-to-article-name pairs for hallucination descriptions. */
+const HALLUCINATION_CATEGORY_NAMES: Partial<Record<number, string>> = {
+    [ItemCategory.FOOD]:   "some food",
+    [ItemCategory.WEAPON]: "a weapon",
+    [ItemCategory.ARMOR]:  "some armor",
+    [ItemCategory.POTION]: "a potion",
+    [ItemCategory.SCROLL]: "a scroll",
+    [ItemCategory.STAFF]:  "a staff",
+    [ItemCategory.WAND]:   "a wand",
+    [ItemCategory.RING]:   "a ring",
+    [ItemCategory.CHARM]:  "a charm",
+    [ItemCategory.GOLD]:   "some gold",
+};
+
 /**
  * Describe a hallucinated item (random category and kind).
  *
  * C: `describeHallucinatedItem` in IO.c
  */
 export function describeHallucinatedItem(ctx: SidebarContext): string {
-    return ctx.describeHallucinatedItem();
+    const cat = ctx.getHallucinatedItemCategory();
+    return HALLUCINATION_CATEGORY_NAMES[cat] ?? "something strange";
 }

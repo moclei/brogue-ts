@@ -225,62 +225,88 @@ describe("full cycle — attack, die, remove from monster list", () => {
 // Stub audit: known-incomplete behaviours in buildCombatDamageContext
 // =============================================================================
 
-it.skip("stub: anyoneWantABite wires real absorption check (CombatHelperContext)", () => {
-    // buildCombatDamageContext().anyoneWantABite always returns false.
-    // Real implementation should call anyoneWantABite() from combat-helpers.ts
-    // with a properly built CombatHelperContext (needs clone, monsterAtLoc, etc.).
+it("demoteMonsterFromLeadership removes leader flag and reassigns followers", () => {
+    const { monsters } = getGameState();
+    const leader = makeMonster(MonsterType.MK_RAT);
+    const follower = makeMonster(MonsterType.MK_RAT);
+    leader.bookkeepingFlags |= MonsterBookkeepingFlag.MB_LEADER;
+    follower.bookkeepingFlags |= MonsterBookkeepingFlag.MB_FOLLOWER;
+    follower.leader = leader;
+    monsters.push(leader, follower);
+
+    const ctx = buildCombatDamageContext();
+    ctx.demoteMonsterFromLeadership(leader);
+
+    expect(leader.bookkeepingFlags & MonsterBookkeepingFlag.MB_LEADER).toBe(0);
+    expect(follower.leader).toBeNull(); // promoted to new leader, leader=null
+    expect(follower.bookkeepingFlags & MonsterBookkeepingFlag.MB_LEADER).toBeTruthy();
 });
 
-it.skip("stub: demoteMonsterFromLeadership wires real leadership demotion", () => {
-    // buildCombatDamageContext().demoteMonsterFromLeadership is a no-op.
-    // Real implementation should clear leader/follower links for the dying creature.
+it("checkForContinuedLeadership removes MB_LEADER when no followers remain", () => {
+    const { monsters } = getGameState();
+    const leader = makeMonster(MonsterType.MK_RAT);
+    leader.bookkeepingFlags |= MonsterBookkeepingFlag.MB_LEADER;
+    monsters.push(leader);
+
+    const ctx = buildCombatDamageContext();
+    ctx.checkForContinuedLeadership(leader);
+
+    expect(leader.bookkeepingFlags & MonsterBookkeepingFlag.MB_LEADER).toBe(0);
 });
 
-it.skip("stub: checkForContinuedLeadership wires real leadership continuation", () => {
-    // buildCombatDamageContext().checkForContinuedLeadership is a no-op.
-    // Real implementation should promote a follower to leader if the leader dies.
+it("getMonsterDFMessage returns DFMessage from monsterText catalog", () => {
+    const ctx = buildCombatDamageContext();
+    // MonsterType 6 (acid mound) has a non-empty DFMessage
+    const msg = ctx.getMonsterDFMessage(6);
+    expect(typeof msg).toBe("string");
+    expect(msg.length).toBeGreaterThan(0);
+    // MonsterType 0 (player) has empty DFMessage
+    expect(ctx.getMonsterDFMessage(0)).toBe("");
 });
 
-it.skip("stub: getMonsterDFMessage returns empty string (should look up DF catalog)", () => {
-    // buildCombatDamageContext().getMonsterDFMessage always returns "".
-    // Real implementation should return dungeonFeatureCatalog[monster.DFType].message
-    // when the monster has MA_DF_ON_DEATH.
+it("resolvePronounEscapes substitutes $HESHE based on monster gender", () => {
+    const { player, monsters, pmap } = getGameState();
+    // Make a visible male monster
+    const monst = makeMonster(MonsterType.MK_RAT);
+    monst.loc = { x: 5, y: 5 };
+    monst.info.flags |= (1 << 25); // MONST_MALE
+    pmap[5][5].flags |= (1 << 1);  // VISIBLE
+    monsters.push(monst);
+
+    const ctx = buildCombatDamageContext();
+    expect(ctx.resolvePronounEscapes("$HESHE attacks", monst)).toBe("he attacks");
+    expect(ctx.resolvePronounEscapes("$HISHER weapon", monst)).toBe("his weapon");
+    expect(ctx.resolvePronounEscapes("$HIMHER", monst)).toBe("him");
+    expect(ctx.resolvePronounEscapes("$HESHE", player)).toBe("you");
 });
 
-it.skip("stub: resolvePronounEscapes is a passthrough (should substitute $HESHE etc.)", () => {
-    // buildCombatDamageContext().resolvePronounEscapes returns the text unchanged.
-    // Real implementation should substitute $HESHE, $HISHER, $HIMHER based on gender.
+it("unAlly removes ally status and follower flags", () => {
+    const monst = makeMonster(MonsterType.MK_RAT);
+    const { player } = getGameState();
+    monst.creatureState = CreatureState.Ally;
+    monst.bookkeepingFlags |= MonsterBookkeepingFlag.MB_FOLLOWER | MonsterBookkeepingFlag.MB_TELEPATHICALLY_REVEALED;
+    monst.leader = player;
+
+    const ctx = buildCombatAttackContext();
+    ctx.unAlly(monst);
+
+    expect(monst.creatureState).toBe(CreatureState.TrackingScent);
+    expect(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_FOLLOWER).toBe(0);
+    expect(monst.leader).toBeNull();
 });
 
-it.skip("stub: attackVerb returns 'hits' (should select verb from monster text table)", () => {
-    // buildCombatAttackContext().attackVerb returns 'hits' regardless of damage.
-    // Real implementation should call attackVerb(attacker, damagePercent, monsterTextTable, ctx)
-    // from combat-helpers.ts to pick the correct damage-tier verb.
-});
+it("wakeUp alerts monster and sets ticksUntilTurn to 100", () => {
+    const { monsters, player } = getGameState();
+    const monst = makeMonster(MonsterType.MK_RAT);
+    monst.loc = { x: 5, y: 5 };
+    monst.creatureState = CreatureState.Sleeping;
+    monst.ticksUntilTurn = 0;
+    monsters.push(monst);
 
-it.skip("stub: magicWeaponHit is a no-op (should apply weapon runic on-hit effects)", () => {
-    // buildCombatAttackContext().magicWeaponHit does nothing.
-    // Real implementation should call magicWeaponHit() from combat-runics.ts
-    // with a full RunicContext, triggering enchant effects (paralysis, slowing, etc.).
-});
+    const ctx = buildCombatDamageContext();
+    ctx.wakeUp(monst);
 
-it.skip("stub: applyArmorRunicEffect returns '' (should apply armor runic on-hit effects)", () => {
-    // buildCombatAttackContext().applyArmorRunicEffect does nothing.
-    // Real implementation should call applyArmorRunicEffect() from combat-runics.ts.
-});
-
-it.skip("stub: specialHit is a no-op (should apply monster on-hit abilities)", () => {
-    // buildCombatAttackContext().specialHit does nothing.
-    // Real implementation should call specialHit() from combat-runics.ts
-    // for monster abilities like poison, fire, weakness, item stealing, etc.
-});
-
-it.skip("stub: unAlly is a no-op (should be wired in monsters.ts)", () => {
-    // buildCombatAttackContext().unAlly does nothing.
-    // Real implementation should remove ally status and set monster back to wandering.
-});
-
-it.skip("stub: wakeUp sets TrackingScent only (should call full wakeUp with MonsterStateContext)", () => {
-    // buildCombatDamageContext().wakeUp sets creatureState = TrackingScent.
-    // Real wakeUp also plays a sound, updates scent map, and alerts nearby allies.
+    expect(monst.ticksUntilTurn).toBe(100);
+    expect(monst.creatureState).toBe(CreatureState.TrackingScent);
+    expect(monst.lastSeenPlayerAt).toEqual(player.loc);
 });

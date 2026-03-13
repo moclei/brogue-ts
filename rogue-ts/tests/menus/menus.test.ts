@@ -109,24 +109,144 @@ describe("addRunToGameStats", () => {
 
 describe("save / load game", () => {
     it.skip("saveGameNoPrompt() persists game state to the current file path", () => {
+        // DEFER: port-v2-persistence
         // STUB: saveGameNoPrompt is deferred to the recordings/persistence phase.
         // Correct behavior: calls the platform file ops to write a .broguesave file
         // at ctx.currentFilePath, encoding the full rogue state.
     });
 
     it.skip("loadSavedGame() restores a .broguesave file and starts mainInputLoop", () => {
+        // DEFER: port-v2-persistence
         // STUB: loadSavedGame is deferred to the recordings/persistence phase.
         // Correct behavior: reads the .broguesave at gamePath, restores rogue state,
         // and calls startLevel() followed by mainInputLoop().
     });
 
     it.skip("saveRecordingNoPrompt() writes a .broguerec recording file", () => {
+        // DEFER: port-v2-persistence
         // STUB: recording subsystem deferred.
         // Correct behavior: flushes the recording buffer to disk as a .broguerec file.
     });
 
     it.skip("openFile() returns false for non-existent paths", () => {
+        // DEFER: port-v2-persistence
         // STUB: platform file ops deferred.
         // Correct behavior: ctx.openFile('nonexistent.broguesave') returns false.
     });
+});
+
+// =============================================================================
+// Stub registry — Recordings.c domain stubs (Phase 3c, port-v2-audit)
+// =============================================================================
+
+it.skip("stub: flushBufferToFile() is a no-op (should write the recording buffer to disk)", () => {
+    // DEFER: port-v2-persistence
+    // C: Recordings.c:223 — flushBufferToFile()
+    // menus.ts:250 and lifecycle.ts:483 have `() => {}` context stubs.
+    // Real implementation should flush the in-memory recording buffer to a
+    // .broguerec file at the current recording path.
+});
+
+it.skip("stub: initRecording() is a no-op (should initialize the recording state at game start)", () => {
+    // DEFER: port-v2-persistence
+    // C: Recordings.c:465 — initRecording()
+    // lifecycle.ts:238 has a `() => {}` context stub; called once at game init.
+    // Real implementation should reset the recording buffer, checkpoint the RNG
+    // state, and prepare the file header for a new .broguerec recording.
+});
+
+it.skip("stub: pausePlayback() is a no-op (should pause the recording playback state machine)", () => {
+    // DEFER: port-v2-persistence
+    // C: Recordings.c:813 — pausePlayback()
+    // menus.ts:258 has a `() => {}` context stub.
+    // Real implementation should suspend the playback state machine and display
+    // the pause overlay until the player chooses to resume.
+});
+
+it.skip("stub: getAvailableFilePath() always returns empty string (should find the next unused save/rec file path)", () => {
+    // DEFER: port-v2-persistence
+    // C: Recordings.c:1109 — getAvailableFilePath()
+    // menus.ts:253 has a `() => ""` context stub.
+    // Real implementation should scan the save directory for existing .broguesave
+    // or .broguerec files and return the first available numbered path.
+});
+
+it.skip("stub: characterForbiddenInFilename() always returns false (should validate filename characters)", () => {
+    // DEFER: port-v2-persistence
+    // C: Recordings.c:1122 — characterForbiddenInFilename()
+    // io/input-context.ts:256 has a `() => false` context stub.
+    // Real implementation should return true for characters that are illegal in
+    // filenames on the current platform (e.g. /, \\, :, *, ?, ", <, >, |).
+});
+
+it.skip("stub: saveGame() is a no-op (should save the current game state to a .broguesave file)", () => {
+    // DEFER: port-v2-persistence
+    // C: Recordings.c:1181 — saveGame()
+    // io/input-context.ts:204 has a `() => {}` stub with comment "save system not yet ported".
+    // Real implementation should prompt for a filename if needed and write the full
+    // rogue game state to a .broguesave file via the platform's file operations.
+});
+
+// =============================================================================
+// Stub registry — wiring stubs (Phase 3d, port-v2-audit)
+// =============================================================================
+
+it.skip("stub: initializeGameVariant() is a no-op in menus context (should dispatch to variant-specific init)", () => {
+    // DEFER: port-v2-persistence
+    // C: RogueMain.c:173 — initializeGameVariant()
+    // menus.ts:244 has a `() => {}` context stub (comment: "handled in lifecycle.ts").
+    // Domain function is IMPLEMENTED at game-init.ts:400 and called from lifecycle.ts via buildGameInitContext.
+    // Real wiring in menus.ts should call initializeGameVariant(buildGameInitContext()) so variant
+    // constants (amuletLevel, etc.) are set before menus are shown.
+});
+
+it.skip("stub: executeEvent() is a no-op in menus context (should execute one recorded input event during playback)", () => {
+    // DEFER: port-v2-persistence/playback
+    // C: RogueMain.c:45 — executeEvent()
+    // menus.ts:256 has a `() => {}` context stub.
+    // Domain function is IMPLEMENTED at io/input-dispatch.ts:485 and called from input-cursor.ts:353.
+    // Real wiring should call executeEvent() from io/input-dispatch.ts so playback mode
+    // advances through recorded events during menu interactions.
+});
+
+it.skip("stub: listFiles() returns [] in menus context (should list save/recording files from storage)", () => {
+    // DEFER: port-v2-persistence
+    // C: MainMenu.c (dialogChooseFile) — listFiles is a platform dependency, not a C function.
+    // menus.ts:261 has a `() => []` context stub.
+    // Real wiring should return the list of available .broguesave or .broguerec files from
+    // the browser's persistent storage, so dialogChooseFile can show them for selection.
+});
+
+it.skip("stub: loadRunHistory() returns [] in menus context (should load game stats run history from storage)", () => {
+    // DEFER: port-v2-persistence
+    // C: MainMenu.c (viewGameStats) — loadRunHistory is a platform dependency.
+    // menus.ts:262 has a `() => []` context stub.
+    // Real wiring should read the persisted run history array from storage, so viewGameStats
+    // shows accumulated game results rather than an empty stats screen.
+});
+
+it.skip("stub: saveResetRun() is a no-op in menus context (should persist a save-reset marker to run history)", () => {
+    // DEFER: port-v2-persistence
+    // C: MainMenu.c — saveResetRun is a platform dependency.
+    // menus.ts:263 has a `() => {}` context stub.
+    // Real wiring should append a seed=0 reset marker entry to the persisted run history,
+    // so viewGameStats correctly splits recent-stats windows on save-reset boundaries.
+});
+
+it.skip("stub: initializeLaunchArguments() is a no-op in menus context (no CLI args in browser)", () => {
+    // DEFER: port-v2-persistence
+    // C: platform function (Rogue.h:2965) — called from MainMenu.c:1121 before the main menu loop.
+    // menus.ts:247 has a `() => {}` context stub.
+    // Real implementation (if ever needed) would parse URL query params or a config object
+    // to set rogue.nextGame, rogue.nextGamePath, rogue.nextGameSeed before the menu is shown.
+    // In browser mode, there are no command-line arguments, so no-op is correct for now.
+});
+
+it.skip("stub: displayAnnotation() is a no-op in menus context (playback layer not yet implemented)", () => {
+    // DEFER: port-v2-persistence/playback
+    // C: Recordings.c:435 — displayAnnotation()
+    // menus.ts:257 has a `() => {}` context stub (playback stubs section).
+    // Also stubbed in turn.ts:252 (displayAnnotation in the turn input context).
+    // Real implementation should display the text annotation stored for the current playback
+    // turn, overlaid on the dungeon view, so recorded game annotations are shown during replay.
 });

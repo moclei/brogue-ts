@@ -79,7 +79,7 @@ export interface EffectsContext {
      *
      * C: `pauseBrogue` in IO.c
      */
-    pauseBrogue(milliseconds: number): boolean;
+    pauseBrogue(milliseconds: number): boolean | Promise<boolean>;
 
     /**
      * Pause with playback speed adjustment, returning true if interrupted.

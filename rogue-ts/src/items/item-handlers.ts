@@ -23,7 +23,7 @@ import type {
 } from "../types/types.js";
 import {
     ItemCategory, ScrollKind, PotionKind, StaffKind, CharmKind,
-    RingKind, FoodKind, StatusEffect, DungeonLayer, BoltEffect,
+    RingKind, FoodKind, StatusEffect, DungeonLayer, BoltEffect, TileType,
     ALL_ITEMS, HAS_INTRINSIC_POLARITY, CAN_BE_DETECTED,
 } from "../types/enums.js";
 import { ItemFlag, TileFlag, TerrainFlag, TerrainMechFlag } from "../types/flags.js";
@@ -78,10 +78,10 @@ export interface ItemHandlerContext {
     randClump(range: { lowerBound: number; upperBound: number; clumpFactor: number }): number;
 
     // ── UI functions ──
-    message(msg: string, flags: number): void;
-    messageWithColor(msg: string, color: Color, flags: number): void;
+    message(msg: string, flags: number): void | Promise<void>;
+    messageWithColor(msg: string, color: Color, flags: number): void | Promise<void>;
     confirmMessages(): void;
-    confirm(prompt: string, defaultYes: boolean): boolean;
+    confirm(prompt: string, defaultYes: boolean): boolean | Promise<boolean>;
     temporaryMessage(msg: string, flags: number): void;
     printString(s: string, x: number, y: number, fg: Color, bg: Color, grid: null): void;
 
@@ -92,7 +92,7 @@ export interface ItemHandlerContext {
         forbiddenFlags: number,
         prompt: string,
         allowEscape: boolean,
-    ): Item | null;
+    ): Promise<Item | null>;
     numberOfMatchingPackItems(category: number, requiredFlags: number, forbiddenFlags: number, displayErrors: boolean): number;
     removeItemFromChain(theItem: Item, chain: Item[]): void;
     deleteItem(theItem: Item): void;
@@ -137,7 +137,7 @@ export interface ItemHandlerContext {
     discordBlast(source: string, radius: number): void;
 
     // ── Visual effects ──
-    colorFlash(color: Color, flags: number, tileFlags: number, radius: number, maxRadius: number, x: number, y: number): void;
+    colorFlash(color: Color, flags: number, tileFlags: number, radius: number, maxRadius: number, x: number, y: number): void | Promise<void>;
     createFlare(x: number, y: number, lightIndex: number): void;
     displayLevel(): void;
 
@@ -148,9 +148,10 @@ export interface ItemHandlerContext {
     updatePlayerRegenerationDelay(): void;
 
     // ── Targeting ──
-    chooseTarget(maxDistance: number, autoTargetMode: number, theItem: Item): { confirmed: boolean; target: Pos };
+    chooseTarget(maxDistance: number, autoTargetMode: number, theItem: Item): Promise<{ confirmed: boolean; target: Pos }>;
     staffBlinkDistance(enchant: Fixpt): number;
-    playerCancelsBlinking(origin: Pos, target: Pos, maxDistance: number): boolean;
+    playerCancelsBlinking(origin: Pos, target: Pos, maxDistance: number): Promise<boolean>;
+    zap(originLoc: Pos, targetLoc: Pos, theBolt: Bolt, hideDetails: boolean, reverseBoltDir: boolean): Promise<boolean>;
 
     // ── Turn management ──
     playerTurnEnded(): void;
@@ -267,7 +268,7 @@ export function autoIdentify(
     const theTable = getTableForCategory(theItem.category);
 
     if (theTable && !theTable[theItem.kind].identified) {
-        identifyItemKindNaming(theItem, ctx.gc);
+        identifyItemKindNaming(theItem, ctx.gc, ctx.namingCtx);
         const quantityBackup = theItem.quantity;
         theItem.quantity = 1;
         const newName = itemName(theItem, false, true, ctx.namingCtx);
@@ -403,16 +404,16 @@ export function magicCharDiscoverySuffix(
  * Port of C `eat()`.
  * The player eats the given food item.
  */
-export function eat(theItem: Item, recordCommands: boolean, ctx: ItemHandlerContext): boolean {
+export async function eat(theItem: Item, recordCommands: boolean, ctx: ItemHandlerContext): Promise<boolean> {
     if (!(theItem.category & ItemCategory.FOOD)) return false;
 
     if (STOMACH_SIZE - ctx.player.status[StatusEffect.Nutrition]
         < ctx.foodTable[theItem.kind].power) {
         const foodName = theItem.kind === FoodKind.Ration ? "food" : "mango";
-        if (!ctx.confirm(
+        if (!(await ctx.confirm(
             `You're not hungry enough to fully enjoy the ${foodName}. Eat it anyway?`,
             false,
-        )) {
+        ))) {
             return false;
         }
     }
@@ -444,7 +445,7 @@ export function eat(theItem: Item, recordCommands: boolean, ctx: ItemHandlerCont
  * Port of C `readScroll()`.
  * The player reads a scroll. Returns true if the scroll was consumed.
  */
-export function readScroll(theItem: Item, ctx: ItemHandlerContext): boolean {
+export async function readScroll(theItem: Item, ctx: ItemHandlerContext): Promise<boolean> {
     const scrollKind = ctx.scrollTable[theItem.kind];
 
     // Warn about known-cursed scrolls
@@ -454,7 +455,7 @@ export function readScroll(theItem: Item, ctx: ItemHandlerContext): boolean {
         const prompt = scrollKind.identified
             ? `Really read a scroll of ${scrollKind.name}?`
             : "Really read a cursed scroll?";
-        if (!ctx.confirm(prompt, false)) {
+        if (!(await ctx.confirm(prompt, false))) {
             return false;
         }
     }
@@ -466,9 +467,9 @@ export function readScroll(theItem: Item, ctx: ItemHandlerContext): boolean {
 
     switch (theItem.kind) {
         case ScrollKind.Identify:
-            identify(theItem, ctx.gc);
+            identify(theItem, ctx.gc, ctx.namingCtx);
             updateIdentifiableItems(ctx);
-            ctx.messageWithColor(
+            await ctx.messageWithColor(
                 "this is a scroll of identify.",
                 ctx.itemMessageColor,
                 ctx.REQUIRE_ACKNOWLEDGMENT,
@@ -483,7 +484,7 @@ export function readScroll(theItem: Item, ctx: ItemHandlerContext): boolean {
             {
                 let chosen: Item | null;
                 do {
-                    chosen = ctx.promptForItemOfType(
+                    chosen = await ctx.promptForItemOfType(
                         ALL_ITEMS,
                         ItemFlag.ITEM_CAN_BE_IDENTIFIED, 0,
                         ctx.KEYBOARD_LABELS
@@ -505,7 +506,7 @@ export function readScroll(theItem: Item, ctx: ItemHandlerContext): boolean {
 
                 ctx.recordKeystroke(chosen.inventoryLetter.charCodeAt(0), false, false);
                 ctx.confirmMessages();
-                identify(chosen, ctx.gc);
+                identify(chosen, ctx.gc, ctx.namingCtx);
                 const identifiedName = itemName(chosen, true, true, ctx.namingCtx);
                 const verb = chosen.quantity === 1 ? "this is" : "these are";
                 ctx.messageWithColor(`${verb} ${identifiedName}.`, ctx.itemMessageColor, 0);
@@ -529,8 +530,8 @@ export function readScroll(theItem: Item, ctx: ItemHandlerContext): boolean {
             break;
 
         case ScrollKind.Enchanting:
-            identify(theItem, ctx.gc);
-            ctx.messageWithColor(
+            identify(theItem, ctx.gc, ctx.namingCtx);
+            await ctx.messageWithColor(
                 "this is a scroll of enchanting.",
                 ctx.itemMessageColor,
                 ctx.REQUIRE_ACKNOWLEDGMENT,
@@ -545,7 +546,7 @@ export function readScroll(theItem: Item, ctx: ItemHandlerContext): boolean {
                 }
                 let enchantTarget: Item | null;
                 do {
-                    enchantTarget = ctx.promptForItemOfType(
+                    enchantTarget = await ctx.promptForItemOfType(
                         enchantableCategories, 0, 0,
                         ctx.KEYBOARD_LABELS
                             ? "Enchant what? (a-z; shift for more info)"
@@ -554,7 +555,7 @@ export function readScroll(theItem: Item, ctx: ItemHandlerContext): boolean {
                     );
                     ctx.confirmMessages();
                     if (!enchantTarget || !(enchantTarget.category & enchantableCategories)) {
-                        ctx.messageWithColor("Can't enchant that.", ctx.itemMessageColor, ctx.REQUIRE_ACKNOWLEDGMENT);
+                        await ctx.messageWithColor("Can't enchant that.", ctx.itemMessageColor, ctx.REQUIRE_ACKNOWLEDGMENT);
                     }
                     if (ctx.rogue.gameHasEnded) return false;
                 } while (!enchantTarget || !(enchantTarget.category & enchantableCategories));
@@ -703,7 +704,7 @@ export function readScroll(theItem: Item, ctx: ItemHandlerContext): boolean {
             for (let i = 0; i < DCOLS; i++) {
                 for (let j = 0; j < DROWS; j++) {
                     if (!(ctx.pmap[i][j].flags & TileFlag.DISCOVERED)
-                        && ctx.pmap[i][j].layers[DungeonLayer.Dungeon] !== 0 /* GRANITE */) {
+                        && ctx.pmap[i][j].layers[DungeonLayer.Dungeon] !== TileType.GRANITE) {
                         magicMapCell(i, j, ctx);
                     }
                 }
@@ -716,7 +717,8 @@ export function readScroll(theItem: Item, ctx: ItemHandlerContext): boolean {
                     }
                 }
             }
-            ctx.colorFlash(
+            ctx.displayLevel();
+            await ctx.colorFlash(
                 ctx.magicMapFlashColor, 0, ctx.MAGIC_MAPPED,
                 15, DCOLS + DROWS,
                 ctx.player.loc.x, ctx.player.loc.y,
@@ -800,7 +802,7 @@ export function readScroll(theItem: Item, ctx: ItemHandlerContext): boolean {
  * Port of C `drinkPotion()`.
  * The player drinks a potion. Returns true if consumed.
  */
-export function drinkPotion(theItem: Item, ctx: ItemHandlerContext): boolean {
+export async function drinkPotion(theItem: Item, ctx: ItemHandlerContext): Promise<boolean> {
     const potionKind = ctx.potionTable[theItem.kind];
 
     // Warn about known-cursed potions
@@ -810,7 +812,7 @@ export function drinkPotion(theItem: Item, ctx: ItemHandlerContext): boolean {
         const prompt = potionKind.identified
             ? `Really drink a potion of ${potionKind.name}?`
             : "Really drink a cursed potion?";
-        if (!ctx.confirm(prompt, false)) return false;
+        if (!(await ctx.confirm(prompt, false))) return false;
     }
 
     ctx.confirmMessages();
@@ -859,7 +861,7 @@ export function drinkPotion(theItem: Item, ctx: ItemHandlerContext): boolean {
             break;
 
         case PotionKind.Descent:
-            ctx.colorFlash(ctx.darkBlue, 0, ctx.IN_FIELD_OF_VIEW, 3, 3, ctx.player.loc.x, ctx.player.loc.y);
+            await ctx.colorFlash(ctx.darkBlue, 0, ctx.IN_FIELD_OF_VIEW, 3, 3, ctx.player.loc.x, ctx.player.loc.y);
             ctx.message("vapor pours out of the flask and causes the floor to disappear!", 0);
             ctx.spawnDungeonFeature(
                 ctx.player.loc.x, ctx.player.loc.y,
@@ -969,7 +971,7 @@ export function drinkPotion(theItem: Item, ctx: ItemHandlerContext): boolean {
             }
 
             if (hadEffectOnLevel || hadEffectOnPack) {
-                tryIdentifyLastItemKinds(HAS_INTRINSIC_POLARITY, ctx.gc);
+                tryIdentifyLastItemKinds(HAS_INTRINSIC_POLARITY, ctx.gc, ctx.namingCtx);
                 if (hadEffectOnLevel && hadEffectOnPack) {
                     ctx.message("you can somehow feel the presence of magic on the level and in your pack.", 0);
                 } else if (hadEffectOnLevel) {
@@ -1027,7 +1029,7 @@ export function drinkPotion(theItem: Item, ctx: ItemHandlerContext): boolean {
  * Port of C `useStaffOrWand()`.
  * The player zaps a staff or wand at a target. Returns true if the turn was used.
  */
-export function useStaffOrWand(theItem: Item, ctx: ItemHandlerContext): boolean {
+export async function useStaffOrWand(theItem: Item, ctx: ItemHandlerContext): Promise<boolean> {
     const theTable = getTableForCategory(theItem.category, {
         scrollTable: ctx.scrollTable,
         potionTable: ctx.potionTable,
@@ -1068,11 +1070,11 @@ export function useStaffOrWand(theItem: Item, ctx: ItemHandlerContext): boolean 
     const boltKnown = theTable[theItem.kind].identified;
     const originLoc: Pos = { ...ctx.player.loc };
     const { confirmed: confirmedTarget, target: zapTarget } =
-        ctx.chooseTarget(maxDistance, 0 /* AUTOTARGET_MODE_USE_STAFF_OR_WAND */, theItem);
+        await ctx.chooseTarget(maxDistance, 0 /* AUTOTARGET_MODE_USE_STAFF_OR_WAND */, theItem);
 
     if (confirmedTarget && boltKnown
         && theBolt.boltEffect === BoltEffect.Blinking
-        && ctx.playerCancelsBlinking(originLoc, zapTarget, maxDistance)) {
+        && await ctx.playerCancelsBlinking(originLoc, zapTarget, maxDistance)) {
         return false;
     }
 
@@ -1089,10 +1091,18 @@ export function useStaffOrWand(theItem: Item, ctx: ItemHandlerContext): boolean 
         const msg = monst
             ? `you zap your ${buf2} at ${ctx.monsterName(monst, true)}.`
             : `you zap your ${buf2}.`;
-        ctx.message(msg, 0);
+        await ctx.message(msg, 0);
 
-        // TODO: call zap() bolt function when ported
-        // autoID = zap(originLoc, zapTarget, theBolt, !boltKnown, false);
+        const autoID = await ctx.zap(originLoc, zapTarget, theBolt, !boltKnown, false);
+        if (autoID && !theTable[theItem.kind].identified) {
+            const nameBefore = itemName(theItem, false, false, ctx.namingCtx);
+            identifyItemKindNaming(theItem, ctx.gc);
+            const nameAfter = itemName(theItem, false, true, ctx.namingCtx);
+            await ctx.messageWithColor(
+                `(Your ${nameBefore} must be ${nameAfter}.)`,
+                ctx.itemMessageColor, 0,
+            );
+        }
     } else {
         const depletedMsg = theItem.category === ItemCategory.STAFF
             ? `Your ${buf2} fizzles; it must be out of charges for now.`
@@ -1230,9 +1240,9 @@ export function useCharm(theItem: Item, ctx: ItemHandlerContext): boolean {
  * Port of C `apply()`.
  * Main dispatcher for using an item from the inventory.
  */
-export function apply(theItem: Item | null, ctx: ItemHandlerContext): void {
+export async function apply(theItem: Item | null, ctx: ItemHandlerContext): Promise<void> {
     if (!theItem) {
-        theItem = ctx.promptForItemOfType(
+        theItem = await ctx.promptForItemOfType(
             ItemCategory.SCROLL | ItemCategory.FOOD | ItemCategory.POTION
                 | ItemCategory.STAFF | ItemCategory.WAND | ItemCategory.CHARM,
             0, 0,
@@ -1249,20 +1259,20 @@ export function apply(theItem: Item | null, ctx: ItemHandlerContext): void {
 
     switch (theItem.category) {
         case ItemCategory.FOOD:
-            if (eat(theItem, true, ctx)) break;
+            if (await eat(theItem, true, ctx)) break;
             return;
         case ItemCategory.POTION:
-            if (drinkPotion(theItem, ctx)) break;
+            if (await drinkPotion(theItem, ctx)) break;
             return;
         case ItemCategory.SCROLL:
-            if (readScroll(theItem, ctx)) {
+            if (await readScroll(theItem, ctx)) {
                 consumePackItem(theItem, ctx);
                 break;
             }
             return;
         case ItemCategory.STAFF:
         case ItemCategory.WAND:
-            if (useStaffOrWand(theItem, ctx)) break;
+            if (await useStaffOrWand(theItem, ctx)) break;
             return;
         case ItemCategory.CHARM:
             if (useCharm(theItem, ctx)) break;

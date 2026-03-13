@@ -95,7 +95,6 @@ export {
     monstUseMagicStub,
     monsterBlinkToPreferenceMapStub,
     monsterBlinkToSafetyStub,
-    updateMonsterCorpseAbsorptionStub,
     isValidWanderDestination,
     wanderToward,
     traversiblePathBetween,
@@ -127,3 +126,92 @@ export {
 export type {
     MonsterOpsContext,
 } from "./monster-ops.js";
+
+export {
+    negateCreature,
+} from "./monster-negate.js";
+
+export type {
+    NegateContext,
+} from "./monster-negate.js";
+
+export {
+    buildProperCommaString,
+    monsterIsNegatable,
+    getMonsterAbilitiesText,
+    getMonsterDominationText,
+} from "./monster-details-helpers.js";
+
+export {
+    monsterDetails,
+} from "./monster-details.js";
+
+export type {
+    MonsterDetailsContext,
+} from "./monster-details.js";
+
+export {
+    monstUseMagic,
+    monsterHasBoltEffect,
+    monsterCanShootWebs,
+} from "./monster-bolt-ai.js";
+
+export type {
+    BoltAIContext,
+} from "./monster-bolt-ai.js";
+
+export {
+    perimeterCoords,
+    monsterBlinkToPreferenceMap,
+    monsterBlinkToSafety,
+} from "./monster-blink-ai.js";
+
+export type {
+    MonsterBlinkContext,
+    MonsterBlinkToSafetyContext,
+} from "./monster-blink-ai.js";
+
+export {
+    creatureEligibleForSwarming,
+    monsterSwarmDirection,
+} from "./monster-swarm-ai.js";
+
+export type {
+    MonsterSwarmContext,
+} from "./monster-swarm-ai.js";
+
+export {
+    summonMinions,
+} from "./monster-summoning.js";
+
+export type {
+    SummonMinionsContext,
+} from "./monster-summoning.js";
+
+export {
+    specifiedPathBetween,
+    dormantMonsterAtLoc,
+} from "./monster-path-queries.js";
+
+export type {
+    SpecifiedPathContext,
+    DormantMonsterContext,
+} from "./monster-path-queries.js";
+
+export {
+    becomeAllyWith,
+    cloneMonster,
+    resurrectAlly,
+} from "./monster-lifecycle.js";
+
+export type {
+    BecomeAllyContext,
+    CloneMonsterContext,
+    ResurrectAllyContext,
+} from "./monster-lifecycle.js";
+
+export {
+    unAlly,
+    checkForContinuedLeadership,
+    demoteMonsterFromLeadership,
+} from "./monster-ally-ops.js";

@@ -409,21 +409,21 @@ function makePlayerMoveContext(pmap: Pcell[][], overrides: Partial<PlayerMoveCon
 }
 
 describe("playerMoves", () => {
-    it("returns false when moving out of map bounds", () => {
+    it("returns false when moving out of map bounds", async () => {
         const pmap = makePmap();
         const ctx = makePlayerMoveContext(pmap);
         ctx.player.loc = { x: 0, y: 0 };
 
         // Direction Up (0) → [0, -1] → y = -1, out of bounds
-        const result = playerMoves(Direction.Up, ctx);
+        const result = await playerMoves(Direction.Up, ctx);
         expect(result).toBe(false);
     });
 
-    it("moves the player to an open adjacent cell", () => {
+    it("moves the player to an open adjacent cell", async () => {
         const pmap = makePmap();
         const ctx = makePlayerMoveContext(pmap);
 
-        const result = playerMoves(Direction.Right, ctx);
+        const result = await playerMoves(Direction.Right, ctx);
         expect(result).toBe(true);
         expect(ctx.player.loc.x).toBe(6);
         expect(ctx.player.loc.y).toBe(5);
@@ -468,12 +468,12 @@ describe("playerMoves", () => {
         expect(ctx.rogue.disturbed).toBe(true);
     });
 
-    it("returns false when moving into a wall", () => {
+    it("returns false when moving into a wall", async () => {
         const pmap = makePmap();
         pmap[6][5] = makeCell([TileType.WALL, TileType.NOTHING, TileType.NOTHING, TileType.NOTHING], TileFlag.DISCOVERED);
         const ctx = makePlayerMoveContext(pmap);
 
-        const result = playerMoves(Direction.Right, ctx);
+        const result = await playerMoves(Direction.Right, ctx);
         expect(result).toBe(false);
         expect(ctx.player.loc.x).toBe(5); // didn't move
     });
@@ -501,5 +501,26 @@ describe("playerMoves", () => {
         playerMoves(Direction.Right, ctx);
 
         expect(turnEndedSpy).toHaveBeenCalledTimes(1);
+    });
+
+    // B21 — captive monster cannot be freed
+    it("B21: frees captive monster and clears MB_CAPTIVE on confirm", async () => {
+        const pmap = makePmap();
+        const captive = makeCreature({ loc: { x: 6, y: 5 } });
+        captive.bookkeepingFlags |= MonsterBookkeepingFlag.MB_CAPTIVE;
+        pmap[6][5].flags |= TileFlag.HAS_MONSTER;
+
+        const freeSpy = vi.fn();
+        const ctx = makePlayerMoveContext(pmap, {
+            monsterAtLoc: (loc) => (loc.x === 6 && loc.y === 5 ? captive : null),
+            confirm: async () => true,
+            freeCaptive: freeSpy,
+            playerTurnEnded: () => {},
+        });
+
+        const result = await playerMoves(Direction.Right, ctx);
+
+        expect(result).toBe(true);
+        expect(freeSpy).toHaveBeenCalledWith(captive);
     });
 });

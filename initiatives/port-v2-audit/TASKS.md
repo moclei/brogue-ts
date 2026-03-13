@@ -162,48 +162,52 @@ Each task = one session. Read PLAN.md section "Cross-reference session" before s
 
 ### Phase 3a — Summary (one session)
 
-- [ ] Use grep to extract Summary Counts tables from all `docs/audit/gaps-*.md` files
+- [x] Use grep to extract Summary Counts tables from all `docs/audit/gaps-*.md` files
       (do NOT read each file in full — too large for one context window)
-- [ ] Aggregate counts per category across all 20 files
-- [ ] Write `docs/audit/summary.md` using the template in PLAN.md
-- [ ] Check off this task in TASKS.md
-- [ ] Commit: `"chore: port-v2-audit — Phase 3a synthesis summary complete"`
-- [ ] Stop. Do not start Phase 3b in the same session.
+- [x] Aggregate counts per category across all 20 files
+- [x] Write `docs/audit/summary.md` using the template in PLAN.md
+- [x] Check off this task in TASKS.md
+- [x] Commit: `"chore: port-v2-audit — Phase 3a synthesis summary complete"`
+- [x] Stop. Do not start Phase 3b in the same session.
 
 ### Phase 3b — High-impact domain stubs: IO.c + Items.c (one session)
 
 Covers the two files with the most STUBBED-UNTRACKED entries (~25 combined).
-- [ ] Re-read `docs/audit/gaps-IO.md` and `docs/audit/gaps-Items.md` — STUBBED-UNTRACKED rows only
-- [ ] For each entry: find the relevant test file in `rogue-ts/tests/`, add a `test.skip` entry
+- [x] Re-read `docs/audit/gaps-IO.md` and `docs/audit/gaps-Items.md` — STUBBED-UNTRACKED rows only
+- [x] For each entry: find the relevant test file in `rogue-ts/tests/`, add a `test.skip` entry
       documenting the stub name, C source reference, and expected behavior
-- [ ] Check off this task in TASKS.md
-- [ ] Commit: `"chore: port-v2-audit — Phase 3b test.skip entries for IO.c + Items.c stubs"`
-- [ ] Stop. Do not start Phase 3c in the same session.
+- [x] Check off this task in TASKS.md
+- [x] Commit: `"chore: port-v2-audit — Phase 3b test.skip entries for IO.c + Items.c stubs"`
+- [x] Stop. Do not start Phase 3c in the same session.
 
 ### Phase 3c — Remaining domain stubs: Monsters.c + Recordings.c + Architect.c + Time.c (one session)
 
 Covers ~23 STUBBED-UNTRACKED entries across four files.
-- [ ] Re-read STUBBED-UNTRACKED rows from `gaps-Monsters.md`, `gaps-Recordings.md`,
+- [x] Re-read STUBBED-UNTRACKED rows from `gaps-Monsters.md`, `gaps-Recordings.md`,
       `gaps-Architect.md`, `gaps-Time.md`
-- [ ] For each entry: find the relevant test file, add a `test.skip` entry
-- [ ] Check off this task in TASKS.md
-- [ ] Commit: `"chore: port-v2-audit — Phase 3c test.skip entries for Monsters/Recordings/Architect/Time stubs"`
-- [ ] Stop. Do not start Phase 3d in the same session.
+- [x] For each entry: find the relevant test file, add a `test.skip` entry
+- [x] Check off this task in TASKS.md
+- [x] Commit: `"chore: port-v2-audit — Phase 3c test.skip entries for Monsters/Recordings/Architect/Time stubs"`
+- [x] Stop. Do not start Phase 3d in the same session.
 
 ### Phase 3d — Wiring stubs, stale cleanup, and PROJECT.md (one session)
 
-- [ ] Add `test.skip` entries for all untracked wiring stubs identified in gaps files:
-      - Time.c notes: `autoRest`, `manualSearch` in input-context.ts
-      - RogueMain.c notes: `enableEasyMode` (input-context.ts:203), `executeEvent` (menus.ts:256)
-      - MainMenu.c notes: `listFiles`, `loadRunHistory`, `saveResetRun`
-      - Buttons.c notes: 3 wiring stubs in input-context.ts and ui.ts
-      - Globals.c notes: `terrainFlags`, `terrainMechFlags` in io/input-context.ts:247–248
-- [ ] Remove stale `test.skip` entries where function is now IMPLEMENTED:
-      - Known: `movement.test.ts:241` (useStairs)
-      - Known: `combat.test.ts:228,255,261,267,272` (5 entries — see gaps-Combat.md notes)
-      - Scan all gaps files' notes sections for any others flagged
-- [ ] Update `PROJECT.md` to point to the follow-on fix initiative as the new active initiative
-- [ ] Commit: `"chore: port-v2-audit — Phase 3d wiring stubs recorded, stale skips removed, audit complete"`
+- [x] Add `test.skip` entries for all untracked wiring stubs identified in gaps files:
+      - Time.c notes: `autoRest`, `manualSearch` in input-context.ts → turn.test.ts
+      - RogueMain.c notes: `enableEasyMode` (input-context.ts:203) → turn.test.ts
+      - RogueMain.c notes: `executeEvent` (menus.ts:256) → menus/menus.test.ts
+      - MainMenu.c notes: `listFiles`, `loadRunHistory`, `saveResetRun` → menus/menus.test.ts
+      - Buttons.c notes: `initializeButtonState` (input-context.ts:156) → ui.test.ts
+      - Buttons.c notes: `buttonInputLoop` (input-context.ts:157) → ui.test.ts
+      - Buttons.c notes: `buttonInputLoop` (ui.ts:306) → ui.test.ts
+      - Globals.c notes: `terrainFlags`, `terrainMechFlags` (io/input-context.ts:247–248) → movement.test.ts
+      - Dijkstra.c notes: `dijkstraScan` (input-context.ts:240) → movement.test.ts
+- [x] Remove stale `test.skip` entries where function is now IMPLEMENTED:
+      - movement.test.ts:241 (useStairs) — removed
+      - combat.test.ts:228,255,261,267,272 (5 entries) — removed
+      - Scanned all gaps files' notes sections — no additional stale entries found
+- [x] Update `PROJECT.md` to point to `port-v2-fix-rendering` as the new active initiative
+- [x] Commit: `"chore: port-v2-audit — Phase 3d wiring stubs recorded, stale skips removed, audit complete"`
 
 ---
 

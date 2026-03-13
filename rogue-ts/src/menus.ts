@@ -19,7 +19,7 @@
  *  License, or (at your option) any later version.
  */
 
-import { getGameState } from "./core.js";
+import { getGameState, takePendingDeathMessage, takePendingVictory } from "./core.js";
 import { waitForEvent, commitDraws, mainGameLoop, pauseAndCheckForEvent } from "./platform.js";
 import {
     initializeRogue, startLevel, freeEverything,
@@ -52,6 +52,8 @@ import {
     titleButtonColor, itemMessageColor, interfaceBoxColor, goodMessageColor,
 } from "./globals/colors.js";
 import { DisplayGlyph } from "./types/enums.js";
+import { COLS, ROWS } from "./types/constants.js";
+import type { Color } from "./types/types.js";
 import type { MenuContext } from "./menus/menu-types.js";
 
 // =============================================================================
@@ -92,6 +94,54 @@ const BROGUE_TITLE_ART =
 
 let _currentFilePath = "";
 let _randomNumbersGenerated = 0;
+
+// =============================================================================
+// showGameEndScreen — death / victory overlay after mainGameLoop exits
+// =============================================================================
+
+/**
+ * Show a simple game-end overlay (death or victory), wait for keypress,
+ * then return so main-menu.ts can run freeEverything() and loop back.
+ *
+ * Full C death/victory screens (funkyFade, inventory review, high scores)
+ * are deferred to a later port phase; this is the minimal Phase 8 version.
+ */
+async function showGameEndScreen(): Promise<void> {
+    const deathMsg = takePendingDeathMessage();
+    const victoryType = takePendingVictory();
+
+    if (!deathMsg && victoryType === 'none') return;
+
+    const { rogue, displayBuffer } = getGameState();
+
+    // Black out the screen
+    blackOutScreen(displayBuffer);
+
+    // Build the text lines to show
+    const lines: Array<{ text: string; color: Color }> = [];
+
+    if (deathMsg) {
+        lines.push({ text: "You are dead.", color: { ...white } });
+        lines.push({ text: `${deathMsg} on depth ${rogue.depthLevel}.`, color: { ...veryDarkGray } });
+    } else if (victoryType === 'super') {
+        lines.push({ text: "You escaped with the Amulet of Yendor!", color: { ...yellow } });
+        lines.push({ text: `You survived to depth ${rogue.depthLevel}.`, color: { ...veryDarkGray } });
+    } else {
+        lines.push({ text: "You escaped from the dungeon!", color: { ...white } });
+        lines.push({ text: `You survived to depth ${rogue.depthLevel}.`, color: { ...veryDarkGray } });
+    }
+    lines.push({ text: "Press any key to continue.", color: { ...veryDarkGray } });
+
+    const startY = Math.floor(ROWS / 2) - Math.floor(lines.length / 2);
+    for (let i = 0; i < lines.length; i++) {
+        const { text, color } = lines[i];
+        const startX = Math.floor((COLS - text.length) / 2);
+        printString(text, startX, startY + i, color, black, displayBuffer);
+    }
+
+    commitDraws();
+    await waitForEvent();
+}
 
 // =============================================================================
 // buildMenuContext
@@ -193,7 +243,7 @@ export function buildMenuContext(): MenuContext {
 
         printTextBox: async (textBuf, x, y, width, foreColor, backColor, buttons, buttonCount) =>
             printTextBox(textBuf, x, y, width, foreColor, backColor,
-                invCtx() as unknown as import("./io/inventory.js").InventoryContext,
+                invCtx(),
                 buttons, buttonCount),
 
         // -- Events / timing -------------------------------------------------
@@ -239,7 +289,10 @@ export function buildMenuContext(): MenuContext {
         // -- Game lifecycle --------------------------------------------------
         initializeRogue,
         startLevel,
-        mainInputLoop: () => mainGameLoop(),
+        mainInputLoop: async () => {
+            await mainGameLoop();
+            await showGameEndScreen();
+        },
         freeEverything,
         initializeGameVariant: () => {
             // Variant re-initialization is handled in lifecycle.ts via buildGameInitContext

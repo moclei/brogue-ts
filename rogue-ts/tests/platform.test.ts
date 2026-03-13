@@ -12,6 +12,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { initGameState, getGameState, gameOver } from "../src/core.js";
 import { initPlatform, waitForEvent, processEvent, mainGameLoop } from "../src/platform.js";
+import { buildHoverHandlerFn, buildClearHoverPathFn } from "../src/io/hover-wiring.js";
 import { EventType, StatusEffect, TileType } from "../src/types/enums.js";
 import { TileFlag } from "../src/types/flags.js";
 import { monsterCatalog } from "../src/globals/monster-catalog.js";
@@ -134,6 +135,77 @@ describe("processEvent — left-click", () => {
         // Player should not have moved
         expect(player.loc.x).toBe(5);
         expect(player.loc.y).toBe(5);
+    });
+});
+
+// B35 — mouse hover: path highlight + location description
+describe("B35 hover handler", () => {
+    it("sets IS_IN_PATH on cells along the path from player to cursor", () => {
+        setupPlayer(); // player at (5,5)
+
+        // Extend passable floor from player to (10,5)
+        const { pmap } = getGameState();
+        for (let x = 5; x <= 10; x++) {
+            const cell = pmap[x][5];
+            cell.layers[0] = TileType.FLOOR;
+            cell.layers[1] = TileType.NOTHING;
+            cell.layers[2] = TileType.NOTHING;
+            cell.layers[3] = TileType.NOTHING;
+            cell.flags |= TileFlag.DISCOVERED | TileFlag.MAGIC_MAPPED;
+        }
+
+        const hover = buildHoverHandlerFn();
+        hover(10, 5); // hover over (10, 5)
+
+        // At least one intermediate cell should have IS_IN_PATH set
+        let pathCellCount = 0;
+        for (let x = 6; x <= 10; x++) {
+            if (pmap[x][5].flags & TileFlag.IS_IN_PATH) pathCellCount++;
+        }
+        expect(pathCellCount).toBeGreaterThan(0);
+    });
+
+    it("clears IS_IN_PATH on all cells when clearHoverPath is called", () => {
+        setupPlayer();
+        const { pmap } = getGameState();
+        for (let x = 5; x <= 10; x++) {
+            const cell = pmap[x][5];
+            cell.layers[0] = TileType.FLOOR;
+            cell.layers[1] = TileType.NOTHING;
+            cell.layers[2] = TileType.NOTHING;
+            cell.layers[3] = TileType.NOTHING;
+            cell.flags |= TileFlag.DISCOVERED | TileFlag.MAGIC_MAPPED;
+        }
+
+        const hover = buildHoverHandlerFn();
+        hover(10, 5);
+
+        const clearPath = buildClearHoverPathFn();
+        clearPath();
+
+        for (let x = 5; x <= 10; x++) {
+            expect(pmap[x][5].flags & TileFlag.IS_IN_PATH).toBe(0);
+        }
+    });
+
+    it("clears old path when hovering a different cell", () => {
+        setupPlayer();
+        const { pmap } = getGameState();
+        for (let x = 5; x <= 10; x++) {
+            const cell = pmap[x][5];
+            cell.layers[0] = TileType.FLOOR;
+            cell.layers[1] = TileType.NOTHING;
+            cell.layers[2] = TileType.NOTHING;
+            cell.layers[3] = TileType.NOTHING;
+            cell.flags |= TileFlag.DISCOVERED | TileFlag.MAGIC_MAPPED;
+        }
+
+        const hover = buildHoverHandlerFn();
+        hover(10, 5);
+        hover(6, 5); // move hover to adjacent cell
+
+        // Cell at (10,5) should no longer have IS_IN_PATH
+        expect(pmap[10][5].flags & TileFlag.IS_IN_PATH).toBe(0);
     });
 });
 

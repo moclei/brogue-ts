@@ -20,6 +20,7 @@
 import type { BrogueButton, ButtonState, RogueEvent, WindowPos } from "../types/types.js";
 import { EventType } from "../types/enums.js";
 import { ButtonFlag } from "../types/flags.js";
+import { initializeButtonState } from "./buttons.js";
 import {
     COLS, ROWS, KEYBOARD_LABELS, DCOLS, INTERFACE_OPACITY,
     EXPLORE_KEY, REST_KEY, SEARCH_KEY, INVENTORY_KEY,
@@ -157,11 +158,12 @@ export function initializeMenuButtons(ctx: InputContext, state: ButtonState, but
         x += ctx.strLenWithoutEscapes(buttons[i].text) + 2;
     }
 
-    ctx.initializeButtonState(
-        state, buttons, 5,
+    const newState = initializeButtonState(
+        buttons, 5,
         ctx.mapToWindowX(0), ROWS - 1,
         COLS - ctx.mapToWindowX(0), 1,
     );
+    Object.assign(state, newState);
 }
 
 // =============================================================================
