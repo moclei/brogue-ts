@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-12 (B34 fixed)
+**Status:** updated 2026-03-12 (B34 fixed; B35 B36 filed; B13 B30 updated)
 **Tests at last update:** 88 files · 2281 pass · 55 skip
 
 ---
@@ -388,12 +388,14 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   there). Fixed together with B12.
   C: `Time.c` (updateEnvironment). TS: `turn.ts` (per-turn environment update call site). **M**
 
-- [ ] **B13 — Tall grass not trampled on walkover** — Walking over tall grass does not
+- [x] **B13 — Tall grass not trampled on walkover** — Walking over tall grass does not
   convert it to short grass (or bare floor). In C this is driven by
   `applyInstantTileEffectsToCreature` checking `T_PROMOTES_ON_STEP` terrain flags.
   This function was previously "permanently deferred" but is now in scope.
   C: `Time.c` (applyInstantTileEffectsToCreature). TS: likely needs porting + wiring
   into `movement.ts` player move context. **M**
+  Fix: resolved as a side-effect of the `applyInstantTileEffectsToCreature` port
+  (Priority 4). Confirmed working in playtest.
 
 - [ ] **B27 — Teleportation scroll — delayed effect + ghost `@`** — Using a scroll of
   teleportation teleported the player, but required a move action before the teleport
@@ -414,9 +416,10 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `RogueMain.c` (startLevel — calls `displayLevel()` after level load).
   TS: `game/game-level.ts` (startLevel, level swap). **M**
 
-- [ ] **B30 — Ally does not follow player down stairs** — An allied monster did not
-  descend with the player when taking stairs. The ally was still present on the upper level
-  on return. In C, allies adjacent to the player follow through stairs automatically.
+- [ ] **B30 — Ally does not follow player up or down stairs** — An allied monster does
+  not ascend or descend with the player when taking stairs. The ally remains on the
+  original level. In C, allies adjacent to the player follow through stairs automatically.
+  Confirmed in playtest: ally stays behind on both up- and down-stair transitions.
   C: `RogueMain.c` (startLevel — ally follow-through logic). TS: `game/game-level.ts`
   or `lifecycle.ts` (stair transition, monster carry-over). **M**
 
@@ -426,6 +429,28 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   neither adjacent nor distant attacks work.
   Investigate: check if `Movement.c` reach-weapon attack path is wired in `movement.ts`.
   C: `Movement.c` (playerMoves — reach weapon check). TS: `movement.ts`. **S, investigate first**
+
+- [ ] **B35 — Mouse hover: no path highlight or location description** — In normal
+  gameplay (outside targeting mode), moving the mouse over the dungeon should:
+  (a) Draw a highlighted path from the player to the cursor cell (the route the player
+  would walk if they clicked) using the same cell-highlight technique as throw/zap aiming.
+  (b) Print a text description in the message area: "You see [terrain/creature/item]"
+  for directly visible cells, or "You remember seeing [X] here" for fog-of-war cells.
+  Neither effect is present in the port. Note: B10/B11 fixed aiming-cursor highlights
+  and descriptions — this is the separate normal-play hover path, which is wired
+  independently via the `handleHover` handler in `platform.ts`.
+  C: `IO.c` (printLocationDescription, travel-path highlighting during hover),
+  `Movement.c` (travel-path drawing). TS: `platform.ts` (handleHover),
+  `io/input-context.ts`. **M**
+
+- [ ] **B36 — Bottom action buttons not displayed** — The C game renders a row of
+  clickable shortcut buttons at the bottom of the screen: Explore, Rest, Search,
+  Menu, Inventory. These are absent in the port; the bottom area is blank.
+  In C these are drawn once on level entry and updated when state changes (e.g. rest
+  becomes unavailable when monsters are present). Clicking a button triggers the same
+  action as the corresponding key.
+  C: `IO.c` (bottom-button rendering, `drawMenuButton` / button state updates).
+  TS: not implemented. **M**
 
 ### P3 — Minor / cosmetic
 
@@ -442,6 +467,7 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: flame update rate is implicitly correct because C's `pauseBrogue` counts wall-clock
   time; the TS async equivalent short-circuits the delay without compensating.
   TS: `menus/main-menu.ts` (`titleMenu` inner loop). **S**
+  ⚠ Prioritised up to P2 by user request — fix soon.
 
 - [ ] **B17 — `flashMessage` animation non-functional** — `flashTemporaryAlert` is wired
   but produces no visible flash because `EffectsContext.pauseBrogue` is synchronous while
