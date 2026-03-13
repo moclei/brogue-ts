@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "codeql": {
+      "command": "node",
+      "args": ["codeql/mcp-server.js"]
+    }
+  }
+}
