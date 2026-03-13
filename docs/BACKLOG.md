@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-12 (B34 fixed; B35 B36 filed; B13 B30 updated; B36 fixed 2026-03-12; B35 fixed 2026-03-12; B27 fixed 2026-03-12; B28 fixed 2026-03-12; B32 deferred; B30 fixed 2026-03-12; B23 fixed 2026-03-12; B17 fixed 2026-03-12; B14 fixed 2026-03-12; B25/B15 closed WAI 2026-03-12; B31 fixed 2026-03-12)
+**Status:** updated 2026-03-13 (B37–B45 filed; B32 unblocked; B25/B15 WAI; B31 fixed)
 **Tests at last update:** 88 files · 2284 pass · 55 skip
 
 ---
@@ -433,11 +433,12 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   reach weapon (attacks 2 squares away) in C; if reach-weapon attack logic is not ported,
   neither adjacent nor distant attacks work.
   Investigated 2026-03-12: `handleWhipAttacks` IS wired in `movement-weapon-context.ts` and
-  `movement.ts`. Root cause: `zap` is permanently stubbed (`() => {}`). When the player moves
-  toward a monster with a whip equipped, `handleWhipAttacks` fires, returns true (consuming
-  the turn), but `zap()` is a no-op so no damage or animation occurs. Fix requires `zap`
-  (port-v2-persistence scope). **DEFERRED — blocked by zap stub**
-  C: `Movement.c` (playerMoves — reach weapon check). TS: `movement-weapon-context.ts`.
+  `movement.ts`. Root cause: `zap: () => {}` stub in `movement-weapon-context.ts`. When
+  the player moves toward a monster with a whip equipped, `handleWhipAttacks` fires and
+  returns true (consuming the turn), but `zap()` is a no-op so no damage or animation occurs.
+  Fix: wire `zap` in `movement-weapon-context.ts` to `buildStaffZapFn()` from
+  `items/staff-wiring.ts` — that implementation already exists and handles the bolt domain.
+  C: `Movement.c` (playerMoves — reach weapon check). TS: `movement-weapon-context.ts`. **S**
 
 - [x] **B35 — Mouse hover: no path highlight or location description** — In normal
   gameplay (outside targeting mode), moving the mouse over the dungeon should:
@@ -563,6 +564,81 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   (or `clairvoyanceColor` for non-direct cells), then `plotCharWithColor`. `pauseAnimation`
   calls `commitDraws()` then `pauseAndCheckForEvent(25ms)` so each frame is flushed before
   the delay. `refreshDungeonCell` uses `buildRefreshDungeonCellFn()` to restore the cell.
+
+- [ ] **B37 — Hover ghost trail on undiscovered cells** — When moving the mouse over
+  undiscovered (black) cells, a white hover indicator appears under the cursor. When
+  the mouse moves to a new cell, the previously-hovered cell retains the white color
+  instead of returning to black — leaving a ghost trail wherever the mouse has been.
+  Only affects undiscovered cells; discovered cells restore correctly.
+  Likely cause: `refreshDungeonCell` is not called for the previously-hovered cell when
+  hover moves, OR the cell-appearance function returns the hover color for undiscovered
+  cells but `hiliteCell`/`hilitePath` doesn't restore black-for-undiscovered on unhilite.
+  C: hover highlighting clears the previous cell via `refreshDungeonCell` before drawing
+  the new one. TS: `io/hover-wiring.ts` (hover update path). **S**
+
+- [ ] **B38 — `colorFlash` stub — no color-flash feedback** — `colorFlash` is a no-op
+  (`() => {}`) in all item, bolt, and creature-effects contexts. It is used throughout C
+  for visual confirmation of spell and item effects: the magic-mapping screen flash,
+  scroll-of-identify flash, scroll-of-enchanting flash, potion effects, combat status
+  events, and more. Without it, many actions appear to have no effect — the player
+  cannot tell if a scroll or potion did anything.
+  C: `IO.c` (colorFlash). TS: `items.ts`, `items/staff-wiring.ts`, `items/zap-context.ts`,
+  `time/creature-effects.ts` (all stub it). **M**
+
+- [ ] **B39 — `flashMonster` stub — no creature flash on hit or status** — `flashMonster`
+  is a no-op in all contexts. It briefly changes a creature's display color to give visual
+  feedback on attacks, healing, status application, and ability use. Without it, combat
+  and spell effects are silent — the player cannot see when a monster is hit, healed,
+  slowed, confused, etc.
+  C: `IO.c` (flashMonster). TS: `items.ts`, `items/staff-wiring.ts`, `items/zap-context.ts`
+  (all stub it). **M**
+
+- [ ] **B40 — `createFlare` stub — no light-flare effect** — `createFlare` is a no-op.
+  It creates a brief expanding light burst used for lightning bolt impacts, fire explosions,
+  and similar high-energy effects. Visual feedback that a bolt detonated.
+  C: `IO.c` (createFlare). TS: `items/zap-context.ts` (stub). **S**
+
+- [ ] **B41 — `updateClairvoyance` stub — clairvoyance ring non-functional** —
+  `updateClairvoyance` is a no-op in the item-handler context. The ring of clairvoyance
+  reveals nearby cells as the player moves; without this call those cells are never
+  revealed. Player equips the ring and sees no effect.
+  C: `Time.c` (updateClairvoyance). TS: `items.ts` context (`() => {}`). **M**
+
+- [ ] **B42 — `extinguishFireOnCreature` stub in item/bolt contexts** — `extinguishFireOnCreature`
+  is a no-op in the item-handler and bolt contexts (`items.ts` wiring). It is called when
+  a water-based bolt or effect hits a burning creature. Without it, fire on a creature
+  struck by a water bolt is never extinguished.
+  C: `Time.c` (extinguishFireOnCreature). TS: `items.ts` context (two stub sites). **S**
+
+- [ ] **B43 — `discover`/`discoverCell` stubs in item/bolt contexts** — Both are no-ops
+  in the item-handler and bolt/zap contexts. `discover` reveals a cell (removes fog of war);
+  `discoverCell` reveals a specific cell including secret doors. Called when a bolt hits a
+  wall (may reveal secrets) and on certain scroll/potion effects. Without them, bolts that
+  should reveal secrets do not, and items that uncover the map behave incorrectly.
+  C: `Items.c`, `Monsters.c`. TS: `items.ts` context, `items/zap-context.ts` (stub). **S**
+
+- [ ] **B44 — Monster spell-casting system absent** — The entire monster spell pipeline is
+  missing. `monsterCastSpell` (the main dispatcher) is not ported at all. `monstUseBolt`,
+  `monstUseMagic` are stubs. Supporting helpers are also absent: `generallyValidBoltTarget`,
+  `targetEligibleForCombatBuff`, `specificallyValidBoltTarget`, `monstUseDomination`,
+  `monstUseBeckon`, `monstUseBlinkAway`, `monsterBlinkToSafety`, `monsterBlinkToPreferenceMap`,
+  `getSafetyMap`, `allyFlees`, `summonMinions`, `creatureEligibleForSwarming`,
+  `monsterSwarmDirection`. Monsters in the port never cast spells, blink, summon, dominate,
+  beckon, or flee intelligently — a major AI divergence.
+  C: `Monsters.c` (monsterCastSpell:2755 and surrounding functions). TS: stubs in
+  `monsters/monster-actions.ts`, `turn-monster-ai.ts`, `turn.ts`. **L**
+
+- [ ] **B45 — Item effect stubs — potions, scrolls, wands incomplete** — Multiple item
+  effects are stubbed or missing. Confirmed stubs (test.skip entries exist):
+  `teleport` (items.ts:200), `haste` (items.ts:199), `aggravateMonsters` (items.ts:208).
+  Missing with no TS equivalent: `negate` (negation wand), `weaken` (weakness scroll),
+  `slow` (slow monster bolt/potion), `disentangle` (removes webs), `summonMinions`
+  (monster summon effect from items). Also missing: `swapItemEnchants` / `swapItemToEnchantLevel`
+  / `enchantLevelKnown` (enchant-swap mechanic), `magicChargeItem` (recharge wand),
+  `empowerMonster`, `applyTunnelEffect`. Using any of these items in the port silently
+  does nothing.
+  C: `Items.c` (readScroll, drinkPotion, useStaffOrWand effect branches).
+  TS: `items/item-handlers.ts`, `items.ts` context stubs. **L**
 
 ---
 
