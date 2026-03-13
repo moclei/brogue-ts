@@ -129,8 +129,13 @@ import { buildResolvePronounEscapesFn } from "./io/text.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
 import { createFlare as createFlareFn } from "./light/flares.js";
 import { lightCatalog } from "./globals/light-catalog.js";
-import { extinguishFireOnCreature as extinguishFireOnCreatureFn } from "./time/creature-effects.js";
+import {
+    extinguishFireOnCreature as extinguishFireOnCreatureFn,
+    discoverCell as discoverCellFn,
+} from "./time/creature-effects.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
+import { discover as discoverFn } from "./movement/map-queries.js";
+import type { MapQueryContext } from "./movement/map-queries.js";
 
 // =============================================================================
 // Private helpers
@@ -144,6 +149,38 @@ function buildMonsterAtLoc(player: Creature, monsters: Creature[]) {
         }
         return null;
     };
+}
+
+/**
+ * Returns a `discover(x, y)` closure wired to the real Movement.c:2110 logic.
+ * Builds a minimal MapQueryContext from live game state refs.
+ */
+function buildItemDiscoverFn(
+    pmap: ReturnType<typeof getGameState>["pmap"],
+    rogue: ReturnType<typeof getGameState>["rogue"],
+    monsterAtLoc: (loc: Pos) => Creature | null,
+    refreshDungeonCell: (loc: Pos) => void,
+    cellHasTMFlag: (loc: Pos, flags: number) => boolean,
+): (x: number, y: number) => void {
+    return (x, y) => discoverFn(x, y, {
+        pmap,
+        rogue: rogue as unknown as MapQueryContext["rogue"],
+        scentMap: [] as number[][],
+        terrainFlags: () => 0,
+        terrainMechFlags: () => 0,
+        cellHasTerrainFlag: () => false,
+        cellHasTMFlag,
+        coordinatesAreInMap,
+        playerCanSee: (x2: number, y2: number) => !!(pmap[x2]?.[y2]?.flags & TileFlag.VISIBLE),
+        monsterAtLoc,
+        canSeeMonster: () => false,
+        monsterRevealed: () => false,
+        spawnDungeonFeature: (fx: number, fy: number, feat: object, vol: boolean, override: boolean) =>
+            spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, fx, fy, feat as never, vol, override),
+        refreshDungeonCell,
+        dungeonFeatureCatalog,
+        nbDirs: nbDirs as [number, number][],
+    } as unknown as MapQueryContext);
 }
 
 function buildNamingCtx(state: ReturnType<typeof getGameState>) {
@@ -413,8 +450,11 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 addScentToCell: () => {},       // permanent-defer — needs MapQueryContext with scentTurnNumber
                 setStealthRange: (r) => { rogue.stealthRange = r; },
                 currentStealthRange: () => rogue.stealthRange, // was hardcoded 14; use live value
-                discover: () => {},             // permanent-defer — needs full MapQueryContext (wired in lifecycle)
-                discoverCell: () => {},         // permanent-defer — requires CreatureEffectsContext
+                discover: buildItemDiscoverFn(pmap, rogue, monsterAtLoc, refreshDungeonCell, cellHasTMFlag),
+                discoverCell: (x, y) => {
+                    if (!coordinatesAreInMap(x, y)) return;
+                    discoverCellFn(x, y, { pmap, rogue, cellHasTerrainFlag } as unknown as CreatureEffectsContext);
+                },
                 colorFlash: buildColorFlashFn(),
                 playerCanSee: (px, py) => !!(pmap[px]?.[py]?.flags & TileFlag.VISIBLE),
                 message: io.message,
@@ -453,7 +493,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         },
         cellHasTMFlag,
         cellHasTerrainFlag,
-        discover: () => {},                  // permanent-defer — needs full MapQueryContext (wired in lifecycle)
+        discover: buildItemDiscoverFn(pmap, rogue, monsterAtLoc, refreshDungeonCell, cellHasTMFlag),
         refreshDungeonCell,
         crystalize(radius) {
             const combatCtx = buildCombatDamageContext();

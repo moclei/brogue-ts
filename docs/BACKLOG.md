@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-13 (B41 updateClairvoyance wired; B40 createFlare wired; B38 animation fixed; B37–B45 filed; B32 unblocked; B25/B15 WAI; B31 fixed)
-**Tests at last update:** 88 files · 2284 pass · 55 skip
+**Status:** updated 2026-03-13 (B43 discover/discoverCell wired in item contexts; B41 updateClairvoyance wired; B40 createFlare wired; B38 animation fixed; B37–B45 filed; B32 unblocked; B25/B15 WAI; B31 fixed)
+**Tests at last update:** 88 files · 2286 pass · 55 skip
 
 ---
 
@@ -643,12 +643,17 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   struck by a water bolt is never extinguished.
   C: `Time.c` (extinguishFireOnCreature). TS: `items.ts` context (two stub sites). **S**
 
-- [ ] **B43 — `discover`/`discoverCell` stubs in item/bolt contexts** — Both are no-ops
+- [x] **B43 — `discover`/`discoverCell` stubs in item/bolt contexts** — Both are no-ops
   in the item-handler and bolt/zap contexts. `discover` reveals a cell (removes fog of war);
   `discoverCell` reveals a specific cell including secret doors. Called when a bolt hits a
   wall (may reveal secrets) and on certain scroll/potion effects. Without them, bolts that
   should reveal secrets do not, and items that uncover the map behave incorrectly.
   C: `Items.c`, `Monsters.c`. TS: `items.ts` context, `items/zap-context.ts` (stub). **S**
+  Fix: Added `buildItemDiscoverFn()` helper in `items.ts` that builds a minimal `MapQueryContext`
+  from live game state and calls the real `discover` free function (Movement.c:2110).
+  Wired in two places: `ItemHandlerContext.discover` (used by scroll of magic mapping) and
+  `aggravateMonsters` context (alarm reveals). `discoverCell` in aggravate context wired inline
+  via `discoverCellFn` cast. Tests in `items.test.ts:390`. 2286 pass / 55 skip.
 
 - [ ] **B44 — Monster spell-casting system absent** — The entire monster spell pipeline is
   missing. `monsterCastSpell` (the main dispatcher) is not ported at all. `monstUseBolt`,
