@@ -209,6 +209,7 @@ export async function titleMenu(ctx: MenuContext, displayBuffer: ScreenDisplayBu
     let flyoutMenu: ButtonState | null = null;
     let flyoutButtons: BrogueButton[] = [];
     let flyoutShadowBuf: ScreenDisplayBuffer | null = null;
+    let lastFlameUpdate = 0;
 
     do {
         if (isFlyoutActive(ctx.rogue.nextGame)) {
@@ -233,7 +234,11 @@ export async function titleMenu(ctx: MenuContext, displayBuffer: ScreenDisplayBu
 
         do {
             if (ctx.isApplicationActive()) {
-                updateMenuFlames(colors, colorSources, flames, ctx);
+                const now = Date.now();
+                if (now - lastFlameUpdate >= MENU_FLAME_UPDATE_DELAY) {
+                    updateMenuFlames(colors, colorSources, flames, ctx);
+                    lastFlameUpdate = now;
+                }
                 drawMenuFlames(flames, mask, ctx, displayBuffer);
                 ctx.overlayDisplayBuffer(mainShadowBuf);
 

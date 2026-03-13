@@ -454,7 +454,7 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
 
 ### P3 — Minor / cosmetic
 
-- [ ] **B16 — Title-screen flames speed up on mouse movement** — On the title screen,
+- [x] **B16 — Title-screen flames speed up on mouse movement** — On the title screen,
   moving the mouse over the game area causes the flame animation to run faster than
   normal; the more mouse events arrive, the faster the flames animate. Stopping the
   mouse or moving it off the canvas restores normal speed.
