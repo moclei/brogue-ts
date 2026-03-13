@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-12 (B34 fixed; B35 B36 filed; B13 B30 updated; B36 fixed 2026-03-12)
-**Tests at last update:** 88 files · 2281 pass · 55 skip
+**Status:** updated 2026-03-12 (B34 fixed; B35 B36 filed; B13 B30 updated; B36 fixed 2026-03-12; B35 fixed 2026-03-12)
+**Tests at last update:** 89 files · 2285 pass · 55 skip
 
 ---
 
@@ -430,7 +430,7 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   Investigate: check if `Movement.c` reach-weapon attack path is wired in `movement.ts`.
   C: `Movement.c` (playerMoves — reach weapon check). TS: `movement.ts`. **S, investigate first**
 
-- [ ] **B35 — Mouse hover: no path highlight or location description** — In normal
+- [x] **B35 — Mouse hover: no path highlight or location description** — In normal
   gameplay (outside targeting mode), moving the mouse over the dungeon should:
   (a) Draw a highlighted path from the player to the cursor cell (the route the player
   would walk if they clicked) using the same cell-highlight technique as throw/zap aiming.
