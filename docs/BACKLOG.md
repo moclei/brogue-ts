@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-12 (B34 fixed; B35 B36 filed; B13 B30 updated)
+**Status:** updated 2026-03-12 (B34 fixed; B35 B36 filed; B13 B30 updated; B36 fixed 2026-03-12)
 **Tests at last update:** 88 files · 2281 pass · 55 skip
 
 ---
@@ -443,14 +443,17 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   `Movement.c` (travel-path drawing). TS: `platform.ts` (handleHover),
   `io/input-context.ts`. **M**
 
-- [ ] **B36 — Bottom action buttons not displayed** — The C game renders a row of
+- [x] **B36 — Bottom action buttons not displayed** — The C game renders a row of
   clickable shortcut buttons at the bottom of the screen: Explore, Rest, Search,
   Menu, Inventory. These are absent in the port; the bottom area is blank.
-  In C these are drawn once on level entry and updated when state changes (e.g. rest
-  becomes unavailable when monsters are present). Clicking a button triggers the same
-  action as the corresponding key.
+  Fix: new `io/menu-bar.ts` — `buildGameMenuButtonState`, `drawGameMenuButtons`,
+  `findClickedMenuButton`. `platform.ts::mainGameLoop` initializes the state once
+  and overlays buttons before every `commitDraws`. Click dispatch: non-Menu buttons
+  dispatch hotkey via `executeKeystroke`; Menu (index 3) calls `actionMenu`.
+  `initializeMenuButtons` in `input-mouse.ts` fixed to use real `initializeButtonState`
+  instead of the stub `ctx.initializeButtonState`.
   C: `IO.c` (bottom-button rendering, `drawMenuButton` / button state updates).
-  TS: not implemented. **M**
+  TS: `io/menu-bar.ts`, `platform.ts`, `io/input-mouse.ts`. **M**
 
 ### P3 — Minor / cosmetic
 
