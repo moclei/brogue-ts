@@ -85,6 +85,7 @@ import { lightCatalog } from "./globals/light-catalog.js";
 import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
 import { wandTable, staffTable, ringTable, charmTable } from "./globals/item-catalog.js";
 import type { ItemTable } from "./types/types.js";
+import { buildMonstersApproachStairsCtx, monstersApproachStairs as monstersApproachStairsFn } from "./time/stairs-wiring.js";
 
 // =============================================================================
 // Minimal combat context — used by inflictDamage/killCreature/addPoison calls
@@ -579,6 +580,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         rand_percent: randPercent,
         max: Math.max,
         min: Math.min,
+        monstersApproachStairs: () => monstersApproachStairsFn(buildMonstersApproachStairsCtx()),
     };
 }
 

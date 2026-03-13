@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-12 (B34 fixed; B35 B36 filed; B13 B30 updated; B36 fixed 2026-03-12; B35 fixed 2026-03-12; B27 fixed 2026-03-12; B28 fixed 2026-03-12; B32 deferred)
+**Status:** updated 2026-03-12 (B34 fixed; B35 B36 filed; B13 B30 updated; B36 fixed 2026-03-12; B35 fixed 2026-03-12; B27 fixed 2026-03-12; B28 fixed 2026-03-12; B32 deferred; B30 fixed 2026-03-12)
 **Tests at last update:** 88 files · 2284 pass · 55 skip
 
 ---
@@ -416,12 +416,13 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `RogueMain.c` (startLevel — calls `displayLevel()` after level load).
   TS: `game/game-level.ts` (startLevel, level swap). **M**
 
-- [ ] **B30 — Ally does not follow player up or down stairs** — An allied monster does
-  not ascend or descend with the player when taking stairs. The ally remains on the
-  original level. In C, allies adjacent to the player follow through stairs automatically.
-  Confirmed in playtest: ally stays behind on both up- and down-stair transitions.
-  C: `RogueMain.c` (startLevel — ally follow-through logic). TS: `game/game-level.ts`
-  or `lifecycle.ts` (stair transition, monster carry-over). **M**
+- [x] **B30 — Ally does not follow player up or down stairs** — Fixed 2026-03-12.
+  `startLevel()` already marks allies with `MB_APPROACHING_DOWNSTAIRS/UPSTAIRS` and sets
+  `EntersLevelIn`. `monstersApproachStairs()` existed in `time/misc-helpers.ts` but was
+  never called. Wired: new `time/stairs-wiring.ts` builds `MiscHelpersContext`; added
+  `monstersApproachStairs(): void` to `TurnProcessingContext`; called in
+  `turn-processing.ts` after `applyInstantTileEffectsToCreature`.
+  C: `Time.c:2425`. TS: `time/turn-processing.ts`, `turn.ts`, `time/stairs-wiring.ts`. **M**
 
 - [ ] **B32 — Whip weapon — cannot attack after equipping** — After switching weapon to a
   whip, the player appeared unable to attack monsters (attacks did not resolve). Whip is a

@@ -215,6 +215,9 @@ export interface TurnProcessingContext {
     rand_percent(chance: number): boolean;
     max(a: number, b: number): number;
     min(a: number, b: number): number;
+
+    // Ally stair follow
+    monstersApproachStairs(): void;
 }
 
 // =============================================================================
@@ -795,6 +798,7 @@ export async function playerTurnEnded(
         if (ctx.rogue.gameHasEnded) {
             return;
         }
+        ctx.monstersApproachStairs();
 
         if (ctx.player.currentHP > ctx.player.info.maxHP) {
             ctx.player.currentHP = ctx.player.info.maxHP;
