@@ -41,7 +41,20 @@ The C source is static — this only needs to be done once (or after a C source 
 
 ### TypeScript database (`codeql/databases/rogue-ts`)
 
-See Phase 2 (not yet extracted). Extraction command will be documented here once verified.
+Built from `rogue-ts/` using static extraction (no build needed — TypeScript is analyzed directly).
+Extraction command (run from repo root):
+
+```bash
+codeql database create codeql/databases/rogue-ts \
+  --language=javascript-typescript \
+  --source-root=rogue-ts/ \
+  --overwrite
+```
+
+Refresh this database after significant refactors or after adding new source files. Takes ~30–60 seconds.
+The C database does **not** need refreshing — C source is static.
+
+Verified: `buildCombatAttackContext` found at `combat.ts:192`. ✓
 
 ## Query packs
 

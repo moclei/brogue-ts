@@ -47,23 +47,24 @@ Starting state: no CodeQL infrastructure in the repo
 ## Phase 2: TypeScript database
 
 ### 2a: Extract TypeScript database
-- [ ] Run: `codeql database create codeql/databases/rogue-ts --language=javascript-typescript --source-root=rogue-ts/`
-- [ ] Confirm database created: `codeql/databases/rogue-ts/` exists
+- [x] Run: `codeql database create codeql/databases/rogue-ts --language=javascript-typescript --source-root=rogue-ts/`
+- [x] Confirm database created: `codeql/databases/rogue-ts/` exists
 
 ### 2b: Verify TypeScript database
-- [ ] Run a test query: find all functions named `attackMonster` in the TS source
-- [ ] Confirm result: correct file + line in `rogue-ts/src/`
+- [x] Ran test query: find `buildCombatAttackContext` in TS source
+      (Note: `attackMonster` is a C name; TS equivalent is `buildCombatAttackContext` in combat.ts)
+- [x] Confirm result: `combat.ts:192` ✓
 
 ### 2c: Document refresh procedure
-- [ ] Add to `codeql/CONTEXT.md`:
-      - Extraction command for TS (for future refreshes)
+- [x] Added to `codeql/CONTEXT.md`:
+      - Extraction command for TS (with `--overwrite` for future refreshes)
       - Note that C database is one-time only and never needs refreshing
       - Note that TS database should be refreshed after significant refactors
 
 ### Phase 2 close
-- [ ] `git commit -m "feat: codeql Phase 2 — TypeScript database extracted"`
-- [ ] Update TASKS.md
-- [ ] Generate handoff prompt:
+- [x] `git commit -m "feat: codeql Phase 2 — TypeScript database extracted"`
+- [x] Update TASKS.md
+- [x] Generate handoff prompt:
   ```
   Continue codeql-integration. Read: .context/PROJECT.md, initiatives/codeql-integration/BRIEF.md, PLAN.md, TASKS.md
   Resume at: Phase 3 — MCP server setup
