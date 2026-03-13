@@ -433,7 +433,12 @@ export async function moveCursor(
                 cursorMovementCommand = true;
             } else {
                 cursorMovementCommand = false;
-                again = event.eventType !== EventType.MouseUp;
+                // C: again=true so the loop re-fetches a fresh event.  In the TS
+                // wrapper, nextKeyOrMouseEvent() returns the *same* pre-fetched event
+                // on every call, so re-running the loop would process it again
+                // indefinitely.  When state=null (no button panel) the wrapper will
+                // call waitForEvent() for the next real event, so we must exit now.
+                again = state !== null && event.eventType !== EventType.MouseUp;
             }
         } else if (event.eventType === EventType.Keystroke) {
             let keystroke = event.param1;

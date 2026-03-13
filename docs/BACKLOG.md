@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-12 (B11 fixed)
+**Status:** updated 2026-03-12 (B33 fixed)
 **Tests at last update:** 88 files · 2281 pass · 55 skip
 
 ---
@@ -482,6 +482,28 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   read machine catalog minimum-depth conditions in C; compare to TS machine catalog
   and `buildAMachine` depth checks before classifying as bug or acceptable behavior.
   C: `Architect.c` (buildAMachine, machine catalog depth guards). **investigate first**
+
+- [x] **B33 — Crash when throwing a dart** — Game froze (infinite synchronous loop)
+  when the mouse hovered over a cell just below the map boundary during throw targeting.
+  Root cause: `moveCursor` contains a `do { ... } while (again && !cursorMovementCommand)`
+  loop. In C, each iteration calls `nextKeyOrMouseEvent()` which blocks for a real new
+  event. In the TS wrapper, `nextKeyOrMouseEvent` is a closure returning the *same*
+  pre-fetched event. When a `MouseEnteredCell` event arrived for an off-map cell,
+  `again = true` caused the loop to re-process the same event indefinitely. The
+  tables.ts fix (B11 root cause) shifted the map/off-map boundary by 1 window row,
+  making the freeze reproducible at a commonly-hovered position.
+  Fix: when `state === null` (no button panel), set `again = false` unconditionally;
+  the TS wrapper always calls `waitForEvent()` for a fresh event on the next outer-loop
+  iteration anyway. Also removed diagnostic console.log lines from targeting.ts,
+  io-wiring.ts, item-commands.ts, staff-wiring.ts.
+  C: `Items.c` (chooseTarget, moveCursor). TS: `io/cursor-move.ts`. **M**
+
+- [ ] **B34 — No throw animation — projectile teleports to destination** — When throwing
+  an item (dart, javelin, etc.) the projectile does not animate along its path; it
+  instantly appears at the target cell. In C, `throwItem` calls `tileGame` or a bolt
+  animation to draw the projectile moving cell-by-cell with brief pauses. The TS port
+  skips this animation step.
+  C: `Items.c` (throwItem → animation loop). TS: `items/item-handlers.ts`. **S**
 
 ---
 
