@@ -137,11 +137,20 @@ function buildPathTracingCtx(
  */
 export function buildHoverHandlerFn(): (mapX: number, mapY: number) => void {
     const printLocDesc = buildPrintLocationDescriptionFn();
+    let prevCursorLoc: Pos | null = null;
 
     return (mapX: number, mapY: number) => {
         const { rogue, player, pmap, monsters, displayBuffer } = getGameState();
         const refreshDungeonCell = buildRefreshDungeonCellFn();
         const pathCtx = buildPathFlagCtx(rogue.playbackMode, pmap, refreshDungeonCell);
+
+        // Restore previous cursor cell before clearing the path.
+        // C: refreshDungeonCell(oldTargetLoc) in mainInputLoop before hilitePath(__, true).
+        // Without this, undiscovered cells (not in IS_IN_PATH) retain the white hilite.
+        if (prevCursorLoc !== null) {
+            refreshDungeonCell(prevCursorLoc);
+            prevCursorLoc = null;
+        }
 
         // Always clear old path first (mirrors C clearCursorPath at outer-loop top)
         clearCursorPath(pathCtx);
@@ -204,6 +213,7 @@ export function buildHoverHandlerFn(): (mapX: number, mapY: number) => void {
             mapToWindow: mapToWindowFn,
         } as unknown as TargetingContext;
         hiliteCell(mapX, mapY, white, 100, true, hiliteCellCtx);
+        prevCursorLoc = { x: mapX, y: mapY };
 
         // ------------------------------------------------------------------
         // Print flavor text description for the hovered cell.

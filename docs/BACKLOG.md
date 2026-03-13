@@ -565,16 +565,19 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   calls `commitDraws()` then `pauseAndCheckForEvent(25ms)` so each frame is flushed before
   the delay. `refreshDungeonCell` uses `buildRefreshDungeonCellFn()` to restore the cell.
 
-- [ ] **B37 — Hover ghost trail on undiscovered cells** — When moving the mouse over
+- [x] **B37 — Hover ghost trail on undiscovered cells** — When moving the mouse over
   undiscovered (black) cells, a white hover indicator appears under the cursor. When
   the mouse moves to a new cell, the previously-hovered cell retains the white color
   instead of returning to black — leaving a ghost trail wherever the mouse has been.
   Only affects undiscovered cells; discovered cells restore correctly.
-  Likely cause: `refreshDungeonCell` is not called for the previously-hovered cell when
-  hover moves, OR the cell-appearance function returns the hover color for undiscovered
-  cells but `hiliteCell`/`hilitePath` doesn't restore black-for-undiscovered on unhilite.
-  C: hover highlighting clears the previous cell via `refreshDungeonCell` before drawing
-  the new one. TS: `io/hover-wiring.ts` (hover update path). **S**
+  Root cause: `clearCursorPath` only restores cells with `IS_IN_PATH`. The cursor cell
+  gets IS_IN_PATH only when a path exists to it (via `hilitePath`). Undiscovered cells
+  are unreachable (cost=0 in Dijkstra), so no path is drawn and IS_IN_PATH is never set.
+  `hiliteCell` still tints the cursor cell white, leaving a permanent ghost.
+  Fix: C explicitly calls `refreshDungeonCell(oldTargetLoc)` before `clearCursorPath`.
+  Mirrored in TS: `buildHoverHandlerFn` now tracks `prevCursorLoc` and calls
+  `refreshDungeonCell(prevCursorLoc)` at the start of each hover event.
+  TS: `io/hover-wiring.ts`. **S**
 
 - [ ] **B38 — `colorFlash` stub — no color-flash feedback** — `colorFlash` is a no-op
   (`() => {}`) in all item, bolt, and creature-effects contexts. It is used throughout C
