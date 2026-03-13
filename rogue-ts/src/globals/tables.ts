@@ -62,7 +62,7 @@ export function mapToWindowX(x: number): number {
 
 /** Convert dungeon map y to window y */
 export function mapToWindowY(y: number): number {
-    return y + MESSAGE_LINES + 1;
+    return y + MESSAGE_LINES;
 }
 
 /** Convert window x to dungeon map x */
@@ -72,7 +72,7 @@ export function windowToMapX(x: number): number {
 
 /** Convert window y to dungeon map y */
 export function windowToMapY(y: number): number {
-    return y - MESSAGE_LINES - 1;
+    return y - MESSAGE_LINES;
 }
 
 /** Check if coordinates are within the dungeon map */
