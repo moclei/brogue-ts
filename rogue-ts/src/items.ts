@@ -126,6 +126,8 @@ import type { ItemTable, Creature, Pos } from "./types/types.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn, buildExposeCreatureToFireFn, buildPromptForItemOfTypeFn, buildConfirmFn, buildDisplayLevelFn, buildColorFlashFn } from "./io-wiring.js";
 import { buildResolvePronounEscapesFn } from "./io/text.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
+import { createFlare as createFlareFn } from "./light/flares.js";
+import { lightCatalog } from "./globals/light-catalog.js";
 
 // =============================================================================
 // Private helpers
@@ -515,7 +517,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
 
         // ── Visual effects ───────────────────────────────────────────────────
         colorFlash: buildColorFlashFn(),
-        createFlare: () => {},               // permanent-defer — visual flare effect only
+        createFlare: (x, y, lightType) => createFlareFn(x, y, lightType as LightType, rogue, lightCatalog),
         displayLevel: buildDisplayLevelFn(),
 
         // ── Vision / light stubs ────────────────────────────────────────────

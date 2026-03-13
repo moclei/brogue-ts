@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-13 (B38 animation fixed; B37–B45 filed; B32 unblocked; B25/B15 WAI; B31 fixed)
+**Status:** updated 2026-03-13 (B40 createFlare wired; B38 animation fixed; B37–B45 filed; B32 unblocked; B25/B15 WAI; B31 fixed)
 **Tests at last update:** 88 files · 2284 pass · 55 skip
 
 ---
@@ -619,10 +619,15 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   (already wired in `input-keystrokes.ts`) handles the actual rendering before next input.
   ⚠ Awaits playtest confirmation — could not find a seed with a staff/scroll handy to verify.
 
-- [ ] **B40 — `createFlare` stub — no light-flare effect** — `createFlare` is a no-op.
-  It creates a brief expanding light burst used for lightning bolt impacts, fire explosions,
-  and similar high-energy effects. Visual feedback that a bolt detonated.
-  C: `IO.c` (createFlare). TS: `items/zap-context.ts` (stub). **S**
+- [x] **B40 — `createFlare` stub — no light-flare effect** — Fixed 2026-03-13.
+  `createFlare` wired in `items.ts` and `tile-effects-wiring.ts` to real `createFlareFn`
+  (pushes to `rogue.flares`). `animateFlares` made async in `light/flares.ts`; wired in
+  `turn.ts` via `buildAnimateFlaresFn()` in `vision-wiring.ts` (full `LightingContext` +
+  `demoteVisibility` + `updateVision` callbacks with `commitDraws`/`pauseAndCheckForEvent`
+  per frame). `turn-processing.ts` fixed to check `rogue.flares.length` instead of missing
+  `rogue.flareCount` field. Flares now animate at turn-end for all item/bolt/fall effects.
+  C: `Light.c` (createFlare, animateFlares). TS: `light/flares.ts`, `items.ts`,
+  `tile-effects-wiring.ts`, `vision-wiring.ts`, `turn.ts`, `time/turn-processing.ts`. **S**
 
 - [ ] **B41 — `updateClairvoyance` stub — clairvoyance ring non-functional** —
   `updateClairvoyance` is a no-op in the item-handler context. The ring of clairvoyance

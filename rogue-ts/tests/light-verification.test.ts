@@ -382,7 +382,7 @@ describe("drawFlareFrame", () => {
 describe("animateFlares", () => {
     beforeEach(() => { seedRandomGenerator(1n); });
 
-    it("calls demoteVisibility and updateFieldOfViewDisplay each animation frame", () => {
+    it("calls demoteVisibility and updateFieldOfViewDisplay each animation frame", async () => {
         const flare = newFlare(zeroLight, 40, 15, -15, 0, 100);
         let demoteCount = 0;
         let updateFOVCount = 0;
@@ -393,14 +393,14 @@ describe("animateFlares", () => {
         };
 
         const ctx = makeMinimalCtx();
-        animateFlares([flare], ctx, callbacks);
+        await animateFlares([flare], ctx, callbacks);
 
         // Loop calls demoteVisibility once per frame + final updateFieldOfViewDisplay after loop
         expect(demoteCount).toBeGreaterThanOrEqual(1);
         expect(updateFOVCount).toBeGreaterThanOrEqual(2); // ≥1 loop iterations + 1 final call
     });
 
-    it("sets expired flares to null in the array", () => {
+    it("sets expired flares to null in the array", async () => {
         const flare = newFlare(zeroLight, 40, 15, -15, 0, 100);
         const flareArr: (typeof flare | null)[] = [flare];
         const callbacks: FlareAnimationCallbacks = {
@@ -410,13 +410,13 @@ describe("animateFlares", () => {
         };
 
         const ctx = makeMinimalCtx();
-        animateFlares(flareArr, ctx, callbacks);
+        await animateFlares(flareArr, ctx, callbacks);
 
         // All flares expired → entries set to null
         expect(flareArr[0]).toBeNull();
     });
 
-    it("fast-forward mode (trueColorMode) never calls pauseAnimation", () => {
+    it("fast-forward mode (trueColorMode) never calls pauseAnimation", async () => {
         const flare = newFlare(zeroLight, 40, 15, -15, 0, 100);
         let pauseCount = 0;
         const callbacks: FlareAnimationCallbacks = {
@@ -427,12 +427,12 @@ describe("animateFlares", () => {
 
         const ctx = makeMinimalCtx();
         (ctx.rogue as unknown as { trueColorMode: boolean }).trueColorMode = true;
-        animateFlares([flare], ctx, callbacks);
+        await animateFlares([flare], ctx, callbacks);
 
         expect(pauseCount).toBe(0);
     });
 
-    it("restores lighting to backup after each frame", () => {
+    it("restores lighting to backup after each frame", async () => {
         // Set a non-zero light value and verify it's restored after animation
         const flare = newFlare(zeroLight, 40, 15, -15, 0, 100);
         const callbacks: FlareAnimationCallbacks = {
@@ -446,7 +446,7 @@ describe("animateFlares", () => {
         ctx.tmap[5][5].light = [77, 88, 99];
         const backup = [77, 88, 99];
 
-        animateFlares([flare], ctx, callbacks);
+        await animateFlares([flare], ctx, callbacks);
 
         // After animation, tmap is restored to pre-animation state
         expect(ctx.tmap[5][5].light).toEqual(backup);

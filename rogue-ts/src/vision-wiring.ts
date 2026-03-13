@@ -51,6 +51,11 @@ import {
     getCellAppearance,
     refreshDungeonCell as refreshDungeonCellFn,
 } from "./io/cell-appearance.js";
+import {
+    animateFlares as animateFlaresFn,
+    type FlareAnimationCallbacks,
+} from "./light/flares.js";
+import { commitDraws as commitDrawsFn, pauseAndCheckForEvent } from "./platform.js";
 import { backgroundMessageColor, itemMessageColor } from "./globals/colors.js";
 import { ItemCategory, DungeonLayer } from "./types/enums.js";
 import { TileFlag } from "./types/flags.js";
@@ -268,5 +273,62 @@ export function buildUpdateVisionFn(): (refreshDisplay: boolean) => void {
         };
 
         updateVisionFn(refreshDisplay, safetyCtx);
+    };
+}
+
+// =============================================================================
+// buildAnimateFlaresFn
+// =============================================================================
+
+/**
+ * Returns an async closure that animates accumulated flares using the full
+ * lighting + display pipeline.
+ *
+ * Builds a LightingContext from live game state each call, then runs
+ * animateFlares with per-frame commitDraws + pauseAndCheckForEvent.
+ */
+export function buildAnimateFlaresFn(): (flares: any[], count: number) => Promise<void> {
+    return async (flares: any[]) => {
+        if (!flares || flares.length === 0) return;
+        const { pmap, tmap, rogue, player, monsters, dormantMonsters } = getGameState();
+        const fovCtx = {
+            cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
+            getCellFlags: (x: number, y: number) => pmap[x][y].flags,
+        };
+        const lightCtx: LightingContext = {
+            ...fovCtx,
+            tmap: tmap as ReturnType<typeof getGameState>["tmap"] & { [i: number]: { [j: number]: { light: number[] } } },
+            pmap,
+            displayDetail: displayDetail as number[][],
+            player,
+            rogue,
+            monsters,
+            dormantMonsters,
+            lightCatalog,
+            tileCatalog,
+            mutationCatalog,
+            monsterRevealed: (monst) => monsterRevealedFn(monst, player),
+        };
+        const updateVision = buildUpdateVisionFn();
+        const callbacks: FlareAnimationCallbacks = {
+            demoteVisibility: () => {
+                for (let i = 0; i < DCOLS; i++) for (let j = 0; j < DROWS; j++) {
+                    pmap[i][j].flags &= ~TileFlag.WAS_VISIBLE;
+                    if (pmap[i][j].flags & TileFlag.VISIBLE) {
+                        pmap[i][j].flags &= ~TileFlag.VISIBLE;
+                        pmap[i][j].flags |= TileFlag.WAS_VISIBLE;
+                    }
+                }
+            },
+            updateFieldOfViewDisplay: (_dancing, refresh) => {
+                if (!refresh) return;
+                try { updateVision(true); } catch { /* no-op in test context */ }
+            },
+            pauseAnimation: async (ms) => {
+                commitDrawsFn();
+                try { return await pauseAndCheckForEvent(ms); } catch { return false; }
+            },
+        };
+        await animateFlaresFn(flares, lightCtx, callbacks);
     };
 }

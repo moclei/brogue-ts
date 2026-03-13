@@ -64,7 +64,9 @@ import { randRange, randPercent, fillSequentialList as fillSequentialListFn, shu
 import { DCOLS, DROWS } from "./types/constants.js";
 import { TileFlag, ItemFlag } from "./types/flags.js";
 
-import { CreatureState, DungeonLayer } from "./types/enums.js";
+import { CreatureState, DungeonLayer, LightType } from "./types/enums.js";
+import { createFlare as createFlareFn } from "./light/flares.js";
+import { lightCatalog } from "./globals/light-catalog.js";
 import { INVALID_POS } from "./types/types.js";
 import type { Creature, Pos, Color } from "./types/types.js";
 import { wandTable, staffTable, ringTable, charmTable } from "./globals/item-catalog.js";
@@ -325,7 +327,7 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
             exposeTileToFireFn(x, y, alwaysIgnite, envCtx),
         startLevel: () => {},
         teleport: () => {},
-        createFlare: () => {},
+        createFlare: (x: number, y: number, lightType: number) => createFlareFn(x, y, lightType as LightType, rogue, lightCatalog),
         animateFlares: () => {},
         spawnPeriodicHorde: () => {},
         monstersFall: () => {},

@@ -161,7 +161,7 @@ export interface CreatureEffectsContext {
     startLevel(depth: number, stairDirection: number): void;
     teleport(monst: Creature, target: Pos, safe: boolean): void;
     createFlare(x: number, y: number, flareType: number): void;
-    animateFlares(flares: any[], count: number): void;
+    animateFlares(flares: any[], count: number): void | Promise<void>;
     spawnPeriodicHorde(): void;
     monstersFall(): void;
     updateFloorItems(): void;
