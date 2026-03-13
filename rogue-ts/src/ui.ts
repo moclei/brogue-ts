@@ -21,7 +21,7 @@
  */
 
 import { getGameState } from "./core.js";
-import { waitForEvent, commitDraws } from "./platform.js";
+import { waitForEvent, commitDraws, pauseAndCheckForEvent } from "./platform.js";
 import { buttonInputLoop as buttonInputLoopFn, drawButton as drawButtonFn, initializeButton as initializeButtonFn } from "./io/buttons.js";
 import { equip as equipFn, unequip as unequipFn, drop as dropFn, relabel as relabelFn } from "./io/inventory-actions.js";
 import { itemName as itemNameFn } from "./items/item-naming.js";
@@ -143,7 +143,7 @@ export interface MessageContext {
     waitForAcknowledgment(): void | Promise<void>;
     pauseBrogue(ms: number, behavior: PauseBehavior): Promise<boolean>;
     nextBrogueEvent(textInput: boolean, colorsDance: boolean, realInput: boolean): Promise<RogueEvent>;
-    flashTemporaryAlert(msg: string, ms: number): void;
+    flashTemporaryAlert(msg: string, ms: number): void | Promise<void>;
     updateFlavorText(): void;
     stripShiftFromMovementKeystroke(keystroke: number): number;
 }
@@ -304,7 +304,7 @@ export function buildMessageContext(): MessageContext {
         },
         pauseBrogue: async () => false,                       // stub — sync/async bridge (Phase 7)
         nextBrogueEvent: async () => fakeEvent(),             // stub — sync/async bridge (Phase 7)
-        flashTemporaryAlert: (msg: string, ms: number) => {
+        flashTemporaryAlert: async (msg: string, ms: number) => {
             const fCtx = {
                 rogue: { playbackFastForward: rogue.playbackFastForward },
                 displayBuffer,
@@ -313,9 +313,10 @@ export function buildMessageContext(): MessageContext {
                 applyColorAverage: applyColorAverageFn,
                 plotCharWithColor: (ch: number, pos: { windowX: number; windowY: number }, fg: Color, bg: Color) =>
                     plotCharWithColorFn(ch, pos, fg, bg, displayBuffer),
-                pauseBrogue: () => false,
+                commitDraws,
+                pauseBrogue: (milliseconds: number) => pauseAndCheckForEvent(milliseconds),
             } as unknown as EffectsContext;
-            flashTemporaryAlertFn(msg, ms, fCtx);
+            await flashTemporaryAlertFn(msg, ms, fCtx);
         },
         updateFlavorText: buildUpdateFlavorTextFn(),
         stripShiftFromMovementKeystroke: (k) => k,

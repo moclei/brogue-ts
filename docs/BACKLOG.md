@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-12 (B34 fixed; B35 B36 filed; B13 B30 updated; B36 fixed 2026-03-12; B35 fixed 2026-03-12; B27 fixed 2026-03-12; B28 fixed 2026-03-12; B32 deferred; B30 fixed 2026-03-12; B23 fixed 2026-03-12)
+**Status:** updated 2026-03-12 (B34 fixed; B35 B36 filed; B13 B30 updated; B36 fixed 2026-03-12; B35 fixed 2026-03-12; B27 fixed 2026-03-12; B28 fixed 2026-03-12; B32 deferred; B30 fixed 2026-03-12; B23 fixed 2026-03-12; B17 fixed 2026-03-12)
 **Tests at last update:** 88 files · 2284 pass · 55 skip
 
 ---
@@ -481,12 +481,16 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   TS: `menus/main-menu.ts` (`titleMenu` inner loop). **S**
   ⚠ Prioritised up to P2 by user request — fix soon.
 
-- [ ] **B17 — `flashMessage` animation non-functional** — `flashTemporaryAlert` is wired
-  but produces no visible flash because `EffectsContext.pauseBrogue` is synchronous while
-  the browser platform only has `async pauseBrogue`. The animation loop runs instantly with
-  no per-frame `commitDraws`, so only the final restored state is ever displayed.
-  Fix: make `flashMessage` and `EffectsContext.pauseBrogue` async; call `commitDraws()`
-  between animation frames. C: `IO.c` (flashMessage). TS: `io/effects-alerts.ts`, `ui.ts`. **M**
+- [x] **B17 — `flashMessage` animation non-functional** — Fixed 2026-03-12.
+  `EffectsContext.pauseBrogue` was synchronous (`boolean`); animation loop ran instantly
+  with no per-frame `commitDraws`, leaving only the restored state visible.
+  Fix: made `EffectsContext.pauseBrogue` return `boolean | Promise<boolean>`; made
+  `flashMessage`/`flashTemporaryAlert` async with `ctx.commitDraws()` + `await pauseBrogue`
+  per frame. Cascading async through `flashCreatureAlert`/`handleHealthAlerts` in
+  `creature-effects.ts`, updated interfaces in TurnProcessingContext and 4 other contexts.
+  `ui.ts` now uses `pauseAndCheckForEvent` for real async delay in flash animations.
+  C: `IO.c` (flashMessage). TS: `io/effects-alerts.ts`, `io/effects.ts`, `ui.ts`,
+  `time/creature-effects.ts`, `time/turn-processing.ts`, + 5 interface files. **M**
 
 - [ ] **B14 — No message when exploration complete** — When auto-explore has nowhere
   left to go (whole map explored, or path unreachable), no message appears. In C a

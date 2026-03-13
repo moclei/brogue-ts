@@ -146,7 +146,7 @@ export interface TurnProcessingContext {
     refreshSideBar(x: number, y: number, forceFullUpdate: boolean): void;
     gameOver(message: string, showScore: boolean): void;
     confirm(message: string, isDangerous: boolean): boolean;
-    flashMessage(msg: string, x: number, y: number, duration: number, foreColor: Color, backColor: Color): void;
+    flashMessage(msg: string, x: number, y: number, duration: number, foreColor: Color, backColor: Color): void | Promise<void>;
     recordKeystroke(key: number, shift: boolean, alt: boolean): void;
     confirmMessages(): void;
     pauseAnimation(duration: number, behavior: any): boolean;
@@ -195,7 +195,7 @@ export interface TurnProcessingContext {
     monstersFall(): void;
     decrementPlayerStatus(): void;
     playerFalls(): void;
-    handleHealthAlerts(): void;
+    handleHealthAlerts(): void | Promise<void>;
     updateScent(): void;
     currentStealthRange(): number;
 
@@ -440,7 +440,7 @@ export async function playerTurnEnded(
     if (ctx.player.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_FALLING) {
         ctx.playerFalls();
         if (!ctx.rogue.gameHasEnded) {
-            ctx.handleHealthAlerts();
+            await ctx.handleHealthAlerts();
         }
         return;
     }
@@ -806,7 +806,7 @@ export async function playerTurnEnded(
 
         if (ctx.player.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_FALLING) {
             ctx.playerFalls();
-            ctx.handleHealthAlerts();
+            await ctx.handleHealthAlerts();
             return;
         }
     } while (ctx.player.status[StatusEffect.Paralyzed]);
@@ -853,7 +853,7 @@ export async function playerTurnEnded(
     ctx.removeDeadMonsters();
     ctx.rogue.playbackBetweenTurns = true;
     ctx.RNGCheck();
-    ctx.handleHealthAlerts();
+    await ctx.handleHealthAlerts();
 
     if (ctx.rogue.flareCount > 0) {
         ctx.animateFlares(ctx.rogue.flares, ctx.rogue.flareCount);

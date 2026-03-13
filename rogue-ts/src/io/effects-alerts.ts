@@ -47,7 +47,7 @@ export function displayCenteredAlert(
  *
  * C: `flashMessage` in IO.c
  */
-export function flashMessage(
+export async function flashMessage(
     message: string,
     x: number,
     y: number,
@@ -55,7 +55,7 @@ export function flashMessage(
     fColor: Readonly<Color>,
     bColor: Readonly<Color>,
     ctx: EffectsContext,
-): void {
+): Promise<void> {
     if (ctx.rogue.playbackFastForward) return;
 
     const messageLength = ctx.strLenWithoutEscapes(message);
@@ -111,7 +111,8 @@ export function flashMessage(
             }
         }
         previousPercentComplete = percentComplete;
-        fastForward = ctx.pauseBrogue(stepInMs);
+        ctx.commitDraws();
+        fastForward = await ctx.pauseBrogue(stepInMs);
     }
 
     // Restore original appearance
@@ -130,12 +131,12 @@ export function flashMessage(
  *
  * C: `flashTemporaryAlert` in IO.c
  */
-export function flashTemporaryAlert(
+export async function flashTemporaryAlert(
     message: string,
     time: number,
     ctx: EffectsContext,
-): void {
-    flashMessage(
+): Promise<void> {
+    await flashMessage(
         message,
         Math.trunc((COLS - ctx.strLenWithoutEscapes(message)) / 2),
         Math.trunc(ROWS / 2),

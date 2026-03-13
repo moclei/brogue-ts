@@ -130,7 +130,7 @@ export interface CreatureEffectsContext {
     flavorMessage(msg: string): void;
     refreshDungeonCell(loc: Pos): void;
     gameOver(message: string, showScore: boolean): void;
-    flashMessage(msg: string, x: number, y: number, duration: number, foreColor: Color, backColor: Color): void;
+    flashMessage(msg: string, x: number, y: number, duration: number, foreColor: Color, backColor: Color): void | Promise<void>;
     confirmMessages(): void;
     displayLevel(): void;
 
@@ -449,13 +449,13 @@ export function currentStealthRange(
 // flashCreatureAlert / handleHealthAlerts — from Time.c:867 / 883
 // =============================================================================
 
-function flashCreatureAlert(
+async function flashCreatureAlert(
     monst: Creature,
     msg: string,
     foreColor: Color,
     backColor: Color,
     ctx: CreatureEffectsContext,
-): void {
+): Promise<void> {
     let y: number;
     if (monst.loc.y > ctx.DROWS / 2) {
         y = ctx.mapToWindowY(monst.loc.y - 2);
@@ -467,12 +467,12 @@ function flashCreatureAlert(
     if (x > ctx.COLS - msgLen) {
         x = ctx.COLS - msgLen;
     }
-    ctx.flashMessage(msg, x, y, ctx.rogue.playbackMode ? 100 : 1000, foreColor, backColor);
+    await ctx.flashMessage(msg, x, y, ctx.rogue.playbackMode ? 100 : 1000, foreColor, backColor);
     ctx.rogue.disturbed = true;
     ctx.rogue.autoPlayingLevel = false;
 }
 
-export function handleHealthAlerts(ctx: CreatureEffectsContext): void {
+export async function handleHealthAlerts(ctx: CreatureEffectsContext): Promise<void> {
     const healthThresholds = [5, 10, 25, 40];
     const poisonThresholds = [100, 90, 50];
 
@@ -484,7 +484,7 @@ export function handleHealthAlerts(ctx: CreatureEffectsContext): void {
     if (currentPercent < previousPercent && !ctx.rogue.gameHasEnded) {
         for (const threshold of healthThresholds) {
             if (currentPercent < threshold && previousPercent >= threshold) {
-                flashCreatureAlert(ctx.player, ` <${threshold}% health `, ctx.badMessageColor, ctx.darkRed, ctx);
+                await flashCreatureAlert(ctx.player, ` <${threshold}% health `, ctx.badMessageColor, ctx.darkRed, ctx);
                 break;
             }
         }
@@ -498,7 +498,7 @@ export function handleHealthAlerts(ctx: CreatureEffectsContext): void {
             for (const threshold of poisonThresholds) {
                 if (poisonPercent > threshold && ctx.rogue.previousPoisonPercent <= threshold) {
                     const msg = poisonPercent < 100 ? ` >${threshold}% poisoned ` : ` Fatally poisoned `;
-                    flashCreatureAlert(ctx.player, msg, ctx.yellow, ctx.darkGreen, ctx);
+                    await flashCreatureAlert(ctx.player, msg, ctx.yellow, ctx.darkGreen, ctx);
                     break;
                 }
             }

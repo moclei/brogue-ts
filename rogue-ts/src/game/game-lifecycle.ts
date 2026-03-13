@@ -133,7 +133,7 @@ export interface LifecycleContext {
     deleteMessages(): void;
     displayMoreSign(): void;
     displayMoreSignWithoutWaitingForAcknowledgment(): void;
-    flashTemporaryAlert(msg: string, time: number): void;
+    flashTemporaryAlert(msg: string, time: number): void | Promise<void>;
     confirm(prompt: string, alsoDuringPlayback: boolean): boolean;
 
     // -- Input ----------------------------------------------------------------

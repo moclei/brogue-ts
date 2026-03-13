@@ -147,7 +147,7 @@ export interface InputContext {
     printHelpScreen(): void | Promise<void>;
     displayFeatsScreen(): void | Promise<void>;
     printDiscoveriesScreen(): void | Promise<void>;
-    flashTemporaryAlert(msg: string, time: number): void;
+    flashTemporaryAlert(msg: string, time: number): void | Promise<void>;
     displayMonsterFlashes(flashAll: boolean): void;
     setGraphicsMode(mode: number): number;
 
