@@ -27,7 +27,6 @@ import {
     travelRoute as travelRouteFn,
     useStairs as useStairsFn,
     proposeOrConfirmLocation as proposeOrConfirmLocationFn,
-    explore as exploreFn,
     autoPlayLevel as autoPlayLevelFn,
 } from "../movement/travel-explore.js";
 import { apply as applyFn } from "../items/item-handlers.js";
@@ -98,6 +97,7 @@ import { equip as equipFn, unequip as unequipFn, drop as dropFn, relabel as rela
 import { buildButtonContext, buildInventoryContext, buildMessageContext } from "../ui.js";
 import { displayInventory as displayInventoryFn } from "./inventory-display.js";
 import { buildThrowCommandFn, buildCallCommandFn } from "../items/item-commands.js";
+import { exploreKey as exploreKeyFn } from "./explore-wiring.js";
 import { TURNS_FOR_FULL_REGEN, REST_KEY, SEARCH_KEY, DCOLS, DROWS } from "../types/constants.js";
 import { moveCursor as moveCursorFn, nextTargetAfter as nextTargetAfterFn } from "./cursor-move.js";
 import { commitDraws, waitForEvent } from "../platform.js";
@@ -474,7 +474,7 @@ export function buildInputContext(): InputContext {
         printSeed: () => { buildMessageFns().message(`Seed: ${rogue.seed}`, 0); },
         showCursor: () => {},                       // stub — cursor display (Phase 5)
         hideCursor: () => {},                       // stub — cursor display (Phase 5)
-        exploreKey: async (ctrl) => { await exploreFn(ctrl ? 1 : 50, travelCtx()); },
+        exploreKey: (ctrl) => exploreKeyFn(ctrl, travelCtx(), io.message, rogue, player.loc),
         autoPlayLevel: async (ctrl) => { await autoPlayLevelFn(ctrl, travelCtx()); },
         takeScreenshot: () => false,                // stub — screenshot not yet ported
         dialogCreateItemOrMonster: () => {},        // stub — debug only

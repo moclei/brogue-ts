@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-12 (B34 fixed; B35 B36 filed; B13 B30 updated; B36 fixed 2026-03-12; B35 fixed 2026-03-12; B27 fixed 2026-03-12; B28 fixed 2026-03-12; B32 deferred; B30 fixed 2026-03-12; B23 fixed 2026-03-12; B17 fixed 2026-03-12)
+**Status:** updated 2026-03-12 (B34 fixed; B35 B36 filed; B13 B30 updated; B36 fixed 2026-03-12; B35 fixed 2026-03-12; B27 fixed 2026-03-12; B28 fixed 2026-03-12; B32 deferred; B30 fixed 2026-03-12; B23 fixed 2026-03-12; B17 fixed 2026-03-12; B14 fixed 2026-03-12)
 **Tests at last update:** 88 files · 2284 pass · 55 skip
 
 ---
@@ -492,10 +492,12 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `IO.c` (flashMessage). TS: `io/effects-alerts.ts`, `io/effects.ts`, `ui.ts`,
   `time/creature-effects.ts`, `time/turn-processing.ts`, + 5 interface files. **M**
 
-- [ ] **B14 — No message when exploration complete** — When auto-explore has nowhere
+- [x] **B14 — No message when exploration complete** — When auto-explore has nowhere
   left to go (whole map explored, or path unreachable), no message appears. In C a
   message like "Nowhere left to explore." or "Exploration interrupted." is shown.
   C: `Movement.c` or `RogueMain.c` (autoTravel / explore path). TS: `movement/travel-explore.ts`. **S**
+  Fix: extracted `exploreKey()` to `io/explore-wiring.ts`; after `explore()` returns, runs
+  `getExploreMap` + `nextStep` — shows "I see no path for further exploration." if no direction found.
 
 ### Needs investigation (not yet classified)
 
