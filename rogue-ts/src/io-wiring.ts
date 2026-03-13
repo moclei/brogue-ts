@@ -531,17 +531,7 @@ export function buildDisplayLevelFn(): () => void {
     return () => displayLevelFn(DCOLS, DROWS, (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer));
 }
 
-// =============================================================================
-// buildUpdateFlavorTextFn
-// =============================================================================
-
-/**
- * Returns a `() => void` closure that calls updateFlavorText() with the current
- * game state. Renders the tile-flavor line at the bottom of the screen when
- * rogue.disturbed is true.
- *
- * C: updateFlavorText() in Time.c
- */
+/** C: updateFlavorText() in Time.c */
 export function buildUpdateFlavorTextFn(): () => void {
     return () => {
         const { pmap, player, rogue, displayBuffer, floorItems } = getGameState();
@@ -574,26 +564,36 @@ export function buildUpdateFlavorTextFn(): () => void {
     };
 }
 
-/** Returns a colorFlash closure: hilites radius, commits, pauses, restores. C: IO.c:2058. */
+/** Returns colorFlash closure — expanding radius animation. C: IO.c:2058. */
 export function buildColorFlashFn(): (
     color: Color, flags: number, tileFlags: number,
     frames: number, maxRadius: number, x: number, y: number,
 ) => Promise<void> {
     const hiliteFn = buildHiliteCellFn();
-    const refreshFn = buildRefreshDungeonCellFn();
-    return async (color, _flags, _tileFlags, _frames, maxRadius, x, y) => {
-        const cells: Pos[] = [];
-        const r2 = maxRadius * maxRadius;
+    return async (color, _flags, tileFlags, frames, maxRadius, x, y) => {
+        const { pmap } = getGameState();
+        type Cell = { i: number; j: number; r: number };
+        const cells: Cell[] = [];
         for (let i = Math.max(x - maxRadius, 0); i <= Math.min(x + maxRadius, DCOLS - 1); i++) {
             for (let j = Math.max(y - maxRadius, 0); j <= Math.min(y + maxRadius, DROWS - 1); j++) {
-                if ((i - x) * (i - x) + (j - y) * (j - y) <= r2) {
-                    hiliteFn(i, j, color, 60, false);
-                    cells.push({ x: i, y: j });
-                }
+                const d2 = (i - x) * (i - x) + (j - y) * (j - y);
+                if (d2 <= maxRadius * maxRadius && (!tileFlags || (pmap[i][j].flags & tileFlags)))
+                    cells.push({ i, j, r: Math.sqrt(d2) });
             }
         }
-        commitDrawsFn();
-        await pauseAndCheckForEvent(50);
-        for (const pos of cells) refreshFn(pos);
+        if (!cells.length) return;
+        let ff = false;
+        for (let k = 1; k <= frames; k++) {
+            const curR = Math.max(1, Math.trunc(maxRadius * k / frames));
+            const fadeOut = Math.min(100, Math.trunc((frames - k) * 500 / frames));
+            for (const { i, j, r } of cells) {
+                if (r <= curR) {
+                    const raw = 100 - Math.trunc(100 * (curR - r - 2) / curR);
+                    hiliteFn(i, j, color, Math.trunc(fadeOut * raw / 100), false);
+                }
+            }
+            commitDrawsFn();
+            if (!ff && await pauseAndCheckForEvent(50)) { k = frames - 1; ff = true; }
+        }
     };
 }

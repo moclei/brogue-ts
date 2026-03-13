@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-13 (B38 fixed; B37–B45 filed; B32 unblocked; B25/B15 WAI; B31 fixed)
+**Status:** updated 2026-03-13 (B38 animation fixed; B37–B45 filed; B32 unblocked; B25/B15 WAI; B31 fixed)
 **Tests at last update:** 88 files · 2284 pass · 55 skip
 
 ---
@@ -594,6 +594,12 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   Also fixed seeded game freeze: `getInputTextString` was sync, spinning on `nextKeyPress`
   → fake event → infinite loop. Made async using `ctx.nextBrogueEvent` (added to `InputContext`,
   wired in `input-context.ts`). Filed as **B47** below.
+  Fix (part 3): Replaced single-frame implementation with proper multi-frame expanding-radius
+  animation matching C IO.c:2086–2104: pre-computes qualifying cells + distances, loops k=1..frames
+  computing `curR = max(1, maxRadius*k/frames)`, `fadeOut = min(100, (frames-k)*500/frames)`,
+  intensity per-cell, commits+pauses 50ms per frame. Fast-forward on input interrupt. Respects
+  `tileFlags` filter (e.g. MAGIC_MAPPED) via `pmap[i][j].flags`. Last frame fadeOut=0 restores
+  cells naturally (hiliteCell intensity=0 = original appearance).
 
 - [ ] **B39 — `flashMonster` stub — no creature flash on hit or status** — `flashMonster`
   is a no-op in all contexts. It briefly changes a creature's display color to give visual
