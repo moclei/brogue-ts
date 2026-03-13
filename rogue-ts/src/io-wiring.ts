@@ -106,18 +106,9 @@ import {
     promptForItemOfType as promptForItemOfTypeFn,
     type PromptItemContext,
 } from "./io/inventory-display.js";
+import { commitDraws as commitDrawsFn, pauseAndCheckForEvent } from "./platform.js";
 
-// =============================================================================
-// buildGetCellAppearanceFn
-// =============================================================================
-
-/**
- * Returns a `(loc: Pos) => { glyph, foreColor, backColor }` closure using
- * the full getCellAppearance pipeline.
- *
- * Used by context builders that need cell appearance for highlighting
- * (e.g. hiliteCell in the travel context).
- */
+/** Returns a getCellAppearance closure using the full pipeline. */
 export function buildGetCellAppearanceFn(): (loc: Pos) => { glyph: DisplayGlyph; foreColor: Color; backColor: Color } {
     const {
         pmap, tmap, rogue, player, monsters, dormantMonsters,
@@ -132,17 +123,7 @@ export function buildGetCellAppearanceFn(): (loc: Pos) => { glyph: DisplayGlyph;
     );
 }
 
-// =============================================================================
-// buildRefreshDungeonCellFn
-// =============================================================================
-
-/**
- * Returns a `(loc: Pos) => void` closure that redraws the dungeon cell
- * at `loc` using the full getCellAppearance pipeline.
- *
- * Call once per context-builder invocation; the closure captures live
- * game-state references so it reflects the current level state.
- */
+/** Returns a refreshDungeonCell closure. */
 export function buildRefreshDungeonCellFn(): (loc: Pos) => void {
     const getCellApp = buildGetCellAppearanceFn();
     const { displayBuffer } = getGameState();
@@ -590,5 +571,29 @@ export function buildUpdateFlavorTextFn(): () => void {
             tileFlavor: (x: number, y: number) =>
                 tileFlavorFn(pmap, x, y, (pm, px, py, sg) => highestPriorityLayerFn(pm, px, py, sg)),
         } as unknown as CreatureEffectsContext);
+    };
+}
+
+/** Returns a colorFlash closure: hilites radius, commits, pauses, restores. C: IO.c:2058. */
+export function buildColorFlashFn(): (
+    color: Color, flags: number, tileFlags: number,
+    frames: number, maxRadius: number, x: number, y: number,
+) => Promise<void> {
+    const hiliteFn = buildHiliteCellFn();
+    const refreshFn = buildRefreshDungeonCellFn();
+    return async (color, _flags, _tileFlags, _frames, maxRadius, x, y) => {
+        const cells: Pos[] = [];
+        const r2 = maxRadius * maxRadius;
+        for (let i = Math.max(x - maxRadius, 0); i <= Math.min(x + maxRadius, DCOLS - 1); i++) {
+            for (let j = Math.max(y - maxRadius, 0); j <= Math.min(y + maxRadius, DROWS - 1); j++) {
+                if ((i - x) * (i - x) + (j - y) * (j - y) <= r2) {
+                    hiliteFn(i, j, color, 60, false);
+                    cells.push({ x: i, y: j });
+                }
+            }
+        }
+        commitDrawsFn();
+        await pauseAndCheckForEvent(50);
+        for (const pos of cells) refreshFn(pos);
     };
 }

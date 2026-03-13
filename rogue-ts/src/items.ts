@@ -122,7 +122,7 @@ import {
     buildStaffZapFn,
 } from "./items/staff-wiring.js";
 import type { ItemTable, Creature, Pos } from "./types/types.js";
-import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn, buildExposeCreatureToFireFn, buildPromptForItemOfTypeFn, buildConfirmFn, buildDisplayLevelFn } from "./io-wiring.js";
+import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn, buildExposeCreatureToFireFn, buildPromptForItemOfTypeFn, buildConfirmFn, buildDisplayLevelFn, buildColorFlashFn } from "./io-wiring.js";
 import { buildResolvePronounEscapesFn } from "./io/text.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
 
@@ -399,7 +399,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 currentStealthRange: () => rogue.stealthRange, // was hardcoded 14; use live value
                 discover: () => {},             // permanent-defer — needs full MapQueryContext (wired in lifecycle)
                 discoverCell: () => {},         // permanent-defer — requires CreatureEffectsContext
-                colorFlash: () => {},           // permanent-defer — visual flash effect only
+                colorFlash: buildColorFlashFn(),
                 playerCanSee: (px, py) => !!(pmap[px]?.[py]?.flags & TileFlag.VISIBLE),
                 message: io.message,
             });
@@ -462,7 +462,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 killCreature: (monst, admin) => killCreatureFn(monst, admin, combatCtx),
                 freeCaptivesEmbeddedAt: (x, y) => freeCaptivesEmbeddedAtFn(x, y, allyCtx),
                 updateVision: () => {},         // permanent-defer — visual update (wired in turn/lifecycle contexts)
-                colorFlash: () => {},           // permanent-defer — visual flash effect only
+                colorFlash: buildColorFlashFn(),
                 displayLevel: buildDisplayLevelFn(),
                 refreshSideBar,
                 forceFieldColor,
@@ -482,7 +482,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 pmap,
                 itemMessageColor,
                 negate: (m) => negateCreature(m, negateCtx),
-                colorFlash: () => {},        // permanent-defer — visual flash effect only
+                colorFlash: buildColorFlashFn(),
                 flashMonster: () => {},      // permanent-defer — visual flash effect only
                 canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
                 messageWithColor: io.messageWithColor,
@@ -505,15 +505,15 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 pmap,
                 itemMessageColor,
                 canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
-                colorFlash: () => {},        // permanent-defer — visual flash effect only
+                colorFlash: buildColorFlashFn(),
                 flashMonster: () => {},      // permanent-defer — visual flash effect only
                 messageWithColor: io.messageWithColor,
                 IN_FIELD_OF_VIEW: TileFlag.IN_FIELD_OF_VIEW,
             });
         },
 
-        // ── Visual effects stubs ────────────────────────────────────────────
-        colorFlash: () => {},                // permanent-defer — visual flash effect only
+        // ── Visual effects ───────────────────────────────────────────────────
+        colorFlash: buildColorFlashFn(),
         createFlare: () => {},               // permanent-defer — visual flare effect only
         displayLevel: buildDisplayLevelFn(),
 
