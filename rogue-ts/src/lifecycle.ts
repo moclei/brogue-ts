@@ -493,7 +493,7 @@ export function buildLevelContext(): LevelContext {
             const r = setUpWaypoints(pmap, costMapWrap, getFOVMaskWrap, monsters);
             rogue.wpDistance = r.wpDistance;
         },
-        shuffleTerrainColors: (pct, reset) => shuffleTerrainColorsFn(pct, reset),
+        shuffleTerrainColors: (pct, reset) => shuffleTerrainColorsFn(pct, reset, pmap),
         numberOfMatchingPackItems: (cat, flags, flags2, _useFlags) =>
             numberOfMatchingPackItems(packItems, cat, flags, flags2),
         itemAtLoc: (loc) => itemAtLocFn(loc, floorItems),

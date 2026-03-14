@@ -29,6 +29,7 @@ import { buildInputContext } from "./io/input-context.js";
 import { executeKeystroke } from "./io/input-dispatch.js";
 import { createScreenDisplayBuffer } from "./io/display.js";
 import { registerPauseAndCheckForEvent, registerPauseIgnoringHover } from "./platform-bridge.js";
+import { shuffleTerrainColors } from "./render-state.js";
 import {
     buildGameMenuButtonState,
     drawGameMenuButtons,
@@ -371,15 +372,25 @@ async function handleKeystroke(event: RogueEvent): Promise<void> {
  */
 export async function mainGameLoop(): Promise<void> {
     console.log("[mainGameLoop] started");
-    const { rogue } = getGameState();
+    const { rogue, pmap } = getGameState();
     _menuState = buildGameMenuButtonState(rogue.playbackMode);
     _hoverHandler = buildHoverHandlerFn();
     _clearHoverPath = buildClearHoverPathFn();
     while (!rogue.gameHasEnded) {
-        const event = await waitForEvent();
-        await processEvent(event);
-        drawGameMenuButtons(_menuState);
-        commitDraws();
+        // Defect 3 fix: idle animation loop — animate dancing terrain between inputs.
+        // C: mainInputLoop calls displayLevel/refreshDungeonCell on a ~25ms timer.
+        const interrupted = await pauseAndCheckForEvent(25);
+        if (!interrupted) {
+            shuffleTerrainColors(35, false, pmap);
+            buildInputContext().displayLevel();
+            drawGameMenuButtons(_menuState);
+            commitDraws();
+        } else {
+            const event = await waitForEvent();
+            await processEvent(event);
+            drawGameMenuButtons(_menuState);
+            commitDraws();
+        }
     }
     _menuState = null;
     _hoverHandler = null;
