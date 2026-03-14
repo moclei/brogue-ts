@@ -99,6 +99,21 @@ The C codebase is ~49K lines, split across three layers:
 
 ---
 
+## CodeQL-first protocol
+
+We have indexed our C and Typescript codebases with CodeQL and made them available to you via an MCP server. 
+
+This is meant to save context window usage by allowing you to investigate the flow of data through the codebase without having to over-use grep or read entire files. 
+
+Full instructions and link to a query reference are in `codeql/CONTEXT.md`. 
+
+Consider using it as a first step, if the task calls for it.
+
+When NOT to use CodeQL: single-file reads, string pattern searches (use Grep), file
+name lookups (use Glob).
+
+---
+
 ## Principles
 
 1. **Fidelity first.** The port should produce gameplay indistinguishable from the C version.

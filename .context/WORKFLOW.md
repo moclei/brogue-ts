@@ -168,40 +168,6 @@ integrated with, data models, etc. Organize with subheadings as needed.
 
 ---
 
-## CodeQL-first investigation protocol
-
-Before reading any file during bug investigation or cross-language tracing:
-
-1. **Find definition** — use `codeql_run_query_file` with `c/find-definition.ql` or
-   `ts/find-definition.ql` to get the exact file and line. Don't assume from the name.
-2. **Get callers** — run `find-callers.ql` to see all call sites.
-3. **Get callees** — run `find-callees.ql` to understand dependencies.
-4. **Read targeted** — read only the specific functions identified. Not entire files.
-
-Quick reference:
-
-```
-# MCP tools available in Claude Code:
-codeql_list_databases        → list available databases (brogue-c, rogue-ts)
-codeql_run_query_file        → run a committed .ql file
-codeql_run_query_text        → run inline QL (substitute function name directly)
-
-# Query files (edit funcName() or substitute inline):
-codeql/queries/c/find-definition.ql   → C function definition
-codeql/queries/c/find-callers.ql      → C callers
-codeql/queries/c/find-callees.ql      → C callees
-codeql/queries/ts/find-definition.ql  → TS function definition
-codeql/queries/ts/find-callers.ql     → TS callers
-codeql/queries/ts/find-callees.ql     → TS callees
-```
-
-Full instructions: `codeql/CONTEXT.md`
-
-When NOT to use CodeQL: single-file reads, string pattern searches (use Grep), file
-name lookups (use Glob).
-
----
-
 ## AI Agent Instructions
 
 **Starting a session:**
