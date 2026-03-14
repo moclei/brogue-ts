@@ -121,7 +121,7 @@ export interface PlayerMoveContext {
     layerWithFlag(x: number, y: number, flag: number): number;
 
     // ── Combat ──
-    handleWhipAttacks(monst: Creature, direction: number, specialAttackAborted: { value: boolean }): boolean;
+    handleWhipAttacks(monst: Creature, direction: number, specialAttackAborted: { value: boolean }): Promise<boolean>;
     handleSpearAttacks(monst: Creature, direction: number, specialAttackAborted: { value: boolean }): boolean;
     buildFlailHitList(x1: number, y1: number, x2: number, y2: number, hitList: (Creature | null)[]): void;
     buildHitList(hitList: (Creature | null)[], attacker: Creature, defender: Creature, allAdjacent: boolean): void;
@@ -463,8 +463,9 @@ export async function playerMoves(
     if (moveNotBlocked) {
         // ── Whip / Spear attacks ──
         const specialAttackAborted = { value: false };
+        const whipHit = await ctx.handleWhipAttacks(player, direction, specialAttackAborted);
         if (
-            ctx.handleWhipAttacks(player, direction, specialAttackAborted) ||
+            whipHit ||
             ctx.handleSpearAttacks(player, direction, specialAttackAborted)
         ) {
             committed = true;

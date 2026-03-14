@@ -28,7 +28,7 @@ import { COLS, ROWS } from "./types/constants.js";
 import { buildInputContext } from "./io/input-context.js";
 import { executeKeystroke } from "./io/input-dispatch.js";
 import { createScreenDisplayBuffer } from "./io/display.js";
-import { registerPauseAndCheckForEvent } from "./platform-bridge.js";
+import { registerPauseAndCheckForEvent, registerPauseIgnoringHover } from "./platform-bridge.js";
 import {
     buildGameMenuButtonState,
     drawGameMenuButtons,
@@ -93,6 +93,7 @@ export function initPlatform(browserConsole: PlatformConsole & { plotChar?: Plot
     _plotChar = browserConsole.plotChar ?? null;
     _prevBuffer = createScreenDisplayBuffer();
     registerPauseAndCheckForEvent(pauseAndCheckForEvent);
+    registerPauseIgnoringHover(pauseAndCheckForEventIgnoringHover);
 }
 
 // =============================================================================
@@ -137,6 +138,49 @@ export async function pauseAndCheckForEvent(ms: number): Promise<boolean> {
     });
 
     return Promise.race([timeoutP, eventP]);
+}
+
+/**
+ * Returns true if `ev` should interrupt travel (keystroke or mouse-button press).
+ * MouseUp, RightMouseUp, and MouseEnteredCell do not interrupt travel.
+ * C: pauseAnimation(ms, PAUSE_BEHAVIOR_DEFAULT) — only real input stops travel.
+ */
+function isTravelInterrupt(ev: RogueEvent): boolean {
+    // C PAUSE_BEHAVIOR_DEFAULT: any event except MouseEnteredCell (hover) interrupts.
+    // Travel now fires on MouseUp (matching C's executeEvent), so the triggering
+    // MouseUp is consumed before travelMap starts — the queue is clean on entry.
+    return ev.eventType !== EventType.MouseEnteredCell;
+}
+
+/**
+ * Like pauseAndCheckForEvent, but only returns true for real user input
+ * (keystrokes, mouse-button presses). MouseUp, RightMouseUp, and
+ * MouseEnteredCell events are silently discarded.
+ * C: pauseAnimation(ms, PAUSE_BEHAVIOR_DEFAULT) — mouse-move and mouse-up
+ * do not interrupt travel or animations.
+ */
+export async function pauseAndCheckForEventIgnoringHover(ms: number): Promise<boolean> {
+    if (!_console) throw new Error("Platform not initialized — call initPlatform() first");
+
+    // Drain any pending non-interrupting lookahead without counting it.
+    if (_lookaheadEvent !== null) {
+        if (isTravelInterrupt(_lookaheadEvent)) return true;
+        _lookaheadEvent = null;
+    }
+
+    const deadline = Date.now() + ms;
+    let remaining = ms;
+    while (remaining > 0) {
+        const interrupted = await pauseAndCheckForEvent(remaining);
+        if (!interrupted) return false;
+        // Re-read after await — cast to escape TypeScript's stale narrowing.
+        const ev = _lookaheadEvent as RogueEvent | null;
+        if (ev !== null && isTravelInterrupt(ev)) return true;
+        // Non-interrupting event (hover, mouse-up) — discard and continue.
+        _lookaheadEvent = null;
+        remaining = deadline - Date.now();
+    }
+    return false;
 }
 
 // =============================================================================
@@ -225,7 +269,7 @@ export async function processEvent(event: RogueEvent): Promise<void> {
             await handleKeystroke(event);
             break;
 
-        case EventType.MouseDown:
+        case EventType.MouseUp:
             await handleLeftClick(event.param1, event.param2);
             break;
 

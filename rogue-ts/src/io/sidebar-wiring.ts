@@ -285,7 +285,8 @@ export function buildRefreshSideBarWithFocusFn(): (x: number, y: number, justCle
  */
 export function buildPrintLocationDescriptionFn(): (x: number, y: number) => void {
     return (x: number, y: number) => {
-        const { pmap, player, rogue, floorItems, monsters, displayBuffer } = getGameState();
+        const { pmap, player, rogue, floorItems, monsters, displayBuffer,
+            mutableScrollTable, mutablePotionTable } = getGameState();
         const plotChar = (ch: number, pos: { windowX: number; windowY: number }, fg: Readonly<Color>, bg: Readonly<Color>) =>
             plotCharWithColorFn(ch as DisplayGlyph, pos, fg, bg, displayBuffer);
         const msgCtx = { displayBuffer, plotCharWithColor: plotChar } as unknown as SyncMessageContext;
@@ -332,8 +333,8 @@ export function buildPrintLocationDescriptionFn(): (x: number, y: number) => voi
             monsterCanSubmergeNow: () => false,
             describedItemName: (item: import("../types/types.js").Item, maxLen: number) =>
                 itemNameFn(item, false, false,
-                { gameConstants: {}, depthLevel: rogue.depthLevel, potionTable: [], scrollTable: [],
-                  wandTable: [], staffTable: [], ringTable: [], charmTable: [], charmEffectTable: [],
+                { gameConstants: {}, depthLevel: rogue.depthLevel, potionTable: mutablePotionTable, scrollTable: mutableScrollTable,
+                  wandTable, staffTable, ringTable, charmTable, charmEffectTable,
                   playbackOmniscience: rogue.playbackOmniscience,
                   monsterClassName: () => "creature" } as never).slice(0, maxLen),
             describedItemBasedOnParameters: () => "an item",

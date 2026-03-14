@@ -174,7 +174,7 @@ export interface TurnProcessingContext {
     shuffleTerrainColors(duration: number, b: boolean): void;
     resetDFMessageEligibility(): void;
     RNGCheck(): void;
-    animateFlares(flares: any[], count: number): void;
+    animateFlares(flares: any[], count: number): void | Promise<void>;
 
     // Scent/FOV
     addScentToCell(x: number, y: number, distance: number): void;
@@ -855,8 +855,8 @@ export async function playerTurnEnded(
     ctx.RNGCheck();
     await ctx.handleHealthAlerts();
 
-    if (ctx.rogue.flareCount > 0) {
-        ctx.animateFlares(ctx.rogue.flares, ctx.rogue.flareCount);
-        ctx.rogue.flareCount = 0;
+    if (ctx.rogue.flares.length > 0) {
+        await ctx.animateFlares(ctx.rogue.flares, ctx.rogue.flares.length);
+        ctx.rogue.flares.length = 0;
     }
 }

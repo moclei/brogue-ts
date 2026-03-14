@@ -37,6 +37,7 @@ import { CreatureState, DisplayGlyph } from "./types/enums.js";
 import type { WeaponAttackContext, BoltInfo } from "./movement/weapon-attacks.js";
 import type { Creature, Pos, Color, Bolt } from "./types/types.js";
 import { getImpactLoc as getImpactLocFn } from "./items/bolt-geometry.js";
+import { buildStaffZapFn } from "./items/staff-wiring.js";
 
 // =============================================================================
 // Private helpers
@@ -130,7 +131,8 @@ export function buildWeaponAttackContext(): WeaponAttackContext {
                 creatureBlocks, cellBlocks,
             );
         },
-        zap: () => {},                       // permanent-defer — zap is the keystone bolt function (port-v2-persistence)
+        zap: (origin, target, bolt, hideDetails, boltInView) =>
+            buildStaffZapFn()(origin, target, bolt as never, hideDetails, boltInView).then(() => {}),
 
         confirm: () => true,                 // stub — sync context; no async confirm available
         playerCanSeeOrSense: (x, y) =>

@@ -60,7 +60,7 @@ import {
     windowToMapX as windowToMapXFn,
     windowToMapY as windowToMapYFn,
 } from "./io/display.js";
-import { platformPauseAndCheckForEvent } from "./platform-bridge.js";
+import { platformPauseIgnoringHover } from "./platform-bridge.js";
 import { buildUpdateVisionFn } from "./vision-wiring.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
 import {
@@ -546,7 +546,7 @@ export function buildTravelContext(): TravelExploreContext {
         hilitePath: (path, steps, remove) => hilitePathFn(path, steps, remove, pathHighlightCtx),
         getPlayerPathOnMap: () => 0,
         commitDraws: () => commitDraws(),
-        pauseAnimation: async (ms, _behavior) => { commitDraws(); return platformPauseAndCheckForEvent(ms); },
+        pauseAnimation: async (ms, _behavior) => { commitDraws(); return platformPauseIgnoringHover(ms); },
         recordMouseClick: () => {},
         mapToWindowX: (x) => mapToWindowXFn(x),
         mapToWindowY: (y) => mapToWindowYFn(y),

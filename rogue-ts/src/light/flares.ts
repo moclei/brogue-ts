@@ -179,7 +179,7 @@ export interface FlareAnimationCallbacks {
     /** Refresh the field of view display. */
     updateFieldOfViewDisplay: (updateDancingTerrain: boolean, refreshDisplay: boolean) => void;
     /** Pause animation for the given number of milliseconds. Returns true if fast-forward requested. */
-    pauseAnimation: (milliseconds: number) => boolean;
+    pauseAnimation: (milliseconds: number) => boolean | Promise<boolean>;
 }
 
 /**
@@ -192,11 +192,11 @@ export interface FlareAnimationCallbacks {
  * @param ctx - Lighting context for game state access.
  * @param callbacks - UI callbacks for display updates.
  */
-export function animateFlares(
+export async function animateFlares(
     flares: (Flare | null)[],
     ctx: LightingContext,
     callbacks: FlareAnimationCallbacks,
-): void {
+): Promise<void> {
     const lights: LightBackup = [];
     for (let i = 0; i < DCOLS; i++) {
         lights[i] = [];
@@ -231,7 +231,7 @@ export function animateFlares(
         callbacks.updateFieldOfViewDisplay(false, true);
 
         if (!fastForward && (inView || ctx.rogue.playbackOmniscience) && atLeastOneFlareStillActive) {
-            fastForward = callbacks.pauseAnimation(10);
+            fastForward = await callbacks.pauseAnimation(10);
         }
 
         recordOldLights(ctx.tmap);

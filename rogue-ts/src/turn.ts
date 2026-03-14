@@ -61,7 +61,7 @@ import { INVALID_POS } from "./types/types.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
 import { displayCombatText as displayCombatTextFn } from "./io/messages.js";
 import { buildMessageContext } from "./ui.js";
-import { buildUpdateVisionFn } from "./vision-wiring.js";
+import { buildUpdateVisionFn, buildAnimateFlaresFn } from "./vision-wiring.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
 import { shuffleTerrainColors as shuffleTerrainColorsFn } from "./render-state.js";
 import { checkForContinuedLeadership as checkForContinuedLeadershipFn, demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "./monsters/monster-ally-ops.js";
@@ -439,7 +439,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
             }
         },
         RNGCheck: () => {},
-        animateFlares: () => {},
+        animateFlares: buildAnimateFlaresFn(),
 
         // ── Scent / FOV ───────────────────────────────────────────────────────
         addScentToCell: (x, y, distance) => {

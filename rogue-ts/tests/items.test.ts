@@ -15,7 +15,7 @@ import { drinkPotion, apply, readScroll } from "../src/items/item-handlers.js";
 import { buildTurnProcessingContext } from "../src/turn.js";
 import { playerTurnEnded as playerTurnEndedFn } from "../src/time/turn-processing.js";
 import { monsterCatalog } from "../src/globals/monster-catalog.js";
-import { MonsterType, PotionKind, ScrollKind, ItemCategory, StatusEffect, DungeonLayer } from "../src/types/enums.js";
+import { MonsterType, PotionKind, ScrollKind, ItemCategory, StatusEffect, DungeonLayer, TileType } from "../src/types/enums.js";
 import { MonsterBookkeepingFlag } from "../src/types/flags.js";
 import { buildFadeInMonsterFn } from "../src/combat.js";
 import type { Creature, Item } from "../src/types/types.js";
@@ -383,4 +383,35 @@ it.skip("stub: recordMouseClick() is a no-op (should record a mouse click event 
     // C: Recordings.c:162 — recordMouseClick()
     // items.ts:195 and movement.ts:457 have `() => {}` context stubs.
     // Real implementation appends mouse position and button state to the recording buffer.
+});
+
+// =============================================================================
+// B43 — discover/discoverCell wired in item contexts
+// =============================================================================
+
+it("B43 — ctx.discover() reveals a secret door: dungeon layer changes to FLOOR", () => {
+    // C: Movement.c:2110 — discover() replaces SECRET_DOOR layer with FLOOR and spawns reveal feature.
+    setupPlayer();
+    const { pmap } = getGameState();
+
+    // Place a SECRET_DOOR at (3, 3) — has TM_IS_SECRET and discoverType = DF_SHOW_DOOR
+    pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.SECRET_DOOR;
+
+    const ctx = buildItemHandlerContext();
+    ctx.discover(3, 3);
+
+    // After discover(), the layer is first reset to FLOOR then DF_SHOW_DOOR spawns a DOOR tile
+    expect(pmap[3][3].layers[DungeonLayer.Dungeon]).toBe(TileType.DOOR);
+});
+
+it("B43 — ctx.discover() is no-op on a non-secret cell", () => {
+    setupPlayer();
+    const { pmap } = getGameState();
+
+    pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+    const ctx = buildItemHandlerContext();
+    ctx.discover(3, 3);
+
+    expect(pmap[3][3].layers[DungeonLayer.Dungeon]).toBe(TileType.FLOOR);
 });

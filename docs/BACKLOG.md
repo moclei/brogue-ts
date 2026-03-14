@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-13 (B38 animation fixed; B37–B45 filed; B32 unblocked; B25/B15 WAI; B31 fixed)
-**Tests at last update:** 88 files · 2284 pass · 55 skip
+**Status:** updated 2026-03-13 (B46 fixed — travel fires on MouseUp, pauseAndCheckForEventIgnoringHover added; B48 fixed — hover crash; B32 fixed — whip zap wired; B43 discover/discoverCell wired in item contexts; B41 updateClairvoyance wired; B40 createFlare wired; B38 animation fixed; B37–B45 filed; B25/B15 WAI; B31 fixed)
+**Tests at last update:** 88 files · 2286 pass · 55 skip
 
 ---
 
@@ -428,7 +428,7 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   `turn-processing.ts` after `applyInstantTileEffectsToCreature`.
   C: `Time.c:2425`. TS: `time/turn-processing.ts`, `turn.ts`, `time/stairs-wiring.ts`. **M**
 
-- [ ] **B32 — Whip weapon — cannot attack after equipping** — After switching weapon to a
+- [x] **B32 — Whip weapon — cannot attack after equipping** — After switching weapon to a
   whip, the player appeared unable to attack monsters (attacks did not resolve). Whip is a
   reach weapon (attacks 2 squares away) in C; if reach-weapon attack logic is not ported,
   neither adjacent nor distant attacks work.
@@ -619,29 +619,41 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   (already wired in `input-keystrokes.ts`) handles the actual rendering before next input.
   ⚠ Awaits playtest confirmation — could not find a seed with a staff/scroll handy to verify.
 
-- [ ] **B40 — `createFlare` stub — no light-flare effect** — `createFlare` is a no-op.
-  It creates a brief expanding light burst used for lightning bolt impacts, fire explosions,
-  and similar high-energy effects. Visual feedback that a bolt detonated.
-  C: `IO.c` (createFlare). TS: `items/zap-context.ts` (stub). **S**
+- [x] **B40 — `createFlare` stub — no light-flare effect** — Fixed 2026-03-13.
+  `createFlare` wired in `items.ts` and `tile-effects-wiring.ts` to real `createFlareFn`
+  (pushes to `rogue.flares`). `animateFlares` made async in `light/flares.ts`; wired in
+  `turn.ts` via `buildAnimateFlaresFn()` in `vision-wiring.ts` (full `LightingContext` +
+  `demoteVisibility` + `updateVision` callbacks with `commitDraws`/`pauseAndCheckForEvent`
+  per frame). `turn-processing.ts` fixed to check `rogue.flares.length` instead of missing
+  `rogue.flareCount` field. Flares now animate at turn-end for all item/bolt/fall effects.
+  C: `Light.c` (createFlare, animateFlares). TS: `light/flares.ts`, `items.ts`,
+  `tile-effects-wiring.ts`, `vision-wiring.ts`, `turn.ts`, `time/turn-processing.ts`. **S**
 
-- [ ] **B41 — `updateClairvoyance` stub — clairvoyance ring non-functional** —
-  `updateClairvoyance` is a no-op in the item-handler context. The ring of clairvoyance
-  reveals nearby cells as the player moves; without this call those cells are never
-  revealed. Player equips the ring and sees no effect.
-  C: `Time.c` (updateClairvoyance). TS: `items.ts` context (`() => {}`). **M**
+- [x] **B41 — `updateClairvoyance` stub — clairvoyance ring non-functional** —
+  Fixed 2026-03-13. Added `buildUpdateClairvoyanceFn()` to `vision-wiring.ts`: builds
+  a minimal `SafetyMapsContext` cast (pmap, rogue.clairvoyance, player.loc, max/min,
+  discoverCell) and calls `updateClairvoyance`. Wired in `items.ts` (ItemHandlerContext —
+  enchanting a clairvoyance ring) and `io/inventory-actions.ts` (buildEquipCtx —
+  equipping/unequipping; also wired `displayLevel`).
+  C: `Time.c` (updateClairvoyance). TS: `vision-wiring.ts`, `items.ts`, `io/inventory-actions.ts`. **M**
 
-- [ ] **B42 — `extinguishFireOnCreature` stub in item/bolt contexts** — `extinguishFireOnCreature`
+- [x] **B42 — `extinguishFireOnCreature` stub in item/bolt contexts** — `extinguishFireOnCreature`
   is a no-op in the item-handler and bolt contexts (`items.ts` wiring). It is called when
   a water-based bolt or effect hits a burning creature. Without it, fire on a creature
   struck by a water bolt is never extinguished.
   C: `Time.c` (extinguishFireOnCreature). TS: `items.ts` context (two stub sites). **S**
 
-- [ ] **B43 — `discover`/`discoverCell` stubs in item/bolt contexts** — Both are no-ops
+- [x] **B43 — `discover`/`discoverCell` stubs in item/bolt contexts** — Both are no-ops
   in the item-handler and bolt/zap contexts. `discover` reveals a cell (removes fog of war);
   `discoverCell` reveals a specific cell including secret doors. Called when a bolt hits a
   wall (may reveal secrets) and on certain scroll/potion effects. Without them, bolts that
   should reveal secrets do not, and items that uncover the map behave incorrectly.
   C: `Items.c`, `Monsters.c`. TS: `items.ts` context, `items/zap-context.ts` (stub). **S**
+  Fix: Added `buildItemDiscoverFn()` helper in `items.ts` that builds a minimal `MapQueryContext`
+  from live game state and calls the real `discover` free function (Movement.c:2110).
+  Wired in two places: `ItemHandlerContext.discover` (used by scroll of magic mapping) and
+  `aggravateMonsters` context (alarm reveals). `discoverCell` in aggravate context wired inline
+  via `discoverCellFn` cast. Tests in `items.test.ts:390`. 2286 pass / 55 skip.
 
 - [ ] **B44 — Monster spell-casting system absent** — The entire monster spell pipeline is
   missing. `monsterCastSpell` (the main dispatcher) is not ported at all. `monstUseBolt`,
@@ -666,24 +678,35 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `Items.c` (readScroll, drinkPotion, useStaffOrWand effect branches).
   TS: `items/item-handlers.ts`, `items.ts` context stubs. **L**
 
-- [ ] **B46 — Click-to-travel stops after one step** — Clicking on a visible cell more
+- [x] **B46 — Click-to-travel stops after one step** — Clicking on a visible cell more
   than one step away should pathfind the player there step-by-step, stopping if a
   monster comes into view, the player bumps something unexpected, or the player presses
   a key. Instead, the port moves only one step and stops.
-  Root cause: `travelMap` (travel-explore.ts) calls `ctx.pauseAnimation(500, ...)` between
-  each step. `pauseAnimation` in `buildTravelContext` delegates to
-  `platformPauseAndCheckForEvent(500)`, which resolves early on **any** event including
-  `MouseEnteredCell` (hover). After a click, the mouse is still over the dungeon and hover
-  events fire immediately, causing `pauseAnimation` to return `true` → `rogue.disturbed = true`
-  after the first step.
-  In C, `pauseAnimation(500, PAUSE_BEHAVIOR_DEFAULT)` ignores mouse-move events; only
-  keystrokes and mouse-button events interrupt travel.
-  Fix: `pauseAnimation` in `buildTravelContext` should filter out `MouseEnteredCell` events
-  and only return true for keystrokes / mouse-button events. This requires either a
-  targeted version of `pauseAndCheckForEvent` that discards hover events and re-queues
-  them, or a `PAUSE_BEHAVIOR` flag check that maps the C behavior correctly.
-  C: `Movement.c` (travelMap, pauseAnimation). TS: `movement.ts` (buildTravelContext
-  `pauseAnimation` field), `platform.ts` (pauseAndCheckForEvent). **M**
+  Root cause (stop-after-one-step): `pauseAnimation(500)` resolved early on any
+  `MouseEnteredCell` (hover) event. Fixed: `pauseAndCheckForEventIgnoringHover` discards
+  hover events so only keystrokes and mouse-button events interrupt travel.
+  Root cause (500ms/step timing): TS used `travelMap` (500ms/step nominal) for all clicks.
+  C's regular click path is `mainInputLoop()` → `travelRoute(path, steps)` (25ms/step
+  nominal). The `_delayUpTo` mechanism further reduces this via time-accounting, giving
+  ~40ms/step observed. Fixed: changed `travelMap`'s pause from `500 - elapsed` to
+  `25 - elapsed`, matching `travelRoute`'s budget.
+  C: `Movement.c` (travelMap, travelRoute, pauseAnimation), `sdl2-platform.c` (_delayUpTo).
+  TS: `movement/travel-explore.ts` (travelMap pause), `platform.ts` (pauseAndCheckForEventIgnoringHover). **M**
+
+- [x] **B48 — Hover over floor item crashes: `itemName` receives empty item tables** —
+  Hovering the mouse over a scroll (or other unidentified item) on the floor crashes with
+  `TypeError: Cannot read properties of undefined (reading 'identified')` at
+  `itemName (item-naming.ts:255)`.
+  Root cause: `describedItemName` closure in `buildPrintLocationDescriptionFn()`
+  (`io/sidebar-wiring.ts:333`) builds the naming context with empty arrays
+  (`scrollTable: []`, `potionTable: []`, etc.). When `itemName` indexes into
+  `scrollTable[item.kind]`, the entry is `undefined` → crash.
+  Fix: destructure real `mutableScrollTable`, `mutablePotionTable` from `getGameState()`;
+  import read-only `wandTable`, `staffTable`, `ringTable`, `charmTable`, `charmEffectTable`
+  from item-catalog; pass them to the `itemNameFn` context inside `describedItemName`.
+  Stack: `hover-wiring.ts:222` → `sidebar-wiring.ts:306` → `map-queries.ts:685` →
+  `map-queries.ts:661` → `sidebar-wiring.ts:334` → `item-naming.ts:255`.
+  C: `IO.c` (printLocationDescription, itemName). TS: `io/sidebar-wiring.ts`. **S**
 
 - [x] **B47 — Seeded game entry freezes** — Clicking "New Seeded Game" on the title menu
   showed nothing and froze the game. Root cause: `getInputTextString` (IO.c:2720) was a

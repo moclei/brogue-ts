@@ -99,22 +99,22 @@ describe("playerMoves — basic movement via buildMovementContext", () => {
         expect(player.loc.y).toBe(6);
     });
 
-    it("pmap HAS_PLAYER flag updates: old cell cleared, new cell set", () => {
+    it("pmap HAS_PLAYER flag updates: old cell cleared, new cell set", async () => {
         setupPlayer();
         const { pmap } = getGameState();
         const ctx = buildMovementContext();
 
-        playerMoves(Direction.Right, ctx);
+        await playerMoves(Direction.Right, ctx);
 
         expect(pmap[5][5].flags & TileFlag.HAS_PLAYER).toBe(0);
         expect(pmap[6][5].flags & TileFlag.HAS_PLAYER).not.toBe(0);
     });
 
-    it("playerTurnEnded is called: ticksUntilTurn drains to 0 after movement", () => {
+    it("playerTurnEnded is called: ticksUntilTurn drains to 0 after movement", async () => {
         const player = setupPlayer();
         const ctx = buildMovementContext();
 
-        playerMoves(Direction.Right, ctx);
+        await playerMoves(Direction.Right, ctx);
 
         // playerTurnEnded drains the player's ticks (soonestTurn=100 subtracted
         // from ticksUntilTurn=100), leaving 0. Replenishment happens at the
