@@ -32,10 +32,10 @@
 
 ## Phase 4: Test coverage
 
-- [ ] Add/update test in `monster-bolt-ai.test.ts`: `monstUseBolt` fires `zap` when a valid target exists (mock `zap`)
+- [x] Add/update test in `monster-bolt-ai.test.ts`: `monstUseBolt` fires `zap` when a valid target exists (mock `zap`)
 - [ ] Add/update test: `monsterBlinkToPreferenceMap` fires `zap` for a blink-capable monster
-- [ ] Add/update test: `monsterCastSpell` logs combat message and calls `zap`
-- [ ] Add/update test: `monstUseMagic` routes summon-first, then bolt
-- [ ] Run `npx vitest run` — no regressions
-- [ ] Check off B44 in `docs/BACKLOG.md`
+- [x] Add/update test: `monsterCastSpell` logs combat message and calls `zap`
+- [x] Add/update test: `monstUseMagic` routes summon-first, then bolt
+- [x] Run `npx vitest run` — no regressions (88 files, 2296 pass, 55 skip)
+- [x] Check off B44 in `docs/BACKLOG.md`
 - [ ] Commit: `feat: B44 — monster spell-casting system wired end-to-end`
