@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-14 (B49–B59 filed from playtest session; B45 fixed; B44 merged to master)
+**Status:** updated 2026-03-14 (B49–B60 filed; B45 fixed; B44 merged to master; B59 fixed)
 **Tests at last update:** 88 files · 2296 pass · 55 skip
 
 ---
@@ -828,6 +828,50 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   `getLineCoordinates` instead of a passability-aware path.
   C: `Movement.c:1566` (travelRoute), `Movement.c:1611` (travelMap), `Movement.c` (getLineCoordinates).
   TS: `movement/travel-explore.ts`, `io/hover-wiring.ts`. **M**
+
+- [ ] **B60 — All terrain flashes/glows on every player move; water animation is input-driven not continuous** — Two related defects in `shuffleTerrainColors`:
+
+  **Defect 1 — No `TERRAIN_COLORS_DANCING` guard (primary visual symptom).**
+  In C (`IO.c:966`), `shuffleTerrainColors` only processes cells where
+  `pmap[i][j].flags & TERRAIN_COLORS_DANCING`. That flag is set during `bakeTerrainColors`
+  (`IO.c:950`) only when the cell's fore/back color has `colorDances: true` — which is
+  true for water, fire, lava shimmer, etc., but NOT for plain walls or floor. In the TS port
+  (`render-state.ts:45`), there is no `TERRAIN_COLORS_DANCING` check — the loop re-rolls
+  every cell in the map unconditionally, causing all terrain to shimmer on every player turn.
+  The `TERRAIN_COLORS_DANCING` flag is defined in `types/flags.ts:50` and is set by
+  `bakeTerrainColors` in `io/display.ts` (see the `colorDances` branch there), but
+  `shuffleTerrainColors` never reads it.
+
+  **Defect 2 — Full reset instead of delta (jarring vs smooth).**
+  In C, each update is a delta: `terrainRandomValues[i][j][dir] += rand_range(-600, 600)`
+  clamped to [0, 1000] — the values drift gradually, producing smooth shimmer. In TS the
+  update is a full reset: `terrainRandomValues[i][j][k] = randRange(0, 1000)` — values
+  jump randomly every turn, producing a harsh strobe instead of a smooth glow.
+
+  **Defect 3 — Animation is input-driven, not continuous.**
+  In C, color animation between player inputs is driven by `mainInputLoop` calling
+  `displayLevel` / `refreshDungeonCell` on a ~25 ms timer (via `pauseAnimation`), which
+  re-renders dancing cells using their current `terrainRandomValues`. The TS port's
+  `mainGameLoop` (`platform.ts`) just awaits `waitForEvent()` and never redraws while idle,
+  so animated terrain only updates when the player acts. Fix requires a periodic idle repaint
+  in `mainGameLoop` (e.g., `pauseAndCheckForEvent(25)` → `commitDraws()` loop while
+  waiting for input) and calling `shuffleTerrainColors` on that tick, NOT only in
+  `turn-processing.ts:791`.
+
+  **Defect 4 — Wrong RNG.**
+  C uses `assureCosmeticRNG` / `restoreRNG` (a separate cosmetic RNG) so color animation
+  does not consume the gameplay seed. TS calls the main game `randRange`, which would
+  desync seed-based recordings.
+
+  Fix order: 1 and 2 are independent one-liners in `render-state.ts`. 3 requires changes
+  to `platform.ts`. 4 is deferred — requires a second seeded RNG instance for cosmetics.
+  Fixing 1+2 will eliminate the visual glitch entirely; 3 is a polish issue.
+
+  C: `IO.c:940` (bakeTerrainColors / colorDances → TERRAIN_COLORS_DANCING),
+  `IO.c:966` (shuffleTerrainColors — guard + delta logic),
+  `Time.c:2558` (called during playerTurn), `RogueMain.c:709` (level-init reset).
+  TS: `render-state.ts:45` (shuffleTerrainColors), `io/display.ts` (bakeTerrainColors /
+  TERRAIN_COLORS_DANCING), `time/turn-processing.ts:791` (caller), `platform.ts` (mainGameLoop). **M**
 
 ---
 
