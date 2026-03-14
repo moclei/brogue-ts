@@ -858,20 +858,43 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   waiting for input) and calling `shuffleTerrainColors` on that tick, NOT only in
   `turn-processing.ts:791`.
 
-  **Defect 4 — Wrong RNG.**
-  C uses `assureCosmeticRNG` / `restoreRNG` (a separate cosmetic RNG) so color animation
-  does not consume the gameplay seed. TS calls the main game `randRange`, which would
-  desync seed-based recordings.
-
   Fix order: 1 and 2 are independent one-liners in `render-state.ts`. 3 requires changes
-  to `platform.ts`. 4 is deferred — requires a second seeded RNG instance for cosmetics.
-  Fixing 1+2 will eliminate the visual glitch entirely; 3 is a polish issue.
+  to `platform.ts`. Fixing 1+2 will eliminate the visual glitch entirely; 3 adds the
+  continuous idle animation. RNG isolation is tracked separately in B61.
 
   C: `IO.c:940` (bakeTerrainColors / colorDances → TERRAIN_COLORS_DANCING),
   `IO.c:966` (shuffleTerrainColors — guard + delta logic),
   `Time.c:2558` (called during playerTurn), `RogueMain.c:709` (level-init reset).
   TS: `render-state.ts:45` (shuffleTerrainColors), `io/display.ts` (bakeTerrainColors /
   TERRAIN_COLORS_DANCING), `time/turn-processing.ts:791` (caller), `platform.ts` (mainGameLoop). **M**
+
+- [ ] **B61 — Cosmetic RNG isolation: color animation consumes gameplay seed** — In C,
+  `shuffleTerrainColors` (and other visual-only effects) wraps its RNG calls with
+  `assureCosmeticRNG` / `restoreRNG` — macros that save the gameplay RNG state, switch to
+  a separate `cosmeticRNG` instance, do the visual work, then restore the gameplay state.
+  The cosmetic RNG is seeded independently (not from the gameplay seed) and its draws are
+  never recorded. In the TS port, `shuffleTerrainColors` calls the main game `randRange`
+  directly. Once B60 defect 3 is fixed (idle animation fires on a ~25 ms timer), each
+  session will consume a different number of gameplay RNG draws depending on how long the
+  player sits idle — causing recording/playback to desync.
+
+  **Fix:** Add a second independent PRNG instance for cosmetic use. The cosmetic RNG does
+  not need to be deterministic or seeded from the gameplay seed — `Math.random()` or a
+  fixed cosmetic seed is fine, since visual effects do not affect game state. Implement as
+  a `cosmeticRandRange` function (or a swappable RNG context) and use it in
+  `shuffleTerrainColors`. Then audit all C `assureCosmeticRNG` call sites and wire their
+  TS equivalents to the cosmetic RNG.
+
+  **Audit starting point:** `grep -n assureCosmeticRNG src/brogue/*.c` — find every C
+  call site and confirm whether the TS equivalent uses `randRange` (bad) or no RNG at all
+  (safe). `shuffleTerrainColors` is the only confirmed offender so far.
+
+  **Dependency:** Should be done after B60 (defect 3), since the RNG divergence only
+  manifests at scale once idle animation is running. Fixes 1+2 of B60 are safe to ship
+  before B61.
+
+  C: `IO.c:966` (`assureCosmeticRNG` / `restoreRNG` usage), `Rogue.h` (cosmeticRNG
+  declaration). TS: `render-state.ts:45` (shuffleTerrainColors), RNG module. **M**
 
 ---
 
