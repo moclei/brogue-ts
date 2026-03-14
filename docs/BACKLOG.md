@@ -660,6 +660,7 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   the real zap closure; `buildMonsterBoltBlinkContexts()` wires bolt/blink/summon/corpse contexts.
   `monstersTurn` is async and properly awaited in `turn-processing.ts`. Phase 2–4 complete.
   Tests: `monster-bolt-ai.test.ts` (19 tests). 2296 pass / 55 skip.
+  ⚠️ Browser smoke-test pending — monsters firing bolts in-game not yet manually verified.
 
 - [ ] **B45 — Item effect stubs — potions, scrolls, wands incomplete** — Multiple item
   effects are stubbed or missing. Confirmed stubs (test.skip entries exist):
