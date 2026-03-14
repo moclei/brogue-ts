@@ -359,10 +359,12 @@ export async function travelMap(
                 distanceMap[newX][newY] < distanceMap[currentX][currentY] &&
                 !ctx.diagonalBlocked(currentX, currentY, newX, newY, true)
             ) {
+                const stepStart = Date.now();
                 if (!await ctx.playerMoves(dir as Direction)) {
                     ctx.rogue.disturbed = true;
                 }
-                if (await ctx.pauseAnimation(500, 0 /* PAUSE_BEHAVIOR_DEFAULT */)) {
+                const pause = Math.max(1, 500 - (Date.now() - stepStart));
+                if (await ctx.pauseAnimation(pause, 0 /* PAUSE_BEHAVIOR_DEFAULT */)) {
                     ctx.rogue.disturbed = true;
                 }
                 currentX = newX;
