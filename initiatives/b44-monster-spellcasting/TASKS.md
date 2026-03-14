@@ -2,17 +2,17 @@
 
 ## Phase 1: Async interface surgery
 
-- [ ] Update `BoltAIContext.zap` in `monsters/monster-bolt-ai.ts` to return `Promise<boolean>`
-- [ ] Make `monsterCastSpell`, `monstUseBolt`, `monstUseMagic` async in `monster-bolt-ai.ts`
-- [ ] Update `MonsterBlinkContext.zap` in `monsters/monster-blink-ai.ts` to return `Promise<boolean>`
-- [ ] Make `monsterBlinkToPreferenceMap`, `monsterBlinkToSafety` async in `monster-blink-ai.ts`
-- [ ] Update `MoveAllyContext` and enemy-move context interfaces in `monster-actions.ts` to accept async `monstUseMagic`, `monsterBlinkToPreferenceMap`, `monsterBlinkToSafety`
-- [ ] Make `moveAlly` and `monstersTurn` async in `monster-actions.ts`; await all spell/blink calls
-- [ ] Remove dead stubs: `monstUseMagicStub`, `monsterBlinkToPreferenceMapStub`, `monsterBlinkToSafetyStub` from `monster-actions.ts`
-- [ ] Update `turn-monster-ai.ts` wiring closures to be async lambdas (still `zap: async () => {}` stub for now)
-- [ ] Add `async` to affected tests in `monster-bolt-ai.test.ts` and `monster-blink-ai.test.ts`
-- [ ] Run `npx vitest run` — no regressions
-- [ ] Commit: `feat: B44 phase 1 — async interface cascade for monster spell/blink pipeline`
+- [x] Update `BoltAIContext.zap` in `monsters/monster-bolt-ai.ts` to return `Promise<boolean>`
+- [x] Make `monsterCastSpell`, `monstUseBolt`, `monstUseMagic` async in `monster-bolt-ai.ts`
+- [x] Update `MonsterBlinkContext.zap` in `monsters/monster-blink-ai.ts` to return `Promise<boolean>`
+- [x] Make `monsterBlinkToPreferenceMap`, `monsterBlinkToSafety` async in `monster-blink-ai.ts`
+- [x] Update `MoveAllyContext` and enemy-move context interfaces in `monster-actions.ts` to accept async `monstUseMagic`, `monsterBlinkToPreferenceMap`, `monsterBlinkToSafety`
+- [x] Make `moveAlly` and `monstersTurn` async in `monster-actions.ts`; await all spell/blink calls
+- [x] Remove dead stubs: `monstUseMagicStub`, `monsterBlinkToPreferenceMapStub`, `monsterBlinkToSafetyStub` from `monster-actions.ts`
+- [x] Update `turn-monster-ai.ts` wiring closures to be async lambdas (still `zap: async () => false` stub for now)
+- [x] Add `async` to affected tests in `monster-bolt-ai.test.ts` and `monster-blink-ai.test.ts`
+- [x] Run `npx vitest run` — no regressions
+- [x] Commit: `feat: B44 phase 1 — async interface cascade for monster spell/blink pipeline`
 
 ## Phase 2: Split turn-monster-ai.ts + wire real zap
 

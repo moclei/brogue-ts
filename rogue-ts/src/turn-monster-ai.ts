@@ -437,7 +437,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         },
         combatMessage: io.combatMessage,
         cellHasTerrainFlag: chTF,
-        zap: () => {},
+        zap: async () => false,
         BE_BLINKING: BoltEffect.Blinking,
         BOLT_BLINKING: BoltType.BLINKING,
         MONST_CAST_SPELLS_SLOWLY: MonsterBehaviorFlag.MONST_CAST_SPELLS_SLOWLY,
@@ -482,7 +482,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         },
         resolvePronounEscapes,
         combatMessage: io.combatMessage,
-        zap: () => {},
+        zap: async () => false,
         gameOver: (msg) => gameOver(msg),
         monsterSummons: (monst, alwaysUse) => monsterSummonsFn(monst, alwaysUse, summonsCtx),
     };

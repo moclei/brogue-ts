@@ -69,7 +69,7 @@ export interface BoltAIContext {
     resolvePronounEscapes(text: string, monst: Creature): string;
     combatMessage(msg: string, color: null): void;
 
-    zap(origin: Pos, target: Pos, bolt: Bolt, hideDetails: boolean, boltInView: boolean): void;
+    zap(origin: Pos, target: Pos, bolt: Bolt, hideDetails: boolean, boltInView: boolean): Promise<boolean>;
     gameOver(message: string): void;
 
     /** Attempt monster summoning; returns true if used the monster's turn. */
@@ -382,12 +382,12 @@ export function specificallyValidBoltTarget(
  *
  * Ported from monsterCastSpell() in Monsters.c.
  */
-export function monsterCastSpell(
+export async function monsterCastSpell(
     caster: Creature,
     target: Creature,
     boltIndex: number,
     ctx: BoltAIContext,
-): void {
+): Promise<void> {
     if (ctx.canDirectlySeeMonster(caster)) {
         const monstName = ctx.monsterName(caster, true);
         let buf = `${monstName} ${ctx.boltCatalog[boltIndex].description}`;
@@ -396,7 +396,7 @@ export function monsterCastSpell(
     }
 
     const theBolt: Bolt = { ...ctx.boltCatalog[boltIndex] };
-    ctx.zap(caster.loc, target.loc, theBolt, false, false);
+    await ctx.zap(caster.loc, target.loc, theBolt, false, false);
 
     if (ctx.player.currentHP <= 0) {
         const casterName = ctx.monsterCatalog[caster.info.monsterID]?.monsterName ?? "a monster";
@@ -417,7 +417,7 @@ export function monsterCastSpell(
  *
  * Ported from monstUseBolt() in Monsters.c.
  */
-export function monstUseBolt(monst: Creature, ctx: BoltAIContext): boolean {
+export async function monstUseBolt(monst: Creature, ctx: BoltAIContext): Promise<boolean> {
     if (!monst.info.bolts[0]) {
         return false; // Monster has no bolt abilities.
     }
@@ -439,7 +439,7 @@ export function monstUseBolt(monst: Creature, ctx: BoltAIContext): boolean {
             if (specificallyValidBoltTarget(monst, target, boltType, ctx)) {
                 const alwaysUse = !!(monst.info.flags & MonsterBehaviorFlag.MONST_ALWAYS_USE_ABILITY);
                 if (alwaysUse || ctx.rng.randPercent(30)) {
-                    monsterCastSpell(monst, target, boltType, ctx);
+                    await monsterCastSpell(monst, target, boltType, ctx);
                     return true;
                 }
             }
@@ -459,7 +459,7 @@ export function monstUseBolt(monst: Creature, ctx: BoltAIContext): boolean {
  *
  * Ported from monstUseMagic() in Monsters.c.
  */
-export function monstUseMagic(monst: Creature, ctx: BoltAIContext): boolean {
+export async function monstUseMagic(monst: Creature, ctx: BoltAIContext): Promise<boolean> {
     const alwaysUse = !!(monst.info.flags & MonsterBehaviorFlag.MONST_ALWAYS_USE_ABILITY);
     if (ctx.monsterSummons(monst, alwaysUse)) {
         return true;

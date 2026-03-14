@@ -469,7 +469,7 @@ describe("monstersTurn", () => {
         expect(ctx.updateMonsterState).toHaveBeenCalledWith(monst);
     });
 
-    it("immobile monster tries magic, sets attack speed for ticks", () => {
+    it("immobile monster tries magic, sets attack speed for ticks", async () => {
         const monst = makeCreature({
             attackSpeed: 120,
             info: {
@@ -480,12 +480,12 @@ describe("monstersTurn", () => {
         const ctx = makeTurnCtx({
             monstUseMagic: vi.fn().mockReturnValue(true),
         });
-        monstersTurn(monst, ctx);
+        await monstersTurn(monst, ctx);
         expect(ctx.monstUseMagic).toHaveBeenCalledWith(monst);
         expect(monst.ticksUntilTurn).toBe(120);
     });
 
-    it("immobile monster that cannot use magic still sets attack speed", () => {
+    it("immobile monster that cannot use magic still sets attack speed", async () => {
         const monst = makeCreature({
             attackSpeed: 100,
             info: {
@@ -494,7 +494,7 @@ describe("monstersTurn", () => {
             },
         });
         const ctx = makeTurnCtx();
-        monstersTurn(monst, ctx);
+        await monstersTurn(monst, ctx);
         expect(monst.ticksUntilTurn).toBe(100);
     });
 

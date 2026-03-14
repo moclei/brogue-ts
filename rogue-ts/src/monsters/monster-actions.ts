@@ -188,37 +188,6 @@ export function monsterSummons(
 }
 
 // ============================================================================
-// Helper function stubs — monstUseMagic, monsterBlinkToPreferenceMap,
-//   monsterBlinkToSafety
-// These require deep magic / blink systems not yet ported.
-// ============================================================================
-
-/**
- * Stub: returns false — full magic casting not yet ported.
- */
-export function monstUseMagicStub(_monst: Creature): boolean {
-    return false;
-}
-
-/**
- * Stub: returns false — full blink-to-map not yet ported.
- */
-export function monsterBlinkToPreferenceMapStub(
-    _monst: Creature,
-    _preferenceMap: number[][],
-    _blinkUphill: boolean,
-): boolean {
-    return false;
-}
-
-/**
- * Stub: returns false — full blink-to-safety not yet ported.
- */
-export function monsterBlinkToSafetyStub(_monst: Creature): boolean {
-    return false;
-}
-
-// ============================================================================
 // isValidWanderDestination — Monsters.c:1197
 // ============================================================================
 
@@ -358,7 +327,7 @@ export interface PathTowardCreatureContext {
     traversiblePathBetween(monst: Creature, x: number, y: number): boolean;
     distanceBetween(loc1: Pos, loc2: Pos): number;
     moveMonsterPassivelyTowards(monst: Creature, target: Pos, willingToAttackPlayer: boolean): boolean;
-    monsterBlinkToPreferenceMap(monst: Creature, map: number[][], blinkUphill: boolean): boolean;
+    monsterBlinkToPreferenceMap(monst: Creature, map: number[][], blinkUphill: boolean): Promise<boolean>;
     nextStep(map: number[][], loc: Pos, monst: Creature | null, includeMonsters: boolean): number;
     randValidDirectionFrom(monst: Creature, x: number, y: number, allowDiag: boolean): number;
     nbDirs: readonly [number, number][];
@@ -376,11 +345,11 @@ export interface PathTowardCreatureContext {
  *
  * Ported from pathTowardCreature() in Monsters.c.
  */
-export function pathTowardCreature(
+export async function pathTowardCreature(
     monst: Creature,
     target: Creature,
     ctx: PathTowardCreatureContext,
-): void {
+): Promise<void> {
     if (ctx.traversiblePathBetween(monst, target.loc.x, target.loc.y)) {
         if (ctx.distanceBetween(monst.loc, target.loc) <= 2) {
             monst.bookkeepingFlags &= ~ctx.MB_GIVEN_UP_ON_SCENT;
@@ -405,7 +374,7 @@ export function pathTowardCreature(
         ctx.distanceBetween(monst.loc, target.loc) > 10 ||
         ctx.monstersAreEnemies(monst, target)
     ) {
-        if (ctx.monsterBlinkToPreferenceMap(monst, target.mapToMe as number[][], false)) {
+        if (await ctx.monsterBlinkToPreferenceMap(monst, target.mapToMe as number[][], false)) {
             monst.ticksUntilTurn = monst.attackSpeed *
                 ((monst.info.flags & ctx.MONST_CAST_SPELLS_SLOWLY) ? 2 : 1);
             return;
@@ -629,13 +598,13 @@ export interface MoveAllyContext {
     traversiblePathBetween(monst: Creature, x: number, y: number): boolean;
     moveMonster(monst: Creature, dx: number, dy: number): boolean;
     moveMonsterPassivelyTowards(monst: Creature, target: Pos, willingToAttackPlayer: boolean): boolean;
-    monsterBlinkToPreferenceMap(monst: Creature, map: number[][], blinkUphill: boolean): boolean;
-    monsterBlinkToSafety(monst: Creature): boolean;
-    monstUseMagic(monst: Creature): boolean;
+    monsterBlinkToPreferenceMap(monst: Creature, map: number[][], blinkUphill: boolean): Promise<boolean>;
+    monsterBlinkToSafety(monst: Creature): Promise<boolean>;
+    monstUseMagic(monst: Creature): Promise<boolean>;
     monsterSummons(monst: Creature, alwaysUse: boolean): boolean;
     nextStep(map: number[][], loc: Pos, monst: Creature | null, includeMonsters: boolean): number;
     randValidDirectionFrom(monst: Creature, x: number, y: number, allowDiag: boolean): number;
-    pathTowardCreature(monst: Creature, target: Creature): void;
+    pathTowardCreature(monst: Creature, target: Creature): Promise<void>;
     nbDirs: readonly [number, number][];
     NO_DIRECTION: number;
     DCOLS: number;
@@ -686,7 +655,7 @@ export interface MoveAllyContext {
  *
  * Ported from moveAlly() in Monsters.c.
  */
-export function moveAlly(monst: Creature, ctx: MoveAllyContext): void {
+export async function moveAlly(monst: Creature, ctx: MoveAllyContext): Promise<void> {
     const x = monst.loc.x;
     const y = monst.loc.y;
 
@@ -710,7 +679,7 @@ export function moveAlly(monst: Creature, ctx: MoveAllyContext): void {
             ctx.updateSafeTerrainMap();
         }
 
-        if (ctx.mapToSafeTerrain && ctx.monsterBlinkToPreferenceMap(monst, ctx.mapToSafeTerrain, false)) {
+        if (ctx.mapToSafeTerrain && await ctx.monsterBlinkToPreferenceMap(monst, ctx.mapToSafeTerrain, false)) {
             monst.ticksUntilTurn = monst.attackSpeed *
                 ((monst.info.flags & ctx.MONST_CAST_SPELLS_SLOWLY) ? 2 : 1);
             return;
@@ -754,7 +723,7 @@ export function moveAlly(monst: Creature, ctx: MoveAllyContext): void {
         if (
             ctx.monsterHasBoltEffect(monst, ctx.BE_BLINKING) &&
             (monst.info.flags & ctx.MONST_ALWAYS_USE_ABILITY || ctx.rng.randPercent(30)) &&
-            ctx.monsterBlinkToSafety(monst)
+            await ctx.monsterBlinkToSafety(monst)
         ) {
             return;
         }
@@ -782,7 +751,7 @@ export function moveAlly(monst: Creature, ctx: MoveAllyContext): void {
     }
 
     // Magic users sometimes cast spells
-    if (ctx.monstUseMagic(monst)) {
+    if (await ctx.monstUseMagic(monst)) {
         monst.ticksUntilTurn = monst.attackSpeed *
             ((monst.info.flags & ctx.MONST_CAST_SPELLS_SLOWLY) ? 2 : 1);
         return;
@@ -818,7 +787,7 @@ export function moveAlly(monst: Creature, ctx: MoveAllyContext): void {
         !(monst.info.flags & ctx.MONST_MAINTAINS_DISTANCE) &&
         !ctx.attackWouldBeFutile(monst, closestMonster)
     ) {
-        ctx.pathTowardCreature(monst, closestMonster);
+        await ctx.pathTowardCreature(monst, closestMonster);
         return;
     }
 
@@ -862,7 +831,7 @@ export function moveAlly(monst: Creature, ctx: MoveAllyContext): void {
     if (
         !(monst.bookkeepingFlags & ctx.MB_GIVEN_UP_ON_SCENT) &&
         ctx.distanceBetween({ x, y }, ctx.player.loc) > 10 &&
-        ctx.monsterBlinkToPreferenceMap(monst, ctx.scentMap, true)
+        await ctx.monsterBlinkToPreferenceMap(monst, ctx.scentMap, true)
     ) {
         monst.ticksUntilTurn = monst.attackSpeed *
             ((monst.info.flags & ctx.MONST_CAST_SPELLS_SLOWLY) ? 2 : 1);
@@ -873,7 +842,7 @@ export function moveAlly(monst: Creature, ctx: MoveAllyContext): void {
     if (scentDir === ctx.NO_DIRECTION || (monst.bookkeepingFlags & ctx.MB_GIVEN_UP_ON_SCENT)) {
         monst.bookkeepingFlags |= ctx.MB_GIVEN_UP_ON_SCENT;
         if (monst.leader) {
-            ctx.pathTowardCreature(monst, monst.leader);
+            await ctx.pathTowardCreature(monst, monst.leader);
         }
     } else {
         const targetLoc: Pos = {
@@ -915,10 +884,10 @@ export interface MonstersTurnContext {
     monsterAvoids(monst: Creature, p: Pos): boolean;
 
     // ── Magic/abilities ──
-    monstUseMagic(monst: Creature): boolean;
+    monstUseMagic(monst: Creature): Promise<boolean>;
     monsterHasBoltEffect(monst: Creature, effectType: number): number;
-    monsterBlinkToPreferenceMap(monst: Creature, preferenceMap: number[][], blinkUphill: boolean): boolean;
-    monsterBlinkToSafety(monst: Creature): boolean;
+    monsterBlinkToPreferenceMap(monst: Creature, preferenceMap: number[][], blinkUphill: boolean): Promise<boolean>;
+    monsterBlinkToSafety(monst: Creature): Promise<boolean>;
     monsterSummons(monst: Creature, alwaysUse: boolean): boolean;
     monsterCanShootWebs(monst: Creature): boolean;
 
@@ -937,7 +906,7 @@ export interface MonstersTurnContext {
     // ── Pathfinding ──
     scentDirection(monst: Creature): number;
     isLocalScentMaximum(loc: Pos): boolean;
-    pathTowardCreature(monst: Creature, target: Creature): void;
+    pathTowardCreature(monst: Creature, target: Creature): Promise<void>;
     nextStep(map: number[][], loc: Pos, monst: Creature | null, includeMonsters: boolean): number;
     getSafetyMap(monst: Creature): number[][];
     traversiblePathBetween(monst: Creature, x: number, y: number): boolean;
@@ -950,7 +919,7 @@ export interface MonstersTurnContext {
     wanderToward(monst: Creature, loc: Pos): void;
     randValidDirectionFrom(monst: Creature, x: number, y: number, allowDiag: boolean): number;
     monsterMillAbout(monst: Creature, chance: number): void;
-    moveAlly(monst: Creature): void;
+    moveAlly(monst: Creature): Promise<void>;
 
     // ── Direction data ──
     nbDirs: readonly [number, number][];
@@ -980,7 +949,7 @@ export interface MonstersTurnContext {
  *
  * Ported from monstersTurn() in Monsters.c.
  */
-export function monstersTurn(monst: Creature, ctx: MonstersTurnContext): void {
+export async function monstersTurn(monst: Creature, ctx: MonstersTurnContext): Promise<void> {
     const x = monst.loc.x;
     const y = monst.loc.y;
 
@@ -1038,7 +1007,7 @@ export function monstersTurn(monst: Creature, ctx: MonstersTurnContext): void {
 
     // Immobile monsters (turrets, totems)
     if (monst.info.flags & MonsterBehaviorFlag.MONST_IMMOBILE) {
-        if (ctx.monstUseMagic(monst)) {
+        if (await ctx.monstUseMagic(monst)) {
             monst.ticksUntilTurn = monst.attackSpeed *
                 ((monst.info.flags & ctx.MONST_CAST_SPELLS_SLOWLY) ? 2 : 1);
             return;
@@ -1070,7 +1039,7 @@ export function monstersTurn(monst: Creature, ctx: MonstersTurnContext): void {
             }
         }
 
-        if (closestMonster && ctx.monstUseMagic(monst)) {
+        if (closestMonster && await ctx.monstUseMagic(monst)) {
             monst.ticksUntilTurn = monst.attackSpeed *
                 ((monst.info.flags & ctx.MONST_CAST_SPELLS_SLOWLY) ? 2 : 1);
             return;
@@ -1092,10 +1061,10 @@ export function monstersTurn(monst: Creature, ctx: MonstersTurnContext): void {
         // Magic/blink
         const boltType = ctx.monsterHasBoltEffect(monst, ctx.BE_BLINKING);
         if (
-            ctx.monstUseMagic(monst) ||
+            await ctx.monstUseMagic(monst) ||
             (boltType &&
                 ((monst.info.flags & MonsterBehaviorFlag.MONST_ALWAYS_USE_ABILITY) || ctx.rng.randPercent(30)) &&
-                ctx.monsterBlinkToPreferenceMap(monst, ctx.scentMap, true))
+                await ctx.monsterBlinkToPreferenceMap(monst, ctx.scentMap, true))
         ) {
             monst.ticksUntilTurn = monst.attackSpeed *
                 ((monst.info.flags & ctx.MONST_CAST_SPELLS_SLOWLY) ? 2 : 1);
@@ -1138,7 +1107,7 @@ export function monstersTurn(monst: Creature, ctx: MonstersTurnContext): void {
             (monst.info.flags & MonsterBehaviorFlag.MONST_ALWAYS_HUNTING) &&
             (monst.bookkeepingFlags & ctx.MB_GIVEN_UP_ON_SCENT)
         ) {
-            ctx.pathTowardCreature(monst, ctx.player);
+            await ctx.pathTowardCreature(monst, ctx.player);
             return;
         }
 
@@ -1151,7 +1120,7 @@ export function monstersTurn(monst: Creature, ctx: MonstersTurnContext): void {
                 !ctx.inFieldOfView(monst.loc)
             ) {
                 if (monst.info.flags & MonsterBehaviorFlag.MONST_ALWAYS_HUNTING) {
-                    ctx.pathTowardCreature(monst, ctx.player);
+                    await ctx.pathTowardCreature(monst, ctx.player);
                     monst.bookkeepingFlags |= ctx.MB_GIVEN_UP_ON_SCENT;
                     return;
                 }
@@ -1167,7 +1136,7 @@ export function monstersTurn(monst: Creature, ctx: MonstersTurnContext): void {
         if (
             boltType &&
             ((monst.info.flags & MonsterBehaviorFlag.MONST_ALWAYS_USE_ABILITY) || ctx.rng.randPercent(30)) &&
-            ctx.monsterBlinkToSafety(monst)
+            await ctx.monsterBlinkToSafety(monst)
         ) {
             return;
         }
@@ -1220,7 +1189,7 @@ export function monstersTurn(monst: Creature, ctx: MonstersTurnContext): void {
                 const boltType = ctx.monsterHasBoltEffect(monst, ctx.BE_BLINKING);
                 if (
                     boltType &&
-                    ctx.monsterBlinkToPreferenceMap(monst, ctx.mapToSafeTerrain, false)
+                    await ctx.monsterBlinkToPreferenceMap(monst, ctx.mapToSafeTerrain, false)
                 ) {
                     monst.ticksUntilTurn = monst.attackSpeed *
                         ((monst.info.flags & ctx.MONST_CAST_SPELLS_SLOWLY) ? 2 : 1);
@@ -1258,7 +1227,7 @@ export function monstersTurn(monst: Creature, ctx: MonstersTurnContext): void {
         // Followers stay near leader
         if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_FOLLOWER) {
             if (monst.leader && distanceBetween(monst.loc, monst.leader.loc) > 2) {
-                ctx.pathTowardCreature(monst, monst.leader);
+                await ctx.pathTowardCreature(monst, monst.leader);
             } else if (monst.leader && (monst.leader.info.flags & MonsterBehaviorFlag.MONST_IMMOBILE)) {
                 ctx.monsterMillAbout(monst, 100);
             } else if (monst.leader && (monst.leader.bookkeepingFlags & MonsterBookkeepingFlag.MB_CAPTIVE)) {
@@ -1299,6 +1268,6 @@ export function monstersTurn(monst: Creature, ctx: MonstersTurnContext): void {
             }
         }
     } else if (monst.creatureState === CreatureState.Ally) {
-        ctx.moveAlly(monst);
+        await ctx.moveAlly(monst);
     }
 }

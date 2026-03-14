@@ -55,7 +55,7 @@ function makeBlinkCtx(overrides: Partial<MonsterBlinkContext> = {}): MonsterBlin
         monsterName: (m, _includeArticle) => m.info.monsterName,
         combatMessage: () => {},
         cellHasTerrainFlag: () => false,
-        zap: () => {},
+        zap: async () => false,
         BE_BLINKING: BoltEffect.Blinking,
         BOLT_BLINKING: BoltType.BLINKING,
         MONST_CAST_SPELLS_SLOWLY: MonsterBehaviorFlag.MONST_CAST_SPELLS_SLOWLY,
@@ -151,14 +151,14 @@ describe("perimeterCoords", () => {
 // =============================================================================
 
 describe("monsterBlinkToPreferenceMap", () => {
-    it("returns false when monster has no blink bolt ability", () => {
+    it("returns false when monster has no blink bolt ability", async () => {
         const monst = makeCreature(MonsterType.MK_RAT);
         const map = makeGrid(5);
         const ctx = makeBlinkCtx({ monsterHasBoltEffect: () => 0 });
-        expect(monsterBlinkToPreferenceMap(monst, map, true, ctx)).toBe(false);
+        expect(await monsterBlinkToPreferenceMap(monst, map, true, ctx)).toBe(false);
     });
 
-    it("returns false when all sampled cells are equal preference and no better destination", () => {
+    it("returns false when all sampled cells are equal preference and no better destination", async () => {
         const monst = makeCreature(MonsterType.MK_RAT);
         monst.loc = { x: 10, y: 10 };
         // Flat map — no cell is strictly better than the current position.
@@ -166,10 +166,10 @@ describe("monsterBlinkToPreferenceMap", () => {
         const ctx = makeBlinkCtx({
             monsterHasBoltEffect: () => BoltType.BLINKING,
         });
-        expect(monsterBlinkToPreferenceMap(monst, map, true, ctx)).toBe(false);
+        expect(await monsterBlinkToPreferenceMap(monst, map, true, ctx)).toBe(false);
     });
 
-    it("returns false when the best reachable cell is blocked by terrain", () => {
+    it("returns false when the best reachable cell is blocked by terrain", async () => {
         const monst = makeCreature(MonsterType.MK_RAT);
         monst.loc = { x: 10, y: 10 };
         const map = makeGrid(0);
@@ -180,10 +180,10 @@ describe("monsterBlinkToPreferenceMap", () => {
             // All terrain obstructs → getImpactLoc stops at origin for every target
             cellHasTerrainFlag: () => true,
         });
-        expect(monsterBlinkToPreferenceMap(monst, map, false, ctx)).toBe(false);
+        expect(await monsterBlinkToPreferenceMap(monst, map, false, ctx)).toBe(false);
     });
 
-    it("calls combatMessage when monster can be seen and blinks", () => {
+    it("calls combatMessage when monster can be seen and blinks", async () => {
         const monst = makeCreature(MonsterType.MK_VAMPIRE);
         monst.loc = { x: 10, y: 10 };
         monst.attackSpeed = 100;
@@ -197,7 +197,7 @@ describe("monsterBlinkToPreferenceMap", () => {
         }
 
         const combatMessage = vi.fn();
-        const zap = vi.fn();
+        const zap = vi.fn().mockResolvedValue(false);
         const ctx = makeBlinkCtx({
             monsterHasBoltEffect: () => BoltType.BLINKING,
             canDirectlySeeMonster: () => true,
@@ -206,14 +206,14 @@ describe("monsterBlinkToPreferenceMap", () => {
             cellHasTerrainFlag: () => false,
         });
 
-        const result = monsterBlinkToPreferenceMap(monst, map, true, ctx);
+        const result = await monsterBlinkToPreferenceMap(monst, map, true, ctx);
         if (result) {
             expect(combatMessage).toHaveBeenCalledOnce();
             expect(zap).toHaveBeenCalledOnce();
         }
     });
 
-    it("sets ticksUntilTurn = attackSpeed * 2 for slow casters", () => {
+    it("sets ticksUntilTurn = attackSpeed * 2 for slow casters", async () => {
         const monst = makeCreature(MonsterType.MK_VAMPIRE);
         monst.loc = { x: 10, y: 10 };
         monst.attackSpeed = 100;
@@ -227,20 +227,20 @@ describe("monsterBlinkToPreferenceMap", () => {
             for (let y = 0; y < DROWS; y++) map[x][y] = x;
         }
 
-        const zap = vi.fn();
+        const zap = vi.fn().mockResolvedValue(false);
         const ctx = makeBlinkCtx({
             monsterHasBoltEffect: () => BoltType.BLINKING,
             zap,
             cellHasTerrainFlag: () => false,
         });
 
-        const result = monsterBlinkToPreferenceMap(monst, map, true, ctx);
+        const result = await monsterBlinkToPreferenceMap(monst, map, true, ctx);
         if (result) {
             expect(monst.ticksUntilTurn).toBe(200); // 100 * 2
         }
     });
 
-    it("sets ticksUntilTurn = attackSpeed for normal casters", () => {
+    it("sets ticksUntilTurn = attackSpeed for normal casters", async () => {
         const monst = makeCreature(MonsterType.MK_VAMPIRE);
         monst.loc = { x: 10, y: 10 };
         monst.attackSpeed = 100;
@@ -255,20 +255,20 @@ describe("monsterBlinkToPreferenceMap", () => {
             for (let y = 0; y < DROWS; y++) map[x][y] = x;
         }
 
-        const zap = vi.fn();
+        const zap = vi.fn().mockResolvedValue(false);
         const ctx = makeBlinkCtx({
             monsterHasBoltEffect: () => BoltType.BLINKING,
             zap,
             cellHasTerrainFlag: () => false,
         });
 
-        const result = monsterBlinkToPreferenceMap(monst, map, true, ctx);
+        const result = await monsterBlinkToPreferenceMap(monst, map, true, ctx);
         if (result) {
             expect(monst.ticksUntilTurn).toBe(100); // 100 * 1
         }
     });
 
-    it("blinkUphill=false targets lower preference values", () => {
+    it("blinkUphill=false targets lower preference values", async () => {
         const monst = makeCreature(MonsterType.MK_VAMPIRE);
         monst.loc = { x: 10, y: 10 };
         monst.attackSpeed = 100;
@@ -283,11 +283,11 @@ describe("monsterBlinkToPreferenceMap", () => {
         const zapArgs: Array<{ origin: unknown; target: unknown }> = [];
         const ctx = makeBlinkCtx({
             monsterHasBoltEffect: () => BoltType.BLINKING,
-            zap: (origin, target) => { zapArgs.push({ origin, target }); },
+            zap: async (origin, target) => { zapArgs.push({ origin, target }); return false; },
             cellHasTerrainFlag: () => false,
         });
 
-        const result = monsterBlinkToPreferenceMap(monst, map, false, ctx);
+        const result = await monsterBlinkToPreferenceMap(monst, map, false, ctx);
         if (result) {
             // The chosen target should be to the left (lower x)
             const target = zapArgs[0]?.target as { x: number; y: number } | undefined;
@@ -303,13 +303,13 @@ describe("monsterBlinkToPreferenceMap", () => {
 // =============================================================================
 
 describe("monsterBlinkToSafety", () => {
-    it("returns false when monster has no blink ability", () => {
+    it("returns false when monster has no blink ability", async () => {
         const monst = makeCreature(MonsterType.MK_RAT);
         const ctx = makeBlinkToSafetyCtx({ monsterHasBoltEffect: () => 0 });
-        expect(monsterBlinkToSafety(monst, ctx)).toBe(false);
+        expect(await monsterBlinkToSafety(monst, ctx)).toBe(false);
     });
 
-    it("uses allySafetyMap for allied monsters", () => {
+    it("uses allySafetyMap for allied monsters", async () => {
         const monst = makeCreature(MonsterType.MK_RAT);
         monst.creatureState = CreatureState.Ally;
         monst.loc = { x: 10, y: 10 };
@@ -329,12 +329,12 @@ describe("monsterBlinkToSafety", () => {
             cellHasTerrainFlag: () => false,
         });
 
-        monsterBlinkToSafety(monst, ctx);
+        await monsterBlinkToSafety(monst, ctx);
         // Should have called updateAllySafetyMap since not updated this turn
         expect(updateAllyCalled).toBe(true);
     });
 
-    it("does not call updateAllySafetyMap if already updated this turn for ally", () => {
+    it("does not call updateAllySafetyMap if already updated this turn for ally", async () => {
         const monst = makeCreature(MonsterType.MK_RAT);
         monst.creatureState = CreatureState.Ally;
 
@@ -345,11 +345,11 @@ describe("monsterBlinkToSafety", () => {
             updateAllySafetyMap: () => { updateAllyCalled = true; },
         });
 
-        monsterBlinkToSafety(monst, ctx);
+        await monsterBlinkToSafety(monst, ctx);
         expect(updateAllyCalled).toBe(false);
     });
 
-    it("uses getSafetyMap (global or per-monster) for non-ally monsters", () => {
+    it("uses getSafetyMap (global or per-monster) for non-ally monsters", async () => {
         const monst = makeCreature(MonsterType.MK_RAT);
         monst.creatureState = CreatureState.Hunting;
         monst.loc = { x: 10, y: 10 };
@@ -362,7 +362,7 @@ describe("monsterBlinkToSafety", () => {
             updateSafetyMap: () => { updateSafetyCalled = true; },
         });
 
-        monsterBlinkToSafety(monst, ctx);
+        await monsterBlinkToSafety(monst, ctx);
         // getSafetyMap triggers updateSafetyMap for aware monster
         expect(updateSafetyCalled).toBe(true);
     });
