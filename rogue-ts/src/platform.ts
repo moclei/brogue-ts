@@ -146,9 +146,10 @@ export async function pauseAndCheckForEvent(ms: number): Promise<boolean> {
  * C: pauseAnimation(ms, PAUSE_BEHAVIOR_DEFAULT) — only real input stops travel.
  */
 function isTravelInterrupt(ev: RogueEvent): boolean {
-    return ev.eventType === EventType.Keystroke ||
-           ev.eventType === EventType.MouseDown ||
-           ev.eventType === EventType.RightMouseDown;
+    // C PAUSE_BEHAVIOR_DEFAULT: any event except MouseEnteredCell (hover) interrupts.
+    // Travel now fires on MouseUp (matching C's executeEvent), so the triggering
+    // MouseUp is consumed before travelMap starts — the queue is clean on entry.
+    return ev.eventType !== EventType.MouseEnteredCell;
 }
 
 /**
@@ -268,7 +269,7 @@ export async function processEvent(event: RogueEvent): Promise<void> {
             await handleKeystroke(event);
             break;
 
-        case EventType.MouseDown:
+        case EventType.MouseUp:
             await handleLeftClick(event.param1, event.param2);
             break;
 

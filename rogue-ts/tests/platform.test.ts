@@ -103,7 +103,7 @@ describe("processEvent — left-click", () => {
         // Click on the cell one step to the right of the player (dungeon coords 6,5)
         // window coords = mapToWindowX(6), mapToWindowY(5)
         const clickEvent: RogueEvent = {
-            eventType: EventType.MouseDown,
+            eventType: EventType.MouseUp,
             param1: mapToWindowX(6),
             param2: mapToWindowY(5),
             controlKey: false,
@@ -123,7 +123,7 @@ describe("processEvent — left-click", () => {
 
         // Click on the sidebar (window x = 0, which maps to dungeon x = -21, out of bounds)
         const clickEvent: RogueEvent = {
-            eventType: EventType.MouseDown,
+            eventType: EventType.MouseUp,
             param1: 0,
             param2: 0,
             controlKey: false,

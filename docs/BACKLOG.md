@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-13 (B48 fixed — hover crash; B32 fixed — whip zap wired; B43 discover/discoverCell wired in item contexts; B41 updateClairvoyance wired; B40 createFlare wired; B38 animation fixed; B37–B45 filed; B32 unblocked; B25/B15 WAI; B31 fixed)
+**Status:** updated 2026-03-13 (B46 fixed — travel fires on MouseUp, pauseAndCheckForEventIgnoringHover added; B48 fixed — hover crash; B32 fixed — whip zap wired; B43 discover/discoverCell wired in item contexts; B41 updateClairvoyance wired; B40 createFlare wired; B38 animation fixed; B37–B45 filed; B25/B15 WAI; B31 fixed)
 **Tests at last update:** 88 files · 2286 pass · 55 skip
 
 ---
