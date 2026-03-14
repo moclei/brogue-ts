@@ -25,9 +25,9 @@
 
 ## Phase 3: Async cascade through turn loop
 
-- [ ] Find where `monstersTurn` is called per-monster in `lifecycle.ts` / `turn.ts`; ensure each call is properly `await`-ed
-- [ ] Verify no fire-and-forget Promises remain in the monster turn path
-- [ ] Run `npx vitest run` — no regressions
+- [x] Find where `monstersTurn` is called per-monster in `lifecycle.ts` / `turn.ts`; ensure each call is properly `await`-ed
+- [x] Verify no fire-and-forget Promises remain in the monster turn path
+- [x] Run `npx vitest run` — no regressions (88 files, 2286 pass, 55 skip)
 - [ ] Commit: `feat: B44 phase 3 — await monster turns through async cascade`
 
 ## Phase 4: Test coverage
