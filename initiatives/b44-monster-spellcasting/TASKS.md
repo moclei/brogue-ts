@@ -16,10 +16,10 @@
 
 ## Phase 2: Split turn-monster-ai.ts + wire real zap
 
-- [ ] Create `turn-monster-zap-wiring.ts` — export `buildMonsterZapFn()` factory that builds a wired `async zap(...)` using the game state (mirror `staff-wiring.ts` pattern)
-- [ ] Split `turn-monster-ai.ts` to bring it under 600 lines (extract ZapContext wiring block into `turn-monster-zap-wiring.ts`)
-- [ ] Import and wire `buildMonsterZapFn` into `boltAICtx.zap` and `blinkCtx.zap` in `turn-monster-ai.ts`
-- [ ] Run `npx vitest run` — no regressions
+- [x] Create `turn-monster-zap-wiring.ts` — export `buildMonsterZapFn()` factory that builds a wired `async zap(...)` using the game state (mirror `staff-wiring.ts` pattern)
+- [x] Split `turn-monster-ai.ts` to bring it under 600 lines (extract ZapContext wiring block into `turn-monster-zap-wiring.ts`) — also extracted summonMinionsCtx/summonsCtx/blinkCtx/blinkToSafetyCtx/boltAICtx/corpseAbsorptionCtx via `buildMonsterBoltBlinkContexts()`
+- [x] Import and wire `buildMonsterZapFn` into `boltAICtx.zap` and `blinkCtx.zap` (now inside `turn-monster-zap-wiring.ts`)
+- [x] Run `npx vitest run` — no regressions (88 files, 2286 pass, 55 skip)
 - [ ] Smoke-test in browser: confirm monsters fire bolts (e.g. goblin conjurer casts)
 - [ ] Commit: `feat: B44 phase 2 — wire real zap into monster bolt/blink contexts`
 

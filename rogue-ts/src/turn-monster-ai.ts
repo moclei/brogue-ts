@@ -11,7 +11,8 @@
  *  License, or (at your option) any later version.
  */
 
-import { getGameState, gameOver } from "./core.js";
+import { getGameState } from "./core.js";
+import { buildMonsterBoltBlinkContexts } from "./turn-monster-zap-wiring.js";
 import { buildApplyInstantTileEffectsFn } from "./tile-effects-wiring.js";
 import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
@@ -25,22 +26,18 @@ import { tileCatalog } from "./globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
 import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
 import { boltCatalog } from "./globals/bolt-catalog.js";
-import { monsterCatalog } from "./globals/monster-catalog.js";
-import { hordeCatalog } from "./globals/horde-catalog.js";
 import { monsterText } from "./globals/monster-text.js";
 import { DCOLS, DROWS } from "./types/constants.js";
 import {
     TileFlag, MonsterBookkeepingFlag, MonsterBehaviorFlag, TerrainFlag,
-    MonsterAbilityFlag, T_HARMFUL_TERRAIN,
+    T_HARMFUL_TERRAIN,
 } from "./types/flags.js";
-import { BoltEffect, BoltType, CreatureState, DungeonLayer, LightType, StatusEffect } from "./types/enums.js";
+import { BoltEffect, CreatureState, DungeonLayer, StatusEffect } from "./types/enums.js";
 import { openPathBetween as openPathBetweenFn } from "./items/bolt-geometry.js";
 import {
-    monsterIsHidden as monsterIsHiddenFn,
     monstersAreTeammates as monstersAreTeammatesFn,
     monstersAreEnemies as monstersAreEnemiesFn,
     canSeeMonster as canSeeMonsterFn,
-    canDirectlySeeMonster as canDirectlySeeMonsterFn,
     monsterWillAttackTarget as monsterWillAttackTargetFn,
     attackWouldBeFutile as attackWouldBeFutileFn,
 } from "./monsters/monster-queries.js";
@@ -53,9 +50,8 @@ import {
     monsterHasBoltEffect as monsterHasBoltEffectFn,
     monsterCanShootWebs as monsterCanShootWebsFn,
 } from "./monsters/monster-bolt-ai.js";
-import type { BoltAIContext } from "./monsters/monster-bolt-ai.js";
 import { monsterSummons as monsterSummonsFn } from "./monsters/monster-actions.js";
-import type { MonsterSummonsContext, MonstersTurnContext } from "./monsters/monster-actions.js";
+import type { MonstersTurnContext } from "./monsters/monster-actions.js";
 import {
     scentDirection as scentDirectionFn,
     isLocalScentMaximum as isLocalScentMaximumFn,
@@ -81,22 +77,17 @@ import type { MoveMonsterContext } from "./monsters/monster-movement.js";
 import { monsterSwarmDirection as monsterSwarmDirectionFn } from "./monsters/monster-swarm-ai.js";
 import { allyFlees as allyFleesFn } from "./monsters/monster-flee-ai.js";
 import { monsterFleesFrom } from "./monsters/monster-state.js";
-import { summonMinions as summonMinionsFn } from "./monsters/monster-summoning.js";
-import type { SummonMinionsContext } from "./monsters/monster-summoning.js";
-import { spawnMinions as spawnMinionsFn } from "./monsters/monster-spawning.js";
-import { buildMonsterSpawningContext } from "./monsters.js";
 import { getSafetyMap as getSafetyMapFn } from "./monsters/monster-flee-ai.js";
 import {
     monsterBlinkToPreferenceMap as monsterBlinkToPreferenceMapFn,
     monsterBlinkToSafety as monsterBlinkToSafetyFn,
 } from "./monsters/monster-blink-ai.js";
-import type { MonsterBlinkContext, MonsterBlinkToSafetyContext } from "./monsters/monster-blink-ai.js";
 import { diagonalBlocked as diagonalBlockedFn } from "./combat/combat-math.js";
 import {
     attack as attackFn,
     buildHitList as buildHitListFn,
 } from "./combat/combat-attack.js";
-import { buildCombatAttackContext, buildFadeInMonsterFn } from "./combat.js";
+import { buildCombatAttackContext } from "./combat.js";
 import { passableArcCount } from "./architect/helpers.js";
 import { getQualifyingPathLocNear as getQualifyingPathLocNearFn } from "./movement/path-qualifying.js";
 import { buildRefreshDungeonCellFn, buildMessageFns } from "./io-wiring.js";
@@ -107,13 +98,7 @@ import {
     closestWaypointIndexTo as closestWaypointIndexToFn,
 } from "./monsters/monster-awareness.js";
 import { burnedTerrainFlagsAtLoc as burnedTerrainFlagsAtLocFn } from "./state/helpers.js";
-import { goodMessageColor, advancementMessageColor } from "./globals/colors.js";
-import { monsterBehaviorCatalog, monsterAbilityCatalog } from "./globals/status-effects.js";
-import { unflag } from "./game/game-cleanup.js";
-import {
-    updateMonsterCorpseAbsorption as updateMonsterCorpseAbsorptionFn,
-} from "./monsters/monster-corpse-absorption.js";
-import type { CorpseAbsorptionContext } from "./monsters/monster-corpse-absorption.js";
+import { goodMessageColor } from "./globals/colors.js";
 import type { Creature, Pos } from "./types/types.js";
 
 // =============================================================================
@@ -317,6 +302,16 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
     moveMonsterImpl = (monst, dx, dy) => moveMonsterFn(monst, dx, dy, moveMonsterCtx);
     mmptImpl = (monst, t, w) => mmptFn(monst, t, w, moveMonsterCtx);
 
+    // ── Bolt/blink/summon contexts (extracted factory) ───────────────────────
+    const { boltAICtx, blinkCtx, blinkToSafetyCtx, summonsCtx, updateMonsterCorpseAbsorption } =
+        buildMonsterBoltBlinkContexts({
+            player, monsters, rogue, pmap, queryCtx, io, chTF, inFOV,
+            monsterAvoids: (monst, p) => monsterAvoidsImpl(monst, p),
+            localSafetyMap,
+            resolvePronounEscapes,
+            copyGrid,
+        });
+
     // ── Scent contexts ────────────────────────────────────────────────────────
     const scentDirCtx: ScentDirectionContext = {
         scentMap,
@@ -379,112 +374,6 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         allocGrid,
         calculateDistances: () => {},                   // stub — needs full CalculateDistancesContext
         MB_GIVEN_UP_ON_SCENT: MonsterBookkeepingFlag.MB_GIVEN_UP_ON_SCENT,
-    };
-
-    // ── Summon minions context ────────────────────────────────────────────────
-    const summonMinionsCtx: SummonMinionsContext = {
-        hordeCatalog, monsters, player,
-        rng: { randRange, randPercent: (pct) => randPercent(pct) },
-        spawnMinions: (hordeID, leader) =>
-            spawnMinionsFn(hordeID, leader, true, false, buildMonsterSpawningContext()),
-        clearCellFlag: (loc, flag) => { if (coordinatesAreInMap(loc.x, loc.y)) pmap[loc.x][loc.y].flags &= ~flag; },
-        setCellFlag: (loc, flag) => { if (coordinatesAreInMap(loc.x, loc.y)) pmap[loc.x][loc.y].flags |= flag; },
-        removeCreature: (monst) => {
-            const idx = monsters.indexOf(monst);
-            if (idx !== -1) { monsters.splice(idx, 1); return true; }
-            return false;
-        },
-        prependCreature: (monst) => monsters.unshift(monst),
-        canSeeMonster: (m) => canSeeMonsterFn(m, queryCtx),
-        monsterName: (m, includeArticle) => {
-            if (m === player) return "you";
-            const pfx = includeArticle ? (m.creatureState === CreatureState.Ally ? "your " : "the ") : "";
-            return `${pfx}${m.info.monsterName}`;
-        },
-        getSummonMessage: (id) => monsterText[id]?.summonMessage ?? "",
-        message: io.message,
-        fadeInMonster: buildFadeInMonsterFn(),
-        refreshDungeonCell,
-        demoteMonsterFromLeadership: () => {},
-        createFlare: () => {},
-        monstersAreTeammates: (a, b) => monstersAreTeammatesFn(a, b, player),
-        MA_ENTER_SUMMONS: MonsterAbilityFlag.MA_ENTER_SUMMONS,
-        MB_JUST_SUMMONED: MonsterBookkeepingFlag.MB_JUST_SUMMONED,
-        MB_LEADER: MonsterBookkeepingFlag.MB_LEADER,
-        HAS_MONSTER: TileFlag.HAS_MONSTER,
-        SUMMONING_FLASH_LIGHT: LightType.SUMMONING_FLASH_LIGHT,
-    };
-
-    const summonsCtx: MonsterSummonsContext = {
-        player, monsters,
-        rng: { randRange },
-        adjacentLevelAllyCount: 0,
-        deepestLevel: rogue.deepestLevel,
-        depthLevel: rogue.depthLevel,
-        summonMinions: (monst) => { summonMinionsFn(monst, summonMinionsCtx); },
-    };
-
-    // ── Blink context ─────────────────────────────────────────────────────────
-    const blinkCtx: MonsterBlinkContext = {
-        boltCatalog,
-        monsterHasBoltEffect: (monst, effectType) => monsterHasBoltEffectFn(monst, effectType, boltCatalog),
-        monsterAvoids: (monst, p) => monsterAvoidsImpl(monst, p),
-        canDirectlySeeMonster: (m) => canDirectlySeeMonsterFn(m, queryCtx),
-        monsterName: (m, includeArticle) => {
-            if (m === player) return "you";
-            const pfx = includeArticle ? (m.creatureState === CreatureState.Ally ? "your " : "the ") : "";
-            return `${pfx}${m.info.monsterName}`;
-        },
-        combatMessage: io.combatMessage,
-        cellHasTerrainFlag: chTF,
-        zap: async () => false,
-        BE_BLINKING: BoltEffect.Blinking,
-        BOLT_BLINKING: BoltType.BLINKING,
-        MONST_CAST_SPELLS_SLOWLY: MonsterBehaviorFlag.MONST_CAST_SPELLS_SLOWLY,
-    };
-
-    const blinkToSafetyCtx: MonsterBlinkToSafetyContext = {
-        ...blinkCtx,
-        allySafetyMap: allocGrid(),
-        rogue: {
-            updatedAllySafetyMapThisTurn: rogue.updatedAllySafetyMapThisTurn,
-            updatedSafetyMapThisTurn: rogue.updatedSafetyMapThisTurn,
-        },
-        player,
-        safetyMap: localSafetyMap,
-        inFieldOfView: inFOV,
-        allocGrid,
-        copyGrid,
-        updateSafetyMap: () => {},
-        updateAllySafetyMap: () => {},
-    };
-
-    // ── Bolt AI context ────────────────────────────────────────────────────────
-    const boltAICtx: BoltAIContext = {
-        player, monsters, rogue, boltCatalog, tileCatalog, dungeonFeatureCatalog, monsterCatalog,
-        rng: { randPercent },
-        openPathBetween: (loc1, loc2) =>
-            openPathBetweenFn(loc1, loc2, (pos) => chTF(pos, TerrainFlag.T_OBSTRUCTS_PASSABILITY)),
-        cellHasTerrainFlag: chTF,
-        inFieldOfView: inFOV,
-        canDirectlySeeMonster: (m) => canDirectlySeeMonsterFn(m, queryCtx),
-        monsterIsHidden: (target, viewer) => monsterIsHiddenFn(target, viewer, queryCtx),
-        monstersAreTeammates: (a, b) => monstersAreTeammatesFn(a, b, player),
-        monstersAreEnemies: (a, b) => monstersAreEnemiesFn(a, b, player, chTF),
-        canSeeMonster: (m) => canSeeMonsterFn(m, queryCtx),
-        burnedTerrainFlagsAtLoc: (loc) => burnedTerrainFlagsAtLocFn(pmap, loc),
-        avoidedFlagsForMonster,
-        distanceBetween,
-        monsterName: (m, includeArticle) => {
-            if (m === player) return "you";
-            const pfx = includeArticle ? (m.creatureState === CreatureState.Ally ? "your " : "the ") : "";
-            return `${pfx}${m.info.monsterName}`;
-        },
-        resolvePronounEscapes,
-        combatMessage: io.combatMessage,
-        zap: async () => false,
-        gameOver: (msg) => gameOver(msg),
-        monsterSummons: (monst, alwaysUse) => monsterSummonsFn(monst, alwaysUse, summonsCtx),
     };
 
     // ── moveAlly context ──────────────────────────────────────────────────────
@@ -587,38 +476,6 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
     };
     monsterMillAboutImpl = (monst, chance) => monsterMillAboutFn(monst, chance, millAboutCtx);
 
-    // ── Corpse absorption context ─────────────────────────────────────────────
-    const corpseAbsorptionCtx: CorpseAbsorptionContext = {
-        canSeeMonster: (m) => canSeeMonsterFn(m, queryCtx),
-        monsterName: (m, includeArticle) => {
-            if (m === player) return "you";
-            const pfx = includeArticle ? (m.creatureState === CreatureState.Ally ? "your " : "the ") : "";
-            return `${pfx}${m.info.monsterName}`;
-        },
-        getAbsorbingText: (id) => monsterText[id]?.absorbing ?? "",
-        boltAbilityDescription: (boltIndex) => boltCatalog[boltIndex]?.abilityDescription ?? "",
-        behaviorDescription: (flagIndex) => monsterBehaviorCatalog[flagIndex]?.description ?? "",
-        abilityDescription: (flagIndex) => monsterAbilityCatalog[flagIndex]?.description ?? "",
-        resolvePronounEscapes,
-        messageWithColor: io.messageWithColor,
-        goodMessageColor,
-        advancementMessageColor,
-        MB_ABSORBING: MonsterBookkeepingFlag.MB_ABSORBING,
-        MB_SUBMERGED: MonsterBookkeepingFlag.MB_SUBMERGED,
-        MONST_FIERY: MonsterBehaviorFlag.MONST_FIERY,
-        MONST_FLIES: MonsterBehaviorFlag.MONST_FLIES,
-        MONST_IMMUNE_TO_FIRE: MonsterBehaviorFlag.MONST_IMMUNE_TO_FIRE,
-        MONST_INVISIBLE: MonsterBehaviorFlag.MONST_INVISIBLE,
-        MONST_RESTRICTED_TO_LIQUID: MonsterBehaviorFlag.MONST_RESTRICTED_TO_LIQUID,
-        MONST_SUBMERGES: MonsterBehaviorFlag.MONST_SUBMERGES,
-        STATUS_BURNING: StatusEffect.Burning,
-        STATUS_LEVITATING: StatusEffect.Levitating,
-        STATUS_IMMUNE_TO_FIRE: StatusEffect.ImmuneToFire,
-        STATUS_INVISIBLE: StatusEffect.Invisible,
-        BOLT_NONE: BoltType.NONE,
-        unflag,
-    };
-
     // ── Return the fully-wired MonstersTurnContext ─────────────────────────────
     return {
         player, monsters,
@@ -640,8 +497,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         monsterBlinkToSafety: (monst) => monsterBlinkToSafetyFn(monst, blinkToSafetyCtx),
         monsterSummons: (monst, alwaysUse) => monsterSummonsFn(monst, alwaysUse, summonsCtx),
         monsterCanShootWebs: (monst) => monsterCanShootWebsFn(monst, boltCatalog, tileCatalog, dungeonFeatureCatalog),
-        updateMonsterCorpseAbsorption: (monst) =>
-            updateMonsterCorpseAbsorptionFn(monst, corpseAbsorptionCtx),
+        updateMonsterCorpseAbsorption,
         spawnDungeonFeature(x, y, dfType, isVolatile, ignoreBlocking) {
             const feat = dungeonFeatureCatalog[dfType];
             if (feat) spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, isVolatile, ignoreBlocking);
