@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-13 (B46 fixed — travel fires on MouseUp, pauseAndCheckForEventIgnoringHover added; B48 fixed — hover crash; B32 fixed — whip zap wired; B43 discover/discoverCell wired in item contexts; B41 updateClairvoyance wired; B40 createFlare wired; B38 animation fixed; B37–B45 filed; B25/B15 WAI; B31 fixed)
-**Tests at last update:** 88 files · 2286 pass · 55 skip
+**Status:** updated 2026-03-14 (B45 fixed — slow/empowerMonster/tunnelize/disentangle wired in staff-wiring.ts + turn-monster-zap-wiring.ts; B44 merged to master)
+**Tests at last update:** 88 files · 2296 pass · 55 skip
 
 ---
 
@@ -662,17 +662,17 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   Tests: `monster-bolt-ai.test.ts` (19 tests). 2296 pass / 55 skip.
   ⚠️ Browser smoke-test pending — monsters firing bolts in-game not yet manually verified.
 
-- [ ] **B45 — Item effect stubs — potions, scrolls, wands incomplete** — Multiple item
-  effects are stubbed or missing. Confirmed stubs (test.skip entries exist):
-  `teleport` (items.ts:200), `haste` (items.ts:199), `aggravateMonsters` (items.ts:208).
-  Missing with no TS equivalent: `negate` (negation wand), `weaken` (weakness scroll),
-  `slow` (slow monster bolt/potion), `disentangle` (removes webs), `summonMinions`
-  (monster summon effect from items). Also missing: `swapItemEnchants` / `swapItemToEnchantLevel`
-  / `enchantLevelKnown` (enchant-swap mechanic), `magicChargeItem` (recharge wand),
-  `empowerMonster`, `applyTunnelEffect`. Using any of these items in the port silently
-  does nothing.
-  C: `Items.c` (readScroll, drinkPotion, useStaffOrWand effect branches).
-  TS: `items/item-handlers.ts`, `items.ts` context stubs. **L**
+- [x] **B45 — Item effect stubs — wired remaining bolt/zap effect stubs** — Most effects
+  (`teleport`, `haste`, `aggravateMonsters`, `negate`, `summonMinions`, `swapItemEnchants`)
+  were already wired in a previous session. This pass wired the remaining stubs in
+  `staff-wiring.ts` and `turn-monster-zap-wiring.ts`:
+  `slow` → `slowFn` (SlowContext with updateEncumbrance + message);
+  `empowerMonster` → real `empowerMonsterFn` from `monster-state.ts`;
+  `tunnelize` → real `tunnelizeFn` from `bolt-helpers.ts` (TunnelizeContext built inline);
+  `disentangle` (ZapContext top-level + teleport inner) → real `disentangleFn` with message.
+  All 2296 tests pass / 55 skip.
+  C: `Items.c:3905` (slow), `Monsters.c:538` (empowerMonster), `Items.c:3631` (tunnelize).
+  TS: `items/staff-wiring.ts`, `turn-monster-zap-wiring.ts`. **L→done**
 
 - [x] **B46 — Click-to-travel stops after one step** — Clicking on a visible cell more
   than one step away should pathfind the player there step-by-step, stopping if a

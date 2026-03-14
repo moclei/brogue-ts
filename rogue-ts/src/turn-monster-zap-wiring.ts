@@ -23,12 +23,14 @@ import { buildCombatAttackContext, buildCombatDamageContext, buildFadeInMonsterF
 import { attack as attackFn } from "./combat/combat-attack.js";
 import {
     inflictDamage as inflictDamageFn,
+    inflictLethalDamage as inflictLethalDamageFn,
     killCreature as killCreatureFn,
     addPoison as addPoisonFn,
     heal as healFn,
     flashMonster as flashMonsterFn,
 } from "./combat/combat-damage.js";
-import { haste as hasteFn } from "./items/item-effects.js";
+import { haste as hasteFn, slow as slowFn } from "./items/item-effects.js";
+import { tunnelize as tunnelizeFn } from "./items/bolt-helpers.js";
 import { negateCreature as negateCreatureFn } from "./monsters/monster-negate.js";
 import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
 import {
@@ -81,7 +83,8 @@ import { updateEncumbrance as updateEncumbranceFn } from "./items/item-usage.js"
 import { generateMonster as generateMonsterFn } from "./monsters/monster-creation.js";
 import { randPercent, randRange } from "./math/rng.js";
 import { coordinatesAreInMap } from "./globals/tables.js";
-import { distanceBetween } from "./monsters/monster-state.js";
+import { distanceBetween, empowerMonster as empowerMonsterFn } from "./monsters/monster-state.js";
+import type { MonsterStateContext } from "./monsters/monster-state.js";
 import {
     TileFlag, TerrainFlag, MonsterBookkeepingFlag, IS_IN_MACHINE,
     TerrainMechFlag, MonsterAbilityFlag,
@@ -261,7 +264,14 @@ export function buildMonsterZapFn() {
                 },
                 message: (msg, flags) => { void io.message(msg, flags); },
             }),
-            slow: (monst, _duration) => { void monst; },
+            slow: (monst, duration) => slowFn(monst, duration, {
+                player,
+                updateEncumbrance: () => {
+                    const s = buildEquipState();
+                    updateEncumbranceFn(s);
+                },
+                message: (msg, flags) => { void io.message(msg, flags); },
+            }),
             imbueInvisibility: (monst, turns) => { void monst; void turns; return false; },
             wandDominate: (monst) => wandDominateFn(monst.currentHP, monst.info.maxHP),
             becomeAllyWith: () => {},
@@ -286,7 +296,11 @@ export function buildMonsterZapFn() {
                 applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
                 resolvePronounEscapes: buildResolvePronounEscapesFn(player, pmap, rogue),
             }),
-            empowerMonster: () => {},
+            empowerMonster: (monst) => empowerMonsterFn(monst, {
+                queryCtx: mqCtx,
+                heal: (m: Creature, pct: number, pan: boolean) => healFn(m, pct, pan, damageCtx),
+                combatMessage: (text: string) => { void io.combatMessage(text, null); },
+            } as unknown as MonsterStateContext),
             addPoison: (monst, tpp, amount) => addPoisonFn(monst, tpp, amount, damageCtx),
             heal: (monst, amount, healsAboveMax) => healFn(monst, amount, healsAboveMax, damageCtx),
             cloneMonster: () => null,
@@ -297,7 +311,31 @@ export function buildMonsterZapFn() {
             exposeTileToElectricity: () => false,
             createFlare: () => {},
 
-            tunnelize: () => false,
+            tunnelize: (x, y) => tunnelizeFn(x, y, {
+                pmap,
+                tileCatalog,
+                cellHasTerrainFlag,
+                spawnDungeonFeature: () => {},
+                monsterAtLoc,
+                inflictLethalDamage: (attacker, defender) =>
+                    inflictLethalDamageFn(attacker, defender, damageCtx),
+                killCreature: (m, admin) => killCreatureFn(m, admin, damageCtx),
+                freeCaptivesEmbeddedAt: (x2, y2) => freeCaptivesEmbeddedAtFn(x2, y2, {
+                    player, pmap,
+                    demoteMonsterFromLeadership: () => {},
+                    makeMonsterDropItem: () => {},
+                    refreshDungeonCell: () => {},
+                    monsterName: (m, inc) => {
+                        if (m === player) return "you";
+                        const pfx = inc ? (m.creatureState === CreatureState.Ally ? "your " : "the ") : "";
+                        return `${pfx}${m.info.monsterName}`;
+                    },
+                    message: (msg, flags) => { void io.message(msg, flags); },
+                    monsterAtLoc,
+                    cellHasTerrainFlag,
+                }),
+                randPercent,
+            }),
             freeCaptivesEmbeddedAt: (x, y) => freeCaptivesEmbeddedAtFn(x, y, {
                 player, pmap,
                 demoteMonsterFromLeadership: () => {},
@@ -316,7 +354,10 @@ export function buildMonsterZapFn() {
 
             teleport: (monst, targetPos, safe) => teleportFn(monst, targetPos, safe, {
                 player,
-                disentangle: (m) => disentangleFn(m, { player, message: () => {} }),
+                disentangle: (m) => disentangleFn(m, {
+                    player,
+                    message: (msg, flags) => { void io.message(msg, flags); },
+                }),
                 calculateDistancesFrom: (grid, x, y, flags) =>
                     calculateDistances(grid, x, y, flags, null, true, false, calcDistCtx),
                 getFOVMaskAt: (grid, x, y, radius, terrain, flags, cautious) =>
@@ -349,7 +390,10 @@ export function buildMonsterZapFn() {
                 HAS_MONSTER: TileFlag.HAS_MONSTER,
                 HAS_STAIRS: TileFlag.HAS_STAIRS,
             }),
-            disentangle: () => {},
+            disentangle: (m) => disentangleFn(m, {
+                player,
+                message: (msg, flags) => { void io.message(msg, flags); },
+            }),
             applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
             pickUpItemAt: () => {},
             checkForMissingKeys: () => {},
