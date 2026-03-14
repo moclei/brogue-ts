@@ -24,7 +24,7 @@
 import type { Color, Tcell, Creature } from "../types/types.js";
 import type { DisplayGlyph } from "../types/enums.js";
 import { CreatureState } from "../types/enums.js";
-import { clamp, randRange } from "../math/rng.js";
+import { clamp, cosmeticRandRange } from "../math/rng.js";
 import { LIGHT_SMOOTHING_THRESHOLD, COLOR_ESCAPE, COLOR_VALUE_INTERCEPT } from "../types/constants.js";
 import { FP_FACTOR, fpSqrt } from "../math/fixpt.js";
 import { black, white, badMessageColor, goodMessageColor } from "../globals/colors.js";
@@ -153,7 +153,7 @@ export function randomizeColor(baseColor: Color, randomizePercent: number): void
 
 /** C: `randomizeByPercent` (static helper in IO.c). */
 function randomizeByPercent(input: number, percent: number): number {
-    return randRange(
+    return cosmeticRandRange(
         Math.trunc(input * (100 - percent) / 100),
         Math.trunc(input * (100 + percent) / 100),
     );
@@ -181,10 +181,10 @@ export function swapColors(color1: Color, color2: Color): void {
  * C: `bakeColor` in IO.c
  */
 export function bakeColor(theColor: Color): void {
-    const rand = randRange(0, theColor.rand);
-    theColor.red += randRange(0, theColor.redRand) + rand;
-    theColor.green += randRange(0, theColor.greenRand) + rand;
-    theColor.blue += randRange(0, theColor.blueRand) + rand;
+    const rand = cosmeticRandRange(0, theColor.rand);
+    theColor.red += cosmeticRandRange(0, theColor.redRand) + rand;
+    theColor.green += cosmeticRandRange(0, theColor.greenRand) + rand;
+    theColor.blue += cosmeticRandRange(0, theColor.blueRand) + rand;
     theColor.redRand = 0;
     theColor.greenRand = 0;
     theColor.blueRand = 0;
@@ -279,11 +279,11 @@ export function separateColors(fore: Color, back: Readonly<Color>): boolean {
  * C: `storeColorComponents` in IO.c
  */
 export function storeColorComponents(theColor: Readonly<Color>): [number, number, number] {
-    const rand = randRange(0, theColor.rand);
+    const rand = cosmeticRandRange(0, theColor.rand);
     return [
-        clamp(theColor.red + randRange(0, theColor.redRand) + rand, 0, 100),
-        clamp(theColor.green + randRange(0, theColor.greenRand) + rand, 0, 100),
-        clamp(theColor.blue + randRange(0, theColor.blueRand) + rand, 0, 100),
+        clamp(theColor.red + cosmeticRandRange(0, theColor.redRand) + rand, 0, 100),
+        clamp(theColor.green + cosmeticRandRange(0, theColor.greenRand) + rand, 0, 100),
+        clamp(theColor.blue + cosmeticRandRange(0, theColor.blueRand) + rand, 0, 100),
     ];
 }
 
