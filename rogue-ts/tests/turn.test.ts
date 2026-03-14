@@ -159,7 +159,7 @@ describe("playerTurnEnded — scheduler", () => {
     });
 });
 
-it("monstUseMagic returns false for a monster with no bolt abilities", () => {
+it("monstUseMagic returns false for a monster with no bolt abilities", async () => {
     // A rat has no bolts — monstUseBolt short-circuits and returns false,
     // so monstUseMagic returns false without attempting to cast.
     setupPlayer();
@@ -167,7 +167,7 @@ it("monstUseMagic returns false for a monster with no bolt abilities", () => {
     const rat = makeTestCreature();
     // Ensure no bolt abilities (MK_RAT.bolts should be empty / [0, ...])
     rat.info.bolts = [0];
-    expect(ctx.monstUseMagic(rat)).toBe(false);
+    expect(await ctx.monstUseMagic(rat)).toBe(false);
 });
 
 // =============================================================================

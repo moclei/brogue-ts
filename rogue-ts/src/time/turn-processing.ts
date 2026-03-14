@@ -118,7 +118,7 @@ export interface TurnProcessingContext {
     monsterAvoids(monst: Creature, p: Pos): boolean;
     monsterIsInClass(monst: Creature, monsterClass: number): boolean;
     isVowelish(word: string): boolean;
-    monstersTurn(monst: Creature): void;
+    monstersTurn(monst: Creature): void | Promise<void>;
     decrementMonsterStatus(monst: Creature): boolean;
     removeCreature(list: Creature[], monst: Creature): boolean;
     prependCreature(list: Creature[], monst: Creature): void;
@@ -679,7 +679,7 @@ export async function playerTurnEnded(
                     ) {
                         monst.ticksUntilTurn = monst.movementSpeed || 100;
                     } else {
-                        ctx.monstersTurn(monst);
+                        await ctx.monstersTurn(monst);
                     }
 
                     // Check if monster survived to apply gradual effects

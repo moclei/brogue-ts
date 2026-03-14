@@ -520,31 +520,31 @@ describe("moveAlly — corpse-eating and scent-follow branches", () => {
         };
     }
 
-    it("moves toward targetCorpseLoc and starts absorbing when adjacent (C:3208)", () => {
+    it("moves toward targetCorpseLoc and starts absorbing when adjacent (C:3208)", async () => {
         const monst = makeMonster();
         monst.loc = { x: 5, y: 5 };
         monst.targetCorpseLoc = { x: 5, y: 5 };  // already at corpse
         monst.targetCorpseName = "goblin";
         monst.leader = makeMonster(MonsterType.MK_YOU);
         const ctx = makeMoveAllyCtx({ canSeeMonster: () => true });
-        moveAlly(monst, ctx);
+        await moveAlly(monst, ctx);
         expect(monst.corpseAbsorptionCounter).toBe(20);
         expect(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_ABSORBING).toBeTruthy();
         expect(ctx.messageWithColor).toHaveBeenCalled();
     });
 
-    it("moves toward targetCorpseLoc when not yet adjacent (C:3208)", () => {
+    it("moves toward targetCorpseLoc when not yet adjacent (C:3208)", async () => {
         const monst = makeMonster();
         monst.loc = { x: 5, y: 5 };
         monst.targetCorpseLoc = { x: 8, y: 8 };
         monst.leader = makeMonster(MonsterType.MK_YOU);
         const mmpt = vi.fn().mockReturnValue(true);
         const ctx = makeMoveAllyCtx({ moveMonsterPassivelyTowards: mmpt });
-        moveAlly(monst, ctx);
+        await moveAlly(monst, ctx);
         expect(mmpt).toHaveBeenCalledWith(monst, monst.targetCorpseLoc, false);
     });
 
-    it("mills about when close to player and in FOV (C:3222)", () => {
+    it("mills about when close to player and in FOV (C:3222)", async () => {
         const monst = makeMonster();
         monst.loc = { x: 10, y: 10 };  // same as player
         monst.targetCorpseLoc = { x: -1, y: -1 };  // invalid (not in map)
@@ -555,12 +555,12 @@ describe("moveAlly — corpse-eating and scent-follow branches", () => {
             monsterMillAbout: mill,
         });
         // player is at (10,10), monst is at (10,10) → distance 0 < 3
-        moveAlly(monst, ctx);
+        await moveAlly(monst, ctx);
         expect(mill).toHaveBeenCalledWith(monst, 30);
         expect(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_GIVEN_UP_ON_SCENT).toBe(0);
     });
 
-    it("follows scentDirection when far from player (C:3228)", () => {
+    it("follows scentDirection when far from player (C:3228)", async () => {
         const monst = makeMonster();
         monst.loc = { x: 5, y: 5 };
         monst.targetCorpseLoc = { x: -1, y: -1 };
@@ -573,12 +573,12 @@ describe("moveAlly — corpse-eating and scent-follow branches", () => {
             moveMonsterPassivelyTowards: mmpt,
         });
         ctx.player.loc = { x: 40, y: 20 };
-        moveAlly(monst, ctx);
+        await moveAlly(monst, ctx);
         // dir 0 = [0, -1] → target = {5, 4}
         expect(mmpt).toHaveBeenCalledWith(monst, { x: 5, y: 4 }, false);
     });
 
-    it("falls back to pathTowardCreature(leader) when scentDirection returns -1 (C:3236)", () => {
+    it("falls back to pathTowardCreature(leader) when scentDirection returns -1 (C:3236)", async () => {
         const monst = makeMonster();
         monst.loc = { x: 5, y: 5 };
         monst.targetCorpseLoc = { x: -1, y: -1 };
@@ -591,7 +591,7 @@ describe("moveAlly — corpse-eating and scent-follow branches", () => {
             pathTowardCreature: pathToward,
         });
         ctx.player.loc = { x: 40, y: 20 };
-        moveAlly(monst, ctx);
+        await moveAlly(monst, ctx);
         expect(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_GIVEN_UP_ON_SCENT).toBeTruthy();
         expect(pathToward).toHaveBeenCalledWith(monst, leader);
     });

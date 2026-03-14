@@ -655,16 +655,12 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   `aggravateMonsters` context (alarm reveals). `discoverCell` in aggravate context wired inline
   via `discoverCellFn` cast. Tests in `items.test.ts:390`. 2286 pass / 55 skip.
 
-- [ ] **B44 — Monster spell-casting system absent** — The entire monster spell pipeline is
-  missing. `monsterCastSpell` (the main dispatcher) is not ported at all. `monstUseBolt`,
-  `monstUseMagic` are stubs. Supporting helpers are also absent: `generallyValidBoltTarget`,
-  `targetEligibleForCombatBuff`, `specificallyValidBoltTarget`, `monstUseDomination`,
-  `monstUseBeckon`, `monstUseBlinkAway`, `monsterBlinkToSafety`, `monsterBlinkToPreferenceMap`,
-  `getSafetyMap`, `allyFlees`, `summonMinions`, `creatureEligibleForSwarming`,
-  `monsterSwarmDirection`. Monsters in the port never cast spells, blink, summon, dominate,
-  beckon, or flee intelligently — a major AI divergence.
-  C: `Monsters.c` (monsterCastSpell:2755 and surrounding functions). TS: stubs in
-  `monsters/monster-actions.ts`, `turn-monster-ai.ts`, `turn.ts`. **L**
+- [x] **B44 — Monster spell-casting system absent** — Wired end-to-end: `monsterCastSpell`,
+  `monstUseBolt`, `monstUseMagic` are async and fully connected. `buildMonsterZapFn()` provides
+  the real zap closure; `buildMonsterBoltBlinkContexts()` wires bolt/blink/summon/corpse contexts.
+  `monstersTurn` is async and properly awaited in `turn-processing.ts`. Phase 2–4 complete.
+  Tests: `monster-bolt-ai.test.ts` (19 tests). 2296 pass / 55 skip.
+  ⚠️ Browser smoke-test pending — monsters firing bolts in-game not yet manually verified.
 
 - [ ] **B45 — Item effect stubs — potions, scrolls, wands incomplete** — Multiple item
   effects are stubbed or missing. Confirmed stubs (test.skip entries exist):

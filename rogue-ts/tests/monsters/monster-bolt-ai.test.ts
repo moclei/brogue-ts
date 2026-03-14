@@ -3,14 +3,18 @@
  *  brogue-ts
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
     monsterHasBoltEffect,
     monsterCanShootWebs,
+    monsterCastSpell,
+    monstUseBolt,
+    monstUseMagic,
 } from "../../src/monsters/monster-bolt-ai.js";
+import type { BoltAIContext } from "../../src/monsters/monster-bolt-ai.js";
 import type { Creature, Bolt, FloorTileType, DungeonFeature } from "../../src/types/types.js";
-import { BoltEffect } from "../../src/types/enums.js";
-import { TerrainFlag } from "../../src/types/flags.js";
+import { BoltEffect, CreatureState } from "../../src/types/enums.js";
+import { BoltFlag, MonsterBehaviorFlag, TerrainFlag } from "../../src/types/flags.js";
 import { white } from "../../src/globals/colors.js";
 
 // =============================================================================
@@ -167,5 +171,236 @@ describe("monsterCanShootWebs", () => {
         const tileCatalog = makeTileCatalog(false); // no T_ENTANGLES
         const dfCatalog = makeDungeonFeatureCatalog(3);
         expect(monsterCanShootWebs(monst, boltCatalog, tileCatalog, dfCatalog)).toBe(false);
+    });
+});
+
+// =============================================================================
+// BoltAIContext helpers for monsterCastSpell / monstUseBolt / monstUseMagic
+// =============================================================================
+
+/** Bolt that targets enemies (damage bolt). */
+function makeDamageBolt(): Bolt {
+    return {
+        boltEffect: BoltEffect.Damage,
+        flags: BoltFlag.BF_TARGET_ENEMIES,
+        forbiddenMonsterFlags: 0,
+        pathDF: 0,
+        targetDF: 0,
+        description: "blasts",
+    } as unknown as Bolt;
+}
+
+/** A player-like target creature. */
+function makePlayer(): Creature {
+    return {
+        info: { flags: 0, abilityFlags: 0, maxHP: 20, monsterName: "you", monsterID: 0 },
+        currentHP: 20,
+        bookkeepingFlags: 0,
+        creatureState: CreatureState.TrackingScent,
+        status: new Array(50).fill(0),
+        loc: { x: 8, y: 5 },
+    } as unknown as Creature;
+}
+
+/** A caster monster with bolt index 1, MONST_ALWAYS_USE_ABILITY set. */
+function makeCaster(): Creature {
+    const bolts = new Array(20).fill(0);
+    bolts[0] = 1; // bolt type index 1
+    return {
+        info: {
+            monsterID: 1,
+            flags: MonsterBehaviorFlag.MONST_ALWAYS_USE_ABILITY,
+            abilityFlags: 0,
+            maxHP: 10,
+            monsterName: "the rat",
+            bolts,
+        },
+        currentHP: 10,
+        bookkeepingFlags: 0,
+        creatureState: CreatureState.Hunting,
+        status: new Array(50).fill(0),
+        loc: { x: 5, y: 5 },
+    } as unknown as Creature;
+}
+
+function makeBoltAICtx(overrides: Partial<BoltAIContext> = {}): BoltAIContext {
+    const player = makePlayer();
+    return {
+        player,
+        monsters: [],
+        rogue: {} as never,
+        boltCatalog: [makeBolt(BoltEffect.None), makeDamageBolt()],
+        tileCatalog: [],
+        dungeonFeatureCatalog: [],
+        monsterCatalog: [{ monsterName: "rat" }] as never,
+        rng: { randPercent: () => false },
+        openPathBetween: () => true,
+        cellHasTerrainFlag: () => false,
+        inFieldOfView: () => true,
+        canDirectlySeeMonster: () => false,
+        monsterIsHidden: () => false,
+        monstersAreTeammates: () => false,
+        monstersAreEnemies: () => true,
+        canSeeMonster: () => true,
+        burnedTerrainFlagsAtLoc: () => 0,
+        avoidedFlagsForMonster: () => 0,
+        distanceBetween: () => 3,
+        monsterName: (m) => m.info.monsterName ?? "monster",
+        resolvePronounEscapes: (text) => text,
+        combatMessage: () => {},
+        zap: vi.fn().mockResolvedValue(true),
+        gameOver: () => {},
+        monsterSummons: () => false,
+        ...overrides,
+    };
+}
+
+// =============================================================================
+// monsterCastSpell
+// =============================================================================
+
+describe("monsterCastSpell", () => {
+    it("calls zap with caster.loc and target.loc", async () => {
+        const caster = makeCaster();
+        const target = makePlayer();
+        const zapFn = vi.fn().mockResolvedValue(true);
+        const ctx = makeBoltAICtx({ player: target, zap: zapFn });
+
+        await monsterCastSpell(caster, target, 1, ctx);
+
+        expect(zapFn).toHaveBeenCalledOnce();
+        expect(zapFn.mock.calls[0][0]).toEqual({ x: 5, y: 5 }); // origin = caster.loc
+        expect(zapFn.mock.calls[0][1]).toEqual({ x: 8, y: 5 }); // target = player.loc
+    });
+
+    it("logs combatMessage when caster is visible", async () => {
+        const caster = makeCaster();
+        const target = makePlayer();
+        const combatMsg = vi.fn();
+        const ctx = makeBoltAICtx({
+            player: target,
+            canDirectlySeeMonster: () => true,
+            combatMessage: combatMsg,
+        });
+
+        await monsterCastSpell(caster, target, 1, ctx);
+
+        expect(combatMsg).toHaveBeenCalledOnce();
+        const [msg] = combatMsg.mock.calls[0];
+        expect(msg).toContain("blasts"); // bolt description included
+    });
+
+    it("does not log combatMessage when caster is not visible", async () => {
+        const caster = makeCaster();
+        const target = makePlayer();
+        const combatMsg = vi.fn();
+        const ctx = makeBoltAICtx({
+            player: target,
+            canDirectlySeeMonster: () => false,
+            combatMessage: combatMsg,
+        });
+
+        await monsterCastSpell(caster, target, 1, ctx);
+
+        expect(combatMsg).not.toHaveBeenCalled();
+    });
+});
+
+// =============================================================================
+// monstUseBolt
+// =============================================================================
+
+describe("monstUseBolt", () => {
+    it("returns false when monster has no bolts", async () => {
+        const monst = makeMonster([]); // no bolts
+        const ctx = makeBoltAICtx();
+        expect(await monstUseBolt(monst as unknown as Creature, ctx)).toBe(false);
+    });
+
+    it("fires zap and returns true when a valid target exists", async () => {
+        const caster = makeCaster(); // MONST_ALWAYS_USE_ABILITY + bolt[0]=1
+        const target = makePlayer();
+        const zapFn = vi.fn().mockResolvedValue(true);
+        const ctx = makeBoltAICtx({ player: target, zap: zapFn });
+
+        const result = await monstUseBolt(caster, ctx);
+
+        expect(result).toBe(true);
+        expect(zapFn).toHaveBeenCalledOnce();
+    });
+
+    it("returns false when target is hidden", async () => {
+        const caster = makeCaster();
+        const target = makePlayer();
+        const zapFn = vi.fn().mockResolvedValue(true);
+        const ctx = makeBoltAICtx({
+            player: target,
+            zap: zapFn,
+            monsterIsHidden: () => true, // target is hidden
+        });
+
+        const result = await monstUseBolt(caster, ctx);
+
+        expect(result).toBe(false);
+        expect(zapFn).not.toHaveBeenCalled();
+    });
+
+    it("returns false when no open path to target", async () => {
+        const caster = makeCaster();
+        const target = makePlayer();
+        const zapFn = vi.fn().mockResolvedValue(true);
+        const ctx = makeBoltAICtx({
+            player: target,
+            zap: zapFn,
+            openPathBetween: () => false,
+        });
+
+        expect(await monstUseBolt(caster, ctx)).toBe(false);
+        expect(zapFn).not.toHaveBeenCalled();
+    });
+});
+
+// =============================================================================
+// monstUseMagic
+// =============================================================================
+
+describe("monstUseMagic", () => {
+    it("returns true immediately when monsterSummons succeeds", async () => {
+        const caster = makeCaster();
+        const zapFn = vi.fn().mockResolvedValue(true);
+        const ctx = makeBoltAICtx({
+            zap: zapFn,
+            monsterSummons: () => true, // summons succeeds
+        });
+
+        const result = await monstUseMagic(caster, ctx);
+
+        expect(result).toBe(true);
+        expect(zapFn).not.toHaveBeenCalled(); // no bolt fired
+    });
+
+    it("falls through to monstUseBolt when summoning fails", async () => {
+        const caster = makeCaster(); // has bolt
+        const target = makePlayer();
+        const zapFn = vi.fn().mockResolvedValue(true);
+        const ctx = makeBoltAICtx({
+            player: target,
+            zap: zapFn,
+            monsterSummons: () => false, // summons fails
+        });
+
+        const result = await monstUseMagic(caster, ctx);
+
+        expect(result).toBe(true);
+        expect(zapFn).toHaveBeenCalledOnce(); // bolt was fired
+    });
+
+    it("returns false when neither summons nor bolt succeeds", async () => {
+        const caster = makeMonster([]); // no bolts
+        const ctx = makeBoltAICtx({
+            monsterSummons: () => false,
+        });
+
+        expect(await monstUseMagic(caster as unknown as Creature, ctx)).toBe(false);
     });
 });

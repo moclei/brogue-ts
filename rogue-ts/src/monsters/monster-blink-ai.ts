@@ -72,7 +72,7 @@ export interface MonsterBlinkContext {
     /** Returns true if the cell has any of the given terrain flags set. */
     cellHasTerrainFlag(loc: Pos, flags: number): boolean;
     /** Fire a zap from origin toward target using the given bolt. */
-    zap(origin: Pos, target: Pos, bolt: Bolt, hideDetails: boolean, reverseBoltDir: boolean): void;
+    zap(origin: Pos, target: Pos, bolt: Bolt, hideDetails: boolean, reverseBoltDir: boolean): Promise<boolean>;
     /** BoltEffect.Blinking — used to look up the monster's blink ability. */
     BE_BLINKING: number;
     /** BoltType.BLINKING — index into boltCatalog for the blink bolt path geometry. */
@@ -97,12 +97,12 @@ export interface MonsterBlinkContext {
  *
  * Ported from monsterBlinkToPreferenceMap() in Monsters.c.
  */
-export function monsterBlinkToPreferenceMap(
+export async function monsterBlinkToPreferenceMap(
     monst: Creature,
     preferenceMap: number[][],
     blinkUphill: boolean,
     ctx: MonsterBlinkContext,
-): boolean {
+): Promise<boolean> {
     const theBoltType = ctx.monsterHasBoltEffect(monst, ctx.BE_BLINKING);
     if (!theBoltType) {
         return false;
@@ -187,7 +187,7 @@ export function monsterBlinkToPreferenceMap(
         monst.ticksUntilTurn = monst.attackSpeed *
             ((monst.info.flags & MonsterBehaviorFlag.MONST_CAST_SPELLS_SLOWLY) ? 2 : 1);
         const theBolt = { ...ctx.boltCatalog[theBoltType] };
-        ctx.zap(origin, bestTarget, theBolt, false, false);
+        await ctx.zap(origin, bestTarget, theBolt, false, false);
         return true;
     }
     return false;
@@ -219,10 +219,10 @@ export interface MonsterBlinkToSafetyContext extends MonsterBlinkContext, GetSaf
  *
  * Ported from monsterBlinkToSafety() in Monsters.c.
  */
-export function monsterBlinkToSafety(
+export async function monsterBlinkToSafety(
     monst: Creature,
     ctx: MonsterBlinkToSafetyContext,
-): boolean {
+): Promise<boolean> {
     let blinkSafetyMap: number[][];
 
     if (monst.creatureState === CreatureState.Ally) {
