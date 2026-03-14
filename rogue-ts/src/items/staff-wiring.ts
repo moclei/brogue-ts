@@ -30,12 +30,15 @@ import { buildCombatAttackContext, buildCombatDamageContext, buildFadeInMonsterF
 import { attack as attackFn } from "../combat/combat-attack.js";
 import {
     inflictDamage as inflictDamageFn,
+    inflictLethalDamage as inflictLethalDamageFn,
     killCreature as killCreatureFn,
     addPoison as addPoisonFn,
     heal as healFn,
     flashMonster as flashMonsterFn,
 } from "../combat/combat-damage.js";
-import { haste as hasteFn } from "./item-effects.js";
+import { haste as hasteFn, slow as slowFn } from "./item-effects.js";
+import { tunnelize as tunnelizeFn } from "./bolt-helpers.js";
+import { tileCatalog } from "../globals/tile-catalog.js";
 import { negateCreature as negateCreatureFn } from "../monsters/monster-negate.js";
 import { monsterClassCatalog } from "../globals/monster-class-catalog.js";
 import {
@@ -83,7 +86,8 @@ import { randPercent, randRange } from "../math/rng.js";
 import {
     coordinatesAreInMap, mapToWindowX, windowToMapX, windowToMapY,
 } from "../globals/tables.js";
-import { distanceBetween } from "../monsters/monster-state.js";
+import { distanceBetween, empowerMonster as empowerMonsterFn } from "../monsters/monster-state.js";
+import type { MonsterStateContext } from "../monsters/monster-state.js";
 import {
     TileFlag, TerrainFlag, MonsterBookkeepingFlag, IS_IN_MACHINE,
     TerrainMechFlag,
@@ -383,10 +387,14 @@ export function buildStaffZapFn() {
                 },
                 message: (msg, flags) => { void io.message(msg, flags); },
             }),
-            slow: (monst, _duration) => {
-                // stub — slow wand is rare; avoid SlowContext complexity
-                void monst;
-            },
+            slow: (monst, duration) => slowFn(monst, duration, {
+                player,
+                updateEncumbrance: () => {
+                    const s = buildEquipState();
+                    updateEncumbranceFn(s);
+                },
+                message: (msg, flags) => { void io.message(msg, flags); },
+            }),
             imbueInvisibility: (monst, turns) => {
                 // stub — invisibility bolt auto-ID not critical for gameplay
                 void monst; void turns;
@@ -411,7 +419,11 @@ export function buildStaffZapFn() {
                 applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
                 resolvePronounEscapes: buildResolvePronounEscapesFn(player, pmap, rogue),
             }),
-            empowerMonster: () => {},       // stub
+            empowerMonster: (monst) => empowerMonsterFn(monst, {
+                queryCtx: mqCtx,
+                heal: (m: Creature, pct: number, pan: boolean) => healFn(m, pct, pan, damageCtx),
+                combatMessage: (text: string) => { void io.combatMessage(text, null); },
+            } as unknown as MonsterStateContext),
             addPoison: (monst, tpp, amount) => addPoisonFn(monst, tpp, amount, damageCtx),
             heal: (monst, amount, healsAboveMax) => healFn(monst, amount, healsAboveMax, damageCtx),
             cloneMonster: () => null,       // stub
@@ -423,7 +435,27 @@ export function buildStaffZapFn() {
             createFlare: () => {},          // stub — visual only
 
             // ── Bolt-travel effects ──
-            tunnelize: () => false,         // stub — tunneling wand
+            tunnelize: (x, y) => tunnelizeFn(x, y, {
+                pmap,
+                tileCatalog,
+                cellHasTerrainFlag,
+                spawnDungeonFeature: () => {},
+                monsterAtLoc,
+                inflictLethalDamage: (attacker, defender) =>
+                    inflictLethalDamageFn(attacker, defender, damageCtx),
+                killCreature: (m, admin) => killCreatureFn(m, admin, damageCtx),
+                freeCaptivesEmbeddedAt: (x2, y2) => freeCaptivesEmbeddedAtFn(x2, y2, {
+                    player, pmap,
+                    demoteMonsterFromLeadership: () => {},
+                    makeMonsterDropItem: () => {},
+                    refreshDungeonCell: () => {},
+                    monsterName: (m, inc) => monsterNameFn(m, inc, mqCtx),
+                    message: (msg, flags) => { void io.message(msg, flags); },
+                    monsterAtLoc,
+                    cellHasTerrainFlag,
+                }),
+                randPercent,
+            }),
             freeCaptivesEmbeddedAt: (x, y) => freeCaptivesEmbeddedAtFn(x, y, {
                 player,
                 pmap,
@@ -440,7 +472,10 @@ export function buildStaffZapFn() {
             // ── Teleport / blink ──
             teleport: (monst, targetPos, safe) => teleportFn(monst, targetPos, safe, {
                 player,
-                disentangle: (m) => disentangleFn(m, { player, message: () => {} }),
+                disentangle: (m) => disentangleFn(m, {
+                    player,
+                    message: (msg, flags) => { void io.message(msg, flags); },
+                }),
                 calculateDistancesFrom: (grid, x, y, flags) =>
                     calculateDistances(grid, x, y, flags, null, true, false, calcDistCtx),
                 getFOVMaskAt: (grid, x, y, radius, terrain, flags, cautious) =>
@@ -473,7 +508,10 @@ export function buildStaffZapFn() {
                 HAS_MONSTER: TileFlag.HAS_MONSTER,
                 HAS_STAIRS: TileFlag.HAS_STAIRS,
             }),
-            disentangle: () => {},          // stub
+            disentangle: (m) => disentangleFn(m, {
+                player,
+                message: (msg, flags) => { void io.message(msg, flags); },
+            }),
             applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
             pickUpItemAt: () => {},         // stub
             checkForMissingKeys: () => {},  // stub

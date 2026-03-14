@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-13 (B46 fixed — travel fires on MouseUp, pauseAndCheckForEventIgnoringHover added; B48 fixed — hover crash; B32 fixed — whip zap wired; B43 discover/discoverCell wired in item contexts; B41 updateClairvoyance wired; B40 createFlare wired; B38 animation fixed; B37–B45 filed; B25/B15 WAI; B31 fixed)
-**Tests at last update:** 88 files · 2286 pass · 55 skip
+**Status:** updated 2026-03-14 (B49–B59 filed from playtest session; B45 fixed; B44 merged to master)
+**Tests at last update:** 88 files · 2296 pass · 55 skip
 
 ---
 
@@ -662,17 +662,17 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   Tests: `monster-bolt-ai.test.ts` (19 tests). 2296 pass / 55 skip.
   ⚠️ Browser smoke-test pending — monsters firing bolts in-game not yet manually verified.
 
-- [ ] **B45 — Item effect stubs — potions, scrolls, wands incomplete** — Multiple item
-  effects are stubbed or missing. Confirmed stubs (test.skip entries exist):
-  `teleport` (items.ts:200), `haste` (items.ts:199), `aggravateMonsters` (items.ts:208).
-  Missing with no TS equivalent: `negate` (negation wand), `weaken` (weakness scroll),
-  `slow` (slow monster bolt/potion), `disentangle` (removes webs), `summonMinions`
-  (monster summon effect from items). Also missing: `swapItemEnchants` / `swapItemToEnchantLevel`
-  / `enchantLevelKnown` (enchant-swap mechanic), `magicChargeItem` (recharge wand),
-  `empowerMonster`, `applyTunnelEffect`. Using any of these items in the port silently
-  does nothing.
-  C: `Items.c` (readScroll, drinkPotion, useStaffOrWand effect branches).
-  TS: `items/item-handlers.ts`, `items.ts` context stubs. **L**
+- [x] **B45 — Item effect stubs — wired remaining bolt/zap effect stubs** — Most effects
+  (`teleport`, `haste`, `aggravateMonsters`, `negate`, `summonMinions`, `swapItemEnchants`)
+  were already wired in a previous session. This pass wired the remaining stubs in
+  `staff-wiring.ts` and `turn-monster-zap-wiring.ts`:
+  `slow` → `slowFn` (SlowContext with updateEncumbrance + message);
+  `empowerMonster` → real `empowerMonsterFn` from `monster-state.ts`;
+  `tunnelize` → real `tunnelizeFn` from `bolt-helpers.ts` (TunnelizeContext built inline);
+  `disentangle` (ZapContext top-level + teleport inner) → real `disentangleFn` with message.
+  All 2296 tests pass / 55 skip.
+  C: `Items.c:3905` (slow), `Monsters.c:538` (empowerMonster), `Items.c:3631` (tunnelize).
+  TS: `items/staff-wiring.ts`, `turn-monster-zap-wiring.ts`. **L→done**
 
 - [x] **B46 — Click-to-travel stops after one step** — Clicking on a visible cell more
   than one step away should pathfind the player there step-by-step, stopping if a
@@ -713,6 +713,121 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   `await ctx.nextBrogueEvent(true, false, false)` to filter for keystroke events.
   C: `IO.c` (getInputTextString:2720). TS: `io/input-dispatch.ts`, `io/input-keystrokes.ts`,
   `io/input-context.ts`. **S**
+
+- [ ] **B49 — Pressure plate → steam vent → crash ~2 moves later** — Stepping on a pressure
+  plate triggered steam from two vents. The game crashed approximately two moves after the
+  event, not immediately. The delayed crash suggests a corrupt/dangling reference introduced
+  during the terrain-effect chain rather than a direct throw. Possible causes: monster or
+  item list mutation during `applyInstantTileEffectsToCreature` (gas spawn kills/moves a
+  creature mid-iteration), or a `spawnDungeonFeature` stub silently producing inconsistent
+  pmap state that a subsequent turn-pass then trips over.
+  ⚠️ **Confirm before coding:** hard to reproduce; need to isolate seed + sequence. The
+  crash may have been incidental — confirm it is still present and stems from the pressure-plate
+  event rather than unrelated monster-turn processing.
+  C: `Time.c` (applyInstantTileEffectsToCreature), `Architect.c` (triggerMachinesOfKind).
+  TS: `tile-effects-wiring.ts`, `time/creature-effects.ts`. **M**
+
+- [ ] **B50 — Potion of incineration → permanent darkness (0 light, +14 stealth)** — After
+  drinking a potion of incineration the player was permanently stuck at light level 0, giving
+  a permanent 14 stealth range bonus as though always in darkness. The effect persisted for
+  the rest of the session. Likely cause: `updateVision` / `updateLighting` is not called (or
+  is no-op'd) after the incineration effect burns cells around the player, so the lighting
+  state is never recomputed from the changed tile set; or the incineration feature sets
+  `lights` to zero and the zero-light state is committed to the display buffer without a
+  subsequent recompute.
+  C: `Items.c:7279` (drinkPotion POTION_INCINERATION), `Light.c` (updateVision, updateLighting).
+  TS: `items/item-handlers.ts`, `vision-wiring.ts`, `lifecycle.ts`. **M**
+
+- [ ] **B51 — Depth transition: first-turn monsters not drawn until player moves** — On
+  entering a new dungeon level, monsters that should be immediately visible in the player's
+  field of view are not rendered. After the player takes one move they appear correctly.
+  Likely cause: `displayLevel` or `commitDraws` is called before monster positions are
+  stamped onto the display buffer in the level-entry sequence, so the first frame shows an
+  empty dungeon and monsters only appear after the next full turn redraw.
+  C: `RogueMain.c:547` (startLevel), `IO.c` (displayLevel, displayMonster).
+  TS: `lifecycle.ts` (buildLevelContext / startLevel sequence), `turn-processing.ts`. **S**
+
+- [ ] **B52 — Teleport scroll / teleport bolt: player symbol missing until next move** —
+  After the player teleports (via scroll or bolt), the `@` glyph at the destination is not
+  drawn until the player takes another action. The old position is correctly cleared. Likely
+  cause: `refreshDungeonCell` is called for the old location but not the new one, or
+  `commitDraws` is not called after the teleport resolves, leaving the canvas stale for one
+  frame.
+  C: `Items.c` (teleport → refreshDungeonCell), `IO.c` (displayLevel / commitDraws).
+  TS: `monsters/monster-teleport.ts`, `items.ts`, `vision-wiring.ts`. **S**
+
+- [ ] **B53 — Confusion status never wears off** — Once confused (potion, bolt, or staff of
+  entrancement), the confused status does not decrement and the effect is permanent for the
+  session. In C, `player.status[STATUS_CONFUSED]` is decremented each turn by
+  `playerTurnEnded` → `decrementCreatureStatus`. The TS decrement loop may not be calling the
+  right status index, or the player's status array is not the same object being mutated.
+  C: `Time.c:2003` (playerTurnEnded, decrementCreatureStatus).
+  TS: `time/turn-processing.ts`, `time/creature-effects.ts`. **S**
+
+- [ ] **B54 — Scroll of aggravate monster crashes the game** — Using a scroll of aggravate
+  monster appeared to crash the game, though the reporter was unsure it was the direct cause.
+  `aggravateMonsters` is wired (B43), but the crash may come from the `flashMonster` /
+  `colorFlash` callbacks or from iterating over the monsters list while it is mutated by the
+  alarm-wakeup cascade.
+  ⚠️ **Confirm before coding:** user was uncertain of the cause. Reproduce with a scroll of
+  aggravate monster specifically before investigating.
+  C: `Items.c` (readScroll SCROLL_AGGRAVATE_MONSTER, aggravateMonsters:3358).
+  TS: `items/item-handlers.ts`, `items.ts` (aggravateMonsters context). **M**
+
+- [ ] **B55 — Many vaults still trigger "missing item" message (B31 partial)** — Many vault
+  doors (but not all) still display "The missing item must be replaced before you can access
+  the remaining items" on the first visit, before any item has been picked up. B31 fixed the
+  `keyOnTileAt` lookup for one code path; this suggests there is a second path that still
+  returns `null` or fails the key check. May also affect only certain vault machine types.
+  ⚠️ **Confirm before coding:** determine which vault types trigger this (altar vaults?
+  guarded vaults? item-library vaults?) and whether B31's fix is simply not wired in all
+  relevant contexts (e.g. `io/input-context.ts:200` still stubs `keyOnTileAt: () => null`).
+  C: `Items.c` (checkForMissingKeys), `Architect.c` (machine definitions).
+  TS: `io/input-context.ts`, `tile-effects-wiring.ts`, `time/environment.ts:535`. **M**
+
+- [ ] **B56 — Ascending stairs shows fog-of-war artifacts from the lower level** — When
+  transitioning back up to a previously explored level, cells that should show fog-of-war
+  (remembered but currently unseen) instead display stale glyph/color data from the level
+  below. The player must re-explore those cells for them to render correctly. B28 addressed
+  a similar artifact when descending; this is the ascending direction, likely a missing
+  `displayLevel` / buffer reset before the restored level is drawn.
+  C: `RogueMain.c:643` (startLevel → storeMemories), `IO.c` (displayLevel).
+  TS: `lifecycle.ts` (level transition sequence), `movement/travel-explore.ts` (stair
+  traversal → startLevel call). **S**
+
+- [ ] **B57 — Scroll of negation crashes the game** — Using a scroll of negation caused a
+  crash. `negateCreature` is wired (B44/earlier), but `negationBlast` (the scroll handler)
+  iterates all monsters in FOV and calls `negate` on each. The crash may come from list
+  mutation during that iteration (a negated monster can die via `MONST_DIES_IF_NEGATED`),
+  or from a missing callback in the `NegateContext` (e.g. `extinguishFireOnCreature` or
+  `applyInstantTileEffectsToCreature` is `() => {}` and the negation chain tries to use
+  the return value).
+  ⚠️ **Confirm before coding:** reproduce with a scroll of negation. Check whether the
+  crash is in `negationBlast` itself or in a `killCreature` / `removeCreature` callback
+  triggered mid-loop.
+  C: `Items.c` (negationBlast, readScroll SCROLL_NEGATION:4080).
+  TS: `items/item-handlers.ts` (negationBlast), `items.ts` (NegateContext). **M**
+
+- [ ] **B58 — Eels don't re-submerge in water after surfacing** — Electric eels (and
+  similar aquatic monsters) surface once to attack or become visible, but do not go back
+  underwater. In C, `updateMonsterState` checks `monsterCanSubmergeNow` each turn and sets
+  `MB_SUBMERGED` when the monster is on a submerging tile and no combat is occurring. Either
+  `monsterCanSubmergeNow` is a stub, it returns false when it should return true, or
+  `MB_SUBMERGED` is cleared but never re-set because the relevant branch in
+  `updateMonsterState` / `monsterAvoids` is not reached.
+  C: `Monsters.c:1977` (updateMonsterState submerge branch).
+  TS: `monsters/monster-state.ts` (monsterAvoids, updateMonsterState). **S**
+
+- [ ] **B59 — Click-to-travel uses line-of-sight path, not the hovered path** — When hovering
+  over a distant cell the highlighted path correctly shows the pathfound route (avoiding walls,
+  going around obstacles). But when the player clicks to travel that route, the character
+  moves in a straight line (or attempts line-of-sight) rather than following the displayed
+  path. Root cause is likely that hover uses `getLineCoordinates` / Dijkstra distance map for
+  the preview, while `travelMap` / `travelRoute` starts a separate distance computation from
+  scratch and does not reuse the hover result — or that `travelRoute` uses the bolt-path
+  `getLineCoordinates` instead of a passability-aware path.
+  C: `Movement.c:1566` (travelRoute), `Movement.c:1611` (travelMap), `Movement.c` (getLineCoordinates).
+  TS: `movement/travel-explore.ts`, `io/hover-wiring.ts`. **M**
 
 ---
 
