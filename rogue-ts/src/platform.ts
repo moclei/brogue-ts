@@ -141,16 +141,29 @@ export async function pauseAndCheckForEvent(ms: number): Promise<boolean> {
 }
 
 /**
- * Like pauseAndCheckForEvent, but ignores MouseEnteredCell (hover) events.
- * Travel animations use this so that mouse movement does not interrupt pathfinding.
- * C: pauseAnimation(ms, PAUSE_BEHAVIOR_DEFAULT) — ignores mouse-move events.
+ * Returns true if `ev` should interrupt travel (keystroke or mouse-button press).
+ * MouseUp, RightMouseUp, and MouseEnteredCell do not interrupt travel.
+ * C: pauseAnimation(ms, PAUSE_BEHAVIOR_DEFAULT) — only real input stops travel.
+ */
+function isTravelInterrupt(ev: RogueEvent): boolean {
+    return ev.eventType === EventType.Keystroke ||
+           ev.eventType === EventType.MouseDown ||
+           ev.eventType === EventType.RightMouseDown;
+}
+
+/**
+ * Like pauseAndCheckForEvent, but only returns true for real user input
+ * (keystrokes, mouse-button presses). MouseUp, RightMouseUp, and
+ * MouseEnteredCell events are silently discarded.
+ * C: pauseAnimation(ms, PAUSE_BEHAVIOR_DEFAULT) — mouse-move and mouse-up
+ * do not interrupt travel or animations.
  */
 export async function pauseAndCheckForEventIgnoringHover(ms: number): Promise<boolean> {
     if (!_console) throw new Error("Platform not initialized — call initPlatform() first");
 
-    // Drain a pending hover lookahead without counting it as interruption.
+    // Drain any pending non-interrupting lookahead without counting it.
     if (_lookaheadEvent !== null) {
-        if (_lookaheadEvent.eventType !== EventType.MouseEnteredCell) return true;
+        if (isTravelInterrupt(_lookaheadEvent)) return true;
         _lookaheadEvent = null;
     }
 
@@ -161,10 +174,8 @@ export async function pauseAndCheckForEventIgnoringHover(ms: number): Promise<bo
         if (!interrupted) return false;
         // Re-read after await — cast to escape TypeScript's stale narrowing.
         const ev = _lookaheadEvent as RogueEvent | null;
-        if (ev === null || ev.eventType !== EventType.MouseEnteredCell) {
-            return true;
-        }
-        // Hover event — discard and continue waiting.
+        if (ev !== null && isTravelInterrupt(ev)) return true;
+        // Non-interrupting event (hover, mouse-up) — discard and continue.
         _lookaheadEvent = null;
         remaining = deadline - Date.now();
     }
