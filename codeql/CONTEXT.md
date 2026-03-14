@@ -115,7 +115,7 @@ select f.getName(), f.getFile().getBaseName(), f.getLocation().getStartLine()
 
 For TypeScript queries use `import javascript` instead of `import cpp`.
 
-**Important:** QL syntax is `from … where … select` (not `select … from …`).
+**Important:** QL syntax is `from … where … select` (not `select … from …`). See `codeql/QUERY_REFERENCE.md` for syntax rules, predicate tables, and worked examples before writing any query.
 
 ### Troubleshooting
 
