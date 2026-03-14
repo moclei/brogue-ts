@@ -508,7 +508,7 @@ export function buildTravelContext(): TravelExploreContext {
                 cellHasTerrainFlag: (pos, flags) => cellHasTerrainFlagFn(pmap, pos, flags),
                 cellHasTMFlag: (pos, flags) => cellHasTMFlagFn(pmap, pos, flags),
                 monsterAtLoc: monsterAtLoc,
-                monsterAvoids: () => false,
+                monsterAvoids: (m, pos) => monsterAvoidsFn(m, pos, monsterStateCtx),
                 discoveredTerrainFlagsAtLoc: () => 0,
                 isPlayer: (m: Creature) => m === player,
                 getCellFlags: (x: number, y: number) => pmap[x][y].flags,

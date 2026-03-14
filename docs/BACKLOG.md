@@ -818,7 +818,7 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `Monsters.c:1977` (updateMonsterState submerge branch).
   TS: `monsters/monster-state.ts` (monsterAvoids, updateMonsterState). **S**
 
-- [ ] **B59 — Click-to-travel uses line-of-sight path, not the hovered path** — When hovering
+- [x] **B59 — Click-to-travel uses line-of-sight path, not the hovered path** — When hovering
   over a distant cell the highlighted path correctly shows the pathfound route (avoiding walls,
   going around obstacles). But when the player clicks to travel that route, the character
   moves in a straight line (or attempts line-of-sight) rather than following the displayed
