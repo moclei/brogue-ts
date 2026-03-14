@@ -363,7 +363,9 @@ export async function travelMap(
                 if (!await ctx.playerMoves(dir as Direction)) {
                     ctx.rogue.disturbed = true;
                 }
-                const pause = Math.max(1, 500 - (Date.now() - stepStart));
+                // C uses travelRoute (25 ms/step) for regular click-to-travel, not travelMap (500 ms).
+                // Subtract playerMoves() processing time to match C's _delayUpTo budget.
+                const pause = Math.max(0, 25 - (Date.now() - stepStart));
                 if (await ctx.pauseAnimation(pause, 0 /* PAUSE_BEHAVIOR_DEFAULT */)) {
                     ctx.rogue.disturbed = true;
                 }

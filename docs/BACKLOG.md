@@ -682,20 +682,16 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   than one step away should pathfind the player there step-by-step, stopping if a
   monster comes into view, the player bumps something unexpected, or the player presses
   a key. Instead, the port moves only one step and stops.
-  Root cause: `travelMap` (travel-explore.ts) calls `ctx.pauseAnimation(500, ...)` between
-  each step. `pauseAnimation` in `buildTravelContext` delegates to
-  `platformPauseAndCheckForEvent(500)`, which resolves early on **any** event including
-  `MouseEnteredCell` (hover). After a click, the mouse is still over the dungeon and hover
-  events fire immediately, causing `pauseAnimation` to return `true` → `rogue.disturbed = true`
-  after the first step.
-  In C, `pauseAnimation(500, PAUSE_BEHAVIOR_DEFAULT)` ignores mouse-move events; only
-  keystrokes and mouse-button events interrupt travel.
-  Fix: `pauseAnimation` in `buildTravelContext` should filter out `MouseEnteredCell` events
-  and only return true for keystrokes / mouse-button events. This requires either a
-  targeted version of `pauseAndCheckForEvent` that discards hover events and re-queues
-  them, or a `PAUSE_BEHAVIOR` flag check that maps the C behavior correctly.
-  C: `Movement.c` (travelMap, pauseAnimation). TS: `movement.ts` (buildTravelContext
-  `pauseAnimation` field), `platform.ts` (pauseAndCheckForEvent). **M**
+  Root cause (stop-after-one-step): `pauseAnimation(500)` resolved early on any
+  `MouseEnteredCell` (hover) event. Fixed: `pauseAndCheckForEventIgnoringHover` discards
+  hover events so only keystrokes and mouse-button events interrupt travel.
+  Root cause (500ms/step timing): TS used `travelMap` (500ms/step nominal) for all clicks.
+  C's regular click path is `mainInputLoop()` → `travelRoute(path, steps)` (25ms/step
+  nominal). The `_delayUpTo` mechanism further reduces this via time-accounting, giving
+  ~40ms/step observed. Fixed: changed `travelMap`'s pause from `500 - elapsed` to
+  `25 - elapsed`, matching `travelRoute`'s budget.
+  C: `Movement.c` (travelMap, travelRoute, pauseAnimation), `sdl2-platform.c` (_delayUpTo).
+  TS: `movement/travel-explore.ts` (travelMap pause), `platform.ts` (pauseAndCheckForEventIgnoringHover). **M**
 
 - [x] **B48 — Hover over floor item crashes: `itemName` receives empty item tables** —
   Hovering the mouse over a scroll (or other unidentified item) on the floor crashes with
