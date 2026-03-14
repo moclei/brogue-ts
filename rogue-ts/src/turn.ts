@@ -432,7 +432,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
                 }
             }
         },
-        shuffleTerrainColors: (pct, reset) => shuffleTerrainColorsFn(pct, reset),
+        shuffleTerrainColors: (pct, reset) => shuffleTerrainColorsFn(pct, reset, pmap),
         resetDFMessageEligibility() {
             for (const df of dungeonFeatureCatalog) {
                 df.messageDisplayed = false;
