@@ -19,9 +19,13 @@ BrogueCE-*
 *.desktop
 gmon.out
 
+# macOS
+.DS_Store
+
 # TypeScript port
 node_modules/
 ts/dist/
+rogue-ts/dist/
 
 # CodeQL — databases are large build artifacts, never committed
 codeql/databases/
