@@ -17,7 +17,7 @@ import { playerTurnEnded as playerTurnEndedFn } from "../src/time/turn-processin
 import { createCreature } from "../src/monsters/monster-creation.js";
 import { monsterCatalog } from "../src/globals/monster-catalog.js";
 import { MonsterBookkeepingFlag } from "../src/types/flags.js";
-import { MonsterType, StatusEffect, CreatureState } from "../src/types/enums.js";
+import { MonsterType, StatusEffect, CreatureState, CreatureMode, ItemCategory } from "../src/types/enums.js";
 import type { Creature, Item } from "../src/types/types.js";
 
 // =============================================================================
@@ -309,4 +309,82 @@ it("wakeUp alerts monster and sets ticksUntilTurn to 100", () => {
     expect(monst.ticksUntilTurn).toBe(100);
     expect(monst.creatureState).toBe(CreatureState.TrackingScent);
     expect(monst.lastSeenPlayerAt).toEqual(player.loc);
+});
+
+// ---------------------------------------------------------------------------
+// B63 — Monkey steal-and-flee (MA_HIT_STEAL_FLEE)
+// ---------------------------------------------------------------------------
+
+describe("monkey steal-and-flee (B63)", () => {
+    it("monkey steals an unequipped item and enters MODE_PERM_FLEEING", () => {
+        const player = setupPlayer();
+        player.currentHP = 100; // won't die from one monkey hit
+        player.status[StatusEffect.Paralyzed] = 1; // guarantee attackHit
+        player.loc = { x: 5, y: 5 };
+
+        const monkey = makeMonster(MonsterType.MK_MONKEY);
+        monkey.loc = { x: 6, y: 5 };
+        const { monsters, packItems } = getGameState();
+        monsters.push(monkey);
+
+        // Place one unequipped food item in the player's pack
+        const food = makeItem();
+        food.category = ItemCategory.FOOD;
+        packItems.push(food);
+
+        const ctx = buildCombatAttackContext();
+        attack(monkey, player, false, ctx);
+
+        // Monkey should now carry the stolen item and be permanently fleeing
+        expect(monkey.carriedItem).toBe(food);
+        expect(packItems).not.toContain(food);
+        expect(monkey.creatureMode).toBe(CreatureMode.PermFleeing);
+        expect(monkey.creatureState).toBe(CreatureState.Fleeing);
+    });
+
+    it("monkey does not steal when pack is empty", () => {
+        const player = setupPlayer();
+        player.status[StatusEffect.Paralyzed] = 1;
+        player.loc = { x: 5, y: 5 };
+
+        const monkey = makeMonster(MonsterType.MK_MONKEY);
+        monkey.loc = { x: 6, y: 5 };
+        const { monsters } = getGameState();
+        monsters.push(monkey);
+        // packItems is empty (no items pushed)
+
+        const ctx = buildCombatAttackContext();
+        attack(monkey, player, false, ctx);
+
+        expect(monkey.carriedItem).toBeNull();
+        expect(monkey.creatureMode).toBe(CreatureMode.Normal);
+    });
+
+    it("monkey with weapon stack > 3 steals half", () => {
+        const player = setupPlayer();
+        player.currentHP = 100;
+        player.status[StatusEffect.Paralyzed] = 1;
+        player.loc = { x: 5, y: 5 };
+
+        const monkey = makeMonster(MonsterType.MK_MONKEY);
+        monkey.loc = { x: 6, y: 5 };
+        const { monsters, packItems } = getGameState();
+        monsters.push(monkey);
+
+        const darts = makeItem();
+        darts.category = ItemCategory.WEAPON;
+        darts.quantity = 10;
+        packItems.push(darts);
+
+        const ctx = buildCombatAttackContext();
+        attack(monkey, player, false, ctx);
+
+        // Should steal 5 (half of 10, rounded up via (10+1)/2 = 5)
+        expect(monkey.carriedItem).not.toBeNull();
+        expect(monkey.carriedItem?.quantity).toBe(5);
+        // Original stack reduced by 5
+        expect(darts.quantity).toBe(5);
+        // Original item still in pack
+        expect(packItems).toContain(darts);
+    });
 });

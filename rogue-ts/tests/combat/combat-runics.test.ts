@@ -13,7 +13,7 @@ import type { RunicContext } from "../../src/combat/combat-runics.js";
 import { createCreature } from "../../src/monsters/monster-creation.js";
 import { monsterCatalog } from "../../src/globals/monster-catalog.js";
 import { monsterClassCatalog } from "../../src/globals/monster-class-catalog.js";
-import { MonsterType, StatusEffect, CreatureState, WeaponEnchant, ArmorEnchant, ItemCategory } from "../../src/types/enums.js";
+import { MonsterType, StatusEffect, CreatureState, CreatureMode, WeaponEnchant, ArmorEnchant, ItemCategory } from "../../src/types/enums.js";
 import {
     MonsterBehaviorFlag,
     MonsterBookkeepingFlag,
@@ -290,6 +290,40 @@ describe("specialHit", () => {
         player.status[StatusEffect.ImmuneToFire] = 10;
         specialHit(burner, player, 5, ctx);
         expect(ctx.exposeCreatureToFire).not.toHaveBeenCalled();
+    });
+
+    it("calls monsterStealsFromPlayer when attacker has MA_HIT_STEAL_FLEE, hits, and has no carried item", () => {
+        const monkey = makeCreature(MonsterType.MK_MONKEY);
+        monkey.currentHP = 10;
+        ctx = makeRunicCtx(player, { randPercent: () => true }); // attackHit always succeeds
+        specialHit(monkey, player, 1, ctx);
+        expect(ctx.monsterStealsFromPlayer).toHaveBeenCalledWith(monkey);
+    });
+
+    it("does not steal when attacker already carries an item", () => {
+        const monkey = makeCreature(MonsterType.MK_MONKEY);
+        monkey.currentHP = 10;
+        monkey.carriedItem = { category: ItemCategory.FOOD, kind: 0, flags: 0, quantity: 1 } as Item;
+        ctx = makeRunicCtx(player, { randPercent: () => true });
+        specialHit(monkey, player, 1, ctx);
+        expect(ctx.monsterStealsFromPlayer).not.toHaveBeenCalled();
+    });
+
+    it("does not steal when attacker is confused", () => {
+        const monkey = makeCreature(MonsterType.MK_MONKEY);
+        monkey.currentHP = 10;
+        monkey.status[StatusEffect.Confused] = 5;
+        ctx = makeRunicCtx(player, { randPercent: () => true });
+        specialHit(monkey, player, 1, ctx);
+        expect(ctx.monsterStealsFromPlayer).not.toHaveBeenCalled();
+    });
+
+    it("does not steal when attacker has 0 HP", () => {
+        const monkey = makeCreature(MonsterType.MK_MONKEY);
+        monkey.currentHP = 0;
+        ctx = makeRunicCtx(player, { randPercent: () => true });
+        specialHit(monkey, player, 1, ctx);
+        expect(ctx.monsterStealsFromPlayer).not.toHaveBeenCalled();
     });
 });
 
