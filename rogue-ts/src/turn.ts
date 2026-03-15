@@ -44,7 +44,7 @@ import {
     orange, green, red, yellow, darkRed, darkGreen, poisonColor,
 } from "./globals/colors.js";
 import { DCOLS, DROWS } from "./types/constants.js";
-import { TileFlag, MonsterBookkeepingFlag, TerrainFlag, TerrainMechFlag, T_OBSTRUCTS_SCENT, IS_IN_MACHINE } from "./types/flags.js";
+import { TileFlag, ItemFlag, MonsterBookkeepingFlag, TerrainFlag, TerrainMechFlag, T_OBSTRUCTS_SCENT, IS_IN_MACHINE } from "./types/flags.js";
 import { refreshWaypoint as refreshWaypointFn } from "./architect/architect.js";
 import { populateGenericCostMap } from "./movement/cost-maps-fov.js";
 import { CreatureState, GameMode, ALL_ITEMS, LightType } from "./types/enums.js";
@@ -83,6 +83,7 @@ import { calculateDistances } from "./dijkstra/dijkstra.js";
 import { forbiddenFlagsForMonster as forbiddenFlagsForMonsterFn, avoidedFlagsForMonster as avoidedFlagsForMonsterFn } from "./monsters/monster-spawning.js";
 import { lightCatalog } from "./globals/light-catalog.js";
 import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
+import { keyMatchesLocation as keyMatchesLocationFn } from "./items/item-utils.js";
 import { wandTable, staffTable, ringTable, charmTable } from "./globals/item-catalog.js";
 import type { ItemTable } from "./types/types.js";
 import { buildMonstersApproachStairsCtx, monstersApproachStairs as monstersApproachStairsFn } from "./time/stairs-wiring.js";
@@ -387,7 +388,21 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
                 coordinatesAreInMap: (x, y) => coordinatesAreInMap(x, y),
                 refreshDungeonCell,
                 spawnDungeonFeature: (x, y, feat, v, o) => spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, v, o, refreshDungeonCell),
-                monstersFall: () => {}, updateFloorItems: () => {}, monstersTurn: () => {}, keyOnTileAt: () => null,
+                monstersFall: () => {}, updateFloorItems: () => {}, monstersTurn: () => {},
+                keyOnTileAt: (loc: Pos) => {
+                    const machineNum = pmap[loc.x]?.[loc.y]?.machineNumber ?? 0;
+                    if (player.loc.x === loc.x && player.loc.y === loc.y) {
+                        const k = packItems.find(it => (it.flags & ItemFlag.ITEM_IS_KEY) && keyMatchesLocationFn(it, loc, rogue.depthLevel, machineNum));
+                        if (k) return k;
+                    }
+                    if (pmap[loc.x][loc.y].flags & TileFlag.HAS_ITEM) {
+                        const fi = itemAtLocFn(loc, floorItems);
+                        if (fi && (fi.flags & ItemFlag.ITEM_IS_KEY) && keyMatchesLocationFn(fi, loc, rogue.depthLevel, machineNum)) return fi;
+                    }
+                    const monst = monsters.find(m => m.loc.x === loc.x && m.loc.y === loc.y);
+                    if (monst?.carriedItem && (monst.carriedItem.flags & ItemFlag.ITEM_IS_KEY) && keyMatchesLocationFn(monst.carriedItem, loc, rogue.depthLevel, machineNum)) return monst.carriedItem;
+                    return null;
+                },
                 removeCreature: (list, m) => { const i = list.indexOf(m); if (i >= 0) { list.splice(i, 1); return true; } return false; },
                 prependCreature: (list, m) => { list.unshift(m); },
                 rand_range: randRange, rand_percent: randPercent, max: Math.max, min: Math.min,
