@@ -203,11 +203,11 @@ export interface AggravateContext {
         maxRadius: number,
         x: number,
         y: number,
-    ): void;
+    ): Promise<void>;
     /** True if the player can see (x, y). */
     playerCanSee(x: number, y: number): boolean;
     /** Display a message. */
-    message(msg: string, flags: number): void;
+    message(msg: string, flags: number): void | Promise<void>;
 }
 
 /**
@@ -218,13 +218,13 @@ export interface AggravateContext {
  *
  * Ported from Items.c:3358 — void aggravateMonsters(distance, x, y, flashColor).
  */
-export function aggravateMonsters(
+export async function aggravateMonsters(
     distance: number,
     x: number,
     y: number,
     flashColor: Color,
     ctx: AggravateContext,
-): void {
+): Promise<void> {
     const { player, monsters, scentMap } = ctx;
 
     ctx.refreshWaypoint(x, y);
@@ -264,13 +264,13 @@ export function aggravateMonsters(
     if (playerDist >= 0 && playerDist <= distance) {
         ctx.discover(x, y);
         ctx.discoverCell(x, y);
-        ctx.colorFlash(
+        await ctx.colorFlash(
             flashColor, 0,
             TileFlag.DISCOVERED | TileFlag.MAGIC_MAPPED,
             10, distance, x, y,
         );
         if (!ctx.playerCanSee(x, y)) {
-            ctx.message(
+            await ctx.message(
                 "You hear a piercing shriek; something must have triggered a nearby alarm.",
                 0,
             );
