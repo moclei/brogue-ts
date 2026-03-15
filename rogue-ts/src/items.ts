@@ -572,6 +572,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         colorFlash: buildColorFlashFn(),
         createFlare: (x, y, lightType) => createFlareFn(x, y, lightType as LightType, rogue, lightCatalog),
         displayLevel: buildDisplayLevelFn(),
+        refreshSideBar: () => refreshSideBar(),
 
         // ── Vision / light stubs ────────────────────────────────────────────
         updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
