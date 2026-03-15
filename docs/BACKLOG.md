@@ -766,15 +766,16 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `Time.c:2003` (inline decrements in playerTurnEnded).
   TS: `turn.ts` (`decrementPlayerStatus` / `decrementStatusCtx`). **S**
 
-- [ ] **B54 — Scroll of aggravate monster crashes the game** — Using a scroll of aggravate
-  monster appeared to crash the game, though the reporter was unsure it was the direct cause.
-  `aggravateMonsters` is wired (B43), but the crash may come from the `flashMonster` /
-  `colorFlash` callbacks or from iterating over the monsters list while it is mutated by the
-  alarm-wakeup cascade.
-  ⚠️ **Confirm before coding:** user was uncertain of the cause. Reproduce with a scroll of
-  aggravate monster specifically before investigating.
+- [x] **B54 — Scroll of aggravate monster crashes the game** — Root cause: `aggravateMonsters`
+  called `ctx.colorFlash()` without `await`. The `buildColorFlashFn()` wiring returns
+  `Promise<void>`, so the dropped Promise raced with the game loop's `_console.waitForEvent()`
+  — the animation's `.then()` callback overwrote `resolveWait`, permanently abandoning the
+  game loop's pending promise → game deadlocked on the next player input.
+  Fix: made `aggravateMonsters` async; changed `AggravateContext.colorFlash` to return
+  `Promise<void>`; propagated `await` through `items.ts` wrapper and `item-handlers.ts` call
+  site. Tests updated to use `async`/`await` and `mockResolvedValue`.
   C: `Items.c` (readScroll SCROLL_AGGRAVATE_MONSTER, aggravateMonsters:3358).
-  TS: `items/item-handlers.ts`, `items.ts` (aggravateMonsters context). **M**
+  TS: `items/monster-spell-effects.ts`, `items.ts`, `items/item-handlers.ts`. **M**
 
 - [x] **B55 — Many vaults still trigger "missing item" message (B31 partial)** — Fixed in
   `turn.ts`: the `EnvironmentContext` passed to `updateEnvironmentFn` had `keyOnTileAt: () => null`,

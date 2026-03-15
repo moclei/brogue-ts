@@ -301,51 +301,51 @@ describe("aggravateMonsters", () => {
             currentStealthRange: vi.fn().mockReturnValue(14),
             discover: vi.fn(),
             discoverCell: vi.fn(),
-            colorFlash: vi.fn(),
+            colorFlash: vi.fn().mockResolvedValue(undefined),
             playerCanSee: vi.fn().mockReturnValue(true),
             message: vi.fn(),
             ...overrides,
         };
     }
 
-    it("calls refreshWaypoint at (x, y)", () => {
+    it("calls refreshWaypoint at (x, y)", async () => {
         const player = makeCreature({ loc: { x: 2, y: 2 } });
         const ctx = makeCtx(player, []);
-        aggravateMonsters(20, 3, 4, red, ctx);
+        await aggravateMonsters(20, 3, 4, red, ctx);
         expect(ctx.refreshWaypoint).toHaveBeenCalledWith(3, 4);
     });
 
-    it("wakes sleeping monsters within range", () => {
+    it("wakes sleeping monsters within range", async () => {
         const player = makeCreature({ loc: { x: 2, y: 2 } });
         const monst = makeCreature({
             loc: { x: 3, y: 3 },
             creatureState: CreatureState.Sleeping,
         });
         const ctx = makeCtx(player, [monst]);
-        aggravateMonsters(20, 2, 2, red, ctx);
+        await aggravateMonsters(20, 2, 2, red, ctx);
         expect(ctx.wakeUp).toHaveBeenCalledWith(monst);
     });
 
-    it("alerts non-ally monsters within range", () => {
+    it("alerts non-ally monsters within range", async () => {
         const player = makeCreature({ loc: { x: 2, y: 2 } });
         const monst = makeCreature({ loc: { x: 3, y: 3 } });
         const ctx = makeCtx(player, [monst]);
-        aggravateMonsters(20, 2, 2, red, ctx);
+        await aggravateMonsters(20, 2, 2, red, ctx);
         expect(ctx.alertMonster).toHaveBeenCalledWith(monst);
     });
 
-    it("does NOT alert an ally monster", () => {
+    it("does NOT alert an ally monster", async () => {
         const player = makeCreature({ loc: { x: 2, y: 2 } });
         const monst = makeCreature({
             loc: { x: 3, y: 3 },
             creatureState: CreatureState.Ally,
         });
         const ctx = makeCtx(player, [monst]);
-        aggravateMonsters(20, 2, 2, red, ctx);
+        await aggravateMonsters(20, 2, 2, red, ctx);
         expect(ctx.alertMonster).not.toHaveBeenCalled();
     });
 
-    it("does NOT wake monsters beyond range", () => {
+    it("does NOT wake monsters beyond range", async () => {
         const player = makeCreature({ loc: { x: 2, y: 2 } });
         const monst = makeCreature({
             loc: { x: 3, y: 3 },
@@ -356,50 +356,50 @@ describe("aggravateMonsters", () => {
         for (let i = 0; i < DCOLS; i++) grid[i] = new Array(DROWS).fill(0);
         grid[3][3] = 999;
         const ctx = makeCtx(player, [monst], grid);
-        aggravateMonsters(5, 2, 2, red, ctx);
+        await aggravateMonsters(5, 2, 2, red, ctx);
         expect(ctx.wakeUp).not.toHaveBeenCalled();
     });
 
-    it("sets STATUS_Aggravating on the player when they stand at (x, y)", () => {
+    it("sets STATUS_Aggravating on the player when they stand at (x, y)", async () => {
         const player = makeCreature({ loc: { x: 3, y: 4 } });
         const ctx = makeCtx(player, []);
-        aggravateMonsters(10, 3, 4, red, ctx);
+        await aggravateMonsters(10, 3, 4, red, ctx);
         expect(player.status[StatusEffect.Aggravating]).toBe(10);
         expect(player.maxStatus[StatusEffect.Aggravating]).toBe(10);
         expect(ctx.setStealthRange).toHaveBeenCalled();
     });
 
-    it("calls colorFlash when player is within range", () => {
+    it("calls colorFlash when player is within range", async () => {
         const player = makeCreature({ loc: { x: 2, y: 2 } });
         const ctx = makeCtx(player, []);
-        aggravateMonsters(20, 2, 2, red, ctx);
+        await aggravateMonsters(20, 2, 2, red, ctx);
         expect(ctx.colorFlash).toHaveBeenCalled();
     });
 
-    it("clears MONST_MAINTAINS_DISTANCE from woken monsters", () => {
+    it("clears MONST_MAINTAINS_DISTANCE from woken monsters", async () => {
         const player = makeCreature({ loc: { x: 2, y: 2 } });
         const monst = makeCreature({ loc: { x: 3, y: 3 } });
         monst.info.flags = MonsterBehaviorFlag.MONST_MAINTAINS_DISTANCE;
         const ctx = makeCtx(player, [monst]);
-        aggravateMonsters(20, 2, 2, red, ctx);
+        await aggravateMonsters(20, 2, 2, red, ctx);
         expect(monst.info.flags & MonsterBehaviorFlag.MONST_MAINTAINS_DISTANCE).toBe(0);
     });
 
-    it("zeroes scentMap cells within range", () => {
+    it("zeroes scentMap cells within range", async () => {
         const player = makeCreature({ loc: { x: 0, y: 0 } });
         // All cells at distance 0 → within any range.
         const ctx = makeCtx(player, []);
-        aggravateMonsters(20, 0, 0, red, ctx);
+        await aggravateMonsters(20, 0, 0, red, ctx);
         // addScentToCell should have been called for many cells.
         expect(ctx.addScentToCell).toHaveBeenCalled();
     });
 
-    it("posts an audio message when player cannot see origin", () => {
+    it("posts an audio message when player cannot see origin", async () => {
         const player = makeCreature({ loc: { x: 2, y: 2 } });
         const ctx = makeCtx(player, [], undefined, {
             playerCanSee: vi.fn().mockReturnValue(false),
         });
-        aggravateMonsters(20, 5, 5, red, ctx);
+        await aggravateMonsters(20, 5, 5, red, ctx);
         expect(ctx.message).toHaveBeenCalledWith(
             expect.stringContaining("piercing shriek"),
             0,

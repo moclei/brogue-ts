@@ -119,7 +119,7 @@ export interface ItemHandlerContext {
     wakeUp(monst: Creature): void;
     fadeInMonster(monst: Creature): void;
     flashMonster(monst: Creature, color: Color, strength: number): void;
-    aggravateMonsters(range: number, x: number, y: number, color: Color): void;
+    aggravateMonsters(range: number, x: number, y: number, color: Color): Promise<void>;
     monsterAtLoc(pos: Pos): Creature | null;
     monsterName(monst: Creature, includeArticle: boolean): string;
     spawnHorde(depth: number, pos: Pos, flags: number, forbiddenFlags: number): Creature | null;
@@ -726,7 +726,7 @@ export async function readScroll(theItem: Item, ctx: ItemHandlerContext): Promis
             break;
 
         case ScrollKind.AggravateMonster:
-            ctx.aggravateMonsters(
+            await ctx.aggravateMonsters(
                 DCOLS + DROWS,
                 ctx.player.loc.x, ctx.player.loc.y,
                 ctx.gray,

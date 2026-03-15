@@ -434,8 +434,8 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         wakeUp: buildWakeUpFn(player, monsters),
         fadeInMonster: buildFadeInMonsterFn(),
         flashMonster: (m, c, s) => flashMonsterFn(m, c, s, combatCtx),
-        aggravateMonsters(range, x, y, color) {
-            aggravateMonstersFn(range, x, y, color, {
+        async aggravateMonsters(range, x, y, color) {
+            await aggravateMonstersFn(range, x, y, color, {
                 player,
                 monsters,
                 scentMap: allocGrid(),          // fresh grid — scent gradient is approximate
