@@ -184,6 +184,9 @@ export interface ItemHandlerContext {
     SCROLL_PROTECTION_LIGHT: number;
     POTION_STRENGTH_LIGHT: number;
 
+    // ── Sidebar refresh ──
+    refreshSideBar(): void;
+
     /** Message flags. */
     REQUIRE_ACKNOWLEDGMENT: number;
     REFRESH_SIDEBAR: number;
@@ -422,6 +425,7 @@ export async function eat(theItem: Item, recordCommands: boolean, ctx: ItemHandl
         ctx.foodTable[theItem.kind].power + ctx.player.status[StatusEffect.Nutrition],
         STOMACH_SIZE,
     );
+    ctx.refreshSideBar();
 
     if (theItem.kind === FoodKind.Ration) {
         ctx.messageWithColor("That food tasted delicious!", ctx.itemMessageColor, 0);

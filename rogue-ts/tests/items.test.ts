@@ -11,11 +11,12 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { initGameState, getGameState } from "../src/core.js";
 import { buildItemHandlerContext, buildItemHelperContext } from "../src/items.js";
 import { buildInputContext } from "../src/io/input-context.js";
-import { drinkPotion, apply, readScroll } from "../src/items/item-handlers.js";
+import { drinkPotion, apply, readScroll, eat } from "../src/items/item-handlers.js";
 import { buildTurnProcessingContext } from "../src/turn.js";
 import { playerTurnEnded as playerTurnEndedFn } from "../src/time/turn-processing.js";
 import { monsterCatalog } from "../src/globals/monster-catalog.js";
-import { MonsterType, PotionKind, ScrollKind, ItemCategory, StatusEffect, DungeonLayer, TileType } from "../src/types/enums.js";
+import { MonsterType, PotionKind, ScrollKind, ItemCategory, FoodKind, StatusEffect, DungeonLayer, TileType } from "../src/types/enums.js";
+import { STOMACH_SIZE } from "../src/types/constants.js";
 import { MonsterBookkeepingFlag } from "../src/types/flags.js";
 import { buildFadeInMonsterFn } from "../src/combat.js";
 import type { Creature, Item } from "../src/types/types.js";
@@ -414,4 +415,56 @@ it("B43 — ctx.discover() is no-op on a non-secret cell", () => {
     ctx.discover(3, 3);
 
     expect(pmap[3][3].layers[DungeonLayer.Dungeon]).toBe(TileType.FLOOR);
+});
+
+// =============================================================================
+// B74 — eat() calls refreshSideBar after updating nutrition
+// =============================================================================
+
+it("B74 — eat() calls refreshSideBar after updating nutrition", async () => {
+    // C: Items.c:6700 — eat() updates player.status[STATUS_NUTRITION].
+    // The sidebar (nutrition bar) must be repainted immediately, not deferred
+    // to the next playerTurnEnded cycle which may arrive after commitDraws().
+    // Fix: ctx.refreshSideBar() is called right after the nutrition update.
+    setupPlayer();
+    const { player, packItems } = getGameState();
+
+    const ration: Item = {
+        category: ItemCategory.FOOD,
+        kind: FoodKind.Ration,
+        flags: 0,
+        displayChar: 37 as never,
+        foreColor: { red: 80, green: 60, blue: 20, redRand: 0, greenRand: 0, blueRand: 0, colorDances: false, rand: 0 },
+        quantity: 1,
+        quiverNumber: 0,
+        loc: { x: 0, y: 0 },
+        depth: 1,
+        originDepth: 1,
+        enchant1: 0,
+        enchant2: 0,
+        vorpalEnemy: 0,
+        charges: 0,
+        timesEnchanted: 0,
+        carried: true,
+        inventoryLetter: "a",
+        inscription: "",
+        identified: false,
+    } as unknown as Item;
+    packItems.push(ration);
+
+    // Start hungry so the confirmation prompt is skipped
+    player.status[StatusEffect.Nutrition] = 0;
+
+    let sideBarRefreshed = false;
+    const base = buildItemHandlerContext();
+    const ctx = {
+        ...base,
+        refreshSideBar: () => { sideBarRefreshed = true; },
+        messageWithColor: () => {},
+    } as unknown as typeof base;
+
+    await eat(ration, false, ctx);
+
+    expect(player.status[StatusEffect.Nutrition]).toBeGreaterThan(0);
+    expect(sideBarRefreshed).toBe(true);
 });
