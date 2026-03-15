@@ -774,16 +774,14 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `Items.c` (readScroll SCROLL_AGGRAVATE_MONSTER, aggravateMonsters:3358).
   TS: `items/item-handlers.ts`, `items.ts` (aggravateMonsters context). **M**
 
-- [ ] **B55 — Many vaults still trigger "missing item" message (B31 partial)** — Many vault
-  doors (but not all) still display "The missing item must be replaced before you can access
-  the remaining items" on the first visit, before any item has been picked up. B31 fixed the
-  `keyOnTileAt` lookup for one code path; this suggests there is a second path that still
-  returns `null` or fails the key check. May also affect only certain vault machine types.
-  ⚠️ **Confirm before coding:** determine which vault types trigger this (altar vaults?
-  guarded vaults? item-library vaults?) and whether B31's fix is simply not wired in all
-  relevant contexts (e.g. `io/input-context.ts:200` still stubs `keyOnTileAt: () => null`).
+- [x] **B55 — Many vaults still trigger "missing item" message (B31 partial)** — Fixed in
+  `turn.ts`: the `EnvironmentContext` passed to `updateEnvironmentFn` had `keyOnTileAt: () => null`,
+  so every turn `ALTAR_CAGE_OPEN` tiles (which have `TM_PROMOTES_WITHOUT_KEY`) immediately promoted
+  to `ALTAR_CAGE_CLOSED` because the environment scan thought no key was present. Replaced the stub
+  with the real `keyOnTileAt` implementation (checks pack, floor item, and monster carried item).
+  The `io/input-context.ts:200` stub is in the `search()` context and never calls `checkForMissingKeys`.
   C: `Items.c` (checkForMissingKeys), `Architect.c` (machine definitions).
-  TS: `io/input-context.ts`, `tile-effects-wiring.ts`, `time/environment.ts:535`. **M**
+  TS: `turn.ts` (`updateEnvironment` / `EnvironmentContext`). **M**
 
 - [ ] **B56 — Ascending stairs shows fog-of-war artifacts from the lower level** — When
   transitioning back up to a previously explored level, cells that should show fog-of-war
