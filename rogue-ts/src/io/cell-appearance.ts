@@ -51,7 +51,7 @@ import {
 import type { ItemRNG } from "../items/item-generation.js";
 import { scentDistance } from "../time/turn-processing.js";
 import { cellHasTerrainFlag, cellHasTMFlag } from "../state/helpers.js";
-import { randRange, randClump } from "../math/rng.js";
+import { cosmeticRandRange, randClump } from "../math/rng.js";
 
 // =============================================================================
 // getCellAppearance
@@ -275,7 +275,7 @@ export function getCellAppearance(
         } else if (monst !== null && monsterRevealed(monst, player) && !canSeeMonster(monst, mqCtx)) {
             // Revealed (telepathic) but not directly visible
             if (player.status[StatusEffect.Hallucinating] && !rogue.playbackOmniscience && !player.status[StatusEffect.Telepathic]) {
-                cellChar = (randRange(0, 1) ? 88 : 120) as DisplayGlyph; // 'X' : 'x'
+                cellChar = (cosmeticRandRange(0, 1) ? 88 : 120) as DisplayGlyph; // 'X' : 'x'
             } else {
                 cellChar = (monst.info.isLarge ? 88 : 120) as DisplayGlyph; // 'X' : 'x'
             }
@@ -297,7 +297,7 @@ export function getCellAppearance(
             // Visible or discovered non-moving item
             needDistinctness = true;
             if (player.status[StatusEffect.Hallucinating] && !rogue.playbackOmniscience) {
-                const rng: ItemRNG = { randRange, randPercent: (pct: number) => randRange(0, 99) < pct, randClump };
+                const rng: ItemRNG = { randRange: cosmeticRandRange, randPercent: (pct: number) => cosmeticRandRange(0, 99) < pct, randClump };
                 cellChar = getItemCategoryGlyph(getHallucinatedItemCategory(rng));
                 cellForeColor = { ...itemColor };
             } else {
@@ -476,6 +476,12 @@ export function getCellAppearance(
     }
 
     bakeTerrainColors(cellForeColor, cellBackColor, terrainRandomValues[x][y], rogue.trueColorMode);
+    // Mirror C: bakeTerrainColors sets TERRAIN_COLORS_DANCING on pmap (IO.c:950).
+    if (cellForeColor.colorDances || cellBackColor.colorDances) {
+        pmap[x][y].flags |= TileFlag.TERRAIN_COLORS_DANCING;
+    } else {
+        pmap[x][y].flags &= ~TileFlag.TERRAIN_COLORS_DANCING;
+    }
 
     // Stealth range mode: cells beyond 2× stealthRange get orange tint
     if (rogue.displayStealthRangeMode && (cellFlags & TileFlag.IN_FIELD_OF_VIEW)) {

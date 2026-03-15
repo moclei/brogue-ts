@@ -21,6 +21,8 @@ import {
     getRNG,
     getRandomNumbersGenerated,
     resetRandomNumbersGenerated,
+    cosmeticRandRange,
+    cosmeticRandPercent,
 } from "../src/math/rng.js";
 import { RNG } from "../src/types/enums.js";
 
@@ -67,6 +69,57 @@ describe("RNG stream management", () => {
         setRNG(RNG.Cosmetic);
         randRange(0, 99);
         expect(getRandomNumbersGenerated()).toBe(2); // still 2
+    });
+});
+
+describe("cosmeticRandRange", () => {
+    beforeEach(() => {
+        seedRandomGenerator(12345n);
+        setRNG(RNG.Substantive);
+    });
+
+    it("returns lowerBound when upperBound <= lowerBound", () => {
+        expect(cosmeticRandRange(5, 5)).toBe(5);
+        expect(cosmeticRandRange(5, 3)).toBe(5);
+    });
+
+    it("stays within bounds over many iterations", () => {
+        for (let i = 0; i < 1000; i++) {
+            const v = cosmeticRandRange(10, 20);
+            expect(v).toBeGreaterThanOrEqual(10);
+            expect(v).toBeLessThanOrEqual(20);
+        }
+    });
+
+    it("does not advance the substantive RNG counter", () => {
+        resetRandomNumbersGenerated();
+        setRNG(RNG.Substantive);
+        cosmeticRandRange(0, 99);
+        cosmeticRandRange(0, 99);
+        cosmeticRandRange(0, 99);
+        expect(getRandomNumbersGenerated()).toBe(0);
+    });
+
+    it("does not change currentRNG — substantive calls still use substantive stream", () => {
+        resetRandomNumbersGenerated();
+        setRNG(RNG.Substantive);
+        seedRandomGenerator(42n);
+        const sub1 = randRange(0, 999);
+        seedRandomGenerator(42n);
+        cosmeticRandRange(0, 99);
+        cosmeticRandRange(0, 99);
+        const sub2 = randRange(0, 999);
+        expect(sub1).toBe(sub2); // cosmetic calls did not disturb substantive stream
+    });
+});
+
+describe("cosmeticRandPercent", () => {
+    it("does not advance the substantive RNG counter", () => {
+        seedRandomGenerator(1n);
+        resetRandomNumbersGenerated();
+        cosmeticRandPercent(50);
+        cosmeticRandPercent(50);
+        expect(getRandomNumbersGenerated()).toBe(0);
     });
 });
 

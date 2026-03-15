@@ -166,6 +166,25 @@ export function randPercent(percent: number): boolean {
 }
 
 /**
+ * Get a random integer in [lowerBound, upperBound] using the cosmetic RNG.
+ * Use this for visual-only effects so they do not advance the substantive RNG.
+ * Mirrors `assureCosmeticRNG` / `rand_range()` usage in C.
+ */
+export function cosmeticRandRange(lowerBound: number, upperBound: number): number {
+    if (upperBound <= lowerBound) return lowerBound;
+    const interval = upperBound - lowerBound + 1;
+    return lowerBound + range(interval, RNG.Cosmetic);
+}
+
+/**
+ * Test a random roll using the cosmetic RNG.
+ * Use this for visual-only effects that must not advance the substantive RNG.
+ */
+export function cosmeticRandPercent(percent: number): boolean {
+    return cosmeticRandRange(0, 99) < clamp(percent, 0, 100);
+}
+
+/**
  * Get a random int with a clumped distribution.
  *
  * Mirrors `randClumpedRange()` from Math.c.

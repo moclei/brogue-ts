@@ -23,7 +23,7 @@
 import type { CellDisplayBuffer, ScreenDisplayBuffer, SavedDisplayBuffer, Pos, WindowPos, Color } from "../types/types.js";
 import { DisplayGlyph } from "../types/enums.js";
 import { COLS, ROWS, STAT_BAR_WIDTH, MESSAGE_LINES } from "../types/constants.js";
-import { clamp, randRange } from "../math/rng.js";
+import { clamp, cosmeticRandRange } from "../math/rng.js";
 import {
     storeColorComponents, colorFromComponents, applyColorAugment, applyColorAverage,
 } from "./color.js";
@@ -216,12 +216,12 @@ export function plotCharToBuffer(
     if (!locIsInWindow({ windowX: x, windowY: y })) return;
 
     const cell = dbuf.cells[x][y];
-    cell.foreColorComponents[0] = foreColor.red + randRange(0, foreColor.redRand) + randRange(0, foreColor.rand);
-    cell.foreColorComponents[1] = foreColor.green + randRange(0, foreColor.greenRand) + randRange(0, foreColor.rand);
-    cell.foreColorComponents[2] = foreColor.blue + randRange(0, foreColor.blueRand) + randRange(0, foreColor.rand);
-    cell.backColorComponents[0] = backColor.red + randRange(0, backColor.redRand) + randRange(0, backColor.rand);
-    cell.backColorComponents[1] = backColor.green + randRange(0, backColor.greenRand) + randRange(0, backColor.rand);
-    cell.backColorComponents[2] = backColor.blue + randRange(0, backColor.blueRand) + randRange(0, backColor.rand);
+    cell.foreColorComponents[0] = foreColor.red + cosmeticRandRange(0, foreColor.redRand) + cosmeticRandRange(0, foreColor.rand);
+    cell.foreColorComponents[1] = foreColor.green + cosmeticRandRange(0, foreColor.greenRand) + cosmeticRandRange(0, foreColor.rand);
+    cell.foreColorComponents[2] = foreColor.blue + cosmeticRandRange(0, foreColor.blueRand) + cosmeticRandRange(0, foreColor.rand);
+    cell.backColorComponents[0] = backColor.red + cosmeticRandRange(0, backColor.redRand) + cosmeticRandRange(0, backColor.rand);
+    cell.backColorComponents[1] = backColor.green + cosmeticRandRange(0, backColor.greenRand) + cosmeticRandRange(0, backColor.rand);
+    cell.backColorComponents[2] = backColor.blue + cosmeticRandRange(0, backColor.blueRand) + cosmeticRandRange(0, backColor.rand);
     cell.character = inputChar;
 }
 
@@ -370,14 +370,14 @@ export function plotCharWithColor(
     let backGreen = cellBackColor.green;
     let backBlue = cellBackColor.blue;
 
-    const foreRand = randRange(0, cellForeColor.rand);
-    const backRand = randRange(0, cellBackColor.rand);
-    foreRed += randRange(0, cellForeColor.redRand) + foreRand;
-    foreGreen += randRange(0, cellForeColor.greenRand) + foreRand;
-    foreBlue += randRange(0, cellForeColor.blueRand) + foreRand;
-    backRed += randRange(0, cellBackColor.redRand) + backRand;
-    backGreen += randRange(0, cellBackColor.greenRand) + backRand;
-    backBlue += randRange(0, cellBackColor.blueRand) + backRand;
+    const foreRand = cosmeticRandRange(0, cellForeColor.rand);
+    const backRand = cosmeticRandRange(0, cellBackColor.rand);
+    foreRed += cosmeticRandRange(0, cellForeColor.redRand) + foreRand;
+    foreGreen += cosmeticRandRange(0, cellForeColor.greenRand) + foreRand;
+    foreBlue += cosmeticRandRange(0, cellForeColor.blueRand) + foreRand;
+    backRed += cosmeticRandRange(0, cellBackColor.redRand) + backRand;
+    backGreen += cosmeticRandRange(0, cellBackColor.greenRand) + backRand;
+    backBlue += cosmeticRandRange(0, cellBackColor.blueRand) + backRand;
 
     foreRed = clamp(foreRed, 0, 100);
     foreGreen = clamp(foreGreen, 0, 100);
@@ -503,5 +503,5 @@ export function randomAnimateMonster(
     }
 
     if (animate.length === 0) return 0;
-    return animate[randRange(0, animate.length - 1)];
+    return animate[cosmeticRandRange(0, animate.length - 1)];
 }

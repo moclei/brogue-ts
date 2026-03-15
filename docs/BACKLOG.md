@@ -868,7 +868,7 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   TS: `render-state.ts:45` (shuffleTerrainColors), `io/display.ts` (bakeTerrainColors /
   TERRAIN_COLORS_DANCING), `time/turn-processing.ts:791` (caller), `platform.ts` (mainGameLoop). **M**
 
-- [ ] **B61 — Cosmetic RNG isolation: color animation consumes gameplay seed** — In C,
+- [x] **B61 — Cosmetic RNG isolation: color animation consumes gameplay seed** — In C,
   `shuffleTerrainColors` (and other visual-only effects) wraps its RNG calls with
   `assureCosmeticRNG` / `restoreRNG` — macros that save the gameplay RNG state, switch to
   a separate `cosmeticRNG` instance, do the visual work, then restore the gameplay state.

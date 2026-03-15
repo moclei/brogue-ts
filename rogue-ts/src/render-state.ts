@@ -15,7 +15,7 @@
 
 import { DCOLS, DROWS } from "./types/constants.js";
 import { allocGrid } from "./grid/grid.js";
-import { randPercent, randRange, clamp } from "./math/rng.js";
+import { cosmeticRandPercent, cosmeticRandRange, clamp } from "./math/rng.js";
 import type { Pcell } from "./types/types.js";
 import { TileFlag } from "./types/flags.js";
 
@@ -47,7 +47,7 @@ export const displayDetail: number[][] = allocGrid();
 export function shuffleTerrainColors(percentOfCells: number, resetAll: boolean, pmap?: Pcell[][]): void {
     for (let i = 0; i < DCOLS; i++) {
         for (let j = 0; j < DROWS; j++) {
-            if (resetAll || randPercent(percentOfCells)) {
+            if (resetAll || cosmeticRandPercent(percentOfCells)) {
                 // Defect 1 fix: only update cells with dancing terrain colors (IO.c:976).
                 // Skip the guard on resetAll (level-init path) since there are no flags yet.
                 if (!resetAll && pmap && !(pmap[i][j].flags & TileFlag.TERRAIN_COLORS_DANCING)) {
@@ -55,7 +55,7 @@ export function shuffleTerrainColors(percentOfCells: number, resetAll: boolean, 
                 }
                 // Defect 2 fix: delta update instead of full reset (IO.c:982-983).
                 for (let k = 0; k < 8; k++) {
-                    terrainRandomValues[i][j][k] = clamp(terrainRandomValues[i][j][k] + randRange(-600, 600), 0, 1000);
+                    terrainRandomValues[i][j][k] = clamp(terrainRandomValues[i][j][k] + cosmeticRandRange(-600, 600), 0, 1000);
                 }
             }
         }
