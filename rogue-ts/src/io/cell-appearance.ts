@@ -476,6 +476,12 @@ export function getCellAppearance(
     }
 
     bakeTerrainColors(cellForeColor, cellBackColor, terrainRandomValues[x][y], rogue.trueColorMode);
+    // Mirror C: bakeTerrainColors sets TERRAIN_COLORS_DANCING on pmap (IO.c:950).
+    if (cellForeColor.colorDances || cellBackColor.colorDances) {
+        pmap[x][y].flags |= TileFlag.TERRAIN_COLORS_DANCING;
+    } else {
+        pmap[x][y].flags &= ~TileFlag.TERRAIN_COLORS_DANCING;
+    }
 
     // Stealth range mode: cells beyond 2× stealthRange get orange tint
     if (rogue.displayStealthRangeMode && (cellFlags & TileFlag.IN_FIELD_OF_VIEW)) {
