@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-14 (B49–B60 filed; B45 fixed; B44 merged to master; B59 fixed)
-**Tests at last update:** 88 files · 2296 pass · 55 skip
+**Status:** updated 2026-03-15 (B62–B74 filed from playtest; B54 fixed; B58 updated; B71 revisits WAI B25)
+**Tests at last update:** 88 files · 2301 pass · 55 skip
 
 ---
 
@@ -812,10 +812,12 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
 - [ ] **B58 — Eels don't re-submerge in water after surfacing** — Electric eels (and
   similar aquatic monsters) surface once to attack or become visible, but do not go back
   underwater. In C, `updateMonsterState` checks `monsterCanSubmergeNow` each turn and sets
-  `MB_SUBMERGED` when the monster is on a submerging tile and no combat is occurring. Either
-  `monsterCanSubmergeNow` is a stub, it returns false when it should return true, or
-  `MB_SUBMERGED` is cleared but never re-set because the relevant branch in
-  `updateMonsterState` / `monsterAvoids` is not reached.
+  `MB_SUBMERGED` when the monster is on a submerging tile and no combat is occurring. The
+  correct C behavior is: once out of attack range the eel retreats back to the water tile and
+  the `MB_SUBMERGED` flag hides it again (so the player can no longer see it). In TS, eels
+  stay visible and keep fighting without retreating. Either `monsterCanSubmergeNow` is a
+  stub, it returns false when it should return true, or `MB_SUBMERGED` is cleared but never
+  re-set because the relevant branch in `updateMonsterState` / `monsterAvoids` is not reached.
   C: `Monsters.c:1977` (updateMonsterState submerge branch).
   TS: `monsters/monster-state.ts` (monsterAvoids, updateMonsterState). **S**
 
@@ -896,6 +898,106 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
 
   C: `IO.c:966` (`assureCosmeticRNG` / `restoreRNG` usage), `Rogue.h` (cosmeticRNG
   declaration). TS: `render-state.ts:45` (shuffleTerrainColors), RNG module. **M**
+
+- [ ] **B62 — Pit bloat fall: no message or keypress before showing lower level** — When a
+  pit bloat explodes beneath the player, the game jumps immediately to the lower level with
+  no feedback. In C, a "you fell" message (e.g. "you tumble into the depths!") is displayed
+  with `REQUIRE_ACKNOWLEDGMENT` before the level transition is rendered.
+  C: `Time.c` / `RogueMain.c` (player-fall code path triggered by `DF_PIT_BLOAT_HOLE` /
+  `changeLevelIfAppropriate`).
+  TS: `lifecycle.ts` (level-transition sequence), `movement/travel-explore.ts`. **S**
+
+- [ ] **B63 — Monkeys don't steal items — they fight to the death** — Monkeys should have
+  steal-and-flee AI: when adjacent to the player, grab an item from the pack and run. In C,
+  `MA_STEAL_ITEMS` / `MONST_STEAL_ITEMS` flags trigger a separate behavior branch in
+  `monsterCastSpell` / `moveMonster` that picks an item, applies it to the monster's held
+  item, and sets the monster to flee. In TS this branch may be a stub or the item-steal path
+  in the monster AI is not reached.
+  C: `Monsters.c` (steal-item behavior, `MA_STEAL_ITEMS`).
+  TS: `monsters/monster-behavior.ts` or `monsters/monster-state.ts`. **M**
+
+- [ ] **B64 — Staff of obstruction does nothing** — Zapping a staff of obstruction has no
+  visible effect. In C, `BOLT_OBSTRUCTION` spawns crystal terrain features along the bolt
+  path via `spawnDungeonFeature`. The effect stub or the bolt-detonation handler for
+  `BoltEffect.Obstruction` may be missing.
+  C: `Items.c` (BOLT_OBSTRUCTION bolt effect).
+  TS: `items/bolt-detonation.ts` or `items/zap-context.ts` (Obstruction case). **S**
+
+- [ ] **B65 — Creatures can occupy the same square as the player** — Monsters can move
+  onto the player's tile without triggering combat or being blocked. Likely a missing
+  `HAS_MONSTER` / `HAS_PLAYER` flag check in the TS monster movement code, or
+  `monsterAvoids` not correctly returning true for the player's tile.
+  C: `Monsters.c` (moveMonsterPassively, monsterAvoids, `HAS_PLAYER` flag checks).
+  TS: `monsters/monster-movement.ts`. **M**
+
+- [ ] **B66 — Pink Jelly doesn't split when hit** — Pink jellies (and any monster with
+  `MA_CLONE_SELF_ON_DEFEND`) should spawn a clone when struck. The `MA_CLONE_SELF_ON_DEFEND`
+  branch in the TS combat handler may be a stub or missing entirely.
+  C: `Combat.c` (`MA_CLONE_SELF_ON_DEFEND` in inflictDamage / defend logic).
+  TS: `combat.ts` (defend path / ability flag handling). **M**
+
+- [ ] **B67 — Potion of paralysis: status appears instant (no tick-down)** — After drinking
+  a paralysis potion the paralysis status seems to appear and vanish without visibly counting
+  down. Either `decrementPlayerStatus` for `STATUS_PARALYZED` is not firing each turn, the
+  sidebar is not refreshing to show intermediate values, or `haste` / `paralysis` duration is
+  being set to 1.
+  C: `Time.c:decrementPlayerStatus`, `Items.c:drinkPotion` (paralysis case).
+  TS: `time/turn-processing.ts` (decrementPlayerStatus call), `items/item-handlers.ts`
+  (paralysis case). **S**
+
+- [ ] **B68 — Hallucination visual slightly different from C game (needs investigation)** —
+  Hallucination mode looks roughly correct but differs subtly from C. Likely candidates:
+  wrong color range, wrong randomized-glyph set, or color randomization applied at wrong
+  layer. Requires side-by-side comparison with C.
+  C: `IO.c` (hallucination rendering in `getCellAppearance` / `displayLevel`).
+  TS: `io/display.ts` or render pipeline. **S**
+
+- [ ] **B69 — Ring items rendered as filled circles, not 'o' character** — Ring items appear
+  as filled Unicode circle glyphs instead of the ASCII `'o'` (0x6F) the C game uses. The
+  ring glyph in `Rogue.h` is `RING_CHAR` = `'o'`. Check the TS item-glyph table or the
+  glyph-map entry for `ItemCategory.RING`.
+  C: `Rogue.h` (`RING_CHAR` constant).
+  TS: `platform/glyph-map.ts` or item-glyph constants in `types/`. **S**
+
+- [ ] **B70 — While hallucinating, monster names show their real name on hit** — When
+  hallucinating, the combat message should use a random fake monster name (as in C). The TS
+  `monsterName` helper likely does not check `player.status[STATUS_HALLUCINATING]` before
+  deciding which name to return.
+  C: `IO.c:monsterName` (hallucination branch).
+  TS: wherever `monsterName` is built in item or combat contexts. **S**
+
+- [ ] **B71 — Staffs/charms/wands/rings not identified on entering a vault (B25 revisit)** —
+  B25 was marked WAI, but playtest suggests C does auto-identify non-weapon/non-armor vault
+  items (staffs, charms, wands, rings) when the player first steps into the vault. Weapons
+  and armor are not auto-identified. Requires C source verification before coding.
+  C: `Items.c` (vault entry / `checkForMissingKeys` / `identifyItemKind`).
+  TS: `turn.ts` or `items/item-handlers.ts` (vault-entry scan). **M**
+
+- [ ] **B72 — Vault cage-closing animation fires immediately on item pickup** — After picking
+  up an item from a vault, the remaining items immediately change color to show they are
+  caged. In C the cage-close effect is deferred: it fires on the turn after the player steps
+  off the pickup square, with a brief per-item animation. Fix requires the cage-close
+  trigger to be deferred by one turn and the animated effect to be wired.
+  C: `Architect.c` (machine done-check / cage promotion).
+  TS: `turn.ts` (`updateEnvironment` / machine state). **M**
+
+- [ ] **B73 — "Discovered items" menu closes immediately on mouse move** — Opening the
+  discovered-items screen (via the menu) and then moving the mouse dismisses it. The screen
+  should wait for an explicit keypress. The event loop for this screen is likely calling
+  `pauseAndCheckForEvent` or `nextBrogueEvent` and treating `MouseEnteredCell` as a dismiss
+  event.
+  C: `IO.c` (displayInventory / item-screen event loop).
+  TS: `menus.ts` or the discovered-items display handler. **S**
+
+- [ ] **B74 — Eating food doesn't restore the satiety (nutrition) meter** — After eating a
+  ration or mango the sidebar satiety bar does not update. `eat()` in `item-handlers.ts`
+  correctly sets `player.status[StatusEffect.Nutrition]`, but no `refreshSideBar` call
+  follows, so the sidebar never repaints with the new value. Fix: call `refreshSideBar` (or
+  the equivalent sidebar-update fn) after updating nutrition, the same way other status
+  changes do.
+  C: `Items.c:eat` (calls `printSideBar` after updating nutrition).
+  TS: `items/item-handlers.ts:eat` (line ~421 — add refreshSideBar after setting
+  Nutrition). **S**
 
 ---
 
