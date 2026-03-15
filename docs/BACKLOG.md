@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-15 (B62–B74 filed from playtest; B54 fixed; B58 updated; B71 revisits WAI B25)
-**Tests at last update:** 88 files · 2301 pass · 55 skip
+**Status:** updated 2026-03-15 (B74 fixed; B75–B76 filed from playtest of B63 flee fix)
+**Tests at last update:** 88 files · 2309 pass · 55 skip
 
 ---
 
@@ -987,7 +987,7 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `IO.c` (displayInventory / item-screen event loop).
   TS: `menus.ts` or the discovered-items display handler. **S**
 
-- [ ] **B74 — Eating food doesn't restore the satiety (nutrition) meter** — After eating a
+- [x] **B74 — Eating food doesn't restore the satiety (nutrition) meter** — After eating a
   ration or mango the sidebar satiety bar does not update. `eat()` in `item-handlers.ts`
   correctly sets `player.status[StatusEffect.Nutrition]`, but no `refreshSideBar` call
   follows, so the sidebar never repaints with the new value. Fix: call `refreshSideBar` (or
@@ -996,6 +996,22 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `Items.c:eat` (calls `printSideBar` after updating nutrition).
   TS: `items/item-handlers.ts:eat` (line ~421 — add refreshSideBar after setting
   Nutrition). **S**
+
+- [ ] **B75 — `monsterBlinkToSafety` uses stubbed `updateSafetyMap`** — Monsters with a
+  blink-to-safety bolt (e.g. will-o-wisps) blink to a random/suboptimal destination
+  instead of the genuinely safest reachable cell, because the `blinkToSafetyCtx` in
+  `turn-monster-zap-wiring.ts:549` has `updateSafetyMap: () => {}`.
+  C: `Monsters.c:monsterBlinkToSafety` uses the global safety map.
+  TS: `turn-monster-zap-wiring.ts` — wire `updateSafetyMap` the same way it was done
+  in `turn-monster-ai.ts` for `getSafetyMap` (PR #38). **S**
+
+- [ ] **B76 — Fleeing monsters can path through deep water** — When a non-aquatic monster
+  (e.g. monkey) flees, `nextStep` is called with `null` as the monster argument, so
+  `monsterAvoids` is never checked. The safety map makes deep water cost 5 (not forbidden),
+  so water becomes a valid escape path when cornered.
+  C: same `null` pattern — this is technically C-faithful but the user considers it a bug.
+  Fix: pass `monst` instead of `null` in `monster-actions.ts:1149`.
+  `nextStep` already calls `monsterAvoids(monst, neighbor)` when monst is non-null. **S**
 
 ---
 
