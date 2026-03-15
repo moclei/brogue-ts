@@ -18,6 +18,7 @@ import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
     cellHasTMFlag as cellHasTMFlagFn,
     terrainFlags as terrainFlagsFn,
+    discoveredTerrainFlagsAtLoc as discoveredTerrainFlagsAtLocFn,
 } from "./state/helpers.js";
 import { allocGrid, copyGrid } from "./grid/grid.js";
 import { randRange, randPercent } from "./math/rng.js";
@@ -80,6 +81,9 @@ import { monsterFleesFrom } from "./monsters/monster-state.js";
 import { getSafetyMap as getSafetyMapFn } from "./monsters/monster-flee-ai.js";
 import { nextStep as nextStepFn } from "./movement/travel-explore.js";
 import type { TravelExploreContext } from "./movement/travel-explore.js";
+import { dijkstraScan as dijkstraScanFn } from "./dijkstra/dijkstra.js";
+import { updateSafetyMap as updateSafetyMapFn } from "./time/safety-maps.js";
+import type { SafetyMapsContext } from "./time/safety-maps.js";
 import {
     monsterBlinkToPreferenceMap as monsterBlinkToPreferenceMapFn,
     monsterBlinkToSafety as monsterBlinkToSafetyFn,
@@ -106,6 +110,9 @@ import type { Creature, Pos } from "./types/types.js";
 // =============================================================================
 // buildMonstersTurnContext
 // =============================================================================
+
+/** Persistent safety-map grid — allocated once, repopulated each turn. */
+let sharedSafetyMap: number[][] | null = null;
 
 /**
  * Builds the fully-wired MonstersTurnContext for monstersTurn().
@@ -241,7 +248,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
     };
 
     // ── MoveMonsterContext ────────────────────────────────────────────────────
-    const localSafetyMap = allocGrid();
+    if (!sharedSafetyMap) sharedSafetyMap = allocGrid();
     const moveMonsterCtx: MoveMonsterContext = {
         player, monsters,
         rng: { randRange, randPercent: (pct) => randPercent(pct) },
@@ -309,7 +316,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         buildMonsterBoltBlinkContexts({
             player, monsters, rogue, pmap, queryCtx, io, chTF, inFOV,
             monsterAvoids: (monst, p) => monsterAvoidsImpl(monst, p),
-            localSafetyMap,
+            localSafetyMap: sharedSafetyMap!,
             resolvePronounEscapes,
             copyGrid,
         });
@@ -535,10 +542,31 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         nextStep: (map, loc, monst, preferDiagonals) =>
             nextStepFn(map, loc, monst, preferDiagonals, nextStepCtx),
         getSafetyMap: (monst) => getSafetyMapFn(monst, {
-            player, safetyMap: localSafetyMap,
-            rogue: { updatedSafetyMapThisTurn: rogue.updatedSafetyMapThisTurn },
+            player, safetyMap: sharedSafetyMap!,
+            rogue,  // real object so updatedSafetyMapThisTurn writes persist
             inFieldOfView: inFOV, allocGrid, copyGrid,
-            updateSafetyMap: () => {},
+            updateSafetyMap: () => updateSafetyMapFn({
+                rogue,
+                player,
+                pmap,
+                safetyMap: sharedSafetyMap!,
+                allySafetyMap: sharedSafetyMap!,  // unused by updateSafetyMap
+                DCOLS, DROWS,
+                FP_FACTOR: 1,                     // unused by updateSafetyMap
+                cellHasTerrainFlag: chTF,
+                cellHasTMFlag: chTMF,
+                discoveredTerrainFlagsAtLoc: (pos: Pos) => discoveredTerrainFlagsAtLocFn(
+                    pmap, pos, tileCatalog,
+                    (tileType) => {
+                        const df = tileCatalog[tileType]?.discoverType ?? 0;
+                        return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
+                    },
+                ),
+                monsterAtLoc,
+                allocGrid,
+                freeGrid: () => {},
+                dijkstraScan: dijkstraScanFn,
+            } as unknown as SafetyMapsContext),
         }),
         traversiblePathBetween: (monst, x, y) => traversibleImpl(monst, x, y),
         monsterWillAttackTarget: (monst, target) =>
