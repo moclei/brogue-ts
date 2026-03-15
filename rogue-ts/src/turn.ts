@@ -43,22 +43,22 @@ import {
     goodMessageColor, badMessageColor, advancementMessageColor, itemMessageColor,
     orange, green, red, yellow, darkRed, darkGreen, poisonColor,
 } from "./globals/colors.js";
-import { DCOLS, DROWS } from "./types/constants.js";
-import { TileFlag, ItemFlag, MonsterBookkeepingFlag, TerrainFlag, TerrainMechFlag, T_OBSTRUCTS_SCENT, IS_IN_MACHINE } from "./types/flags.js";
+import { DCOLS, DROWS, HUNGER_THRESHOLD, WEAK_THRESHOLD, FAINT_THRESHOLD } from "./types/constants.js";
+import { TileFlag, ItemFlag, MessageFlag, MonsterBookkeepingFlag, TerrainFlag, TerrainMechFlag, T_OBSTRUCTS_SCENT, IS_IN_MACHINE } from "./types/flags.js";
 import { refreshWaypoint as refreshWaypointFn } from "./architect/architect.js";
 import { populateGenericCostMap } from "./movement/cost-maps-fov.js";
-import { CreatureState, GameMode, ALL_ITEMS, LightType } from "./types/enums.js";
+import { CreatureState, GameMode, ALL_ITEMS, LightType, ItemCategory, FoodKind } from "./types/enums.js";
 import type { TurnProcessingContext } from "./time/turn-processing.js";
 import { updateEnvironment as updateEnvironmentFn } from "./time/environment.js";
 import type { EnvironmentContext } from "./time/environment.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
-import { applyGradualTileEffectsToCreature as applyGradualTileEffectsFn, playerFalls as playerFallsFn } from "./time/creature-effects.js";
+import { applyGradualTileEffectsToCreature as applyGradualTileEffectsFn, playerFalls as playerFallsFn, decrementPlayerStatus as decrementPlayerStatusFn } from "./time/creature-effects.js";
 import { buildApplyInstantTileEffectsFn } from "./tile-effects-wiring.js";
 import { buildFadeInMonsterFn } from "./combat.js";
 import type { Creature, Pcell, Pos, PlayerCharacter, Color, Item } from "./types/types.js";
 import { INVALID_POS } from "./types/types.js";
-import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
+import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn, buildDisplayLevelFn } from "./io-wiring.js";
 import { displayCombatText as displayCombatTextFn } from "./io/messages.js";
 import { buildMessageContext } from "./ui.js";
 import { buildUpdateVisionFn, buildAnimateFlaresFn } from "./vision-wiring.js";
@@ -68,8 +68,8 @@ import { checkForContinuedLeadership as checkForContinuedLeadershipFn, demoteMon
 import { buildResolvePronounEscapesFn, getMonsterDFMessage as getMonsterDFMessageFn } from "./io/text.js";
 import { buildMonstersTurnContext } from "./turn-monster-ai.js";
 import { doMakeMonsterDropItem } from "./monsters.js";
-import { updateEncumbrance as updateEncumbranceFn } from "./items/item-usage.js";
-import { buildEquipState } from "./items/equip-helpers.js";
+import { updateEncumbrance as updateEncumbranceFn, recalculateEquipmentBonuses as recalculateEquipmentBonusesFn } from "./items/item-usage.js";
+import { buildEquipState, syncEquipBonuses } from "./items/equip-helpers.js";
 import { getFOVMask as getFOVMaskFn } from "./light/fov.js";
 import { scentDistance } from "./time/turn-processing.js";
 import { itemName as itemNameFn } from "./items/item-naming.js";
@@ -257,6 +257,35 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         messageColorFromVictim: (monst: Creature): Color =>
             (monst === player || monst.creatureState === CreatureState.Ally) ? badMessageColor : goodMessageColor,
         refreshDungeonCell,
+    } as unknown as CreatureEffectsContext;
+
+    // ── decrementPlayerStatus context — status timers, hunger, haste/slow ────
+    // Extends gradualCtx with the extra fields needed by decrementPlayerStatus
+    // and the checkNutrition sub-function it calls.
+    const decrementStatusCtx = {
+        ...(gradualCtx as any),
+        AMULET: ItemCategory.AMULET,
+        FOOD: ItemCategory.FOOD,
+        FRUIT: FoodKind.Fruit,
+        ARMOR: ItemCategory.ARMOR,
+        HUNGER_THRESHOLD,
+        WEAK_THRESHOLD,
+        FAINT_THRESHOLD,
+        REQUIRE_ACKNOWLEDGMENT: MessageFlag.REQUIRE_ACKNOWLEDGMENT,
+        updateVision: buildUpdateVisionFn(),
+        updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
+        displayLevel: buildDisplayLevelFn(),
+        synchronizePlayerTimeState: () => { rogue.ticksTillUpdateEnvironment = player.ticksUntilTurn; },
+        recalculateEquipmentBonuses: () => {
+            const eqState = buildEquipState();
+            recalculateEquipmentBonusesFn(eqState);
+            syncEquipBonuses(eqState);
+        },
+        updateEncumbrance: () => updateEncumbranceFn(buildEquipState()),
+        confirmMessages: () => {},      // stub — complex UI sequencing
+        eat: () => {},                  // stub — emergency eating deferred
+        playerTurnEnded: () => {},      // stub — avoid re-entry
+        spawnPeriodicHorde: () => {},   // stub — separate wiring
     } as unknown as CreatureEffectsContext;
 
     function pmapAt(loc: Pos): Pcell { return pmap[loc.x][loc.y]; }
@@ -481,7 +510,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         applyGradualTileEffectsToCreature: (monst, ticks) => applyGradualTileEffectsFn(monst, ticks, gradualCtx),
         monsterShouldFall: () => false,
         monstersFall: () => {},
-        decrementPlayerStatus: () => {},
+        decrementPlayerStatus: () => decrementPlayerStatusFn(decrementStatusCtx),
         playerFalls: () => {
             const fallCtx = {
                 player, rogue, pmap, gameConst,

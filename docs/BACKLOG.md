@@ -756,13 +756,15 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `Items.c` (teleport → refreshDungeonCell), `IO.c` (displayLevel / commitDraws).
   TS: `monsters/monster-teleport.ts`, `items.ts`, `vision-wiring.ts`. **S**
 
-- [ ] **B53 — Confusion status never wears off** — Once confused (potion, bolt, or staff of
-  entrancement), the confused status does not decrement and the effect is permanent for the
-  session. In C, `player.status[STATUS_CONFUSED]` is decremented each turn by
-  `playerTurnEnded` → `decrementCreatureStatus`. The TS decrement loop may not be calling the
-  right status index, or the player's status array is not the same object being mutated.
-  C: `Time.c:2003` (playerTurnEnded, decrementCreatureStatus).
-  TS: `time/turn-processing.ts`, `time/creature-effects.ts`. **S**
+- [x] **B53 — Confusion status never wears off** — Fixed in `turn.ts`: `decrementPlayerStatus`
+  in `buildTurnProcessingContext` was a complete stub `() => {}`. The real function in
+  `time/creature-effects.ts:decrementPlayerStatus` correctly decrements all status timers
+  (confused, hallucinating, levitating, hasted, slowed, weakened, etc.). Wired it with a
+  `decrementStatusCtx` that extends `gradualCtx` with the extra fields needed (nutrition
+  constants, vision/light/display callbacks, equipment recalc, synchronizePlayerTimeState).
+  `spawnPeriodicHorde`, `eat`, `playerTurnEnded`, and `confirmMessages` remain stubbed.
+  C: `Time.c:2003` (inline decrements in playerTurnEnded).
+  TS: `turn.ts` (`decrementPlayerStatus` / `decrementStatusCtx`). **S**
 
 - [ ] **B54 — Scroll of aggravate monster crashes the game** — Using a scroll of aggravate
   monster appeared to crash the game, though the reporter was unsure it was the direct cause.
