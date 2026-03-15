@@ -30,7 +30,7 @@ import { monsterText } from "./globals/monster-text.js";
 import { DCOLS, DROWS } from "./types/constants.js";
 import {
     TileFlag, MonsterBookkeepingFlag, MonsterBehaviorFlag, TerrainFlag,
-    T_HARMFUL_TERRAIN,
+    TerrainMechFlag, T_HARMFUL_TERRAIN,
 } from "./types/flags.js";
 import { BoltEffect, CreatureState, DungeonLayer, StatusEffect } from "./types/enums.js";
 import { openPathBetween as openPathBetweenFn } from "./items/bolt-geometry.js";
@@ -78,6 +78,8 @@ import { monsterSwarmDirection as monsterSwarmDirectionFn } from "./monsters/mon
 import { allyFlees as allyFleesFn } from "./monsters/monster-flee-ai.js";
 import { monsterFleesFrom } from "./monsters/monster-state.js";
 import { getSafetyMap as getSafetyMapFn } from "./monsters/monster-flee-ai.js";
+import { nextStep as nextStepFn } from "./movement/travel-explore.js";
+import type { TravelExploreContext } from "./movement/travel-explore.js";
 import {
     monsterBlinkToPreferenceMap as monsterBlinkToPreferenceMapFn,
     monsterBlinkToSafety as monsterBlinkToSafetyFn,
@@ -476,6 +478,28 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
     };
     monsterMillAboutImpl = (monst, chance) => monsterMillAboutFn(monst, chance, millAboutCtx);
 
+    // ── nextStep context (flee / ally / safety pathfinding) ───────────────────
+    const nextStepCtx = {
+        player,
+        nbDirs,
+        coordinatesAreInMap,
+        monsterAtLoc,
+        monsterAvoids: (monst: Creature, p: Pos) => monsterAvoidsImpl(monst, p),
+        canPass: (mover: Creature, blocker: Creature) => canPassFn(mover, blocker, player, chTF),
+        monstersAreTeammates: (a: Creature, b: Creature) => monstersAreTeammatesFn(a, b, player),
+        monstersAreEnemies: (a: Creature, b: Creature) => monstersAreEnemiesFn(a, b, player, chTF),
+        diagonalBlocked: diagBlocked,
+        knownToPlayerAsPassableOrSecretDoor(pos: Pos): boolean {
+            const cell = pmap[pos.x]?.[pos.y];
+            if (!cell) return false;
+            if (!(cell.flags & (TileFlag.DISCOVERED | TileFlag.MAGIC_MAPPED))) return false;
+            if (cell.rememberedTerrainFlags & TerrainFlag.T_OBSTRUCTS_PASSABILITY) {
+                return !!(cell.rememberedTMFlags & TerrainMechFlag.TM_IS_SECRET);
+            }
+            return true;
+        },
+    } as unknown as TravelExploreContext;
+
     // ── Return the fully-wired MonstersTurnContext ─────────────────────────────
     return {
         player, monsters,
@@ -508,7 +532,8 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         scentDirection: (monst) => scentDirectionFn(monst, scentDirCtx),
         isLocalScentMaximum: (loc) => isLocalScentMaximumFn(loc, localScentCtx),
         pathTowardCreature: (monst, target) => pathTowardCreatureFn(monst, target, pathCtx),
-        nextStep: () => -1,                             // stub — Phase 2b/3
+        nextStep: (map, loc, monst, preferDiagonals) =>
+            nextStepFn(map, loc, monst, preferDiagonals, nextStepCtx),
         getSafetyMap: (monst) => getSafetyMapFn(monst, {
             player, safetyMap: localSafetyMap,
             rogue: { updatedSafetyMapThisTurn: rogue.updatedSafetyMapThisTurn },
