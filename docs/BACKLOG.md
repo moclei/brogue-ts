@@ -832,7 +832,7 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `Movement.c:1566` (travelRoute), `Movement.c:1611` (travelMap), `Movement.c` (getLineCoordinates).
   TS: `movement/travel-explore.ts`, `io/hover-wiring.ts`. **M**
 
-- [ ] **B60 — All terrain flashes/glows on every player move; water animation is input-driven not continuous** — Two related defects in `shuffleTerrainColors`:
+- [x] **B60 — All terrain flashes/glows on every player move; water animation is input-driven not continuous** — Two related defects in `shuffleTerrainColors`:
 
   **Defect 1 — No `TERRAIN_COLORS_DANCING` guard (primary visual symptom).**
   In C (`IO.c:966`), `shuffleTerrainColors` only processes cells where
@@ -907,12 +907,10 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   `changeLevelIfAppropriate`).
   TS: `lifecycle.ts` (level-transition sequence), `movement/travel-explore.ts`. **S**
 
-- [ ] **B63 — Monkeys don't steal items — they fight to the death** — Monkeys should have
-  steal-and-flee AI: when adjacent to the player, grab an item from the pack and run. In C,
-  `MA_STEAL_ITEMS` / `MONST_STEAL_ITEMS` flags trigger a separate behavior branch in
-  `monsterCastSpell` / `moveMonster` that picks an item, applies it to the monster's held
-  item, and sets the monster to flee. In TS this branch may be a stub or the item-steal path
-  in the monster AI is not reached.
+- [x] **B63 — Monkeys don't steal items — they fight to the death** — Fixed: `specialHit`
+  was stubbed to `() => {}` in `buildCombatAttackContext`; wired to real `specialHitFn` with
+  a full `RunicContext` including `monsterStealsFromPlayerImpl`. Monkey now steals an
+  unequipped item, enters `MODE_PERM_FLEEING`, and shows a message. 7 new tests added.
   C: `Monsters.c` (steal-item behavior, `MA_STEAL_ITEMS`).
   TS: `monsters/monster-behavior.ts` or `monsters/monster-state.ts`. **M**
 

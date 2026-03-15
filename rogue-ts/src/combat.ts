@@ -33,12 +33,12 @@ import {
     white, red, poisonColor,
     goodMessageColor, badMessageColor, itemMessageColor,
 } from "./globals/colors.js";
-import { TileFlag } from "./types/flags.js";
-import { CreatureState, GameMode } from "./types/enums.js";
+import { TileFlag, ItemFlag } from "./types/flags.js";
+import { CreatureState, CreatureMode, GameMode, ItemCategory } from "./types/enums.js";
 import { flashMonster } from "./combat/combat-damage.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { AttackContext } from "./combat/combat-attack.js";
-import type { Creature, Pos } from "./types/types.js";
+import type { Creature, Item, ItemTable, Pos } from "./types/types.js";
 import { getCellAppearance } from "./io/cell-appearance.js";
 import { terrainRandomValues, displayDetail } from "./render-state.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
@@ -54,6 +54,10 @@ import {
 } from "./combat/combat-helpers.js";
 import type { CombatHelperContext } from "./combat/combat-helpers.js";
 import { monsterText } from "./globals/monster-text.js";
+import { specialHit as specialHitFn } from "./combat/combat-runics.js";
+import type { RunicContext } from "./combat/combat-runics.js";
+import { itemName as itemNameFn } from "./items/item-naming.js";
+import { wandTable, staffTable, ringTable, charmTable } from "./globals/item-catalog.js";
 
 // =============================================================================
 // Private helpers
@@ -190,8 +194,12 @@ export function buildCombatDamageContext(): CombatDamageContext {
  * item enchantment ops are stubbed — they require deeper platform wiring.
  */
 export function buildCombatAttackContext(): AttackContext {
-    const { player, rogue, pmap, monsters } = getGameState();
+    const {
+        player, rogue, pmap, monsters,
+        packItems, gameConst, mutablePotionTable, mutableScrollTable, monsterCatalog,
+    } = getGameState();
     const damageCtx = buildCombatDamageContext();
+    const monsterNameFn = buildMonsterName(player);
 
     const cellHasTerrainFlag = (loc: Pos, flags: number): boolean =>
         cellHasTerrainFlagFn(pmap, loc, flags);
@@ -204,7 +212,64 @@ export function buildCombatAttackContext(): AttackContext {
         return null;
     }
 
-    return {
+    // Naming context for item messages (e.g., steal message)
+    const namingCtx = {
+        gameConstants: gameConst,
+        depthLevel: rogue.depthLevel,
+        potionTable: mutablePotionTable,
+        scrollTable: mutableScrollTable,
+        wandTable: wandTable as unknown as ItemTable[],
+        staffTable: staffTable as unknown as ItemTable[],
+        ringTable: ringTable as unknown as ItemTable[],
+        charmTable: charmTable as unknown as ItemTable[],
+        playbackOmniscience: rogue.playbackOmniscience,
+        monsterClassName: (classId: number) => monsterCatalog[classId]?.monsterName ?? "creature",
+    };
+
+    // MA_HIT_STEAL_FLEE — pick a random unequipped item from pack, steal it,
+    // set attacker to permanently flee. Mirrors Combat.c:426-479.
+    function monsterStealsFromPlayerImpl(attacker: Creature): void {
+        const candidates = packItems.filter(item => !(item.flags & ItemFlag.ITEM_EQUIPPED));
+        if (candidates.length === 0) return;
+
+        const idx = randRange(0, candidates.length - 1);
+        const theItem = candidates[idx];
+
+        let stolenQuantity: number;
+        if (theItem.category & ItemCategory.WEAPON) {
+            stolenQuantity = theItem.quantity > 3
+                ? Math.floor((theItem.quantity + 1) / 2)
+                : theItem.quantity;
+        } else {
+            stolenQuantity = 1;
+        }
+
+        let stolenItem: Item;
+        if (stolenQuantity < theItem.quantity) {
+            // Peel off stolen quantity from the stack
+            stolenItem = { ...theItem, quantity: stolenQuantity };
+            theItem.quantity -= stolenQuantity;
+        } else {
+            // Take the entire item
+            if (rogue.swappedIn === theItem) rogue.swappedIn = null;
+            if (rogue.swappedOut === theItem) rogue.swappedOut = null;
+            const packIdx = packItems.indexOf(theItem);
+            if (packIdx >= 0) packItems.splice(packIdx, 1);
+            stolenItem = theItem;
+        }
+
+        stolenItem.flags &= ~ItemFlag.ITEM_PLAYER_AVOIDS;
+        attacker.carriedItem = stolenItem;
+        attacker.creatureMode = CreatureMode.PermFleeing;
+        attacker.creatureState = CreatureState.Fleeing;
+
+        const mName = monsterNameFn(attacker, true);
+        const iName = itemNameFn(stolenItem, false, true, namingCtx);
+        void damageCtx.messageWithColor(`${mName} stole ${iName}!`, badMessageColor);
+        rogue.autoPlayingLevel = false;
+    }
+
+    const runicCtx: RunicContext = {
         ...damageCtx,
 
         // ── CombatMathContext ──────────────────────────────────────────────────
@@ -243,10 +308,10 @@ export function buildCombatAttackContext(): AttackContext {
         setDisturbed() { rogue.disturbed = true; },
         reaping: rogue.reaping,
 
-        // ── Runic / special hit stubs (wired in port-v2-platform) ────────────
+        // ── Runic / special hit ───────────────────────────────────────────────
         magicWeaponHit: () => {},
         applyArmorRunicEffect: () => "",
-        specialHit: () => {},
+        specialHit: () => {}, // wired below to allow self-reference
         splitMonster: () => {},
 
         // ── Display ───────────────────────────────────────────────────────────
@@ -268,7 +333,7 @@ export function buildCombatAttackContext(): AttackContext {
                 updateEncumbrance: () => updateEncumbranceFn(s) });
             syncEquipState(s);
         },
-        itemName: () => "item",
+        itemName: (item) => itemNameFn(item, false, true, namingCtx),
         checkForDisenchantment: () => {},
         strengthCheck: () => {},
         itemMessageColor,
@@ -288,14 +353,37 @@ export function buildCombatAttackContext(): AttackContext {
         redColor: red,
 
         // ── Game over ────────────────────────────────────────────────────────
-        gameOverFromMonster(monsterName) {
-            gameOver(`Killed by a ${monsterName}`);
+        gameOverFromMonster(monName) {
+            gameOver(`Killed by a ${monName}`);
         },
 
         // ── Ally ops ─────────────────────────────────────────────────────────
         unAlly: (monst) => unAllyFn(monst),
         alertMonster: (monst) => alertMonsterFn(monst, player),
+
+        // ── RunicContext additional fields (stubs except steal) ───────────────
+        armorRunicIdentified: () => false,
+        autoIdentify: () => {},
+        createFlare: () => {},
+        cloneMonster: () => null,
+        playerImmuneToMonster: () => false,
+        slow: () => {},
+        weaken: () => {},
+        exposeCreatureToFire: () => {},
+        monsterStealsFromPlayer: monsterStealsFromPlayerImpl,
+        monstersAreEnemies: () => true,
+        onHitHallucinateDuration: gameConst.onHitHallucinateDuration,
+        onHitWeakenDuration: gameConst.onHitWeakenDuration,
+        onHitMercyHealPercent: gameConst.onHitMercyHealPercent,
+        forceWeaponHit: () => false,
     };
+
+    // Wire specialHit after construction so the closure can reference runicCtx
+    runicCtx.specialHit = (attacker, defender, damage) => {
+        specialHitFn(attacker, defender, damage, runicCtx);
+    };
+
+    return runicCtx;
 }
 
 // =============================================================================
