@@ -162,12 +162,21 @@ only if the path is genuinely not reachable in normal play.
   C: `IO.c:monsterName` (hallucination branch).
   TS: wherever `monsterName` is built in item or combat contexts. **S**
 
-- [ ] **B71 — Staffs/charms/wands/rings not identified on entering a vault (B25 revisit)** —
+- [x] **B71 — Staffs/charms/wands/rings not identified on entering a vault (B25 revisit)** —
   B25 was marked WAI, but playtest suggests C does auto-identify non-weapon/non-armor vault
   items (staffs, charms, wands, rings) when the player first steps into the vault. Weapons
   and armor are not auto-identified. Requires C source verification before coding.
   C: `Items.c` (vault entry / `checkForMissingKeys` / `identifyItemKind`).
   TS: `turn.ts` or `items/item-handlers.ts` (vault-entry scan). **M**
+  Fix: `updateFloorItems` in `items/floor-items.ts` already had the auto-ID logic (checking
+  `ITEM_KIND_AUTO_ID` + same machine number), but `EnvironmentContext.updateFloorItems` was
+  stubbed as `() => {}` in `turn.ts`. Created `items/floor-items-wiring.ts` with
+  `buildUpdateFloorItemsFn()` that wires the real `updateFloorItems` with closures for
+  `identifyItemKind`, `promoteTile`, `activateMachine`, `circuitBreakersPreventActivation`,
+  `burnItem`, and `getQualifyingLocNear`. Also wires the full item burning, drift, and
+  tile-promotion paths. `swapItemEnchants` remains stubbed (`() => false`) — filed as a
+  separate mechanic. Verified: `identifyItemKind` no-ops for WEAPON/ARMOR (no tableCount),
+  identifies kind for STAFF/WAND/RING (tableCount > 0 in switch).
 
 - [ ] **B72 — Vault cage-closing animation fires immediately on item pickup** — After picking
   up an item from a vault, the remaining items immediately change color to show they are
