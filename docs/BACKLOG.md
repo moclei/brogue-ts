@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-16 (B79 fixed)
+**Status:** updated 2026-03-16 (B83 fixed)
 **Tests at last update:** 88 files · 2322 pass · 55 skip
 
 ---
@@ -283,6 +283,16 @@ only if the path is genuinely not reachable in normal play.
   `Time.c` / `Architect.c` (fire spread via dungeon feature promotion).
   TS: `turn-monster-ai.ts:197` (`inflictDamage` stub), `tile-effects-wiring.ts`. **M**
 
+- [x] **B83 — Bolt lighting: cells near bolt trail don't glow as it travels** — Firing a
+  staff or wand shows the glyph trail (wired in B79) but cells near the bolt are not
+  illuminated: `backUpLighting`, `restoreLighting`, `demoteVisibility`, `paintLight`,
+  `updateFieldOfViewDisplay`, `updateVision`, `updateLighting` in `buildZapRenderContext`
+  were all no-ops. Fixed by wiring real implementations via `buildBoltLightingFns()`
+  in `vision-wiring.ts`; `ZapRenderContext.paintLight` now takes a `LightSource` and
+  `zap.ts` pre-computes `boltLights[]` (one per step, matching Items.c:4896-4906).
+  C: `Items.c:4912-4974` (bolt lighting loop). TS: `staff-wiring.ts`, `vision-wiring.ts`,
+  `items/zap.ts`, `items/zap-context.ts`. **M**
+
 - [ ] **B82 — Vault items always the same type regardless of seed** — Items found in
   vaults are predictably the same type (e.g., bronze wands, health charms) across
   different seeds, suggesting `chooseKind` always selects index 0. In C (`Items.c:409`),
@@ -496,19 +506,9 @@ stubs. Do not fix without a corresponding backlog item.
 | src/items/item-helper-context.ts | 117 | promoteTile | `() => {}` |
 | src/items/item-helper-context.ts | 119 | messageWithColor | `() => {}` |
 | src/items/item-helper-context.ts | 126 | discover | `() => {}` |
-| src/items/staff-wiring.ts | 114 | refreshSideBar | `() => {}` |
-| src/items/staff-wiring.ts | 115 | displayCombatText | `() => {}` |
-| src/items/staff-wiring.ts | 116 | refreshDungeonCell | `() => {}` |
-| src/items/staff-wiring.ts | 117 | backUpLighting | `() => {}` |
-| src/items/staff-wiring.ts | 118 | restoreLighting | `() => {}` |
-| src/items/staff-wiring.ts | 119 | demoteVisibility | `() => {}` |
-| src/items/staff-wiring.ts | 120 | updateFieldOfViewDisplay | `() => {}` |
-| src/items/staff-wiring.ts | 121 | paintLight | `() => {}` |
-| src/items/staff-wiring.ts | 122 | updateVision | `() => {}` |
-| src/items/staff-wiring.ts | 123 | updateLighting | `() => {}` |
-| src/items/staff-wiring.ts | 124 | hiliteCell | `() => {}` |
-| src/items/staff-wiring.ts | 125 | pauseAnimation | `() => false` |
-| src/items/staff-wiring.ts | 127 | plotCharWithColor | `() => {}` |
+| src/items/staff-wiring.ts | — | refreshSideBar | `() => {}` |
+| src/items/staff-wiring.ts | — | displayCombatText | `() => {}` |
+| src/items/staff-wiring.ts | — | refreshDungeonCell | `() => {}` |
 | src/items/staff-wiring.ts | 152 | cellHasGas | `() => false` |
 | src/items/staff-wiring.ts | 183 | monsterIsHidden | `() => false` |
 | src/items/staff-wiring.ts | 185 | playerCanSeeOrSense | `() => false` |

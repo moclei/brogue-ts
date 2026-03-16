@@ -11,7 +11,7 @@
  *  License, or (at your option) any later version.
  */
 
-import type { Creature, Pos, Color, Item, Bolt, MonsterClass, Pcell } from "../types/types.js";
+import type { Creature, Pos, Color, Item, Bolt, MonsterClass, Pcell, LightSource } from "../types/types.js";
 import type { MonsterType, LightType, DungeonFeatureType, DisplayGlyph } from "../types/enums.js";
 
 // =============================================================================
@@ -37,8 +37,8 @@ export interface ZapRenderContext {
     restoreLighting(): void;
     demoteVisibility(): void;
     updateFieldOfViewDisplay(dancingTerrain: boolean, refreshDisplay: boolean): void;
-    /** Paint one dynamic light source at the given map position. */
-    paintLight(lightIndex: number, x: number, y: number): void;
+    /** Paint one dynamic bolt light source at the given map position. */
+    paintLight(theLight: LightSource, x: number, y: number): void;
     updateVision(full: boolean): void;
     updateLighting(): void;
     hiliteCell(x: number, y: number, color: Color, strength: number, saveBuf: boolean): void;
