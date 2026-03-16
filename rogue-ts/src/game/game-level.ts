@@ -203,6 +203,7 @@ export interface LevelContext {
     updateMapToShore(): void;
     updateRingBonuses(): void;
     updateMinersLightRadius(): void;
+    updatePlayerRegenerationDelay(): void;
 
     // -- Display & recording --------------------------------------------------
 
@@ -410,6 +411,7 @@ export function startLevel(
     updateColors(ctx);
     ctx.updateRingBonuses();
     ctx.updateMinersLightRadius();
+    ctx.updatePlayerRegenerationDelay();
 
     let timeAway: number;
 

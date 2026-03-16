@@ -66,6 +66,7 @@ import { placeItemAt as placeItemAtFn } from "./items/floor-items.js";
 import { addItemToPack, numberOfMatchingPackItems, itemAtLoc as itemAtLocFn, deleteItem as deleteItemFn } from "./items/item-inventory.js";
 import { identify, shuffleFlavors, itemColors, itemTitles } from "./items/item-naming.js";
 import { equipItem, recalculateEquipmentBonuses, updateRingBonuses as updateRingBonusesFn, updateEncumbrance as updateEncumbranceFn } from "./items/item-usage.js";
+import { updatePlayerRegenerationDelay as updatePlayerRegenerationDelayFn } from "./items/item-effects.js";
 import type { EquipContext } from "./items/item-usage.js";
 import { buildEquipState, syncEquipBonuses, syncEquipState } from "./items/equip-helpers.js";
 import { buildAMachine, type MachineItem } from "./architect/machines.js";
@@ -527,6 +528,7 @@ export function buildLevelContext(): LevelContext {
         updateMapToShore() { rogue.mapToShore = updateMapToShore(pmap); },
         updateRingBonuses: () => { const s = buildEquipState(); updateRingBonusesFn(s); syncEquipBonuses(s); },
         updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
+        updatePlayerRegenerationDelay: () => { updatePlayerRegenerationDelayFn({ player, regenerationBonus: rogue.regenerationBonus }); },
         displayLevel() {
             const getCellApp = (loc: { x: number; y: number }) => getCellAppearance(
                 loc, pmap, tmap, displayBuffer, rogue, player,

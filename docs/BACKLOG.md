@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-15 (B58 fixed; B66 fixed; B71 fixed; B81 fixed; B50 fixed; B77–B82 filed)
-**Tests at last update:** 88 files · 2317 pass · 55 skip
+**Status:** updated 2026-03-16 (B77 fixed)
+**Tests at last update:** 88 files · 2322 pass · 55 skip
 
 ---
 
@@ -213,7 +213,7 @@ only if the path is genuinely not reachable in normal play.
   C: `Monsters.c:3494` — `nextStep(getSafetyMap(monst), monst->loc, NULL, true)`.
   TS: `monster-actions.ts:1149`. **S** (one-liner if approved)
 
-- [ ] **B77 — Player health regenerates faster than C game** — HP recovers noticeably
+- [x] **B77 — Player health regenerates faster than C game** — HP recovers noticeably
   faster than in Brogue v1.15.1. The regen logic in `time/turn-processing.ts:481` looks
   structurally correct (decrement `turnsUntilRegen` by 1000, regen when ≤ 0). The most
   likely causes: (1) `updatePlayerRegenerationDelay` (`items/item-effects.ts:524`) is
