@@ -53,7 +53,7 @@ import { updateEnvironment as updateEnvironmentFn } from "./time/environment.js"
 import type { EnvironmentContext } from "./time/environment.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
-import { applyGradualTileEffectsToCreature as applyGradualTileEffectsFn, playerFalls as playerFallsFn, decrementPlayerStatus as decrementPlayerStatusFn } from "./time/creature-effects.js";
+import { applyGradualTileEffectsToCreature as applyGradualTileEffectsFn, playerFalls as playerFallsFn, decrementPlayerStatus as decrementPlayerStatusFn, currentStealthRange as currentStealthRangeFn } from "./time/creature-effects.js";
 import { buildApplyInstantTileEffectsFn } from "./tile-effects-wiring.js";
 import { buildFadeInMonsterFn } from "./combat.js";
 import type { Creature, Pcell, Pos, PlayerCharacter, Color, Item } from "./types/types.js";
@@ -62,7 +62,7 @@ import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buil
 import { displayCombatText as displayCombatTextFn } from "./io/messages.js";
 import { buildMessageContext } from "./ui.js";
 import { buildUpdateVisionFn, buildAnimateFlaresFn } from "./vision-wiring.js";
-import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
+import { updateMinersLightRadius as updateMinersLightRadiusFn, playerInDarkness as playerInDarknessFn } from "./light/light.js";
 import { shuffleTerrainColors as shuffleTerrainColorsFn } from "./render-state.js";
 import { checkForContinuedLeadership as checkForContinuedLeadershipFn, demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "./monsters/monster-ally-ops.js";
 import { buildResolvePronounEscapesFn, getMonsterDFMessage as getMonsterDFMessageFn } from "./io/text.js";
@@ -84,7 +84,7 @@ import { forbiddenFlagsForMonster as forbiddenFlagsForMonsterFn, avoidedFlagsFor
 import { lightCatalog } from "./globals/light-catalog.js";
 import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
 import { keyMatchesLocation as keyMatchesLocationFn } from "./items/item-utils.js";
-import { wandTable, staffTable, ringTable, charmTable } from "./globals/item-catalog.js";
+import { wandTable, staffTable, ringTable, charmTable, armorTable } from "./globals/item-catalog.js";
 import type { ItemTable } from "./types/types.js";
 import { buildMonstersApproachStairsCtx, monstersApproachStairs as monstersApproachStairsFn } from "./time/stairs-wiring.js";
 
@@ -177,7 +177,7 @@ function buildMinimalCombatContext(
  */
 export function buildTurnProcessingContext(): TurnProcessingContext {
     const {
-        player, rogue, pmap, monsters, dormantMonsters,
+        player, rogue, pmap, tmap, monsters, dormantMonsters,
         packItems, floorItems, levels, gameConst,
         mutableScrollTable, mutablePotionTable, monsterCatalog,
     } = getGameState();
@@ -607,7 +607,16 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
             const val0 = rogue.scentTurnNumber & 0xFFFF;
             sm[px][py] = Math.max(val0, sm[px][py] & 0xFFFF);
         },
-        currentStealthRange: () => 14, // base value; stealth system (armor/darkness) wired later
+        currentStealthRange: () => currentStealthRangeFn({
+            player,
+            rogue,
+            pmapAt: (loc: Pos) => pmap[loc.x][loc.y],
+            IS_IN_SHADOW: TileFlag.IS_IN_SHADOW,
+            ARMOR: ItemCategory.ARMOR,
+            armorTable,
+            playerInDarkness: () => playerInDarknessFn(tmap, player.loc),
+            max: Math.max,
+        } as unknown as CreatureEffectsContext),
 
         // ── Movement / search (stubs) ─────────────────────────────────────────
         search: () => false,

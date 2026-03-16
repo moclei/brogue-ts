@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-15 (B66 fixed; B74 fixed; B75–B76 filed from playtest of B63 flee fix)
-**Tests at last update:** 88 files · 2311 pass · 55 skip
+**Status:** updated 2026-03-15 (B66 fixed; B71 fixed; B81 fixed; B50 fixed)
+**Tests at last update:** 88 files · 2314 pass · 55 skip
 
 ---
 
@@ -727,16 +727,14 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `Time.c` (applyInstantTileEffectsToCreature), `Architect.c` (triggerMachinesOfKind).
   TS: `tile-effects-wiring.ts`, `time/creature-effects.ts`. **M**
 
-- [ ] **B50 — Potion of incineration → permanent darkness (0 light, +14 stealth)** — After
-  drinking a potion of incineration the player was permanently stuck at light level 0, giving
-  a permanent 14 stealth range bonus as though always in darkness. The effect persisted for
-  the rest of the session. Likely cause: `updateVision` / `updateLighting` is not called (or
-  is no-op'd) after the incineration effect burns cells around the player, so the lighting
-  state is never recomputed from the changed tile set; or the incineration feature sets
-  `lights` to zero and the zero-light state is committed to the display buffer without a
-  subsequent recompute.
+- [x] **B50 — Potion of incineration → permanent darkness (0 light, +14 stealth)** — Fixed
+  in `turn.ts`: `currentStealthRange` was stubbed to always return 14. The real implementation
+  in `creature-effects.ts:currentStealthRange` computes stealth from `playerInDarkness()` and
+  `IS_IN_SHADOW`. Wired in `buildTurnProcessingContext` using `playerInDarknessFn(tmap, player.loc)`
+  so that lighting from `updateLighting` (called moments before at turn end) drives the stealth
+  calculation correctly. Root cause was a stub, not specifically incineration.
   C: `Items.c:7279` (drinkPotion POTION_INCINERATION), `Light.c` (updateVision, updateLighting).
-  TS: `items/item-handlers.ts`, `vision-wiring.ts`, `lifecycle.ts`. **M**
+  TS: `turn.ts` (buildTurnProcessingContext, currentStealthRange wiring). **M**
 
 - [ ] **B51 — Depth transition: first-turn monsters not drawn until player moves** — On
   entering a new dungeon level, monsters that should be immediately visible in the player's
