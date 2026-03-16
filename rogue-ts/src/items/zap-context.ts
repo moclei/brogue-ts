@@ -140,6 +140,7 @@ export interface ZapContext {
         dfType: DungeonFeatureType,
         refreshCell: boolean,
         abortIfBlocking: boolean,
+        probabilityDecrement?: number,
     ): void;
 
     // ── Teleport / blink ──

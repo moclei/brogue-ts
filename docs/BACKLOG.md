@@ -118,7 +118,7 @@ only if the path is genuinely not reachable in normal play.
   `changeLevelIfAppropriate`).
   TS: `lifecycle.ts` (level-transition sequence), `movement/travel-explore.ts`. **S**
 
-- [ ] **B64 — Staff of obstruction does nothing** — Zapping a staff of obstruction has no
+- [x] **B64 — Staff of obstruction does nothing** — Zapping a staff of obstruction has no
   visible effect. In C, `BOLT_OBSTRUCTION` spawns crystal terrain features along the bolt
   path via `spawnDungeonFeature`. The effect stub or the bolt-detonation handler for
   `BoltEffect.Obstruction` may be missing.

@@ -206,14 +206,28 @@ function makeCtx(pmapArg?: Pcell[][]): ZapContext {
 
 describe("detonateBolt > BE_OBSTRUCTION", () => {
     it("spawns DF_FORCEFIELD at terminal cell and sets autoID", () => {
-        const bolt = makeBolt(BoltEffect.Obstruction);
+        // magnitude=3 → POW_OBSTRUCTION[1]=33554 → floor(75*33554/65536)=38
+        const bolt = makeBolt(BoltEffect.Obstruction, { magnitude: 3 });
         const ctx = makeCtx();
         const autoID = { value: false };
 
         detonateBolt(bolt, null, 10, 10, autoID, ctx);
 
-        expect(ctx.spawnDungeonFeature).toHaveBeenCalledWith(10, 10, DungeonFeatureType.DF_FORCEFIELD, true, false);
+        expect(ctx.spawnDungeonFeature).toHaveBeenCalledWith(10, 10, DungeonFeatureType.DF_FORCEFIELD, true, false, 38);
         expect(autoID.value).toBe(true);
+    });
+
+    it("higher magnitude produces lower probabilityDecrement (larger crystal field)", () => {
+        // magnitude=2 → floor(75*41943/65536)=47; magnitude=5 → floor(75*17179/65536)=19
+        const ctxLow = makeCtx();
+        const ctxHigh = makeCtx();
+
+        detonateBolt(makeBolt(BoltEffect.Obstruction, { magnitude: 2 }), null, 5, 5, { value: false }, ctxLow);
+        detonateBolt(makeBolt(BoltEffect.Obstruction, { magnitude: 5 }), null, 5, 5, { value: false }, ctxHigh);
+
+        const probLow = (ctxLow.spawnDungeonFeature as ReturnType<typeof vi.fn>).mock.calls[0][5] as number;
+        const probHigh = (ctxHigh.spawnDungeonFeature as ReturnType<typeof vi.fn>).mock.calls[0][5] as number;
+        expect(probLow).toBeGreaterThan(probHigh);
     });
 
     it("also spawns targetDF if set", () => {

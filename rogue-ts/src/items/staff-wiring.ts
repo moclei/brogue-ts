@@ -39,6 +39,8 @@ import {
 import { haste as hasteFn, slow as slowFn } from "./item-effects.js";
 import { tunnelize as tunnelizeFn } from "./bolt-helpers.js";
 import { tileCatalog } from "../globals/tile-catalog.js";
+import { dungeonFeatureCatalog } from "../globals/dungeon-feature-catalog.js";
+import { spawnDungeonFeature as spawnDungeonFeatureFn } from "../architect/machines.js";
 import { negateCreature as negateCreatureFn } from "../monsters/monster-negate.js";
 import { monsterClassCatalog } from "../globals/monster-class-catalog.js";
 import {
@@ -467,7 +469,14 @@ export function buildStaffZapFn() {
                 monsterAtLoc,
                 cellHasTerrainFlag,
             }),
-            spawnDungeonFeature: () => {},  // stub — forcefield / terrain spawning
+            spawnDungeonFeature(x2, y2, dfType, refreshCell, abortIfBlocking, probabilityDecrement) {
+                const feat = dungeonFeatureCatalog[dfType];
+                if (!feat) return;
+                const f = probabilityDecrement !== undefined
+                    ? { ...feat, probabilityDecrement }
+                    : feat;
+                spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x2, y2, f as never, refreshCell, abortIfBlocking);
+            },
 
             // ── Teleport / blink ──
             teleport: (monst, targetPos, safe) => teleportFn(monst, targetPos, safe, {
