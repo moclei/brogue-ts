@@ -83,7 +83,9 @@ import {
 } from "./overlay-screens.js";
 import { displayMessageArchive as displayMessageArchiveFn } from "./messages.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "../light/light.js";
-import { encodeMessageColor } from "./color.js";
+import { encodeMessageColor, storeColorComponents } from "./color.js";
+import { printString as printStringFn } from "./text.js";
+import { rectangularShading as rectangularShadingFn } from "./inventory.js";
 import {
     createScreenDisplayBuffer as createScreenDisplayBufferFn,
     clearDisplayBuffer as clearDisplayBufferFn,
@@ -369,7 +371,7 @@ export function buildInputContext(): InputContext {
         // ── Color / text helpers ──────────────────────────────────────────────
         encodeMessageColor,
         strLenWithoutEscapes: (s) => s.length,
-        printString: () => {},
+        printString: (str, x, y, fg, bg, dbuf) => { printStringFn(str, x, y, fg, bg, dbuf ?? displayBuffer); },
         plotCharWithColor: (ch, pos, fg, bg) => { plotCharWithColorFn(ch, pos, fg, bg, displayBuffer); },
 
         // ── Messages ──────────────────────────────────────────────────────────
@@ -397,7 +399,9 @@ export function buildInputContext(): InputContext {
 
         // ── Text box (stubs — wired in Phase 5) ──────────────────────────────
         printTextBox: async () => -1,
-        rectangularShading: () => {},
+        rectangularShading: (x, y, width, height, color, opacity, dbuf) => {
+            rectangularShadingFn(x, y, width, height, color, opacity, dbuf, { storeColorComponents });
+        },
 
         // ── Events / timing ───────────────────────────────────────────────────
         // nextKeyOrMouseEvent: sync fallback; real events arrive via waitForEvent().
