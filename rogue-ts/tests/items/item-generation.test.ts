@@ -552,6 +552,38 @@ describe("getKindCountForCategory", () => {
 // getHallucinatedItemCategory
 // =============================================================================
 
+// =============================================================================
+// B82 regression — wand/charm kind diversity
+// =============================================================================
+
+describe("B82 regression — wand and charm kinds are seed-dependent", () => {
+    it("wands generate diverse kinds across seeds (numberWandKinds must be nonzero)", () => {
+        const kinds = new Set<number>();
+        for (let seed = 1n; seed <= 30n; seed++) {
+            const ctx = makeCtx(seed * 7777n);
+            const wand = generateItem(ItemCategory.WAND, -1, ctx);
+            expect(wand.kind).toBeGreaterThanOrEqual(0);
+            expect(wand.kind).toBeLessThan(wandTable.length);
+            kinds.add(wand.kind);
+        }
+        // With 30 seeds and 9 wand kinds, should see at least 3 distinct kinds
+        expect(kinds.size).toBeGreaterThan(2);
+    });
+
+    it("charms generate diverse kinds across seeds (numberCharmKinds must be nonzero)", () => {
+        const kinds = new Set<number>();
+        for (let seed = 1n; seed <= 30n; seed++) {
+            const ctx = makeCtx(seed * 3333n);
+            const charm = generateItem(ItemCategory.CHARM, -1, ctx);
+            expect(charm.kind).toBeGreaterThanOrEqual(0);
+            expect(charm.kind).toBeLessThan(charmTable.length);
+            kinds.add(charm.kind);
+        }
+        // With 30 seeds and 12 charm kinds, should see at least 3 distinct kinds
+        expect(kinds.size).toBeGreaterThan(2);
+    });
+});
+
 describe("getHallucinatedItemCategory", () => {
     it("should return a valid category", () => {
         const ctx = makeCtx(3000n);

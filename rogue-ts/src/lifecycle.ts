@@ -28,7 +28,7 @@ import { dynamicColorsBounds, nbDirs, coordinatesAreInMap, posNeighborInDirectio
 import { lightCatalog } from "./globals/light-catalog.js";
 import { LightType, DungeonLayer, MonsterType } from "./types/enums.js";
 import { meteredItemsGenerationTable, lumenstoneDistribution,
-    scrollTable, potionTable } from "./globals/item-catalog.js";
+    scrollTable, potionTable, wandTable, charmTable } from "./globals/item-catalog.js";
 import { featCatalog } from "./globals/feat-catalog.js";
 import { autoGeneratorCatalog } from "./globals/autogenerator-catalog.js";
 import { blueprintCatalog } from "./globals/blueprint-catalog.js";
@@ -259,6 +259,8 @@ export function buildGameInitContext(): GameInitContext {
         initializeGameVariantBrogue() {
             gameConst.numberScrollKinds = mutableScrollTable.length;
             gameConst.numberPotionKinds = mutablePotionTable.length;
+            gameConst.numberWandKinds = wandTable.length;
+            gameConst.numberCharmKinds = charmTable.length;
             gameConst.numberMeteredItems = meteredItemsGenerationTable.length;
             gameConst.numberAutogenerators = autoGeneratorCatalog.length;
             gameConst.numberBlueprints = blueprintCatalog.length;
@@ -269,6 +271,8 @@ export function buildGameInitContext(): GameInitContext {
             gameConst.deepestLevel = 10; gameConst.amuletLevel = 7; gameConst.depthAccelerator = 4;
             gameConst.numberScrollKinds = mutableScrollTable.length;
             gameConst.numberPotionKinds = mutablePotionTable.length;
+            gameConst.numberWandKinds = wandTable.length;
+            gameConst.numberCharmKinds = charmTable.length;
             gameConst.numberMeteredItems = meteredItemsGenerationTable.length;
             gameConst.numberAutogenerators = autoGeneratorCatalog.length;
             gameConst.numberBlueprints = blueprintCatalog.length;
@@ -279,6 +283,8 @@ export function buildGameInitContext(): GameInitContext {
             gameConst.deepestLevel = 5; gameConst.amuletLevel = 4; gameConst.depthAccelerator = 8;
             gameConst.numberScrollKinds = mutableScrollTable.length;
             gameConst.numberPotionKinds = mutablePotionTable.length;
+            gameConst.numberWandKinds = wandTable.length;
+            gameConst.numberCharmKinds = charmTable.length;
             gameConst.numberMeteredItems = meteredItemsGenerationTable.length;
             gameConst.numberAutogenerators = autoGeneratorCatalog.length;
             gameConst.numberBlueprints = blueprintCatalog.length;

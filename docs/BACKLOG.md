@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-16 (B83 fixed)
-**Tests at last update:** 88 files · 2322 pass · 55 skip
+**Status:** updated 2026-03-16 (B82 fixed)
+**Tests at last update:** 88 files · 2324 pass · 55 skip
 
 ---
 
@@ -293,7 +293,7 @@ only if the path is genuinely not reachable in normal play.
   C: `Items.c:4912-4974` (bolt lighting loop). TS: `staff-wiring.ts`, `vision-wiring.ts`,
   `items/zap.ts`, `items/zap-context.ts`. **M**
 
-- [ ] **B82 — Vault items always the same type regardless of seed** — Items found in
+- [x] **B82 — Vault items always the same type regardless of seed** — Items found in
   vaults are predictably the same type (e.g., bronze wands, health charms) across
   different seeds, suggesting `chooseKind` always selects index 0. In C (`Items.c:409`),
   `chooseKind` uses `rand_range(1, totalFrequencies)` to pick an item type weighted by
