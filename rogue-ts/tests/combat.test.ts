@@ -16,8 +16,8 @@ import { buildTurnProcessingContext } from "../src/turn.js";
 import { playerTurnEnded as playerTurnEndedFn } from "../src/time/turn-processing.js";
 import { createCreature } from "../src/monsters/monster-creation.js";
 import { monsterCatalog } from "../src/globals/monster-catalog.js";
-import { MonsterBookkeepingFlag } from "../src/types/flags.js";
-import { MonsterType, StatusEffect, CreatureState, CreatureMode, ItemCategory } from "../src/types/enums.js";
+import { MonsterBookkeepingFlag, MonsterAbilityFlag } from "../src/types/flags.js";
+import { MonsterType, StatusEffect, CreatureState, CreatureMode, ItemCategory, TileType } from "../src/types/enums.js";
 import type { Creature, Item } from "../src/types/types.js";
 
 // =============================================================================
@@ -386,5 +386,75 @@ describe("monkey steal-and-flee (B63)", () => {
         expect(darts.quantity).toBe(5);
         // Original item still in pack
         expect(packItems).toContain(darts);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// B66 — Pink jelly splits when struck (MA_CLONE_SELF_ON_DEFEND)
+// ---------------------------------------------------------------------------
+
+describe("pink jelly splits when hit (B66)", () => {
+    it("spawns a clone when struck and has room to split", () => {
+        const player = setupPlayer();
+        player.status[StatusEffect.Paralyzed] = 0; // player can attack normally
+        player.loc = { x: 5, y: 5 };
+
+        // Pink jelly with enough HP to survive the hit
+        const jelly = makeMonster(MonsterType.MK_PINK_JELLY, 50);
+        jelly.loc = { x: 6, y: 5 };
+        // Jelly must have MA_CLONE_SELF_ON_DEFEND (it does by catalog)
+        expect(jelly.info.abilityFlags & MonsterAbilityFlag.MA_CLONE_SELF_ON_DEFEND).toBeTruthy();
+
+        const { monsters, pmap } = getGameState();
+        monsters.push(jelly);
+
+        // Set the area around the jelly to FLOOR on all terrain layers so
+        // monsterAvoids returns false. The default pmap has all 4 layers as
+        // GRANITE (T_OBSTRUCTS_PASSABILITY), which would block every spawn cell.
+        for (let x = 4; x <= 8; x++) {
+            for (let y = 3; y <= 7; y++) {
+                pmap[x][y].layers.fill(TileType.FLOOR);
+            }
+        }
+
+        // Force the hit by marking jelly as sleeping (guaranteed hit + no avoidance on split)
+        jelly.creatureState = CreatureState.Sleeping;
+
+        const ctx = buildCombatAttackContext();
+        attack(player, jelly, false, ctx);
+
+        // Jelly must still be alive (split only fires when currentHP > 0)
+        expect(jelly.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DYING).toBe(0);
+
+        // A clone should have been added to the monsters array
+        const clones = monsters.filter(m => m !== jelly && m.info.monsterID === jelly.info.monsterID);
+        expect(clones.length).toBe(1);
+
+        // Both jelly and clone should each have roughly half the original HP
+        expect(jelly.currentHP).toBeGreaterThan(0);
+        expect(clones[0].currentHP).toBeGreaterThan(0);
+        expect(jelly.currentHP + clones[0].currentHP).toBeLessThanOrEqual(50);
+    });
+
+    it("does not split when jelly has only 1 HP (dies from the hit)", () => {
+        const player = setupPlayer();
+        player.loc = { x: 5, y: 5 };
+
+        const jelly = makeMonster(MonsterType.MK_PINK_JELLY, 1);
+        jelly.loc = { x: 6, y: 5 };
+        jelly.creatureState = CreatureState.Sleeping;
+
+        const { monsters } = getGameState();
+        monsters.push(jelly);
+
+        const ctx = buildCombatAttackContext();
+        attack(player, jelly, false, ctx);
+
+        // Jelly must be dying (died from the hit)
+        expect(jelly.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DYING).toBeTruthy();
+
+        // No clone should exist
+        const clones = monsters.filter(m => m !== jelly && m.info.monsterID === jelly.info.monsterID);
+        expect(clones.length).toBe(0);
     });
 });
