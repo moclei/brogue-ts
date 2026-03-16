@@ -98,7 +98,7 @@ only if the path is genuinely not reachable in normal play.
   C: `Items.c` (negationBlast, readScroll SCROLL_NEGATION:4080).
   TS: `items/item-handlers.ts` (negationBlast), `items.ts` (NegateContext). **M**
 
-- [ ] **B58 — Eels don't re-submerge in water after surfacing** — Electric eels (and
+- [x] **B58 — Eels don't re-submerge in water after surfacing** — Electric eels (and
   similar aquatic monsters) surface once to attack or become visible, but do not go back
   underwater. In C, `updateMonsterState` checks `monsterCanSubmergeNow` each turn and sets
   `MB_SUBMERGED` when the monster is on a submerging tile and no combat is occurring. The

@@ -45,7 +45,7 @@ import {
 import type { MonsterQueryContext } from "./monsters/monster-queries.js";
 import { distanceBetween, updateMonsterState as updateMonsterStateFn, monsterAvoids as monsterAvoidsFn, chooseNewWanderDestination as chooseNewWanderDestFn } from "./monsters/monster-state.js";
 import type { MonsterStateContext } from "./monsters/monster-state.js";
-import { avoidedFlagsForMonster } from "./monsters/monster-spawning.js";
+import { avoidedFlagsForMonster, monsterCanSubmergeNow as monsterCanSubmergeNowFn } from "./monsters/monster-spawning.js";
 import {
     monstUseMagic as monstUseMagicFn,
     monsterHasBoltEffect as monsterHasBoltEffectFn,
@@ -210,7 +210,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         HAS_PLAYER: TileFlag.HAS_PLAYER,
         HAS_STAIRS: TileFlag.HAS_STAIRS,
         IN_FIELD_OF_VIEW: TileFlag.IN_FIELD_OF_VIEW,
-        monsterCanSubmergeNow: () => false,
+        monsterCanSubmergeNow: (monst) => monsterCanSubmergeNowFn(monst, chTMF, chTF),
         DCOLS, DROWS,
     };
 
