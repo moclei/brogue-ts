@@ -727,15 +727,6 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `Time.c` (applyInstantTileEffectsToCreature), `Architect.c` (triggerMachinesOfKind).
   TS: `tile-effects-wiring.ts`, `time/creature-effects.ts`. **M**
 
-- [x] **B50 — Potion of incineration → permanent darkness (0 light, +14 stealth)** — Fixed
-  in `turn.ts`: `currentStealthRange` was stubbed to always return 14. The real implementation
-  in `creature-effects.ts:currentStealthRange` computes stealth from `playerInDarkness()` and
-  `IS_IN_SHADOW`. Wired in `buildTurnProcessingContext` using `playerInDarknessFn(tmap, player.loc)`
-  so that lighting from `updateLighting` (called moments before at turn end) drives the stealth
-  calculation correctly. Root cause was a stub, not specifically incineration.
-  C: `Items.c:7279` (drinkPotion POTION_INCINERATION), `Light.c` (updateVision, updateLighting).
-  TS: `turn.ts` (buildTurnProcessingContext, currentStealthRange wiring). **M**
-
 - [ ] **B51 — Depth transition: first-turn monsters not drawn until player moves** — On
   entering a new dungeon level, monsters that should be immediately visible in the player's
   field of view are not rendered. After the player takes one move they appear correctly.
@@ -926,12 +917,6 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `Monsters.c` (moveMonsterPassively, monsterAvoids, `HAS_PLAYER` flag checks).
   TS: `monsters/monster-movement.ts`. **M**
 
-- [x] **B66 — Pink Jelly doesn't split when hit** — Pink jellies (and any monster with
-  `MA_CLONE_SELF_ON_DEFEND`) should spawn a clone when struck. The `MA_CLONE_SELF_ON_DEFEND`
-  branch in the TS combat handler may be a stub or missing entirely.
-  C: `Combat.c` (`MA_CLONE_SELF_ON_DEFEND` in inflictDamage / defend logic).
-  TS: `combat.ts` (defend path / ability flag handling). **M**
-
 - [ ] **B67 — Potion of paralysis: status appears instant (no tick-down)** — After drinking
   a paralysis potion the paralysis status seems to appear and vanish without visibly counting
   down. Either `decrementPlayerStatus` for `STATUS_PARALYZED` is not firing each turn, the
@@ -984,16 +969,6 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   event.
   C: `IO.c` (displayInventory / item-screen event loop).
   TS: `menus.ts` or the discovered-items display handler. **S**
-
-- [x] **B74 — Eating food doesn't restore the satiety (nutrition) meter** — After eating a
-  ration or mango the sidebar satiety bar does not update. `eat()` in `item-handlers.ts`
-  correctly sets `player.status[StatusEffect.Nutrition]`, but no `refreshSideBar` call
-  follows, so the sidebar never repaints with the new value. Fix: call `refreshSideBar` (or
-  the equivalent sidebar-update fn) after updating nutrition, the same way other status
-  changes do.
-  C: `Items.c:eat` (calls `printSideBar` after updating nutrition).
-  TS: `items/item-handlers.ts:eat` (line ~421 — add refreshSideBar after setting
-  Nutrition). **S**
 
 - [ ] **B75 — `monsterBlinkToSafety` uses stubbed `updateSafetyMap`** — Monsters with a
   blink-to-safety bolt (e.g. will-o-wisps) blink to a random/suboptimal destination

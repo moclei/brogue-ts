@@ -762,4 +762,29 @@ Active backlog is maintained in [BACKLOG.md](./BACKLOG.md).
   C: `Monsters.c` (steal-item behavior, `MA_STEAL_ITEMS`).
   TS: `monsters/monster-behavior.ts` or `monsters/monster-state.ts`. **M**
 
+- [x] **B66 — Pink Jelly doesn't split when hit** — Pink jellies (and any monster with
+  `MA_CLONE_SELF_ON_DEFEND`) should spawn a clone when struck. The `MA_CLONE_SELF_ON_DEFEND`
+  branch in the TS combat handler may be a stub or missing entirely.
+  C: `Combat.c` (`MA_CLONE_SELF_ON_DEFEND` in inflictDamage / defend logic).
+  TS: `combat.ts` (defend path / ability flag handling). **M**
+
+- [x] **B74 — Eating food doesn't restore the satiety (nutrition) meter** — After eating a
+  ration or mango the sidebar satiety bar does not update. `eat()` in `item-handlers.ts`
+  correctly sets `player.status[StatusEffect.Nutrition]`, but no `refreshSideBar` call
+  follows, so the sidebar never repaints with the new value. Fix: call `refreshSideBar` (or
+  the equivalent sidebar-update fn) after updating nutrition, the same way other status
+  changes do.
+  C: `Items.c:eat` (calls `printSideBar` after updating nutrition).
+  TS: `items/item-handlers.ts:eat` (line ~421 — add refreshSideBar after setting
+  Nutrition). **S**
+
+- [x] **B50 — Potion of incineration → permanent darkness (0 light, +14 stealth)** — Fixed
+  in `turn.ts`: `currentStealthRange` was stubbed to always return 14. The real implementation
+  in `creature-effects.ts:currentStealthRange` computes stealth from `playerInDarkness()` and
+  `IS_IN_SHADOW`. Wired in `buildTurnProcessingContext` using `playerInDarknessFn(tmap, player.loc)`
+  so that lighting from `updateLighting` (called moments before at turn end) drives the stealth
+  calculation correctly. Root cause was a stub, not specifically incineration.
+  C: `Items.c:7279` (drinkPotion POTION_INCINERATION), `Light.c` (updateVision, updateLighting).
+  TS: `turn.ts` (buildTurnProcessingContext, currentStealthRange wiring). **M**
+
 ---
