@@ -20,6 +20,7 @@ import {
     MonsterBookkeepingFlag,
     MonsterAbilityFlag,
     ItemFlag,
+    TileFlag,
     TerrainFlag,
 } from "../../src/types/flags.js";
 import { FP_FACTOR } from "../../src/math/fixpt.js";
@@ -175,7 +176,7 @@ describe("buildHitList", () => {
 
         const ctx = makeAttackCtx(player, {
             cellFlags: (loc: Pos) => {
-                if ((loc.x === 6 && loc.y === 5) || (loc.x === 5 && loc.y === 6)) return 0x1;
+                if ((loc.x === 6 && loc.y === 5) || (loc.x === 5 && loc.y === 6)) return TileFlag.HAS_MONSTER;
                 return 0;
             },
             monsterAtLoc: (loc: Pos) => {
@@ -267,7 +268,26 @@ describe("processStaggerHit", () => {
         goblin.loc = { x: 6, y: 5 };
         const ctx = makeAttackCtx(player, {
             cellFlags: (loc: Pos) => {
-                if (loc.x === 7 && loc.y === 5) return 0x1; // HAS_MONSTER
+                if (loc.x === 7 && loc.y === 5) return TileFlag.HAS_MONSTER;
+                return 0;
+            },
+        });
+
+        processStaggerHit(player, goblin, ctx);
+        expect(ctx.setMonsterLocation).not.toHaveBeenCalled();
+    });
+
+    it("does nothing if destination has the player (HAS_PLAYER flag)", () => {
+        // Regression: processStaggerHit used & 0x3 instead of & (HAS_PLAYER|HAS_MONSTER),
+        // so HAS_PLAYER=4 and HAS_MONSTER=8 were never detected, allowing knockback onto
+        // occupied tiles including the player's square.
+        const player = makeCreature(MonsterType.MK_YOU);
+        player.loc = { x: 5, y: 5 };
+        const goblin = makeCreature(MonsterType.MK_GOBLIN);
+        goblin.loc = { x: 6, y: 5 };
+        const ctx = makeAttackCtx(player, {
+            cellFlags: (loc: Pos) => {
+                if (loc.x === 7 && loc.y === 5) return TileFlag.HAS_PLAYER;
                 return 0;
             },
         });
