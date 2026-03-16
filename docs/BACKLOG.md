@@ -264,7 +264,7 @@ only if the path is genuinely not reachable in normal play.
   C: `Monsters.c:4110` (leader death follower loop), `Monsters.c:1602` (`MB_BOUND_TO_LEADER` spawn).
   TS: `monsters/monster-ally-ops.ts:84`, `time/turn-processing.ts:514`. **S**
 
-- [ ] **B81 — Burning status doesn't deal damage each turn; fire doesn't spread to foliage**
+- [x] **B81 — Burning status doesn't deal damage each turn; fire doesn't spread to foliage**
   — Two related defects after a firebolt hit:
   **Defect 1 — Burning doesn't tick damage.** A monster hit by a firebolt shows
   `STATUS_BURNING` but its HP doesn't decrease each turn. `decrementMonsterStatus`

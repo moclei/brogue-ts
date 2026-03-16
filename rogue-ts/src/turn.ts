@@ -49,7 +49,7 @@ import { refreshWaypoint as refreshWaypointFn } from "./architect/architect.js";
 import { populateGenericCostMap } from "./movement/cost-maps-fov.js";
 import { CreatureState, GameMode, ALL_ITEMS, LightType, ItemCategory, FoodKind, DungeonLayer } from "./types/enums.js";
 import type { TurnProcessingContext } from "./time/turn-processing.js";
-import { updateEnvironment as updateEnvironmentFn, promoteTile as promoteTileFn, activateMachine as activateMachineFn, circuitBreakersPreventActivation as circuitBreakersPreventActivationFn } from "./time/environment.js";
+import { updateEnvironment as updateEnvironmentFn, promoteTile as promoteTileFn, activateMachine as activateMachineFn, circuitBreakersPreventActivation as circuitBreakersPreventActivationFn, exposeTileToFire as exposeTileToFireFn } from "./time/environment.js";
 import type { EnvironmentContext } from "./time/environment.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
@@ -410,6 +410,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
 
         // ── Environment / vision ──────────────────────────────────────────────
         updateEnvironment: () => {
+            let exposeToFire = (_x: number, _y: number, _a: boolean): boolean => false;
             const envCtx: EnvironmentContext = {
                 player, rogue, monsters, pmap, levels, tileCatalog, DCOLS, DROWS,
                 dungeonFeatureCatalog: dungeonFeatureCatalog as unknown as EnvironmentContext["dungeonFeatureCatalog"],
@@ -454,8 +455,9 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
                 prependCreature: (list, m) => { list.unshift(m); },
                 rand_range: randRange, rand_percent: randPercent, max: Math.max, min: Math.min,
                 fillSequentialList: (list) => fillSequentialListFn(list), shuffleList: (list) => shuffleListFn(list),
-                exposeTileToFire: () => false,
+                exposeTileToFire: (x, y, a) => exposeToFire(x, y, a),
             };
+            exposeToFire = (x, y, a) => exposeTileToFireFn(x, y, a, envCtx);
             updateEnvironmentFn(envCtx);
         },
         updateVision: buildUpdateVisionFn(),
