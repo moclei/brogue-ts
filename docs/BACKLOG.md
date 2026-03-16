@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-15 (B74 fixed; B75–B76 filed from playtest of B63 flee fix)
-**Tests at last update:** 88 files · 2309 pass · 55 skip
+**Status:** updated 2026-03-15 (B66 fixed; B74 fixed; B75–B76 filed from playtest of B63 flee fix)
+**Tests at last update:** 88 files · 2311 pass · 55 skip
 
 ---
 
@@ -928,7 +928,7 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   C: `Monsters.c` (moveMonsterPassively, monsterAvoids, `HAS_PLAYER` flag checks).
   TS: `monsters/monster-movement.ts`. **M**
 
-- [ ] **B66 — Pink Jelly doesn't split when hit** — Pink jellies (and any monster with
+- [x] **B66 — Pink Jelly doesn't split when hit** — Pink jellies (and any monster with
   `MA_CLONE_SELF_ON_DEFEND`) should spawn a clone when struck. The `MA_CLONE_SELF_ON_DEFEND`
   branch in the TS combat handler may be a stub or missing entirely.
   C: `Combat.c` (`MA_CLONE_SELF_ON_DEFEND` in inflictDamage / defend logic).
