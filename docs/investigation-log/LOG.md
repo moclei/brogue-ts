@@ -42,3 +42,18 @@ Symptom: HP recovers noticeably faster than in Brogue v1.15.1
 
 Root cause: startLevel never calls updatePlayerRegenerationDelay; player.info.turnsBetweenRegen stays at catalog value 20 (thousandths) instead of 7550, so regen fires every turn
 Steps logged: 6
+
+---
+
+## B79 — No bolt animation when zapping a staff
+Symptom: all combat effects work but no visual bolt trail appears
+
+- Located the stub — Read: staff-wiring.ts:118 → buildZapRenderContext() returns all no-ops; hiliteCell, plotCharWithColor, pauseAnimation all stubbed
+- Confirmed real factories exist — Read: io-wiring.ts:127,134 → buildRefreshDungeonCellFn, buildHiliteCellFn already exported; buildGetCellAppearanceFn at line 112
+- Confirmed plotCharWithColor/mapToWindow exports — Grep: "export.*plotCharWithColor|export.*mapToWindow" in io/display.ts → both exported
+- Confirmed pauseAndCheckForEvent export — Grep: "pauseAndCheckForEvent" in platform.ts → exported at line 128
+- Checked hiliteCell call site — Grep: "hiliteCell" in zap.ts → line 374: hiliteCell(cx, cy, boltColor, strength, false)
+- Checked getCellAppearance return type — buildGetCellAppearanceFn returns {glyph,...} but ZapRenderContext expects {char,...} → needs rename in wrapper
+
+Root cause: buildZapRenderContext() in staff-wiring.ts:118 returns no-op stubs for hiliteCell, plotCharWithColor, pauseAnimation, and getCellAppearance; replace with real implementations from buildHiliteCellFn/buildGetCellAppearanceFn/plotCharWithColorFn/pauseAndCheckForEvent
+Steps logged: 6
