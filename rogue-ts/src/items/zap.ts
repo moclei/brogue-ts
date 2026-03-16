@@ -14,8 +14,9 @@
  *  License, or (at your option) any later version.
  */
 
-import type { Bolt, Pos } from "../types/types.js";
+import type { Bolt, Pos, LightSource } from "../types/types.js";
 import type { ZapContext } from "./zap-context.js";
+import { FP_FACTOR } from "../math/fixpt.js";
 import { BoltEffect } from "../types/enums.js";
 import {
     BoltFlag,
@@ -110,6 +111,26 @@ export async function zap(
     let blinkDistance = 0;
 
     const boltColor = hideDetails ? null : bolt.backColor;
+
+    // ── Pre-compute bolt light sources ────────────────────────────────────────
+    // Mirrors Items.c:4896-4906: each step gets a synthesized LightSource based
+    // on BOLT_LIGHT_SOURCE template (radialFadeToPercent=0, passThroughCreatures=false)
+    // with boltColor as the light color and a magnitude/distance-scaled radius.
+    const boltLights: LightSource[] = [];
+    if (boltColor) {
+        for (let li = 0; li < initialBoltLength; li++) {
+            const boltLightRadius = Number(
+                50n * (3n * FP_FACTOR + BigInt(bolt.magnitude) * FP_FACTOR * 4n / 3n)
+                * BigInt(initialBoltLength - li) / BigInt(initialBoltLength) / FP_FACTOR,
+            );
+            boltLights.push({
+                lightColor: { ...boltColor },
+                lightRadius: { lowerBound: boltLightRadius, upperBound: boltLightRadius, clumpFactor: 1 },
+                radialFadeToPercent: 0,
+                passThroughCreatures: false,
+            });
+        }
+    }
 
     // ── Blinking pre-flight ───────────────────────────────────────────────────
 
@@ -215,8 +236,8 @@ export async function zap(
             ctx.render.demoteVisibility();
             ctx.render.restoreLighting();
             for (let k = Math.min(i, boltLength + 2); k >= 0; k--) {
-                if (k < initialBoltLength) {
-                    ctx.render.paintLight(k, listOfCoordinates[i - k].x, listOfCoordinates[i - k].y);
+                if (k < initialBoltLength && boltLights[k]) {
+                    ctx.render.paintLight(boltLights[k], listOfCoordinates[i - k].x, listOfCoordinates[i - k].y);
                 }
             }
         }
@@ -358,8 +379,8 @@ export async function zap(
                     ctx.render.demoteVisibility();
                     ctx.render.restoreLighting();
                     for (let k = Math.min(j, boltLength + 2); k >= j - i; k--) {
-                        if (k < initialBoltLength) {
-                            ctx.render.paintLight(k, listOfCoordinates[j - k].x, listOfCoordinates[j - k].y);
+                        if (k < initialBoltLength && boltLights[k]) {
+                            ctx.render.paintLight(boltLights[k], listOfCoordinates[j - k].x, listOfCoordinates[j - k].y);
                         }
                     }
                     ctx.render.updateFieldOfViewDisplay(false, true);

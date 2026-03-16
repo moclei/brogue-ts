@@ -18,7 +18,13 @@
 import { getGameState, getScentMap } from "./core.js";
 import { updateVision as updateVisionFn, updateClairvoyance as updateClairvoyanceFn } from "./time/safety-maps.js";
 import type { SafetyMapsContext } from "./time/safety-maps.js";
-import { updateLighting as updateLightingFn } from "./light/light.js";
+import {
+    updateLighting as updateLightingFn,
+    paintLight as paintLightFn,
+    backUpLighting as backUpLightingFn,
+    restoreLighting as restoreLightingFn,
+    createLightBackup,
+} from "./light/light.js";
 import type { LightingContext } from "./light/light.js";
 import {
     updateFieldOfViewDisplay as updateFieldOfViewDisplayFn,
@@ -61,7 +67,7 @@ import { ItemCategory, DungeonLayer } from "./types/enums.js";
 import { TileFlag } from "./types/flags.js";
 import { DCOLS, DROWS } from "./types/constants.js";
 import { FP_FACTOR } from "./math/fixpt.js";
-import type { Pos } from "./types/types.js";
+import type { Pos, LightSource } from "./types/types.js";
 
 // =============================================================================
 // buildUpdateVisionFn
@@ -362,3 +368,177 @@ export function buildAnimateFlaresFn(): (flares: any[], count: number) => Promis
         await animateFlaresFn(flares, lightCtx, callbacks);
     };
 }
+
+// =============================================================================
+// buildBoltLightingFns
+// =============================================================================
+
+/**
+ * Builds a set of pre-wired bolt lighting functions for use in ZapRenderContext.
+ *
+ * Called once per zap invocation; the returned closures share a single LightBackup
+ * buffer and contexts built from live game state references (pmap/tmap are stable).
+ *
+ * Implements the C bolt animation lighting pattern from Items.c:4912-4974:
+ *   backUpLighting / demoteVisibility / restoreLighting / paintLight /
+ *   updateFieldOfViewDisplay / updateVision / updateLighting
+ */
+export interface BoltLightingFns {
+    backUpLighting(): void;
+    restoreLighting(): void;
+    demoteVisibility(): void;
+    paintLight(theLight: LightSource, x: number, y: number): void;
+    updateFieldOfViewDisplay(dancing: boolean, refresh: boolean): void;
+    updateVision(full: boolean): void;
+    updateLighting(): void;
+}
+
+export function buildBoltLightingFns(): BoltLightingFns {
+    const {
+        pmap, tmap, rogue, player, monsters, dormantMonsters,
+        floorItems, displayBuffer, monsterCatalog,
+    } = getGameState();
+    const scentMap = getScentMap() ?? [];
+
+    const lights = createLightBackup();
+
+    const fovCtx = {
+        cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
+        getCellFlags: (x: number, y: number) => pmap[x][y].flags,
+    };
+
+    const lightCtx: LightingContext = {
+        ...fovCtx,
+        tmap: tmap as ReturnType<typeof getGameState>["tmap"] & { [i: number]: { [j: number]: { light: number[] } } },
+        pmap,
+        displayDetail: displayDetail as number[][],
+        player,
+        rogue,
+        monsters,
+        dormantMonsters,
+        lightCatalog,
+        tileCatalog,
+        mutationCatalog,
+        monsterRevealed: (monst) => monsterRevealedFn(monst, player),
+    };
+
+    const getCellApp = (loc: Pos) => getCellAppearance(
+        loc, pmap, tmap, displayBuffer, rogue, player,
+        monsters, dormantMonsters, floorItems,
+        tileCatalog, dungeonFeatureCatalog, monsterCatalog,
+        terrainRandomValues, displayDetail, scentMap,
+    );
+
+    const fovDisplayCtx: CostMapFovContext = {
+        pmap,
+        tmap,
+        player,
+        rogue: {
+            depthLevel: rogue.depthLevel,
+            automationActive: rogue.automationActive,
+            playerTurnNumber: rogue.playerTurnNumber,
+            xpxpThisTurn: rogue.xpxpThisTurn,
+            mapToShore: rogue.mapToShore ?? Array.from({ length: DCOLS }, () => new Array(DROWS).fill(0)),
+        },
+        tileCatalog: tileCatalog as unknown as CostMapFovContext["tileCatalog"],
+        cellHasTerrainFlag: (pos, flags) => cellHasTerrainFlagFn(pmap, pos, flags),
+        cellHasTMFlag: (pos, flags) => cellHasTMFlagFn(pmap, pos, flags),
+        terrainFlags: (pos) => terrainFlagsFn(pmap, pos),
+        terrainMechFlags: (pos) => terrainMechFlagsFn(pmap, pos),
+        discoveredTerrainFlagsAtLoc: (pos) => discoveredTerrainFlagsAtLocFn(
+            pmap, pos, tileCatalog,
+            (tileType) => {
+                const df = tileCatalog[tileType]?.discoverType ?? 0;
+                return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
+            },
+        ),
+        monsterAvoids: (m, pos) => {
+            const minCtx = {
+                player, monsters,
+                rng: { randRange: () => 0, randPercent: () => false },
+                queryCtx: {} as never,
+                cellHasTerrainFlag: (loc: Pos, f: number) => cellHasTerrainFlagFn(pmap, loc, f),
+                cellHasTMFlag: (loc: Pos, f: number) => cellHasTMFlagFn(pmap, loc, f),
+                terrainFlags: (loc: Pos) => terrainFlagsFn(pmap, loc),
+                cellFlags: (loc: Pos) => pmap[loc.x][loc.y].flags,
+                isPosInMap: (loc: Pos) => loc.x >= 0 && loc.x < DCOLS && loc.y >= 0 && loc.y < DROWS,
+                downLoc: rogue.downLoc,
+                upLoc: rogue.upLoc,
+                monsterAtLoc: (loc: Pos) => monsters.find(m2 => m2.loc.x === loc.x && m2.loc.y === loc.y) ?? null,
+                waypointCount: 0, maxWaypointCount: 0,
+                closestWaypointIndex: () => -1, closestWaypointIndexTo: () => -1,
+                burnedTerrainFlagsAtLoc: () => 0, discoveredTerrainFlagsAtLoc: () => 0,
+                passableArcCount: () => 0,
+            } as never;
+            return monsterAvoidsFn(m, pos, minCtx);
+        },
+        canPass: (mover, blocker) => canPassFn(mover, blocker, player, (pos, flags) => cellHasTerrainFlagFn(pmap, pos, flags)),
+        distanceBetween: (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)),
+        monsterAtLoc: (loc) =>
+            (player.loc.x === loc.x && player.loc.y === loc.y ? player : null),
+        playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playerCanSeeOrSense: (x, y) =>
+            !!(pmap[x]?.[y]?.flags & (TileFlag.VISIBLE | TileFlag.WAS_VISIBLE)),
+        itemAtLoc: (loc) => itemAtLocFn(loc, floorItems),
+        itemName: (_item, buf) => { buf[0] = "item"; },
+        messageWithColor: () => {},
+        refreshDungeonCell: (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer),
+        discoverCell: (x, y) => {
+            pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY;
+            pmap[x][y].flags |= TileFlag.DISCOVERED;
+        },
+        storeMemories: (x, y) => storeMemoriesFn(
+            pmap, x, y,
+            (pos) => terrainFlagsFn(pmap, pos),
+            (pos) => terrainMechFlagsFn(pmap, pos),
+            (pm, xi, yi, skipGas) => highestPriorityLayer(pm, xi, yi, skipGas) as DungeonLayer,
+        ),
+        layerWithTMFlag: (x, y, flag) =>
+            layerWithTMFlagFn(pmap, x, y, flag) as DungeonLayer,
+        itemMessageColor,
+        backgroundMessageColor,
+        KEY: ItemCategory.KEY,
+        assureCosmeticRNG: () => {},
+        restoreRNG: () => {},
+        getLocationFlags(x, y, limitToPlayerKnowledge) {
+            const cell = pmap[x][y];
+            if (limitToPlayerKnowledge && (cell.flags & (TileFlag.DISCOVERED | TileFlag.MAGIC_MAPPED)) && !(pmap[x][y].flags & TileFlag.VISIBLE)) {
+                return { tFlags: cell.rememberedTerrainFlags, tmFlags: cell.rememberedTMFlags, cellFlags: cell.rememberedCellFlags };
+            }
+            return { tFlags: terrainFlagsFn(pmap, { x, y }), tmFlags: terrainMechFlagsFn(pmap, { x, y }), cellFlags: cell.flags };
+        },
+    };
+
+    return {
+        backUpLighting() {
+            backUpLightingFn(tmap, lights);
+        },
+        restoreLighting() {
+            restoreLightingFn(tmap, lights);
+        },
+        demoteVisibility() {
+            for (let i = 0; i < DCOLS; i++) {
+                for (let j = 0; j < DROWS; j++) {
+                    pmap[i][j].flags &= ~TileFlag.WAS_VISIBLE;
+                    if (pmap[i][j].flags & TileFlag.VISIBLE) {
+                        pmap[i][j].flags &= ~TileFlag.VISIBLE;
+                        pmap[i][j].flags |= TileFlag.WAS_VISIBLE;
+                    }
+                }
+            }
+        },
+        paintLight(theLight: LightSource, x: number, y: number) {
+            paintLightFn(theLight, x, y, false, false, lightCtx);
+        },
+        updateFieldOfViewDisplay(dancing: boolean, refresh: boolean) {
+            updateFieldOfViewDisplayFn(dancing, refresh, fovDisplayCtx);
+        },
+        updateVision(full: boolean) {
+            buildUpdateVisionFn()(full);
+        },
+        updateLighting() {
+            updateLightingFn(lightCtx);
+        },
+    };
+}
+

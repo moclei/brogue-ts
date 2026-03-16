@@ -72,6 +72,7 @@ import {
     buildHiliteCellFn,
     buildGetCellAppearanceFn,
 } from "../io-wiring.js";
+import { buildBoltLightingFns } from "../vision-wiring.js";
 import { plotCharWithColor as plotCharWithColorFn, mapToWindow } from "../io/display.js";
 import { buildRefreshSideBarWithFocusFn, buildPrintLocationDescriptionFn } from "../io/sidebar-wiring.js";
 import { boltCatalog } from "../globals/bolt-catalog.js";
@@ -116,22 +117,23 @@ function buildMonsterAtLocFn(player: Creature, monsters: Creature[]) {
     };
 }
 
-/** ZapRenderContext — bolt animation wired; lighting stubs deferred. */
+/** ZapRenderContext — bolt glyph animation + dynamic lighting wired. */
 function buildZapRenderContext(): ZapRenderContext {
     const { displayBuffer } = getGameState();
     const getCellAppFn = buildGetCellAppearanceFn();
     const hiliteFn = buildHiliteCellFn();
+    const lighting = buildBoltLightingFns();
     return {
         refreshSideBar: () => {},
         displayCombatText: () => {},
         refreshDungeonCell: () => {},
-        backUpLighting: () => {},
-        restoreLighting: () => {},
-        demoteVisibility: () => {},
-        updateFieldOfViewDisplay: () => {},
-        paintLight: () => {},
-        updateVision: () => {},
-        updateLighting: () => {},
+        backUpLighting: () => lighting.backUpLighting(),
+        restoreLighting: () => lighting.restoreLighting(),
+        demoteVisibility: () => lighting.demoteVisibility(),
+        updateFieldOfViewDisplay: (dancing, refresh) => lighting.updateFieldOfViewDisplay(dancing, refresh),
+        paintLight: (theLight, x, y) => lighting.paintLight(theLight, x, y),
+        updateVision: (full) => lighting.updateVision(full),
+        updateLighting: () => lighting.updateLighting(),
         hiliteCell: (x, y, color, strength, _saveBuf) => hiliteFn(x, y, color, strength, false),
         pauseAnimation: async (delay) => {
             commitDraws();
