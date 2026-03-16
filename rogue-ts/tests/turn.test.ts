@@ -231,3 +231,41 @@ it("wired: makeMonsterDropItem() in gradualCtx (turn.ts) — monsters drop carri
     expect(true).toBe(true);
 });
 
+// =============================================================================
+// B50 — currentStealthRange wiring
+// =============================================================================
+
+describe("currentStealthRange wiring (B50)", () => {
+    it("no longer stubs stealthRange to 14 — dark+shadow test environment gives 3", async () => {
+        // Before B50 fix: currentStealthRange was stubbed → always 14.
+        // After fix: updateLighting runs, zeroes tmap.light, sets IS_IN_SHADOW everywhere
+        // (no light sources in test env). Both halvings apply: floor(floor(14/2)/2) = 3.
+        setupPlayer();
+        const ctx = buildTurnProcessingContext();
+        await playerTurnEndedFn(ctx);
+        const { rogue } = getGameState();
+        expect(rogue.stealthRange).toBe(3);
+    });
+
+    it("respects STATUS_INVISIBLE — stealthRange = 1 when player is invisible", async () => {
+        setupPlayer();
+        const { player } = getGameState();
+        player.status[StatusEffect.Invisible] = 10;
+        const ctx = buildTurnProcessingContext();
+        await playerTurnEndedFn(ctx);
+        const { rogue } = getGameState();
+        expect(rogue.stealthRange).toBe(1);
+    });
+
+    it("respects stealthBonus — subtracts from base, clamped to 2", async () => {
+        setupPlayer();
+        const { rogue } = getGameState();
+        // In test env, both halvings apply first: 14/2/2 = 3.
+        // stealthBonus=1 → 3-1 = 2 (min 2 applies)
+        rogue.stealthBonus = 1;
+        const ctx = buildTurnProcessingContext();
+        await playerTurnEndedFn(ctx);
+        expect(rogue.stealthRange).toBe(2);
+    });
+});
+
