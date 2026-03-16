@@ -93,7 +93,8 @@ import {
     attack as attackFn,
     buildHitList as buildHitListFn,
 } from "./combat/combat-attack.js";
-import { buildCombatAttackContext } from "./combat.js";
+import { buildCombatAttackContext, buildCombatDamageContext } from "./combat.js";
+import { inflictDamage as inflictDamageFn, killCreature as killCreatureFn } from "./combat/combat-damage.js";
 import { passableArcCount } from "./architect/helpers.js";
 import { getQualifyingPathLocNear as getQualifyingPathLocNearFn } from "./movement/path-qualifying.js";
 import { buildRefreshDungeonCellFn, buildMessageFns } from "./io-wiring.js";
@@ -124,6 +125,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
     const refreshDungeonCell = buildRefreshDungeonCellFn();
     const resolvePronounEscapes = buildResolvePronounEscapesFn(player, pmap, rogue);
     const attackCtx = buildCombatAttackContext();
+    const damageCombatCtx = buildCombatDamageContext();
 
     // Ensure scentMap is allocated — shared between turn and monster AI
     if (!rogue.scentMap) rogue.scentMap = allocGrid();
@@ -194,8 +196,8 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         inFieldOfView: inFOV,
         // Side effects
         heal: () => {},
-        inflictDamage: () => false,
-        killCreature: () => {},
+        inflictDamage: (attacker, defender, damage) => inflictDamageFn(attacker, defender, damage, null, false, damageCombatCtx),
+        killCreature: (monst, quiet) => killCreatureFn(monst, quiet, damageCombatCtx),
         extinguishFireOnCreature: () => {},
         makeMonsterDropItem: () => {},
         refreshDungeonCell,

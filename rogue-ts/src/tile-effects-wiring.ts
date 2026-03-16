@@ -117,6 +117,7 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
     const spawnFeature = (x: number, y: number, feat: any, v: boolean, o: boolean) =>
         spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat, v, o);
 
+    let exposeToFire = (_x: number, _y: number, _a: boolean): boolean => false;
     const envCtx = {
         pmap, rogue, tileCatalog, dungeonFeatureCatalog, DCOLS, DROWS, monsters, levels,
         refreshDungeonCell, spawnDungeonFeature: spawnFeature, cellHasTerrainFlag, cellHasTMFlag,
@@ -127,8 +128,9 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
         max: Math.max, min: Math.min,
         fillSequentialList: (list: number[], _len: number) => fillSequentialListFn(list),
         shuffleList: (list: number[], _len: number) => shuffleListFn(list),
-        exposeTileToFire: () => false,
+        exposeTileToFire: (x: number, y: number, a: boolean) => exposeToFire(x, y, a),
     } as unknown as EnvironmentContext;
+    exposeToFire = (x, y, a) => exposeTileToFireFn(x, y, a, envCtx);
 
     // ── ItemHelperContext for keyOnTileAt / useKeyAt ───────────────────────────
     const monsterAtLoc = (loc: Pos): Creature | null => {
