@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-15 (B66 fixed; B71 fixed; B81 fixed; B50 fixed)
-**Tests at last update:** 88 files · 2314 pass · 55 skip
+**Status:** updated 2026-03-15 (B58 fixed; B66 fixed; B71 fixed; B81 fixed; B50 fixed; B77–B82 filed)
+**Tests at last update:** 88 files · 2317 pass · 55 skip
 
 ---
 
@@ -98,7 +98,7 @@ only if the path is genuinely not reachable in normal play.
   C: `Items.c` (negationBlast, readScroll SCROLL_NEGATION:4080).
   TS: `items/item-handlers.ts` (negationBlast), `items.ts` (NegateContext). **M**
 
-- [ ] **B58 — Eels don't re-submerge in water after surfacing** — Electric eels (and
+- [x] **B58 — Eels don't re-submerge in water after surfacing** — Electric eels (and
   similar aquatic monsters) surface once to attack or become visible, but do not go back
   underwater. In C, `updateMonsterState` checks `monsterCanSubmergeNow` each turn and sets
   `MB_SUBMERGED` when the monster is on a submerging tile and no combat is occurring. The
@@ -212,6 +212,92 @@ only if the path is genuinely not reachable in normal play.
   deviation from C. **Needs more playtesting before deciding whether to fix.**
   C: `Monsters.c:3494` — `nextStep(getSafetyMap(monst), monst->loc, NULL, true)`.
   TS: `monster-actions.ts:1149`. **S** (one-liner if approved)
+
+- [ ] **B77 — Player health regenerates faster than C game** — HP recovers noticeably
+  faster than in Brogue v1.15.1. The regen logic in `time/turn-processing.ts:481` looks
+  structurally correct (decrement `turnsUntilRegen` by 1000, regen when ≤ 0). The most
+  likely causes: (1) `updatePlayerRegenerationDelay` (`items/item-effects.ts:524`) is
+  called at game start before `turnsBetweenRegen` is set, leaving it at 0 — meaning
+  `turnsUntilRegen += 0` each regen tick, causing regen every single turn; (2) the
+  `while (maxHP > turnsPerHP)` loop in `updatePlayerRegenerationDelay` diverges from C
+  when `turnsPerHP` rounds differently; (3) `regenPerTurn` is non-zero when it shouldn't
+  be. Start: add a console.log of `turnsUntilRegen` and `turnsBetweenRegen` immediately
+  after game init and compare to C.
+  C: `Items.c:7907` (`updatePlayerRegenerationDelay`), `Time.c:2275` (regen tick).
+  TS: `items/item-effects.ts:524`, `time/turn-processing.ts:481`. **S**
+
+- [ ] **B78 — Items don't drift on water tiles (`T_MOVES_ITEMS`)** — Items on deep water
+  stay put; in C they drift to an adjacent open cell each turn via `updateFloorItems`.
+  Root cause confirmed: `lifecycle.ts:521` has `updateFloorItems: () => {}` stub with the
+  comment "stub — separate backlog item". The real function `items/floor-items.ts:95` is
+  fully implemented (including the `T_MOVES_ITEMS` branch at line 162) but is never
+  called from the main turn loop. Fix: wire `buildUpdateFloorItemsFn` in the
+  `TurnProcessingContext` in `lifecycle.ts` the same way B71 wired it for vault entry.
+  C: `Items.c:1192` (`updateFloorItems`, `T_MOVES_ITEMS` branch at line 1240).
+  TS: `lifecycle.ts:521`, `items/floor-items.ts:162`. **S**
+
+- [ ] **B79 — No bolt animation when zapping a staff** — Zapping a staff of firebolt
+  hits the target and applies all combat effects correctly, but no bolt glyph or color
+  trail travels across the map from the player to the target. The `zap.ts` animation loop
+  (lines 214–251) calls `ctx.render.hiliteCell`, `plotCharWithColor`, `pauseAnimation`,
+  etc. — but in `buildStaffZapFn` (`items/staff-wiring.ts:118`), the entire `render`
+  sub-context is stubbed: `hiliteCell: () => {}`, `plotCharWithColor: () => {}`,
+  `pauseAnimation: async () => false`. Fix: replace those stubs with real implementations
+  using `buildHiliteCellFn` / `buildRefreshDungeonCellFn` from `io-wiring.ts` and the
+  platform `commitDraws` / `waitForEvent` for `pauseAnimation`.
+  C: `Items.c:4964` (bolt animation loop with `hiliteCell`).
+  TS: `items/staff-wiring.ts:118`, `items/zap.ts:214`. **M**
+
+- [ ] **B80 — Goblin conjurer's spectral blades don't disappear when the conjurer dies**
+  — Spectral blades (which have `MB_BOUND_TO_LEADER`) should die on the first
+  `playerTurnEnded` after their leader is killed. In C (`Monsters.c:4110`), when a leader
+  dies its `MB_BOUND_TO_LEADER` followers have their `leader` nulled and `MB_FOLLOWER`
+  cleared; `playerTurnEnded` then kills them. The TS logic (leader cleanup in
+  `combat-damage.ts:519` → `demoteMonsterFromLeadership` in `monster-ally-ops.ts:84`;
+  bound-follower kill in `turn-processing.ts:514`) looks structurally correct. Possible
+  root causes: (a) the conjurer is not flagged `MB_LEADER` at spawn (check
+  `monster-spawning.ts:spawnMinions` sets `MB_LEADER` on the horde leader), so
+  `demoteMonsterFromLeadership` iterates nothing; (b) the `creatureState !== Ally` guard
+  in `turn-processing.ts:519` fails because blades are initialized as `Ally` when their
+  leader is an enemy. Reproduce, add a console.log in `demoteMonsterFromLeadership` to
+  confirm followers are found, and trace the flag state.
+  C: `Monsters.c:4110` (leader death follower loop), `Monsters.c:1602` (`MB_BOUND_TO_LEADER` spawn).
+  TS: `monsters/monster-ally-ops.ts:84`, `time/turn-processing.ts:514`. **S**
+
+- [ ] **B81 — Burning status doesn't deal damage each turn; fire doesn't spread to foliage**
+  — Two related defects after a firebolt hit:
+  **Defect 1 — Burning doesn't tick damage.** A monster hit by a firebolt shows
+  `STATUS_BURNING` but its HP doesn't decrease each turn. `decrementMonsterStatus`
+  (`monster-state.ts:774`) handles this: it decrements `status[Burning]` and calls
+  `ctx.inflictDamage(null, monst, damage)`. But in the `MonsterStateContext` built by
+  `turn-monster-ai.ts:196`, `inflictDamage: () => false` is a stub. Any monster that
+  catches fire via bolt or terrain will lose the burn effect with no damage.
+  Fix: wire real `inflictDamage` in the monster-state context the same way the combat
+  context wires it (using `inflictDamageFn` from `combat-damage.ts`).
+  **Defect 2 — Fire doesn't spread to adjacent flammable terrain.** In C, when a cell
+  is on fire, `applyInstantTileEffects` and the dungeon feature promotion chain spread
+  fire to adjacent `T_IS_FLAMMABLE` cells. In TS, check whether
+  `buildApplyInstantTileEffectsFn` (`tile-effects-wiring.ts`) is wired with a real
+  `spreadFire` / tile-promote callback, or whether those are stubs.
+  C: `Monsters.c:1851` (burning damage in `decrementMonsterStatus`),
+  `Time.c` / `Architect.c` (fire spread via dungeon feature promotion).
+  TS: `turn-monster-ai.ts:197` (`inflictDamage` stub), `tile-effects-wiring.ts`. **M**
+
+- [ ] **B82 — Vault items always the same type regardless of seed** — Items found in
+  vaults are predictably the same type (e.g., bronze wands, health charms) across
+  different seeds, suggesting `chooseKind` always selects index 0. In C (`Items.c:409`),
+  `chooseKind` uses `rand_range(1, totalFrequencies)` to pick an item type weighted by
+  frequency. The TS port of `chooseKind` (`items/item-generation.ts`) should be the same.
+  Likely causes: (1) the item catalog frequencies are not initialized before vault item
+  generation — if all `frequency` values are 0, `rand_range(1, 0)` has undefined behavior
+  and the loop exits at index 0 immediately; (2) the `rand_range` call is consuming the
+  wrong RNG (e.g., a shared RNG that has not been seeded), so it always returns a
+  deterministic value early in the range; (3) `meteredItems` frequency adjustments
+  (applied for scrolls/potions) are not applied to wand/charm tables, leaving them at
+  their default (possibly uniform) frequencies. Check `chooseKind` output by logging
+  the `randomFrequency` and `totalFrequencies` on vault item generation.
+  C: `Items.c:409` (`chooseKind`), `Items.c:342` (wand generation), `Items.c:366` (charm generation).
+  TS: `items/item-generation.ts` (`chooseKind`), `globals/item-catalog.ts` (frequency fields). **M**
 
 ---
 
