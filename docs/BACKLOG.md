@@ -125,7 +125,7 @@ only if the path is genuinely not reachable in normal play.
   C: `Items.c` (BOLT_OBSTRUCTION bolt effect).
   TS: `items/bolt-detonation.ts` or `items/zap-context.ts` (Obstruction case). **S**
 
-- [ ] **B65 — Creatures can occupy the same square as the player** — Monsters can move
+- [x] **B65 — Creatures can occupy the same square as the player** — Monsters can move
   onto the player's tile without triggering combat or being blocked. Likely a missing
   `HAS_MONSTER` / `HAS_PLAYER` flag check in the TS monster movement code, or
   `monsterAvoids` not correctly returning true for the player's tile.

@@ -18,6 +18,7 @@ import {
     MonsterBookkeepingFlag,
     MonsterAbilityFlag,
     ItemFlag,
+    TileFlag,
     TerrainFlag,
     SPECIAL_HIT,
 } from "../types/flags.js";
@@ -183,7 +184,7 @@ export function buildHitList(
             const newestY = y + cDirs[newDir][1];
             if (coordinatesAreInMap(newestX, newestY)) {
                 const cellFl = ctx.cellFlags({ x: newestX, y: newestY });
-                if (cellFl & 0x3) { // HAS_MONSTER | HAS_PLAYER (typically Fl(6) | Fl(7) but we use a mask)
+                if (cellFl & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER)) {
                     const target = ctx.monsterAtLoc({ x: newestX, y: newestY });
                     if (
                         target &&
@@ -242,7 +243,7 @@ export function processStaggerHit(
     if (
         coordinatesAreInMap(newX, newY) &&
         !ctx.cellHasTerrainFlag({ x: newX, y: newY }, TerrainFlag.T_OBSTRUCTS_PASSABILITY) &&
-        !(ctx.cellFlags({ x: newX, y: newY }) & 0x3) // No monster or player at destination
+        !(ctx.cellFlags({ x: newX, y: newY }) & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER))
     ) {
         ctx.setMonsterLocation(defender, { x: newX, y: newY });
     }
