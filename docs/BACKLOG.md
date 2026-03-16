@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-16 (B82 fixed)
+**Status:** updated 2026-03-16 (cleanup: archived completed items to BACKLOG-DONE.md)
 **Tests at last update:** 88 files · 2324 pass · 55 skip
 
 ---
@@ -66,7 +66,7 @@ only if the path is genuinely not reachable in normal play.
   C: `RogueMain.c:547` (startLevel), `IO.c` (displayLevel, displayMonster).
   TS: `lifecycle.ts` (buildLevelContext / startLevel sequence), `turn-processing.ts`. **S**
 
-- [ ] **B52 — Teleport scroll / teleport bolt: player symbol missing until next move** —
+- [ ] **B52 — Teleport scroll: player symbol missing until next move** —
   After the player teleports (via scroll or bolt), the `@` glyph at the destination is not
   drawn until the player takes another action. The old position is correctly cleared. Likely
   cause: `refreshDungeonCell` is called for the old location but not the new one, or
@@ -98,18 +98,6 @@ only if the path is genuinely not reachable in normal play.
   C: `Items.c` (negationBlast, readScroll SCROLL_NEGATION:4080).
   TS: `items/item-handlers.ts` (negationBlast), `items.ts` (NegateContext). **M**
 
-- [x] **B58 — Eels don't re-submerge in water after surfacing** — Electric eels (and
-  similar aquatic monsters) surface once to attack or become visible, but do not go back
-  underwater. In C, `updateMonsterState` checks `monsterCanSubmergeNow` each turn and sets
-  `MB_SUBMERGED` when the monster is on a submerging tile and no combat is occurring. The
-  correct C behavior is: once out of attack range the eel retreats back to the water tile and
-  the `MB_SUBMERGED` flag hides it again (so the player can no longer see it). In TS, eels
-  stay visible and keep fighting without retreating. Either `monsterCanSubmergeNow` is a
-  stub, it returns false when it should return true, or `MB_SUBMERGED` is cleared but never
-  re-set because the relevant branch in `updateMonsterState` / `monsterAvoids` is not reached.
-  C: `Monsters.c:1977` (updateMonsterState submerge branch).
-  TS: `monsters/monster-state.ts` (monsterAvoids, updateMonsterState). **S**
-
 - [ ] **B62 — Pit bloat fall: no message or keypress before showing lower level** — When a
   pit bloat explodes beneath the player, the game jumps immediately to the lower level with
   no feedback. In C, a "you fell" message (e.g. "you tumble into the depths!") is displayed
@@ -117,20 +105,6 @@ only if the path is genuinely not reachable in normal play.
   C: `Time.c` / `RogueMain.c` (player-fall code path triggered by `DF_PIT_BLOAT_HOLE` /
   `changeLevelIfAppropriate`).
   TS: `lifecycle.ts` (level-transition sequence), `movement/travel-explore.ts`. **S**
-
-- [x] **B64 — Staff of obstruction does nothing** — Zapping a staff of obstruction has no
-  visible effect. In C, `BOLT_OBSTRUCTION` spawns crystal terrain features along the bolt
-  path via `spawnDungeonFeature`. The effect stub or the bolt-detonation handler for
-  `BoltEffect.Obstruction` may be missing.
-  C: `Items.c` (BOLT_OBSTRUCTION bolt effect).
-  TS: `items/bolt-detonation.ts` or `items/zap-context.ts` (Obstruction case). **S**
-
-- [x] **B65 — Creatures can occupy the same square as the player** — Monsters can move
-  onto the player's tile without triggering combat or being blocked. Likely a missing
-  `HAS_MONSTER` / `HAS_PLAYER` flag check in the TS monster movement code, or
-  `monsterAvoids` not correctly returning true for the player's tile.
-  C: `Monsters.c` (moveMonsterPassively, monsterAvoids, `HAS_PLAYER` flag checks).
-  TS: `monsters/monster-movement.ts`. **M**
 
 - [ ] **B67 — Potion of paralysis: status appears instant (no tick-down)** — After drinking
   a paralysis potion the paralysis status seems to appear and vanish without visibly counting
@@ -148,35 +122,12 @@ only if the path is genuinely not reachable in normal play.
   C: `IO.c` (hallucination rendering in `getCellAppearance` / `displayLevel`).
   TS: `io/display.ts` or render pipeline. **S**
 
-- [x] **B69 — Ring items rendered as filled circles, not 'o' character** — Ring items appear
-  as filled Unicode circle glyphs instead of the ASCII `'o'` (0x6F) the C game uses. The
-  ring glyph in `Rogue.h` is `RING_CHAR` = `'o'`. Check the TS item-glyph table or the
-  glyph-map entry for `ItemCategory.RING`.
-  C: `Rogue.h` (`RING_CHAR` constant).
-  TS: `platform/glyph-map.ts` or item-glyph constants in `types/`. **S**
-
 - [ ] **B70 — While hallucinating, monster names show their real name on hit** — When
   hallucinating, the combat message should use a random fake monster name (as in C). The TS
   `monsterName` helper likely does not check `player.status[STATUS_HALLUCINATING]` before
   deciding which name to return.
   C: `IO.c:monsterName` (hallucination branch).
   TS: wherever `monsterName` is built in item or combat contexts. **S**
-
-- [x] **B71 — Staffs/charms/wands/rings not identified on entering a vault (B25 revisit)** —
-  B25 was marked WAI, but playtest suggests C does auto-identify non-weapon/non-armor vault
-  items (staffs, charms, wands, rings) when the player first steps into the vault. Weapons
-  and armor are not auto-identified. Requires C source verification before coding.
-  C: `Items.c` (vault entry / `checkForMissingKeys` / `identifyItemKind`).
-  TS: `turn.ts` or `items/item-handlers.ts` (vault-entry scan). **M**
-  Fix: `updateFloorItems` in `items/floor-items.ts` already had the auto-ID logic (checking
-  `ITEM_KIND_AUTO_ID` + same machine number), but `EnvironmentContext.updateFloorItems` was
-  stubbed as `() => {}` in `turn.ts`. Created `items/floor-items-wiring.ts` with
-  `buildUpdateFloorItemsFn()` that wires the real `updateFloorItems` with closures for
-  `identifyItemKind`, `promoteTile`, `activateMachine`, `circuitBreakersPreventActivation`,
-  `burnItem`, and `getQualifyingLocNear`. Also wires the full item burning, drift, and
-  tile-promotion paths. `swapItemEnchants` remains stubbed (`() => false`) — filed as a
-  separate mechanic. Verified: `identifyItemKind` no-ops for WEAPON/ARMOR (no tableCount),
-  identifies kind for STAFF/WAND/RING (tableCount > 0 in switch).
 
 - [ ] **B72 — Vault cage-closing animation fires immediately on item pickup** — After picking
   up an item from a vault, the remaining items immediately change color to show they are
@@ -202,30 +153,6 @@ only if the path is genuinely not reachable in normal play.
   TS: `turn-monster-zap-wiring.ts` — wire `updateSafetyMap` the same way it was done
   in `turn-monster-ai.ts` for `getSafetyMap` (PR #38). **S**
 
-- [ ] **B76 — Fleeing monsters can path through deep water** ⚠️ RESEARCH ONLY — do not fix
-  without explicit instruction. Observed: monkey fleeing through deep water when land/shallow
-  routes were available. Root cause is confirmed C-faithful: `nextStep` is called with
-  `null` in the flee path (C does the same), so `monsterAvoids` is skipped. Safety map
-  assigns deep water cost 5 (not forbidden), so water is a valid escape path when its
-  gradient is better. The proposed fix (pass `monst` instead of `null` in
-  `monster-actions.ts:1149`) would enforce terrain avoidance on flee paths as a deliberate
-  deviation from C. **Needs more playtesting before deciding whether to fix.**
-  C: `Monsters.c:3494` — `nextStep(getSafetyMap(monst), monst->loc, NULL, true)`.
-  TS: `monster-actions.ts:1149`. **S** (one-liner if approved)
-
-- [x] **B77 — Player health regenerates faster than C game** — HP recovers noticeably
-  faster than in Brogue v1.15.1. The regen logic in `time/turn-processing.ts:481` looks
-  structurally correct (decrement `turnsUntilRegen` by 1000, regen when ≤ 0). The most
-  likely causes: (1) `updatePlayerRegenerationDelay` (`items/item-effects.ts:524`) is
-  called at game start before `turnsBetweenRegen` is set, leaving it at 0 — meaning
-  `turnsUntilRegen += 0` each regen tick, causing regen every single turn; (2) the
-  `while (maxHP > turnsPerHP)` loop in `updatePlayerRegenerationDelay` diverges from C
-  when `turnsPerHP` rounds differently; (3) `regenPerTurn` is non-zero when it shouldn't
-  be. Start: add a console.log of `turnsUntilRegen` and `turnsBetweenRegen` immediately
-  after game init and compare to C.
-  C: `Items.c:7907` (`updatePlayerRegenerationDelay`), `Time.c:2275` (regen tick).
-  TS: `items/item-effects.ts:524`, `time/turn-processing.ts:481`. **S**
-
 - [ ] **B78 — Items don't drift on water tiles (`T_MOVES_ITEMS`)** — Items on deep water
   stay put; in C they drift to an adjacent open cell each turn via `updateFloorItems`.
   Root cause confirmed: `lifecycle.ts:521` has `updateFloorItems: () => {}` stub with the
@@ -235,79 +162,6 @@ only if the path is genuinely not reachable in normal play.
   `TurnProcessingContext` in `lifecycle.ts` the same way B71 wired it for vault entry.
   C: `Items.c:1192` (`updateFloorItems`, `T_MOVES_ITEMS` branch at line 1240).
   TS: `lifecycle.ts:521`, `items/floor-items.ts:162`. **S**
-
-- [x] **B79 — No bolt animation when zapping a staff** — Zapping a staff of firebolt
-  hits the target and applies all combat effects correctly, but no bolt glyph or color
-  trail travels across the map from the player to the target. The `zap.ts` animation loop
-  (lines 214–251) calls `ctx.render.hiliteCell`, `plotCharWithColor`, `pauseAnimation`,
-  etc. — but in `buildStaffZapFn` (`items/staff-wiring.ts:118`), the entire `render`
-  sub-context is stubbed: `hiliteCell: () => {}`, `plotCharWithColor: () => {}`,
-  `pauseAnimation: async () => false`. Fix: replace those stubs with real implementations
-  using `buildHiliteCellFn` / `buildRefreshDungeonCellFn` from `io-wiring.ts` and the
-  platform `commitDraws` / `waitForEvent` for `pauseAnimation`.
-  C: `Items.c:4964` (bolt animation loop with `hiliteCell`).
-  TS: `items/staff-wiring.ts:118`, `items/zap.ts:214`. **M**
-
-- [ ] **B80 — Goblin conjurer's spectral blades don't disappear when the conjurer dies**
-  — Spectral blades (which have `MB_BOUND_TO_LEADER`) should die on the first
-  `playerTurnEnded` after their leader is killed. In C (`Monsters.c:4110`), when a leader
-  dies its `MB_BOUND_TO_LEADER` followers have their `leader` nulled and `MB_FOLLOWER`
-  cleared; `playerTurnEnded` then kills them. The TS logic (leader cleanup in
-  `combat-damage.ts:519` → `demoteMonsterFromLeadership` in `monster-ally-ops.ts:84`;
-  bound-follower kill in `turn-processing.ts:514`) looks structurally correct. Possible
-  root causes: (a) the conjurer is not flagged `MB_LEADER` at spawn (check
-  `monster-spawning.ts:spawnMinions` sets `MB_LEADER` on the horde leader), so
-  `demoteMonsterFromLeadership` iterates nothing; (b) the `creatureState !== Ally` guard
-  in `turn-processing.ts:519` fails because blades are initialized as `Ally` when their
-  leader is an enemy. Reproduce, add a console.log in `demoteMonsterFromLeadership` to
-  confirm followers are found, and trace the flag state.
-  C: `Monsters.c:4110` (leader death follower loop), `Monsters.c:1602` (`MB_BOUND_TO_LEADER` spawn).
-  TS: `monsters/monster-ally-ops.ts:84`, `time/turn-processing.ts:514`. **S**
-
-- [x] **B81 — Burning status doesn't deal damage each turn; fire doesn't spread to foliage**
-  — Two related defects after a firebolt hit:
-  **Defect 1 — Burning doesn't tick damage.** A monster hit by a firebolt shows
-  `STATUS_BURNING` but its HP doesn't decrease each turn. `decrementMonsterStatus`
-  (`monster-state.ts:774`) handles this: it decrements `status[Burning]` and calls
-  `ctx.inflictDamage(null, monst, damage)`. But in the `MonsterStateContext` built by
-  `turn-monster-ai.ts:196`, `inflictDamage: () => false` is a stub. Any monster that
-  catches fire via bolt or terrain will lose the burn effect with no damage.
-  Fix: wire real `inflictDamage` in the monster-state context the same way the combat
-  context wires it (using `inflictDamageFn` from `combat-damage.ts`).
-  **Defect 2 — Fire doesn't spread to adjacent flammable terrain.** In C, when a cell
-  is on fire, `applyInstantTileEffects` and the dungeon feature promotion chain spread
-  fire to adjacent `T_IS_FLAMMABLE` cells. In TS, check whether
-  `buildApplyInstantTileEffectsFn` (`tile-effects-wiring.ts`) is wired with a real
-  `spreadFire` / tile-promote callback, or whether those are stubs.
-  C: `Monsters.c:1851` (burning damage in `decrementMonsterStatus`),
-  `Time.c` / `Architect.c` (fire spread via dungeon feature promotion).
-  TS: `turn-monster-ai.ts:197` (`inflictDamage` stub), `tile-effects-wiring.ts`. **M**
-
-- [x] **B83 — Bolt lighting: cells near bolt trail don't glow as it travels** — Firing a
-  staff or wand shows the glyph trail (wired in B79) but cells near the bolt are not
-  illuminated: `backUpLighting`, `restoreLighting`, `demoteVisibility`, `paintLight`,
-  `updateFieldOfViewDisplay`, `updateVision`, `updateLighting` in `buildZapRenderContext`
-  were all no-ops. Fixed by wiring real implementations via `buildBoltLightingFns()`
-  in `vision-wiring.ts`; `ZapRenderContext.paintLight` now takes a `LightSource` and
-  `zap.ts` pre-computes `boltLights[]` (one per step, matching Items.c:4896-4906).
-  C: `Items.c:4912-4974` (bolt lighting loop). TS: `staff-wiring.ts`, `vision-wiring.ts`,
-  `items/zap.ts`, `items/zap-context.ts`. **M**
-
-- [x] **B82 — Vault items always the same type regardless of seed** — Items found in
-  vaults are predictably the same type (e.g., bronze wands, health charms) across
-  different seeds, suggesting `chooseKind` always selects index 0. In C (`Items.c:409`),
-  `chooseKind` uses `rand_range(1, totalFrequencies)` to pick an item type weighted by
-  frequency. The TS port of `chooseKind` (`items/item-generation.ts`) should be the same.
-  Likely causes: (1) the item catalog frequencies are not initialized before vault item
-  generation — if all `frequency` values are 0, `rand_range(1, 0)` has undefined behavior
-  and the loop exits at index 0 immediately; (2) the `rand_range` call is consuming the
-  wrong RNG (e.g., a shared RNG that has not been seeded), so it always returns a
-  deterministic value early in the range; (3) `meteredItems` frequency adjustments
-  (applied for scrolls/potions) are not applied to wand/charm tables, leaving them at
-  their default (possibly uniform) frequencies. Check `chooseKind` output by logging
-  the `randomFrequency` and `totalFrequencies` on vault item generation.
-  C: `Items.c:409` (`chooseKind`), `Items.c:342` (wand generation), `Items.c:366` (charm generation).
-  TS: `items/item-generation.ts` (`chooseKind`), `globals/item-catalog.ts` (frequency fields). **M**
 
 ---
 

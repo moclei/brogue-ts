@@ -788,3 +788,132 @@ Active backlog is maintained in [BACKLOG.md](./BACKLOG.md).
   TS: `turn.ts` (buildTurnProcessingContext, currentStealthRange wiring). **M**
 
 ---
+
+## Phase 7 close-out — B58 through B83
+
+- [x] **B58 — Eels don't re-submerge in water after surfacing** — Electric eels (and
+  similar aquatic monsters) surface once to attack or become visible, but do not go back
+  underwater. In C, `updateMonsterState` checks `monsterCanSubmergeNow` each turn and sets
+  `MB_SUBMERGED` when the monster is on a submerging tile and no combat is occurring. The
+  correct C behavior is: once out of attack range the eel retreats back to the water tile and
+  the `MB_SUBMERGED` flag hides it again (so the player can no longer see it). In TS, eels
+  stay visible and keep fighting without retreating. Either `monsterCanSubmergeNow` is a
+  stub, it returns false when it should return true, or `MB_SUBMERGED` is cleared but never
+  re-set because the relevant branch in `updateMonsterState` / `monsterAvoids` is not reached.
+  C: `Monsters.c:1977` (updateMonsterState submerge branch).
+  TS: `monsters/monster-state.ts` (monsterAvoids, updateMonsterState). **S**
+
+- [x] **B64 — Staff of obstruction does nothing** — Zapping a staff of obstruction has no
+  visible effect. In C, `BOLT_OBSTRUCTION` spawns crystal terrain features along the bolt
+  path via `spawnDungeonFeature`. The effect stub or the bolt-detonation handler for
+  `BoltEffect.Obstruction` may be missing.
+  C: `Items.c` (BOLT_OBSTRUCTION bolt effect).
+  TS: `items/bolt-detonation.ts` or `items/zap-context.ts` (Obstruction case). **S**
+
+- [x] **B65 — Creatures can occupy the same square as the player** — Monsters can move
+  onto the player's tile without triggering combat or being blocked. Likely a missing
+  `HAS_MONSTER` / `HAS_PLAYER` flag check in the TS monster movement code, or
+  `monsterAvoids` not correctly returning true for the player's tile.
+  C: `Monsters.c` (moveMonsterPassively, monsterAvoids, `HAS_PLAYER` flag checks).
+  TS: `monsters/monster-movement.ts`. **M**
+
+- [x] **B69 — Ring items rendered as filled circles, not 'o' character** — Ring items appear
+  as filled Unicode circle glyphs instead of the ASCII `'o'` (0x6F) the C game uses. The
+  ring glyph in `Rogue.h` is `RING_CHAR` = `'o'`. Check the TS item-glyph table or the
+  glyph-map entry for `ItemCategory.RING`.
+  C: `Rogue.h` (`RING_CHAR` constant).
+  TS: `platform/glyph-map.ts` or item-glyph constants in `types/`. **S**
+
+- [x] **B71 — Staffs/charms/wands/rings not identified on entering a vault (B25 revisit)** —
+  B25 was marked WAI, but playtest suggests C does auto-identify non-weapon/non-armor vault
+  items (staffs, charms, wands, rings) when the player first steps into the vault. Weapons
+  and armor are not auto-identified. Requires C source verification before coding.
+  C: `Items.c` (vault entry / `checkForMissingKeys` / `identifyItemKind`).
+  TS: `turn.ts` or `items/item-handlers.ts` (vault-entry scan). **M**
+  Fix: `updateFloorItems` in `items/floor-items.ts` already had the auto-ID logic (checking
+  `ITEM_KIND_AUTO_ID` + same machine number), but `EnvironmentContext.updateFloorItems` was
+  stubbed as `() => {}` in `turn.ts`. Created `items/floor-items-wiring.ts` with
+  `buildUpdateFloorItemsFn()` that wires the real `updateFloorItems` with closures for
+  `identifyItemKind`, `promoteTile`, `activateMachine`, `circuitBreakersPreventActivation`,
+  `burnItem`, and `getQualifyingLocNear`. Also wires the full item burning, drift, and
+  tile-promotion paths. `swapItemEnchants` remains stubbed (`() => false`) — filed as a
+  separate mechanic. Verified: `identifyItemKind` no-ops for WEAPON/ARMOR (no tableCount),
+  identifies kind for STAFF/WAND/RING (tableCount > 0 in switch).
+
+- [~] **B76 — Fleeing monsters can path through deep water** ⚠️ RESEARCH ONLY — decided
+  not to fix. Root cause is confirmed C-faithful: `nextStep` is called with `null` in the
+  flee path (C does the same), so `monsterAvoids` is skipped. Safety map assigns deep water
+  cost 5 (not forbidden), so water is a valid escape path when its gradient is better. The
+  proposed fix (pass `monst` instead of `null` in `monster-actions.ts:1149`) would enforce
+  terrain avoidance on flee paths as a deliberate deviation from C. Archived without action.
+  C: `Monsters.c:3494` — `nextStep(getSafetyMap(monst), monst->loc, NULL, true)`.
+  TS: `monster-actions.ts:1149`. **S** (one-liner if approved)
+
+- [x] **B77 — Player health regenerates faster than C game** — HP recovers noticeably
+  faster than in Brogue v1.15.1. The regen logic in `time/turn-processing.ts:481` looks
+  structurally correct (decrement `turnsUntilRegen` by 1000, regen when ≤ 0). The most
+  likely causes: (1) `updatePlayerRegenerationDelay` (`items/item-effects.ts:524`) is
+  called at game start before `turnsBetweenRegen` is set, leaving it at 0 — meaning
+  `turnsUntilRegen += 0` each regen tick, causing regen every single turn; (2) the
+  `while (maxHP > turnsPerHP)` loop in `updatePlayerRegenerationDelay` diverges from C
+  when `turnsPerHP` rounds differently; (3) `regenPerTurn` is non-zero when it shouldn't
+  be.
+  C: `Items.c:7907` (`updatePlayerRegenerationDelay`), `Time.c:2275` (regen tick).
+  TS: `items/item-effects.ts:524`, `time/turn-processing.ts:481`. **S**
+
+- [x] **B79 — No bolt animation when zapping a staff** — Zapping a staff of firebolt
+  hits the target and applies all combat effects correctly, but no bolt glyph or color
+  trail travels across the map from the player to the target. The `zap.ts` animation loop
+  (lines 214–251) calls `ctx.render.hiliteCell`, `plotCharWithColor`, `pauseAnimation`,
+  etc. — but in `buildStaffZapFn` (`items/staff-wiring.ts:118`), the entire `render`
+  sub-context is stubbed: `hiliteCell: () => {}`, `plotCharWithColor: () => {}`,
+  `pauseAnimation: async () => false`. Fix: replace those stubs with real implementations
+  using `buildHiliteCellFn` / `buildRefreshDungeonCellFn` from `io-wiring.ts` and the
+  platform `commitDraws` / `waitForEvent` for `pauseAnimation`.
+  C: `Items.c:4964` (bolt animation loop with `hiliteCell`).
+  TS: `items/staff-wiring.ts:118`, `items/zap.ts:214`. **M**
+
+- [~] **B80 — Goblin conjurer's spectral blades don't disappear when the conjurer dies** —
+  Spectral blades (which have `MB_BOUND_TO_LEADER`) should die on the first
+  `playerTurnEnded` after their leader is killed. The TS logic (leader cleanup in
+  `combat-damage.ts:519` → `demoteMonsterFromLeadership` in `monster-ally-ops.ts:84`;
+  bound-follower kill in `turn-processing.ts:514`) looks structurally correct. Confirmed
+  fixed in playtesting — archived without a dedicated fix.
+  C: `Monsters.c:4110` (leader death follower loop), `Monsters.c:1602` (`MB_BOUND_TO_LEADER` spawn).
+  TS: `monsters/monster-ally-ops.ts:84`, `time/turn-processing.ts:514`. **S**
+
+- [x] **B81 — Burning status doesn't deal damage each turn; fire doesn't spread to foliage**
+  — Two related defects after a firebolt hit:
+  **Defect 1 — Burning doesn't tick damage.** A monster hit by a firebolt shows
+  `STATUS_BURNING` but its HP doesn't decrease each turn. `decrementMonsterStatus`
+  (`monster-state.ts:774`) handles this: it decrements `status[Burning]` and calls
+  `ctx.inflictDamage(null, monst, damage)`. But in the `MonsterStateContext` built by
+  `turn-monster-ai.ts:196`, `inflictDamage: () => false` is a stub. Fix: wire real
+  `inflictDamage` in the monster-state context the same way the combat context wires it.
+  **Defect 2 — Fire doesn't spread to adjacent flammable terrain.** Fixed by wiring
+  `buildApplyInstantTileEffectsFn` with real `spreadFire` / tile-promote callbacks.
+  C: `Monsters.c:1851` (burning damage in `decrementMonsterStatus`),
+  `Time.c` / `Architect.c` (fire spread via dungeon feature promotion).
+  TS: `turn-monster-ai.ts:197` (`inflictDamage` stub), `tile-effects-wiring.ts`. **M**
+
+- [x] **B82 — Vault items always the same type regardless of seed** — Items found in
+  vaults are predictably the same type (e.g., bronze wands, health charms) across
+  different seeds. Root cause: `initializeGameVariantBrogue()` (and Rapid/Bullet variants)
+  never set `numberWandKinds` or `numberCharmKinds` — both stayed 0. With `numKinds=0`,
+  `chooseKind` loops 0 times (totalFrequencies=0), `randRange(1,0)` returns 1 (lowerBound),
+  loop exits at i=0 always. Fix: add `wandTable.length` / `charmTable.length` assignments
+  to all three variant initializers in `lifecycle.ts`.
+  C: `Items.c:409` (`chooseKind`), `Items.c:342` (wand generation), `Items.c:366` (charm generation).
+  TS: `items/item-generation.ts` (`chooseKind`), `globals/item-catalog.ts` (frequency fields). **M**
+
+- [x] **B83 — Bolt lighting: cells near bolt trail don't glow as it travels** — Firing a
+  staff or wand shows the glyph trail (wired in B79) but cells near the bolt are not
+  illuminated: `backUpLighting`, `restoreLighting`, `demoteVisibility`, `paintLight`,
+  `updateFieldOfViewDisplay`, `updateVision`, `updateLighting` in `buildZapRenderContext`
+  were all no-ops. Fixed by wiring real implementations via `buildBoltLightingFns()`
+  in `vision-wiring.ts`; `ZapRenderContext.paintLight` now takes a `LightSource` and
+  `zap.ts` pre-computes `boltLights[]` (one per step, matching Items.c:4896-4906).
+  C: `Items.c:4912-4974` (bolt lighting loop). TS: `staff-wiring.ts`, `vision-wiring.ts`,
+  `items/zap.ts`, `items/zap-context.ts`. **M**
+
+---
