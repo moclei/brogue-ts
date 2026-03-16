@@ -757,4 +757,54 @@ describe("decrementMonsterStatus", () => {
         const died = decrementMonsterStatus(monst, ctx);
         expect(died).toBe(false);
     });
+
+    it("eel re-submerges when canSubmerge returns true and rng passes", () => {
+        const player = makePlayer();
+        const monst = makeCreature(MonsterType.MK_EEL);
+        // Eel is NOT submerged (it surfaced to attack)
+        monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_SUBMERGED;
+        const refreshCalled: boolean[] = [];
+        const ctx = makeStateContext(player, [monst], {
+            monsterCanSubmergeNow: () => true,
+            rng: {
+                randRange: (lo: number, _hi: number) => lo,
+                randPercent: (_pct: number) => true, // always re-submerge
+            },
+            refreshDungeonCell: () => { refreshCalled.push(true); },
+        });
+        decrementMonsterStatus(monst, ctx);
+        expect(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_SUBMERGED).toBeTruthy();
+        expect(refreshCalled.length).toBe(1);
+    });
+
+    it("eel does not re-submerge when rng fails", () => {
+        const player = makePlayer();
+        const monst = makeCreature(MonsterType.MK_EEL);
+        monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_SUBMERGED;
+        const ctx = makeStateContext(player, [monst], {
+            monsterCanSubmergeNow: () => true,
+            rng: {
+                randRange: (lo: number, _hi: number) => lo,
+                randPercent: (_pct: number) => false, // never re-submerge
+            },
+        });
+        decrementMonsterStatus(monst, ctx);
+        expect(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_SUBMERGED).toBeFalsy();
+    });
+
+    it("already-submerged eel is not touched by submersion check", () => {
+        const player = makePlayer();
+        const monst = makeCreature(MonsterType.MK_EEL);
+        monst.bookkeepingFlags |= MonsterBookkeepingFlag.MB_SUBMERGED;
+        const ctx = makeStateContext(player, [monst], {
+            monsterCanSubmergeNow: () => true,
+            rng: {
+                randRange: (lo: number, _hi: number) => lo,
+                randPercent: (_pct: number) => true,
+            },
+        });
+        decrementMonsterStatus(monst, ctx);
+        // Still submerged — the check only fires when NOT submerged
+        expect(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_SUBMERGED).toBeTruthy();
+    });
 });

@@ -6,8 +6,8 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-15 (B66 fixed; B71 fixed; B81 fixed; B50 fixed)
-**Tests at last update:** 88 files · 2314 pass · 55 skip
+**Status:** updated 2026-03-15 (B58 fixed; B66 fixed; B71 fixed; B81 fixed; B50 fixed)
+**Tests at last update:** 88 files · 2317 pass · 55 skip
 
 ---
 
@@ -98,7 +98,7 @@ only if the path is genuinely not reachable in normal play.
   C: `Items.c` (negationBlast, readScroll SCROLL_NEGATION:4080).
   TS: `items/item-handlers.ts` (negationBlast), `items.ts` (NegateContext). **M**
 
-- [ ] **B58 — Eels don't re-submerge in water after surfacing** — Electric eels (and
+- [x] **B58 — Eels don't re-submerge in water after surfacing** — Electric eels (and
   similar aquatic monsters) surface once to attack or become visible, but do not go back
   underwater. In C, `updateMonsterState` checks `monsterCanSubmergeNow` each turn and sets
   `MB_SUBMERGED` when the monster is on a submerging tile and no combat is occurring. The
