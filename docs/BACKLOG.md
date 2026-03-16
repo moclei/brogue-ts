@@ -148,7 +148,7 @@ only if the path is genuinely not reachable in normal play.
   C: `IO.c` (hallucination rendering in `getCellAppearance` / `displayLevel`).
   TS: `io/display.ts` or render pipeline. **S**
 
-- [ ] **B69 — Ring items rendered as filled circles, not 'o' character** — Ring items appear
+- [x] **B69 — Ring items rendered as filled circles, not 'o' character** — Ring items appear
   as filled Unicode circle glyphs instead of the ASCII `'o'` (0x6F) the C game uses. The
   ring glyph in `Rogue.h` is `RING_CHAR` = `'o'`. Check the TS item-glyph table or the
   glyph-map entry for `ItemCategory.RING`.

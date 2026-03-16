@@ -25,7 +25,10 @@ const U_ARIES               = 0x2648;
 const U_ESZETT              = 0x00DF;
 const U_ANKH                = 0x2640;
 const U_MUSIC_NOTE          = 0x266A;
-const U_CIRCLE              = 0x26AA;
+// SDL2 uses U+26AA (MEDIUM WHITE CIRCLE) but that codepoint has emoji presentation
+// in browsers and renders as a filled/colored circle. U+25CB (WHITE CIRCLE) is the
+// Geometric Shapes equivalent that always renders as text in monospace fonts.
+const U_CIRCLE              = 0x25CB;
 const U_LIGHTNING_BOLT      = 0x03DF;
 const U_FILLED_CIRCLE       = 0x25CF;
 const U_NEUTER              = 0x26B2;
