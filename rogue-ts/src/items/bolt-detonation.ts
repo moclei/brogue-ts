@@ -54,12 +54,20 @@ export function detonateBolt(
     ctx: ZapContext,
 ): void {
     switch (theBolt.boltEffect) {
-        case BoltEffect.Obstruction:
-            // Phase 5: magnitude-scaled probabilityDecrement not yet passed —
-            // spawnDungeonFeature currently accepts a DungeonFeatureType only.
-            ctx.spawnDungeonFeature(x, y, DungeonFeatureType.DF_FORCEFIELD, true, false);
+        case BoltEffect.Obstruction: {
+            // C: feat.probabilityDecrement = max(1, 75 * POW_OBSTRUCTION[min(40, magnitude)-2] / FP_FACTOR)
+            // POW_OBSTRUCTION = 0.8^x for x in 2..40 (scaled by FP_FACTOR = 65536)
+            const POW_OBSTRUCTION = [
+                41943, 33554, 26843, 21474, 17179, 13743, 10995, 8796, 7036, 5629,
+                4503, 3602, 2882, 2305, 1844, 1475, 1180, 944, 755, 604, 483, 386,
+                309, 247, 198, 158, 126, 101, 81, 64, 51, 41, 33, 26, 21, 17, 13, 10, 8, 6,
+            ];
+            const idx = Math.max(0, Math.min(40, theBolt.magnitude) - 2);
+            const probDecrement = Math.max(1, Math.floor(75 * POW_OBSTRUCTION[idx] / 65536));
+            ctx.spawnDungeonFeature(x, y, DungeonFeatureType.DF_FORCEFIELD, true, false, probDecrement);
             autoID.value = true;
             break;
+        }
 
         case BoltEffect.Conjuration: {
             const bladeCount = staffBladeCount(BigInt(theBolt.magnitude) * FP_FACTOR);
