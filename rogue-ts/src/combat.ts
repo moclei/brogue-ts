@@ -20,13 +20,16 @@ import { buildApplyInstantTileEffectsFn } from "./tile-effects-wiring.js";
 import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
     terrainFlags as terrainFlagsFn,
+    cellHasTMFlag as cellHasTMFlagFn,
+    discoveredTerrainFlagsAtLoc as discoveredTerrainFlagsAtLocFn,
+    burnedTerrainFlagsAtLoc as burnedTerrainFlagsAtLocFn,
 } from "./state/helpers.js";
 import { randRange, randPercent, randClump } from "./math/rng.js";
 import { coordinatesAreInMap } from "./globals/tables.js";
 import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
-import { alertMonster as alertMonsterFn } from "./monsters/monster-state.js";
-import { monsterWillAttackTarget as monsterWillAttackTargetFn } from "./monsters/monster-queries.js";
-import { monsterIsInClass as monsterIsInClassFn } from "./monsters/monster-queries.js";
+import { alertMonster as alertMonsterFn, monsterAvoids as monsterAvoidsFn } from "./monsters/monster-state.js";
+import type { MonsterStateContext } from "./monsters/monster-state.js";
+import { monsterWillAttackTarget as monsterWillAttackTargetFn, monsterIsInClass as monsterIsInClassFn, monstersAreTeammates as monstersAreTeammatesFn } from "./monsters/monster-queries.js";
 import { unAlly as unAllyFn, checkForContinuedLeadership as checkForContinuedLeadershipFn, demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "./monsters/monster-ally-ops.js";
 import { buildResolvePronounEscapesFn, getMonsterDFMessage as getMonsterDFMessageFn } from "./io/text.js";
 import {
@@ -34,7 +37,7 @@ import {
     goodMessageColor, badMessageColor, itemMessageColor,
 } from "./globals/colors.js";
 import { TileFlag, ItemFlag } from "./types/flags.js";
-import { CreatureState, CreatureMode, GameMode, ItemCategory } from "./types/enums.js";
+import { CreatureState, CreatureMode, GameMode, ItemCategory, FeatType } from "./types/enums.js";
 import { flashMonster } from "./combat/combat-damage.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { AttackContext } from "./combat/combat-attack.js";
@@ -51,12 +54,15 @@ import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
 import {
     attackVerb as attackVerbFn,
     anyoneWantABite as anyoneWantABiteFn,
+    splitMonster as splitMonsterFn,
 } from "./combat/combat-helpers.js";
 import type { CombatHelperContext } from "./combat/combat-helpers.js";
 import { monsterText } from "./globals/monster-text.js";
 import { specialHit as specialHitFn } from "./combat/combat-runics.js";
 import type { RunicContext } from "./combat/combat-runics.js";
 import { itemName as itemNameFn } from "./items/item-naming.js";
+import { cloneMonster as cloneMonsterFn } from "./monsters/monster-lifecycle.js";
+import type { CloneMonsterContext } from "./monsters/monster-lifecycle.js";
 import { wandTable, staffTable, ringTable, charmTable } from "./globals/item-catalog.js";
 
 // =============================================================================
@@ -195,7 +201,7 @@ export function buildCombatDamageContext(): CombatDamageContext {
  */
 export function buildCombatAttackContext(): AttackContext {
     const {
-        player, rogue, pmap, monsters,
+        player, rogue, pmap, monsters, dormantMonsters,
         packItems, gameConst, mutablePotionTable, mutableScrollTable, monsterCatalog,
     } = getGameState();
     const damageCtx = buildCombatDamageContext();
@@ -269,6 +275,60 @@ export function buildCombatAttackContext(): AttackContext {
         rogue.autoPlayingLevel = false;
     }
 
+    // ── Clone / split helpers (B66) ──────────────────────────────────────────
+
+    // Minimal context for monsterAvoids — only the fields accessed for non-player monsters
+    const monsterAvoidsCtx = {
+        player,
+        terrainFlags: (p: Pos) => terrainFlagsFn(pmap, p),
+        cellFlags: (p: Pos) => pmap[p.x]?.[p.y]?.flags ?? 0,
+        downLoc: rogue.downLoc,
+        upLoc: rogue.upLoc,
+        cellHasTMFlag: (p: Pos, flags: number) => cellHasTMFlagFn(pmap, p, flags),
+        discoveredTerrainFlagsAtLoc: (p: Pos) => discoveredTerrainFlagsAtLocFn(
+            pmap, p, tileCatalog,
+            (tileType: number) => {
+                const df = tileCatalog[tileType]?.discoverType ?? 0;
+                return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
+            },
+        ),
+        monsterAtLoc,
+        cellHasTerrainFlag,
+        HAS_MONSTER: TileFlag.HAS_MONSTER,
+        HAS_PLAYER: TileFlag.HAS_PLAYER,
+        PRESSURE_PLATE_DEPRESSED: TileFlag.PRESSURE_PLATE_DEPRESSED,
+        mapToShore: rogue.mapToShore,
+        playerHasRespirationArmor: () => false,
+        burnedTerrainFlagsAtLoc: (p: Pos) => burnedTerrainFlagsAtLocFn(pmap, p),
+    } as unknown as MonsterStateContext;
+
+    const cloneMonsterCtx: CloneMonsterContext = {
+        rng: { randRange: (lo, hi) => randRange(lo, hi), randPercent: (pct) => randPercent(pct) },
+        player,
+        monsters,
+        dormantMonsters,
+        prependCreature: (monst) => { monsters.unshift(monst); },
+        removeFromMonsters: (monst) => {
+            const idx = monsters.indexOf(monst);
+            if (idx >= 0) { monsters.splice(idx, 1); return true; }
+            return false;
+        },
+        removeFromDormant: (monst) => {
+            const idx = dormantMonsters.indexOf(monst);
+            if (idx >= 0) { dormantMonsters.splice(idx, 1); return true; }
+            return false;
+        },
+        becomeAllyWith: () => {},
+        getQualifyingPathLocNear: (loc) => loc, // not reached when placeClone=false
+        setPmapFlag: (loc, flag) => { if (coordinatesAreInMap(loc.x, loc.y)) pmap[loc.x][loc.y].flags |= flag; },
+        refreshDungeonCell: buildRefreshDungeonCellFn(),
+        canSeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+        monsterName: monsterNameFn,
+        message: (text, flags) => { void damageCtx.message(text, flags); },
+        featRecord: rogue.featRecord,
+        FEAT_JELLYMANCER: FeatType.Jellymancer,
+    };
+
     const runicCtx: RunicContext = {
         ...damageCtx,
 
@@ -312,7 +372,7 @@ export function buildCombatAttackContext(): AttackContext {
         magicWeaponHit: () => {},
         applyArmorRunicEffect: () => "",
         specialHit: () => {}, // wired below to allow self-reference
-        splitMonster: () => {},
+        splitMonster: () => {}, // wired below to allow self-reference via splitHelperCtx
 
         // ── Display ───────────────────────────────────────────────────────────
         attackVerb: (attacker, damagePercent) => attackVerbFn(attacker, damagePercent, monsterText, {
@@ -365,7 +425,7 @@ export function buildCombatAttackContext(): AttackContext {
         armorRunicIdentified: () => false,
         autoIdentify: () => {},
         createFlare: () => {},
-        cloneMonster: () => null,
+        cloneMonster: (monst, selfClone, maintainCorpse) => cloneMonsterFn(monst, selfClone, maintainCorpse, cloneMonsterCtx),
         playerImmuneToMonster: () => false,
         slow: () => {},
         weaken: () => {},
@@ -381,6 +441,56 @@ export function buildCombatAttackContext(): AttackContext {
     // Wire specialHit after construction so the closure can reference runicCtx
     runicCtx.specialHit = (attacker, defender, damage) => {
         specialHitFn(attacker, defender, damage, runicCtx);
+    };
+
+    // Wire splitMonster after construction — the helper context references
+    // runicCtx for canSeeMonster/message/etc. and cloneMonsterCtx for cloning.
+    const splitHelperCtx: CombatHelperContext = {
+        player,
+        weapon: rogue.weapon,
+        armor: rogue.armor,
+        playerStrength: rogue.strength,
+        canSeeMonster: runicCtx.canSeeMonster,
+        canDirectlySeeMonster: runicCtx.canDirectlySeeMonster,
+        monsterName: monsterNameFn,
+        monstersAreTeammates: (m1, m2) => monstersAreTeammatesFn(m1, m2, player),
+        monsterAvoids: (monst, loc) => monsterAvoidsFn(monst, loc, monsterAvoidsCtx),
+        monsterIsInClass: (monst, cls) => monsterIsInClassFn(monst, cls),
+        monsterAtLoc,
+        cellHasMonsterOrPlayer: (loc) => {
+            const flags = pmap[loc.x]?.[loc.y]?.flags ?? 0;
+            return !!(flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER));
+        },
+        isPosInMap: (loc) => coordinatesAreInMap(loc.x, loc.y),
+        message: (text, flags) => { void runicCtx.message(text, flags); },
+        combatMessage: (text, color) => { void runicCtx.combatMessage(text, color); },
+        cloneMonster: (monst, selfClone, maintainCorpse) => cloneMonsterFn(monst, selfClone, maintainCorpse, cloneMonsterCtx),
+        fadeInMonster: runicCtx.fadeInMonster,
+        refreshSideBar: runicCtx.refreshSideBar,
+        setCellMonsterFlag: (loc, hasMonster) => {
+            if (coordinatesAreInMap(loc.x, loc.y)) {
+                if (hasMonster) pmap[loc.x][loc.y].flags |= TileFlag.HAS_MONSTER;
+                else pmap[loc.x][loc.y].flags &= ~TileFlag.HAS_MONSTER;
+            }
+        },
+        randRange: (lo, hi) => randRange(lo, hi),
+        monsterCatalog,
+        monsterClassCatalog,
+        cautiousMode: rogue.cautiousMode,
+        setCautiousMode: (val) => { rogue.cautiousMode = val; },
+        updateIdentifiableItems: () => {},
+        messageWithColor: (text, color) => { void runicCtx.messageWithColor(text, color); },
+        itemName: (item) => itemNameFn(item, false, true, namingCtx),
+        itemMessageColor,
+        featRecord: rogue.featRecord,
+        FEAT_PALADIN: FeatType.Paladin,
+        iterateAllies: () => monsters.filter(m => m.creatureState === CreatureState.Ally),
+        iterateAllMonsters: () => monsters,
+        depthLevel: rogue.depthLevel,
+        deepestLevel: rogue.deepestLevel,
+    };
+    runicCtx.splitMonster = (defender, attacker) => {
+        splitMonsterFn(defender, attacker, splitHelperCtx);
     };
 
     return runicCtx;
