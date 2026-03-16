@@ -163,7 +163,7 @@ only if the path is genuinely not reachable in normal play.
   C: `Items.c:1192` (`updateFloorItems`, `T_MOVES_ITEMS` branch at line 1240).
   TS: `lifecycle.ts:521`, `items/floor-items.ts:162`. **S**
 
-- [ ] **B84 — Seed entry UI missing label and background box** — The "new seeded game"
+- [x] **B84 — Seed entry UI missing label and background box** — The "new seeded game"
   seed input screen shows only the text entry field. In C it shows a semi-transparent
   background panel with the label "Generate dungeon with seed number:" above the field.
   The TS equivalent is missing both the box/overlay and the descriptive label.

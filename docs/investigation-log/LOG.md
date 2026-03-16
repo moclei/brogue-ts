@@ -71,3 +71,16 @@ Symptom: wands and charms found in vaults are always the same kind (e.g., always
 
 Root cause: lifecycle.ts:259 — initializeGameVariantBrogue() (and rapid/bullet variants) never set gameConst.numberWandKinds or numberCharmKinds; both stay 0; chooseKind loops 0 times (totalFrequencies=0), randRange(1,0) returns 1, loop exits at i=0 every time
 Steps logged: 5
+
+## B84 — Seed entry UI missing label and background box
+Symptom: "new seeded game" screen shows only text input field; missing semi-transparent background panel and "Generate dungeon with seed number:" label
+
+- Locating C implementation — Grep: "Generate dungeon with seed number" in src/brogue/ → MainMenu.c:1156, calls getInputTextString with useDialogBox=true
+- Understanding C dialog box — Read: IO.c:2720-2760 → useDialogBox branch: rectangularShading + overlayDisplayBuffer + printString(prompt) + black input row
+- Locating TS equivalent — Grep: getInputTextString in rogue-ts/src/ → input-dispatch.ts:104 already has full dialog box logic
+- Identifying stubs — Grep: printString + rectangularShading in input-context.ts → both stubbed as () => {} at lines 372, 400
+- Confirming implementations exist — Grep: export.*printString in rogue-ts/src/ → text.ts:179; rectangularShading → inventory.ts:185
+- Checking storeColorComponents needed by rectangularShading — Read: inventory.ts:193 → ctx: Pick<InventoryContext, "storeColorComponents">; exists in color.ts:281
+
+Root cause: input-context.ts:372,400 — printString and rectangularShading both stubbed as no-ops; wiring them to text.ts:printString and inventory.ts:rectangularShading restores the full dialog box rendering
+Steps logged: 6
