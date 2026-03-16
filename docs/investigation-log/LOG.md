@@ -57,3 +57,17 @@ Symptom: all combat effects work but no visual bolt trail appears
 
 Root cause: buildZapRenderContext() in staff-wiring.ts:118 returns no-op stubs for hiliteCell, plotCharWithColor, pauseAnimation, and getCellAppearance; replace with real implementations from buildHiliteCellFn/buildGetCellAppearanceFn/plotCharWithColorFn/pauseAndCheckForEvent
 Steps logged: 6
+
+---
+
+## B82 — Vault items always same type regardless of seed
+Symptom: wands and charms found in vaults are always the same kind (e.g., always teleportation wand, always health charm) regardless of game seed
+
+- Frequencies non-zero in catalog — Read: item-catalog.ts:263-292 → wandTable and charmTable have nonzero frequencies (3,3,3,3,1,3,2,3,1 and 5,5,5,3,...)
+- chooseKind logic matches C — Read: item-generation.ts:222-233 → TS impl identical to C Items.c:409-418
+- numKinds suspect — Grep: "numberWandKinds|numberCharmKinds" in src/ → game-constants.ts:60,65 both = 0
+- Init function missing assignments — Read: lifecycle.ts:259-267 → initializeGameVariantBrogue sets scroll/potion/bolt counts but omits numberWandKinds and numberCharmKinds
+- Confirmed same gap in RapidBrogue and BulletBrogue variants — Read: lifecycle.ts:268-287
+
+Root cause: lifecycle.ts:259 — initializeGameVariantBrogue() (and rapid/bullet variants) never set gameConst.numberWandKinds or numberCharmKinds; both stay 0; chooseKind loops 0 times (totalFrequencies=0), randRange(1,0) returns 1, loop exits at i=0 every time
+Steps logged: 5
