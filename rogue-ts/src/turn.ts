@@ -47,9 +47,9 @@ import { DCOLS, DROWS, HUNGER_THRESHOLD, WEAK_THRESHOLD, FAINT_THRESHOLD } from 
 import { TileFlag, ItemFlag, MessageFlag, MonsterBookkeepingFlag, TerrainFlag, TerrainMechFlag, T_OBSTRUCTS_SCENT, IS_IN_MACHINE } from "./types/flags.js";
 import { refreshWaypoint as refreshWaypointFn } from "./architect/architect.js";
 import { populateGenericCostMap } from "./movement/cost-maps-fov.js";
-import { CreatureState, GameMode, ALL_ITEMS, LightType, ItemCategory, FoodKind } from "./types/enums.js";
+import { CreatureState, GameMode, ALL_ITEMS, LightType, ItemCategory, FoodKind, DungeonLayer } from "./types/enums.js";
 import type { TurnProcessingContext } from "./time/turn-processing.js";
-import { updateEnvironment as updateEnvironmentFn } from "./time/environment.js";
+import { updateEnvironment as updateEnvironmentFn, promoteTile as promoteTileFn, activateMachine as activateMachineFn, circuitBreakersPreventActivation as circuitBreakersPreventActivationFn } from "./time/environment.js";
 import type { EnvironmentContext } from "./time/environment.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
@@ -75,6 +75,7 @@ import { scentDistance } from "./time/turn-processing.js";
 import { itemName as itemNameFn } from "./items/item-naming.js";
 import { autoIdentify as autoIdentifyFn } from "./items/item-handlers.js";
 import { dropItem as dropItemFn } from "./items/floor-items.js";
+import { buildUpdateFloorItemsFn } from "./items/floor-items-wiring.js";
 import { startLevel as startLevelFn } from "./lifecycle.js";
 import { layerWithFlag as layerWithFlagFn } from "./movement/map-queries.js";
 import { teleport as teleportFn, disentangle as disentangleFn } from "./monsters/monster-teleport.js";
@@ -417,7 +418,24 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
                 coordinatesAreInMap: (x, y) => coordinatesAreInMap(x, y),
                 refreshDungeonCell,
                 spawnDungeonFeature: (x, y, feat, v, o) => spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, v, o, refreshDungeonCell),
-                monstersFall: () => {}, updateFloorItems: () => {}, monstersTurn: () => {},
+                monstersFall: () => {},
+                monstersTurn: () => {},
+                updateFloorItems: buildUpdateFloorItemsFn({
+                    floorItems, pmap,
+                    rogue: { absoluteTurnNumber: rogue.absoluteTurnNumber, depthLevel: rogue.depthLevel },
+                    gameConst, levels, player,
+                    tileCatalog: tileCatalog as unknown as Parameters<typeof buildUpdateFloorItemsFn>[0]["tileCatalog"],
+                    dungeonFeatureCatalog: dungeonFeatureCatalog as unknown as Parameters<typeof buildUpdateFloorItemsFn>[0]["dungeonFeatureCatalog"],
+                    mutableScrollTable: mutableScrollTable as unknown as Parameters<typeof buildUpdateFloorItemsFn>[0]["mutableScrollTable"],
+                    mutablePotionTable: mutablePotionTable as unknown as Parameters<typeof buildUpdateFloorItemsFn>[0]["mutablePotionTable"],
+                    itemMessageColor,
+                    messageWithColor: (msg, color, flags) => io.messageWithColor(msg, color, flags),
+                    itemName: (item, buf, details, article) => { buf[0] = itemNameFn(item, details, article, namingCtx); },
+                    refreshDungeonCell,
+                    promoteTile: (x, y, layer, forced) => promoteTileFn(x, y, layer as DungeonLayer, forced, envCtx),
+                    activateMachine: (mn) => activateMachineFn(mn, envCtx),
+                    circuitBreakersPreventActivation: (mn) => circuitBreakersPreventActivationFn(mn, envCtx),
+                }),
                 keyOnTileAt: (loc: Pos) => {
                     const machineNum = pmap[loc.x]?.[loc.y]?.machineNumber ?? 0;
                     if (player.loc.x === loc.x && player.loc.y === loc.y) {
