@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-16 (B77 fixed)
+**Status:** updated 2026-03-16 (B79 fixed)
 **Tests at last update:** 88 files · 2322 pass · 55 skip
 
 ---
@@ -236,7 +236,7 @@ only if the path is genuinely not reachable in normal play.
   C: `Items.c:1192` (`updateFloorItems`, `T_MOVES_ITEMS` branch at line 1240).
   TS: `lifecycle.ts:521`, `items/floor-items.ts:162`. **S**
 
-- [ ] **B79 — No bolt animation when zapping a staff** — Zapping a staff of firebolt
+- [x] **B79 — No bolt animation when zapping a staff** — Zapping a staff of firebolt
   hits the target and applies all combat effects correctly, but no bolt glyph or color
   trail travels across the map from the player to the target. The `zap.ts` animation loop
   (lines 214–251) calls `ctx.render.hiliteCell`, `plotCharWithColor`, `pauseAnimation`,

@@ -18,7 +18,7 @@
 
 import { getGameState, gameOver as gameOverFn } from "../core.js";
 import { buildApplyInstantTileEffectsFn } from "../tile-effects-wiring.js";
-import { waitForEvent, commitDraws } from "../platform.js";
+import { waitForEvent, commitDraws, pauseAndCheckForEvent } from "../platform.js";
 import { moveCursor as moveCursorFn } from "../io/cursor-move.js";
 import type { MoveCursorContext } from "../io/cursor-move.js";
 import {
@@ -70,7 +70,9 @@ import {
     buildConfirmFn,
     buildRefreshDungeonCellFn,
     buildHiliteCellFn,
+    buildGetCellAppearanceFn,
 } from "../io-wiring.js";
+import { plotCharWithColor as plotCharWithColorFn, mapToWindow } from "../io/display.js";
 import { buildRefreshSideBarWithFocusFn, buildPrintLocationDescriptionFn } from "../io/sidebar-wiring.js";
 import { boltCatalog } from "../globals/bolt-catalog.js";
 import { mutationCatalog } from "../globals/mutation-catalog.js";
@@ -114,8 +116,11 @@ function buildMonsterAtLocFn(player: Creature, monsters: Creature[]) {
     };
 }
 
-/** Stub ZapRenderContext — all visual effects are no-ops. */
+/** ZapRenderContext — bolt animation wired; lighting stubs deferred. */
 function buildZapRenderContext(): ZapRenderContext {
+    const { displayBuffer } = getGameState();
+    const getCellAppFn = buildGetCellAppearanceFn();
+    const hiliteFn = buildHiliteCellFn();
     return {
         refreshSideBar: () => {},
         displayCombatText: () => {},
@@ -127,10 +132,17 @@ function buildZapRenderContext(): ZapRenderContext {
         paintLight: () => {},
         updateVision: () => {},
         updateLighting: () => {},
-        hiliteCell: () => {},
-        pauseAnimation: async () => false,
-        getCellAppearance: () => ({ char: 0x2e as never, foreColor: black, backColor: black }),
-        plotCharWithColor: () => {},
+        hiliteCell: (x, y, color, strength, _saveBuf) => hiliteFn(x, y, color, strength, false),
+        pauseAnimation: async (delay) => {
+            commitDraws();
+            return pauseAndCheckForEvent(delay);
+        },
+        getCellAppearance: (loc) => {
+            const { glyph, foreColor, backColor } = getCellAppFn(loc);
+            return { char: glyph, foreColor, backColor };
+        },
+        plotCharWithColor: (theChar, loc, foreColor, backColor) =>
+            plotCharWithColorFn(theChar, mapToWindow(loc), foreColor, backColor, displayBuffer),
         colorMultiplierFromDungeonLight: () => ({ ...black, colorDances: false }),
     };
 }
