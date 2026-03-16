@@ -163,6 +163,121 @@ only if the path is genuinely not reachable in normal play.
   C: `Items.c:1192` (`updateFloorItems`, `T_MOVES_ITEMS` branch at line 1240).
   TS: `lifecycle.ts:521`, `items/floor-items.ts:162`. **S**
 
+- [ ] **B84 — Seed entry UI missing label and background box** — The "new seeded game"
+  seed input screen shows only the text entry field. In C it shows a semi-transparent
+  background panel with the label "Generate dungeon with seed number:" above the field.
+  The TS equivalent is missing both the box/overlay and the descriptive label.
+  C: `IO.c` (seed entry prompt — likely `displayCenteredAlert` or equivalent).
+  TS: `menus.ts` or the seed-entry UI handler. **S**
+
+- [ ] **B85 — Trapped key rooms: machine effects don't fire on key pickup** — Several
+  vault key room traps fail to trigger:
+  1. A room full of vegetation does not catch fire when the key is picked up.
+  2. A vault door key room trap fires no effect at all.
+  3. A paralysis-gas + rat-swarm room: "paralyzed" message shows and the false walls
+     immediately snap to their broken state, but no rats emerge. In C the false walls
+     should shatter one-by-one over several turns (each with an animation), spawning a
+     rat per wall; the player is trapped inside the swarm for the duration. The paralyze
+     gas behaviour is tracked separately (B67).
+  All three point to machine trigger logic not firing `spawnDungeonFeature`,
+  `exposeTileToFire`, or `spawnHorde` on the key-pickup event. Related stubs:
+  `spawnDungeonFeature: () => {}` in `tile-effects-wiring.ts:438`, `items.ts:375`,
+  `items/staff-wiring.ts:438`; `exposeTileToFire: () => false` in
+  `tile-effects-wiring.ts:128`; `spawnHorde: () => null` in `lifecycle.ts:326`.
+  C: `Architect.c` (`triggerMachinesOfKind`, machine effect dispatch),
+  `RogueMain.c` (machine-key pickup handler).
+  TS: `tile-effects-wiring.ts`, `lifecycle.ts`, `items/item-commands.ts`. **M**
+
+- [ ] **B86 — Auto-explore ('x') stops working after first depth** — On depth 1 pressing
+  'x' correctly visits all rooms. From depth 2 onward it frequently reports "I see no
+  path for further exploration" even when unexplored cells are clearly reachable. Likely
+  cause: the explore path-state or the exploration target map is not being reset on
+  level transition, so the algorithm still references the previous depth's dungeon map.
+  C: `Movement.c` (`exploreCommand`, `getQualifyingLocNear`).
+  TS: `movement/travel-explore.ts`, `lifecycle.ts` (level-transition reset). **M**
+
+- [ ] **B87 — Sacrifice altar statue: no message and no monster highlighted** — Interacting
+  with the ally statue in a sacrifice-altar machine should display a message and mark a
+  specific monster on the current depth (visible as if via telepathy). The marked monster
+  must be lured onto the altar and killed to open the caged key. Neither message nor
+  monster highlight appeared. Likely cause: the machine's "ally statue" interaction event
+  is not dispatched, or the monster-reveal flag (`monsterRevealed: () => false` stub in
+  `io/input-context.ts:191` and `sidebar-wiring.ts:320`) prevents the highlight.
+  C: `Architect.c` (sacrifice-altar machine type), `Monsters.c` (monster reveal logic).
+  TS: `turn.ts`, `io/sidebar-wiring.ts:320`. **M**
+
+- [ ] **B88 — Arrow turret can spawn inside an unreachable interior corner** — An arrow
+  turret spawned at a diagonal interior corner where neither the player nor the turret
+  could draw line-of-sight through the adjacent walls. Neither party could attack the
+  other, making it an unblockable obstacle with no gameplay effect.
+  ⚠️ **Confirm against C game first:** this may be a known edge-case in the base C game
+  rather than a TS regression. Reproduce in BrogueCE C build with the same seed; if the
+  C game places the turret identically, this is WAI and should be closed.
+  C: `Architect.c` (turret placement validation).
+  TS: dungeon generation wiring. **S**
+
+- [ ] **B89 — Magical glyphs do nothing** — Rooms containing "magical glyphs" surrounding
+  candle-lit altars with staffs produce no effect when the player walks over the glyphs or
+  picks up the staffs. In C the glyphs are a machine trigger; stepping on them or removing
+  the item should fire an effect (alarm, teleport, or similar). Root cause: likely the
+  glyph terrain-flag trigger is not wired or `spawnDungeonFeature` is stubbed for this
+  machine type.
+  C: `Architect.c` (glyph machine type and trigger dispatch).
+  TS: `tile-effects-wiring.ts`, `turn.ts`. **S**
+
+- [ ] **B90 — Auto-eat loop: hunger message repeats but satiety does not restore** — When
+  the player reaches "starving" hunger the game shows "Unable to control your hunger, you
+  eat a ration of food" on every turn, but the hunger/satiety level never increases. The
+  loop continues until the player manually eats. Additionally, eating a ration manually
+  does not update the hunger bar until the next move.
+  Root cause: `eat: () => {}` is stubbed in `tile-effects-wiring.ts:289`, so auto-eat
+  fires the message but never calls the real eat logic. Sidebar refresh on manual eat may
+  also be missing a `refreshSideBar` call.
+  C: `Time.c` (`applyInstantTileEffectsToCreature` hunger branch), `Items.c` (`eat`).
+  TS: `tile-effects-wiring.ts:289`, `items/item-commands.ts`. **S**
+
+- [ ] **B91 — Staffs do not recharge** — Staff charges never replenish between uses.
+  Root cause confirmed: `rechargeItemsIncrementally: () => {}` is stubbed in
+  `turn.ts:461` and `combat.ts:263`, so the per-turn recharge tick never fires.
+  C: `Time.c` (`rechargeItemsIncrementally`).
+  TS: `turn.ts:461`. **S**
+
+- [ ] **B92 — "Quit and abandon run" menu option does nothing** — Opening the in-game
+  menu and selecting "Quit and abandon" has no effect; the game continues. The quit path
+  does not depend on persistence/recordings so it should be wireable now.
+  C: `RogueMain.c` (`gameOver` / quit-without-save branch).
+  TS: `menus.ts`, `lifecycle-gameover.ts`. **S**
+
+- [ ] **B93 — "You see an eel" message fires when the eel is submerged** — The game
+  occasionally announces a monster sighting for a submerged eel that is not visible to the
+  player. The visibility check for submerged monsters is bypassed because
+  `monsterCanSubmergeNow: () => false` is stubbed in `io/sidebar-wiring.ts:332` and
+  `turn-monster-ai.ts:219`, causing submerged monsters to always appear visible.
+  C: `IO.c` (`canSeeMonster` / submerge visibility gate).
+  TS: `io/sidebar-wiring.ts:332`, `turn-monster-ai.ts:219`. **S**
+
+- [ ] **B94 — Wands always show the same unidentified appearance ("bronze")** — All
+  unidentified wands display the same descriptor ("bronze") rather than drawing from the
+  randomized appearance table generated at game start. Likely cause: the per-run item
+  appearance shuffle (wand color/material table) is either not called or not stored, so
+  all wands fall back to the same default entry.
+  C: `Items.c` (`initializeItemTable` — appearance randomization for wands/staffs/potions/
+  scrolls/rings).
+  TS: item initialization in `lifecycle.ts` or `items.ts`. **M**
+
+- [ ] **B95 — Sidebar ↔ dungeon item hover cross-highlighting not working** — Two related
+  issues:
+  1. Hovering the mouse over an item entry in the left-hand sidebar panel should
+     highlight that entry in brighter text; it does not.
+  2. Hovering the mouse over an item on the dungeon floor should highlight its entry in
+     the sidebar; it does not.
+  Additionally, hovering a sidebar item may be expected to show the path-preview route
+  to that item (as mouse-hover over the dungeon tile does). Root cause: `hilitePath`,
+  `hiliteCell`, and `clearCursorPath` are all stubbed in `io/input-context.ts:552-554`;
+  sidebar hover callbacks are not wired to cross-highlight the dungeon cell.
+  C: `IO.c` (`printSideBar` / hover hilite, `hilitePath`, `hiliteCell`).
+  TS: `io/input-context.ts:552-554`, `io/sidebar-wiring.ts`. **M**
+
 ---
 
 ## Persistence layer (implement as a group)
