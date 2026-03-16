@@ -1005,13 +1005,16 @@ After fixing, move the entry to SESSIONS.md with a brief explanation of the fix.
   TS: `turn-monster-zap-wiring.ts` — wire `updateSafetyMap` the same way it was done
   in `turn-monster-ai.ts` for `getSafetyMap` (PR #38). **S**
 
-- [ ] **B76 — Fleeing monsters can path through deep water** — When a non-aquatic monster
-  (e.g. monkey) flees, `nextStep` is called with `null` as the monster argument, so
-  `monsterAvoids` is never checked. The safety map makes deep water cost 5 (not forbidden),
-  so water becomes a valid escape path when cornered.
-  C: same `null` pattern — this is technically C-faithful but the user considers it a bug.
-  Fix: pass `monst` instead of `null` in `monster-actions.ts:1149`.
-  `nextStep` already calls `monsterAvoids(monst, neighbor)` when monst is non-null. **S**
+- [ ] **B76 — Fleeing monsters can path through deep water** ⚠️ RESEARCH ONLY — do not fix
+  without explicit instruction. Observed: monkey fleeing through deep water when land/shallow
+  routes were available. Root cause is confirmed C-faithful: `nextStep` is called with
+  `null` in the flee path (C does the same), so `monsterAvoids` is skipped. Safety map
+  assigns deep water cost 5 (not forbidden), so water is a valid escape path when its
+  gradient is better. The proposed fix (pass `monst` instead of `null` in
+  `monster-actions.ts:1149`) would enforce terrain avoidance on flee paths as a deliberate
+  deviation from C. **Needs more playtesting before deciding whether to fix.**
+  C: `Monsters.c:3494` — `nextStep(getSafetyMap(monst), monst->loc, NULL, true)`.
+  TS: `monster-actions.ts:1149`. **S** (one-liner if approved)
 
 ---
 
