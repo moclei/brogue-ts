@@ -38,12 +38,53 @@ function tile(sheetKey: string, tileX = 0, tileY = 0): SpriteRef {
 /**
  * Build the TileType → sprite lookup for one-to-one terrain/feature sprites.
  * Unmapped TileTypes fall back to the DisplayGlyph-based sprite in the renderer.
- * Phase 5 will populate representative entries; empty map is valid (all fall back to glyph).
+ * Uses same DawnLike sheets as buildGlyphSpriteMap; pick distinct (tileX, tileY) per TileType.
  */
 export function buildTileTypeSpriteMap(): Map<TileType, SpriteRef> {
   const m = new Map<TileType, SpriteRef>();
-  // Phase 5 will add entries (e.g. DEEP_WATER, SHALLOW_WATER, LAVA, doors, key terrain).
-  // For now the map is empty; renderer falls back to DisplayGlyph sprite.
+
+  // Floors and walls (match glyph map so fallback looks same when not overridden)
+  m.set(TileType.FLOOR, tile("Floor", 16, 14));
+  m.set(TileType.FLOOR_FLOODABLE, tile("Floor", 17, 14));
+  m.set(TileType.CARPET, tile("Floor", 17, 14));
+  m.set(TileType.MARBLE_FLOOR, tile("Floor", 16, 15));
+  m.set(TileType.WALL, tile("Wall", 0, 20));
+  m.set(TileType.GRANITE, tile("Wall", 1, 20));
+
+  // Liquids — one sprite each (normally share G_LIQUID)
+  m.set(TileType.DEEP_WATER, tile("Pit1", 1, 16));
+  m.set(TileType.SHALLOW_WATER, tile("Pit1", 2, 16));
+  m.set(TileType.LAVA, tile("Pit1", 1, 18));
+  m.set(TileType.LAVA_RETRACTABLE, tile("Pit1", 1, 18));
+  m.set(TileType.LAVA_RETRACTING, tile("Pit1", 2, 18));
+  m.set(TileType.MUD, tile("Ground0", 8, 0));
+  m.set(TileType.FLOOD_WATER_DEEP, tile("Pit1", 1, 16));
+  m.set(TileType.FLOOD_WATER_SHALLOW, tile("Pit1", 2, 16));
+
+  // Chasm
+  m.set(TileType.CHASM, tile("Pit1", 1, 22));
+  m.set(TileType.CHASM_EDGE, tile("Pit1", 0, 22));
+
+  // Doors
+  m.set(TileType.DOOR, tile("Door0"));
+  m.set(TileType.OPEN_DOOR, tile("Door1"));
+  m.set(TileType.SECRET_DOOR, tile("Door0"));
+  m.set(TileType.LOCKED_DOOR, tile("Door0", 1, 0));
+  m.set(TileType.OPEN_IRON_DOOR_INERT, tile("Door1", 1, 0));
+
+  // Stairs
+  m.set(TileType.UP_STAIRS, tile("Floor", 1, 0));
+  m.set(TileType.DOWN_STAIRS, tile("Floor", 2, 0));
+
+  // Vegetation / terrain variety
+  m.set(TileType.GRASS, tile("Floor", 13, 13));
+  m.set(TileType.FOLIAGE, tile("Floor", 14, 13));
+  m.set(TileType.DEAD_FOLIAGE, tile("Floor", 15, 13));
+
+  // Bridge
+  m.set(TileType.BRIDGE, tile("Floor", 18, 14));
+  m.set(TileType.STONE_BRIDGE, tile("Floor", 18, 15));
+
   return m;
 }
 

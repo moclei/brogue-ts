@@ -27,5 +27,5 @@
 
 ## Phase 5: Populate and verify
 
-- [ ] Populate TileType → sprite map for a representative set of terrain/features (e.g. water variants, lava, doors, key terrain)
+- [x] Populate TileType → sprite map for a representative set of terrain/features (e.g. water variants, lava, doors, key terrain)
 - [ ] Playtest in tile/hybrid mode: confirm one-to-one sprites where mapped, fallback elsewhere, no regressions in text mode
