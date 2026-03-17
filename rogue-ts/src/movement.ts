@@ -522,11 +522,22 @@ export function buildTravelContext(): TravelExploreContext {
         knownToPlayerAsPassableOrSecretDoor(pos) {
             const cell = pmap[pos.x]?.[pos.y];
             if (!cell) return false;
-            if (!(cell.flags & (TileFlag.DISCOVERED | TileFlag.MAGIC_MAPPED))) return false;
-            if (cell.rememberedTerrainFlags & TerrainFlag.T_OBSTRUCTS_PASSABILITY) {
-                return !!(cell.rememberedTMFlags & TerrainMechFlag.TM_IS_SECRET);
+            // C: getLocationFlags(limitToPlayerKnowledge=true) uses remembered flags only
+            // for cells that are discovered/mapped AND not currently visible.
+            // For undiscovered cells (or currently visible), it uses actual terrain flags.
+            // This means nextStep CAN step into undiscovered passable (floor) cells.
+            const isDiscoveredOrMapped = !!(cell.flags & (TileFlag.DISCOVERED | TileFlag.MAGIC_MAPPED));
+            const isCurrentlyVisible = !!(cell.flags & TileFlag.VISIBLE);
+            let tObstructs: boolean;
+            let tmIsSecret: boolean;
+            if (isDiscoveredOrMapped && !isCurrentlyVisible) {
+                tObstructs = !!(cell.rememberedTerrainFlags & TerrainFlag.T_OBSTRUCTS_PASSABILITY);
+                tmIsSecret = !!(cell.rememberedTMFlags & TerrainMechFlag.TM_IS_SECRET);
+            } else {
+                tObstructs = cellHasTerrainFlag(pos, TerrainFlag.T_OBSTRUCTS_PASSABILITY);
+                tmIsSecret = cellHasTMFlag(pos, TerrainMechFlag.TM_IS_SECRET);
             }
-            return true;
+            return !tObstructs || tmIsSecret;
         },
 
         // ── Item helpers ──────────────────────────────────────────────────────
