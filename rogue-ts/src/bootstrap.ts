@@ -27,6 +27,8 @@ import { getGameState } from "./core.js";
 import { buildMenuContext } from "./menus.js";
 import { mainBrogueJunction } from "./menus/main-menu.js";
 import { COLS, ROWS } from "./types/constants.js";
+import { loadTilesetImages } from "./platform/tileset-loader.js";
+import { buildGlyphSpriteMap } from "./platform/glyph-sprite-map.js";
 
 // =============================================================================
 // Canvas setup
@@ -54,26 +56,28 @@ function sizeCanvas(canvas: HTMLCanvasElement): { cellSize: number; dpr: number 
 
 /**
  * Initialize the browser console renderer attached to #brogue-canvas.
+ * Receives pre-loaded tiles and sprite map when provided (pixel-art mode).
  */
-function initBrowserConsole(): ReturnType<typeof createBrowserConsole> {
+function initBrowserConsole(options: BrowserRendererOptions): ReturnType<typeof createBrowserConsole> {
     const canvasEl = document.getElementById("brogue-canvas");
     if (!canvasEl) throw new Error("Could not find #brogue-canvas element");
     const canvas = canvasEl as HTMLCanvasElement;
 
     const { cellSize, dpr } = sizeCanvas(canvas);
 
-    const options: BrowserRendererOptions = {
+    const rendererOptions: BrowserRendererOptions = {
+        ...options,
         canvas,
-        fontSize: Math.max(8, cellSize - 2),
-        devicePixelRatio: dpr,
+        fontSize: options.fontSize ?? Math.max(8, cellSize - 2),
+        devicePixelRatio: options.devicePixelRatio ?? dpr,
     };
 
-    const browserConsole = createBrowserConsole(options);
+    const browserConsole = createBrowserConsole(rendererOptions);
 
     window.addEventListener("resize", () => {
         const { cellSize: cs, dpr: newDpr } = sizeCanvas(canvas);
-        options.fontSize = Math.max(8, cs - 2);
-        options.devicePixelRatio = newDpr;
+        rendererOptions.fontSize = Math.max(8, cs - 2);
+        rendererOptions.devicePixelRatio = newDpr;
         browserConsole.handleResize();
     });
 
@@ -89,22 +93,41 @@ function initBrowserConsole(): ReturnType<typeof createBrowserConsole> {
 // =============================================================================
 
 async function main(): Promise<void> {
-    // 1. Set up the browser canvas renderer and event bridge
-    const browserConsole = initBrowserConsole();
+    // 1. Load tileset for pixel-art mode (optional; continues without tiles on failure)
+    let tiles: Awaited<ReturnType<typeof loadTilesetImages>> | undefined;
+    try {
+        tiles = await loadTilesetImages();
+    } catch (e) {
+        console.warn("[rogue-ts] Tileset failed to load; tile mode will show placeholders.", e);
+    }
+    const spriteMap = buildGlyphSpriteMap();
 
-    // 2. Wire the platform module (event queue + plotChar for commitDraws)
+    // 2. Set up the browser canvas renderer and event bridge
+    const canvasEl = document.getElementById("brogue-canvas");
+    if (!canvasEl) throw new Error("Could not find #brogue-canvas element");
+    const canvas = canvasEl as HTMLCanvasElement;
+    const { cellSize, dpr } = sizeCanvas(canvas);
+    const browserConsole = initBrowserConsole({
+        canvas,
+        fontSize: Math.max(8, cellSize - 2),
+        devicePixelRatio: dpr,
+        tiles,
+        spriteMap,
+    });
+
+    // 3. Wire the platform module (event queue + plotChar for commitDraws)
     initPlatform(browserConsole);
 
-    // 3. Build the menu DI context
+    // 4. Build the menu DI context
     const menuCtx = buildMenuContext();
 
-    // 4. Get the display buffer from core state
+    // 5. Get the display buffer from core state
     const { displayBuffer } = getGameState();
 
     // eslint-disable-next-line no-console
     console.log(`[rogue-ts] Bootstrap complete. Grid: ${COLS}×${ROWS}`);
 
-    // 5. Launch the main menu loop — runs until the game quits
+    // 6. Launch the main menu loop — runs until the game quits
     await mainBrogueJunction(menuCtx, displayBuffer);
 }
 

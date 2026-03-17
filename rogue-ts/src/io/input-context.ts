@@ -100,7 +100,7 @@ import { buildThrowCommandFn, buildCallCommandFn } from "../items/item-commands.
 import { exploreKey as exploreKeyFn } from "./explore-wiring.js";
 import { TURNS_FOR_FULL_REGEN, REST_KEY, SEARCH_KEY, DCOLS, DROWS } from "../types/constants.js";
 import { moveCursor as moveCursorFn, nextTargetAfter as nextTargetAfterFn } from "./cursor-move.js";
-import { commitDraws, waitForEvent } from "../platform.js";
+import { commitDraws, waitForEvent, getGraphicsMode, setGraphicsMode, hasGraphics } from "../platform.js";
 import { EventType, AutoTargetMode, StatusEffect, ALL_ITEMS } from "../types/enums.js";
 import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MessageFlag } from "../types/flags.js";
 import type { InputContext } from "./input-keystrokes.js";
@@ -347,8 +347,9 @@ export function buildInputContext(): InputContext {
         // ── Flags ─────────────────────────────────────────────────────────────
         DEBUG: false,
         serverMode: false,
-        hasGraphics: false,
-        graphicsMode: 0,
+        hasGraphics: hasGraphics(),
+        graphicsMode: getGraphicsMode(),
+        setGraphicsMode,
         nonInteractivePlayback: false,
         D_WORMHOLING: false,
         D_SAFETY_VISION: false,
@@ -424,7 +425,6 @@ export function buildInputContext(): InputContext {
         printDiscoveriesScreen: () => printDiscoveriesScreenFn(overlayWaitFn),
         flashTemporaryAlert: () => {},
         displayMonsterFlashes: () => {},
-        setGraphicsMode: (m) => m,
 
         // ── Game actions ──────────────────────────────────────────────────────
         playerMoves: async (dir) => { await playerMovesFn(dir, moveCtx()); },

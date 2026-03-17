@@ -14,11 +14,11 @@
 
 | # | Initiative | Status | Key Findings |
 |---|-----------|--------|--------------|
-| 1 | Smoke test | **active** | Initiative: `initiatives/pixel-art-smoke-test/`. Using DawnLike 16x16 tileset. |
-| 2 | Spritesheet renderer | not started | — |
-| 3 | Renderer abstraction | not started | — |
-| 4 | Animation system | not started | — |
-| 5 | Multi-tile sprites | not started | — |
+| 1 | Smoke test | **complete** | DawnLike 16x16; spritesheet + G-mode switch; viewport-only; tinting via multiply (source-atop was flat). |
+| 2 | One-to-one TileType → sprite | not started | Process in smoke-test PLAN § "One-to-one TileType → sprite". |
+| 3 | Multi-tile sprites | not started | — |
+| 4 | Renderer abstraction (optional) | not started | Refactor: formal Renderer interface + swappable impls. Mode switch already works. |
+| 5 | Animation system | not started | — |
 
 > Update this table when an initiative completes or is abandoned — one row, one line.
 > This is the only ongoing maintenance required on this document.
@@ -226,6 +226,22 @@ stats, item names, health bars, game messages. Options:
 
 Recommendation: option 1 for early initiatives, evaluate option 3 later.
 
+### DisplayGlyph vs TileType: one-to-one terrain sprites
+
+The display buffer stores **DisplayGlyph** per cell (~120 values). The tile catalog maps
+**TileType** (100+ terrain/feature types) → `displayChar` (DisplayGlyph), so many TileTypes
+share one glyph (e.g. DEEP_WATER and lava both use `G_LIQUID`; color differentiates them).
+Sprite mapping is therefore keyed by DisplayGlyph.
+
+For **one unique sprite per TileType** there are two paths: **(A)** Add a new DisplayGlyph
+per TileType and point the catalog at it — simple but grows the enum. **(B)** Thread
+TileType through the pipeline (display buffer + getCellAppearance + plotChar) and look up
+sprite by TileType when present, falling back to DisplayGlyph — true one-to-one without
+inflating DisplayGlyph. Detailed steps for both are in the smoke-test initiative PLAN:
+`initiatives/pixel-art-smoke-test/PLAN.md` → "One-to-one TileType → sprite (future work)".
+A dedicated follow-up initiative can implement (B) after the smoke test and renderer
+abstraction are done.
+
 ### Stardew Valley multi-tile sprites
 
 SV characters are 16x32 — they occupy one 16x16 ground tile but the sprite extends one
@@ -245,59 +261,67 @@ tile upward. This means:
 High-level sequence only. Each initiative would get its own BRIEF/PLAN/TASKS when the
 time comes. Dependencies flow downward — each builds on the previous.
 
+### What the smoke test already delivers
+
+The smoke test (Initiative 1) implements the **spritesheet renderer** and **mode switching**
+that were originally described as separate initiatives: DisplayGlyph → sprite mapping,
+loading a 16×16 tileset (DawnLike), Canvas2D `drawImage` in the dungeon viewport, sidebar
+and messages as text, and the 'G' key cycling Text / Tiles / Hybrid with immediate
+redraw. So "Spritesheet renderer" and "hot swap" are done inside the smoke test. What
+remains for the smoke test is Phase 3 (tinting experiment + findings). A separate
+**Renderer abstraction** (formal `Renderer` interface, two swappable implementations) would
+be an optional refactor for cleaner architecture; it is not required for current behavior.
+
 ### Initiative 1: Smoke Test
 
-**Intent:** Prove the rendering swap works end-to-end with zero art assets.
+**Intent:** Prove the rendering swap works end-to-end and deliver a playable tile mode.
 
-**Existing infrastructure:** The TS port already has significant plumbing in place for
-this. The `GraphicsMode` enum (TEXT_GRAPHICS, TILES_GRAPHICS, HYBRID_GRAPHICS) is ported,
-`setGraphicsMode` is on the `BrogueConsole` interface, and the game logic that handles the
-'G' key to cycle modes is likely wired up from the IO.c port. `isEnvironmentGlyph()` is
-ported in `glyph-map.ts` (needed for hybrid mode). What's missing is the rendering itself:
-`plotChar()` in `browser-renderer.ts` always draws Unicode text via `fillText()` regardless
-of the current graphics mode. Pressing 'G' today probably cycles the mode variable and
-shows the status message, but the screen looks identical.
+**Delivered:** Spritesheet loading, DisplayGlyph → sprite mapping, tile/hybrid branch in
+`plotChar`, viewport-only sprite drawing, 'G' mode switch with full redraw. Remaining:
+Phase 3 tinting experiment and findings writeup.
 
-The C version's `tiles.c` (marked "Not ported" in the manifest) is the reference for how
-this was done with SDL2 -- a 384-tile PNG spritesheet with `SDL_SetTextureColorMod` for
-per-cell color tinting.
+**What it proves:** The `plotChar` abstraction is sufficient. Sprites render; mode switch
+works. Tinting quality to be evaluated in Phase 3.
 
-**Approach:** Add a rendering branch inside `plotChar` (or provide a swappable renderer)
-that checks `graphicsMode` and draws colored rectangles/shapes instead of text when tile
-mode is active. Each `DisplayGlyph` maps to a distinct color/shape per category (green
-for terrain, red for creatures, blue for items). The existing 'G' key toggle should
-activate it without additional wiring. Play the game and observe: does it work? Does color
-tinting look reasonable on colored blocks? How does the grid feel at 16px cells?
+### Initiative 2: One-to-one TileType → sprite
 
-**What it proves:** The `plotChar` abstraction is sufficient. The display buffer diff model
-works with non-text rendering. Color tinting is (or isn't) viable on solid shapes. The
-existing `GraphicsMode` infrastructure works for switching renderers.
+**Intent:** One unique sprite per terrain/feature type (e.g. DEEP_WATER vs SHALLOW_WATER
+vs lava) instead of sharing a DisplayGlyph and varying only by color.
 
-### Initiative 2: Spritesheet Renderer
+Either extend DisplayGlyph per TileType (Option A) or pass TileType through the pipeline
+and key the sprite map by TileType (Option B). Option B is the right long-term approach
+without enum explosion. Process and steps: see `initiatives/pixel-art-smoke-test/PLAN.md`
+§ "One-to-one TileType → sprite (future work)".
 
-**Intent:** Replace blocks with actual pixel art sprites, one sprite per cell.
+**What it proves:** Terrain and features can be fully differentiated visually without
+relying only on color.
 
-Build a `DisplayGlyph` → spritesheet-region mapping. Load a 16x16 tileset (open-source
-placeholder). Implement Canvas2D spritesheet rendering with color tinting. Handle the
-dungeon viewport as sprites and the sidebar/messages as text. Evaluate tinting quality and
-decide whether Canvas2D is sufficient or WebGL/PixiJS is needed.
+### Initiative 3: Multi-Tile Sprites
 
-**What it proves:** Sprites render correctly with Brogue's color system. The visual quality
-is (or isn't) acceptable. Performance is (or isn't) adequate.
+**Intent:** Allow entity sprites larger than one cell.
 
-### Initiative 3: Renderer Abstraction
+Implement layered rendering: terrain pass, then entity pass sorted by Y position. Expose
+entity position data to the renderer (currently hidden behind per-cell `plotChar`). Support
+16x32 character sprites (1 tile wide, 2 tiles tall). Evaluate larger multi-tile entities
+(bosses, multi-square creatures).
 
-**Intent:** Make the graphics mode cleanly swappable at runtime.
+**What it proves:** The rendering model can handle overlapping sprites. Layered rendering
+works with Brogue's display model.
+
+### Initiative 4: Renderer abstraction (optional)
+
+**Intent:** Refactor so graphics mode is implemented by swappable renderer instances
+instead of a single renderer with an internal branch.
 
 Define a `Renderer` interface that both the text renderer and sprite renderer implement.
-Move renderer selection into a factory/registry. Allow switching between ASCII and pixel
-art modes via UI (the `GraphicsMode` enum already exists). Ensure both renderers work
-correctly with all game states.
+Move renderer selection into a factory/registry. Mode switching (e.g. 'G') already works;
+this step improves structure and makes it easier to add more renderers (high-res, themed)
+later.
 
-**What it proves:** The rendering layer is properly decoupled. Multiple renderers can
-coexist. The architecture supports future renderers (high-res, themed, etc.).
+**What it proves:** The rendering layer is properly decoupled. Optional; can be done
+when the codebase would benefit from it.
 
-### Initiative 4: Animation System
+### Initiative 5: Animation System
 
 **Intent:** Add visual transitions between turns.
 
@@ -309,17 +333,15 @@ completion before the next input is accepted.
 **What it proves:** Turn-based animation is viable and enhances the game feel without
 disrupting gameplay pacing.
 
-### Initiative 5: Multi-Tile Sprites
+### Future: per-tile tinting strategies
 
-**Intent:** Allow entity sprites larger than one cell.
-
-Implement layered rendering: terrain pass, then entity pass sorted by Y position. Expose
-entity position data to the renderer (currently hidden behind per-cell `plotChar`). Support
-16x32 character sprites (1 tile wide, 2 tiles tall). Evaluate larger multi-tile entities
-(bosses, multi-square creatures).
-
-**What it proves:** The rendering model can handle overlapping sprites. Layered rendering
-works with Brogue's display model.
+The smoke test uses a single tinting approach (offscreen canvas + `multiply`) for all
+sprites. A possible follow-up initiative or extension could introduce **per-tile (or
+per-glyph / per-TileType) tinting strategies**: e.g. each tile could specify its own
+`globalCompositeOperation` (multiply, screen, overlay, etc.), `globalAlpha`, or custom
+tint so that special tile types or circumstances (water, lava, doors, status effects)
+can be rendered with different blending. This would allow finer control over lighting
+and effects without changing the core pipeline.
 
 ---
 

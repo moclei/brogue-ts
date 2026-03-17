@@ -15,14 +15,35 @@ import type { BrogueConsole } from "../types/platform.js";
 import type { RogueEvent, PauseBehavior } from "../types/types.js";
 import { EventType, GraphicsMode, DisplayGlyph } from "../types/enums.js";
 import {
-    COLS, ROWS,
-    ESCAPE_KEY, RETURN_KEY, DELETE_KEY, TAB_KEY,
-    UP_ARROW, DOWN_ARROW, LEFT_ARROW, RIGHT_ARROW,
-    NUMPAD_0, NUMPAD_1, NUMPAD_2, NUMPAD_3, NUMPAD_4,
-    NUMPAD_5, NUMPAD_6, NUMPAD_7, NUMPAD_8, NUMPAD_9,
-    PRINTSCREEN_KEY,
+  COLS,
+  ROWS,
+  STAT_BAR_WIDTH,
+  MESSAGE_LINES,
+  DCOLS,
+  DROWS,
+  ESCAPE_KEY,
+  RETURN_KEY,
+  DELETE_KEY,
+  TAB_KEY,
+  UP_ARROW,
+  DOWN_ARROW,
+  LEFT_ARROW,
+  RIGHT_ARROW,
+  NUMPAD_0,
+  NUMPAD_1,
+  NUMPAD_2,
+  NUMPAD_3,
+  NUMPAD_4,
+  NUMPAD_5,
+  NUMPAD_6,
+  NUMPAD_7,
+  NUMPAD_8,
+  NUMPAD_9,
+  PRINTSCREEN_KEY,
 } from "../types/constants.js";
-import { glyphToUnicode } from "./glyph-map.js";
+import { glyphToUnicode, isEnvironmentGlyph } from "./glyph-map.js";
+import { TILE_SIZE } from "./tileset-loader.js";
+import type { SpriteRef } from "./glyph-sprite-map.js";
 
 // =============================================================================
 // Constants
@@ -40,7 +61,7 @@ export const PAUSE_BETWEEN_EVENT_POLLING = 36;
 
 /** Queued DOM events waiting to be consumed by the game loop. */
 interface QueuedEvent {
-    event: RogueEvent;
+  event: RogueEvent;
 }
 
 // =============================================================================
@@ -48,34 +69,40 @@ interface QueuedEvent {
 // =============================================================================
 
 export interface BrowserRendererOptions {
-    /** The <canvas> element to render to. */
-    canvas: HTMLCanvasElement;
+  /** The <canvas> element to render to. */
+  canvas: HTMLCanvasElement;
 
-    /** Font family to use (default: "monospace"). */
-    fontFamily?: string;
+  /** Font family to use (default: "monospace"). */
+  fontFamily?: string;
 
-    /** Font size in CSS pixels (auto-calculated from canvas size if omitted). */
-    fontSize?: number;
+  /** Font size in CSS pixels (auto-calculated from canvas size if omitted). */
+  fontSize?: number;
 
-    /**
-     * Device pixel ratio for HiDPI rendering. When set, the 2D context is
-     * scaled so that all drawing operations use CSS-pixel coordinates while
-     * the backing store renders at native resolution for crisp text.
-     * Defaults to 1 (no scaling).
-     */
-    devicePixelRatio?: number;
+  /**
+   * Device pixel ratio for HiDPI rendering. When set, the 2D context is
+   * scaled so that all drawing operations use CSS-pixel coordinates while
+   * the backing store renders at native resolution for crisp text.
+   * Defaults to 1 (no scaling).
+   */
+  devicePixelRatio?: number;
 
-    /**
-     * Callback invoked from `gameLoop` to start the actual game.
-     * Typically calls `rogueMain()`.
-     */
-    onGameLoop?: () => void;
+  /**
+   * Callback invoked from `gameLoop` to start the actual game.
+   * Typically calls `rogueMain()`.
+   */
+  onGameLoop?: () => void;
 
-    /**
-     * Optional callback invoked when the game shuffles terrain colors.
-     * Used for color-dance animation during input waits.
-     */
-    onColorsDance?: () => void;
+  /**
+   * Optional callback invoked when the game shuffles terrain colors.
+   * Used for color-dance animation during input waits.
+   */
+  onColorsDance?: () => void;
+
+  /** Loaded tileset images (sheet key → image). When set, tile/hybrid mode draws sprites. */
+  tiles?: Map<string, HTMLImageElement>;
+
+  /** Glyph → sprite region for tile rendering. Used with `tiles`. */
+  spriteMap?: Map<DisplayGlyph, SpriteRef>;
 }
 
 // =============================================================================
@@ -93,317 +120,459 @@ export interface BrowserRendererOptions {
  * - Provides async-compatible `pauseForMilliseconds` and `nextKeyOrMouseEvent`
  *   using a shared event queue.
  */
-export function createBrowserConsole(options: BrowserRendererOptions): BrogueConsole & {
-    /** Async wait for the next event — browser-specific extension. */
-    waitForEvent(): Promise<RogueEvent>;
-    /** Recalculate cell sizes after canvas resize. */
-    handleResize(): void;
+export function createBrowserConsole(
+  options: BrowserRendererOptions,
+): BrogueConsole & {
+  /** Async wait for the next event — browser-specific extension. */
+  waitForEvent(): Promise<RogueEvent>;
+  /** Recalculate cell sizes after canvas resize. */
+  handleResize(): void;
 } {
-    const { canvas, fontFamily = DEFAULT_FONT, onGameLoop } = options;
-    const ctx2d = canvas.getContext("2d")!;
+  const {
+    canvas,
+    fontFamily = DEFAULT_FONT,
+    onGameLoop,
+    tiles,
+    spriteMap,
+  } = options;
+  const ctx2d = canvas.getContext("2d")!;
 
-    // ---- Cell sizing (in CSS pixels — DPR scaling applied to the context) ----
-    let cellWidth = 0;
-    let cellHeight = 0;
-    let fontSize = options.fontSize ?? 0;
-    let dpr = options.devicePixelRatio ?? 1;
+  /** Current graphics mode; used by plotChar to choose text vs. tiles (Phase 2). */
+  let currentGraphicsMode: GraphicsMode = GraphicsMode.Text;
 
-    function recalcCellSize(): void {
-        dpr = options.devicePixelRatio ?? 1;
+  /** True if (x,y) is a cell in the dungeon viewport (not message area or sidebar). */
+  function isInDungeonViewport(cellX: number, cellY: number): boolean {
+    return (
+      cellX >= STAT_BAR_WIDTH + 1 &&
+      cellX < STAT_BAR_WIDTH + 1 + DCOLS &&
+      cellY >= MESSAGE_LINES &&
+      cellY < MESSAGE_LINES + DROWS
+    );
+  }
 
-        // Cell dimensions in CSS pixels (the coordinate space we draw in).
-        // The canvas backing store is dpr × larger, so we divide it out.
-        cellWidth = canvas.width / (COLS * dpr);
-        cellHeight = canvas.height / (ROWS * dpr);
+  /** Offscreen 16×16 canvas for sprite tinting (Phase 3: apply Brogue foreground color). */
+  const tintCanvas = document.createElement("canvas");
+  tintCanvas.width = TILE_SIZE;
+  tintCanvas.height = TILE_SIZE;
+  const tintCtx = tintCanvas.getContext("2d")!;
 
-        if (options.fontSize) {
-            fontSize = options.fontSize;
-        } else {
-            // Auto-size: largest integer font that fits one cell
-            fontSize = Math.max(1, Math.floor(Math.min(cellWidth, cellHeight)));
-        }
+  // ---- Cell sizing (in CSS pixels — DPR scaling applied to the context) ----
+  let cellWidth = 0;
+  let cellHeight = 0;
+  let fontSize = options.fontSize ?? 0;
+  let dpr = options.devicePixelRatio ?? 1;
 
-        // Reset and apply DPR scaling to the 2D context so all subsequent
-        // drawing operations use CSS-pixel coordinates.
-        ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+  function recalcCellSize(): void {
+    dpr = options.devicePixelRatio ?? 1;
+
+    // Cell dimensions in CSS pixels (the coordinate space we draw in).
+    // The canvas backing store is dpr × larger, so we divide it out.
+    cellWidth = canvas.width / (COLS * dpr);
+    cellHeight = canvas.height / (ROWS * dpr);
+
+    if (options.fontSize) {
+      fontSize = options.fontSize;
+    } else {
+      // Auto-size: largest integer font that fits one cell
+      fontSize = Math.max(1, Math.floor(Math.min(cellWidth, cellHeight)));
     }
 
-    recalcCellSize();
+    // Reset and apply DPR scaling to the 2D context so all subsequent
+    // drawing operations use CSS-pixel coordinates.
+    ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
 
-    // ---- Event queue ----
-    const eventQueue: QueuedEvent[] = [];
-    let lastMouseCellX = -1;
-    let lastMouseCellY = -1;
+  recalcCellSize();
 
-    /** Resolve function for the current `waitForEvent` promise, if any. */
-    let resolveWait: ((ev: RogueEvent) => void) | null = null;
+  // ---- Event queue ----
+  const eventQueue: QueuedEvent[] = [];
+  let lastMouseCellX = -1;
+  let lastMouseCellY = -1;
 
-    function enqueueEvent(ev: RogueEvent): void {
-        if (resolveWait) {
-            const resolve = resolveWait;
-            resolveWait = null;
-            resolve(ev);
-        } else {
-            eventQueue.push({ event: ev });
-        }
+  /** Resolve function for the current `waitForEvent` promise, if any. */
+  let resolveWait: ((ev: RogueEvent) => void) | null = null;
+
+  function enqueueEvent(ev: RogueEvent): void {
+    if (resolveWait) {
+      const resolve = resolveWait;
+      resolveWait = null;
+      resolve(ev);
+    } else {
+      eventQueue.push({ event: ev });
     }
+  }
 
-    /**
-     * Async wait for the next event — use this from async game loop code.
-     * Exposed on the returned console as `waitForEvent`.
-     */
-    function _waitForEvent(): Promise<RogueEvent> {
-        if (eventQueue.length > 0) {
-            return Promise.resolve(eventQueue.shift()!.event);
-        }
-        return new Promise<RogueEvent>((resolve) => {
-            resolveWait = resolve;
-        });
+  /**
+   * Async wait for the next event — use this from async game loop code.
+   * Exposed on the returned console as `waitForEvent`.
+   */
+  function _waitForEvent(): Promise<RogueEvent> {
+    if (eventQueue.length > 0) {
+      return Promise.resolve(eventQueue.shift()!.event);
     }
-
-    function dequeueEventIfAvailable(): RogueEvent | null {
-        if (eventQueue.length > 0) {
-            return eventQueue.shift()!.event;
-        }
-        return null;
-    }
-
-    // ---- Coordinate mapping ----
-    function pixelToCell(px: number, py: number): { x: number; y: number } {
-        return {
-            x: Math.min(COLS - 1, Math.max(0, Math.floor(px / cellWidth))),
-            y: Math.min(ROWS - 1, Math.max(0, Math.floor(py / cellHeight))),
-        };
-    }
-
-    // ---- DOM event handlers ----
-
-    function translateKey(domEvent: KeyboardEvent): number | null {
-        switch (domEvent.key) {
-            case "Escape":      return ESCAPE_KEY;
-            case "ArrowUp":     return UP_ARROW;
-            case "ArrowDown":   return DOWN_ARROW;
-            case "ArrowLeft":   return LEFT_ARROW;
-            case "ArrowRight":  return RIGHT_ARROW;
-            case "Enter":       return RETURN_KEY;
-            case "Backspace":   return DELETE_KEY;
-            case "Tab":         return TAB_KEY;
-            case "PrintScreen": return PRINTSCREEN_KEY;
-            default: break;
-        }
-
-        // Numpad digits
-        if (domEvent.code.startsWith("Numpad") && domEvent.key.length === 1 && domEvent.key >= "0" && domEvent.key <= "9") {
-            const numpadKeys = [NUMPAD_0, NUMPAD_1, NUMPAD_2, NUMPAD_3, NUMPAD_4,
-                                NUMPAD_5, NUMPAD_6, NUMPAD_7, NUMPAD_8, NUMPAD_9];
-            return numpadKeys[parseInt(domEvent.key, 10)];
-        }
-
-        // Printable single characters
-        if (domEvent.key.length === 1) {
-            return domEvent.key.charCodeAt(0);
-        }
-
-        return null;
-    }
-
-    function onKeyDown(domEvent: KeyboardEvent): void {
-        const keyCode = translateKey(domEvent);
-        if (keyCode === null) return;
-
-        domEvent.preventDefault();
-
-        enqueueEvent({
-            eventType: EventType.Keystroke,
-            param1: keyCode,
-            param2: 0,
-            controlKey: domEvent.ctrlKey || domEvent.metaKey,
-            shiftKey: domEvent.shiftKey,
-        });
-    }
-
-    function onMouseDown(domEvent: MouseEvent): void {
-        const rect = canvas.getBoundingClientRect();
-        const { x, y } = pixelToCell(domEvent.clientX - rect.left, domEvent.clientY - rect.top);
-        const eventType = domEvent.button === 2 ? EventType.RightMouseDown : EventType.MouseDown;
-
-        enqueueEvent({
-            eventType,
-            param1: x,
-            param2: y,
-            controlKey: domEvent.ctrlKey || domEvent.metaKey,
-            shiftKey: domEvent.shiftKey,
-        });
-    }
-
-    function onMouseUp(domEvent: MouseEvent): void {
-        const rect = canvas.getBoundingClientRect();
-        const { x, y } = pixelToCell(domEvent.clientX - rect.left, domEvent.clientY - rect.top);
-        const eventType = domEvent.button === 2 ? EventType.RightMouseUp : EventType.MouseUp;
-
-        enqueueEvent({
-            eventType,
-            param1: x,
-            param2: y,
-            controlKey: domEvent.ctrlKey || domEvent.metaKey,
-            shiftKey: domEvent.shiftKey,
-        });
-    }
-
-    function onMouseMove(domEvent: MouseEvent): void {
-        const rect = canvas.getBoundingClientRect();
-        const { x, y } = pixelToCell(domEvent.clientX - rect.left, domEvent.clientY - rect.top);
-        if (x !== lastMouseCellX || y !== lastMouseCellY) {
-            lastMouseCellX = x;
-            lastMouseCellY = y;
-            enqueueEvent({
-                eventType: EventType.MouseEnteredCell,
-                param1: x,
-                param2: y,
-                controlKey: domEvent.ctrlKey || domEvent.metaKey,
-                shiftKey: domEvent.shiftKey,
-            });
-        }
-    }
-
-    // ---- Attach DOM listeners ----
-
-    canvas.addEventListener("keydown", onKeyDown);
-    canvas.addEventListener("mousedown", onMouseDown);
-    canvas.addEventListener("mouseup", onMouseUp);
-    canvas.addEventListener("mousemove", onMouseMove);
-    canvas.addEventListener("contextmenu", (e) => e.preventDefault());
-
-    // Make the canvas focusable so it can receive keyboard events
-    if (!canvas.hasAttribute("tabindex")) {
-        canvas.setAttribute("tabindex", "0");
-    }
-
-    // ---- Modifier state ----
-    let shiftHeld = false;
-    let ctrlHeld = false;
-
-    document.addEventListener("keydown", (e) => {
-        if (e.key === "Shift") shiftHeld = true;
-        if (e.key === "Control" || e.key === "Meta") ctrlHeld = true;
+    return new Promise<RogueEvent>((resolve) => {
+      resolveWait = resolve;
     });
-    document.addEventListener("keyup", (e) => {
-        if (e.key === "Shift") shiftHeld = false;
-        if (e.key === "Control" || e.key === "Meta") ctrlHeld = false;
-    });
+  }
 
-    // ---- Build the console ----
-    const browserConsole: BrogueConsole & { waitForEvent(): Promise<RogueEvent>; handleResize(): void } = {
-        waitForEvent: _waitForEvent,
-        handleResize: recalcCellSize,
+  function dequeueEventIfAvailable(): RogueEvent | null {
+    if (eventQueue.length > 0) {
+      return eventQueue.shift()!.event;
+    }
+    return null;
+  }
 
-        gameLoop(): void {
-            if (onGameLoop) onGameLoop();
-        },
-
-        pauseForMilliseconds(_milliseconds: number, behavior: PauseBehavior): boolean {
-            // In a synchronous C port, this blocks. In the browser, we check the
-            // event queue and return immediately. The actual delay is handled by
-            // the caller via async scheduling.
-            const ev = dequeueEventIfAvailable();
-            if (ev) {
-                if (ev.eventType !== EventType.MouseEnteredCell || behavior.interruptForMouseMove) {
-                    // Put it back — the caller will consume it via nextKeyOrMouseEvent
-                    eventQueue.unshift({ event: ev });
-                    return true;
-                }
-            }
-            return false;
-        },
-
-        nextKeyOrMouseEvent(_textInput: boolean, _colorsDance: boolean): RogueEvent {
-            // For the synchronous API shape, pop from queue if available.
-            // The actual async waiting version is `waitForEvent()`.
-            const ev = dequeueEventIfAvailable();
-            if (ev) return ev;
-
-            // Fallback: return a no-op event. In practice, callers should use
-            // the async adapter that calls `waitForEvent()`.
-            return {
-                eventType: EventType.Keystroke,
-                param1: 0,
-                param2: 0,
-                controlKey: false,
-                shiftKey: false,
-            };
-        },
-
-        plotChar(
-            inputChar: DisplayGlyph,
-            x: number, y: number,
-            foreRed: number, foreGreen: number, foreBlue: number,
-            backRed: number, backGreen: number, backBlue: number,
-        ): void {
-            // Brogue colors are 0–100 percentages; convert to 0–255
-            const fr = Math.round(foreRed * 255 / 100);
-            const fg = Math.round(foreGreen * 255 / 100);
-            const fb = Math.round(foreBlue * 255 / 100);
-            const br = Math.round(backRed * 255 / 100);
-            const bg = Math.round(backGreen * 255 / 100);
-            const bb = Math.round(backBlue * 255 / 100);
-
-            const px = x * cellWidth;
-            const py = y * cellHeight;
-
-            // Draw background
-            ctx2d.fillStyle = `rgb(${br},${bg},${bb})`;
-            ctx2d.fillRect(px, py, cellWidth, cellHeight);
-
-            // Draw character
-            const unicode = glyphToUnicode(inputChar);
-            if (unicode > 0x20) { // skip space / control chars
-                const ch = String.fromCodePoint(unicode);
-                ctx2d.fillStyle = `rgb(${fr},${fg},${fb})`;
-                ctx2d.font = `${fontSize}px ${fontFamily}`;
-                ctx2d.textBaseline = "top";
-                ctx2d.textAlign = "center";
-                ctx2d.fillText(ch, px + cellWidth / 2, py + (cellHeight - fontSize) / 2);
-            }
-        },
-
-        remap(_from: string, _to: string): void {
-            // Key remapping is not used in the browser build
-        },
-
-        modifierHeld(modifier: number): boolean {
-            if (modifier === 0) return shiftHeld;
-            if (modifier === 1) return ctrlHeld;
-            return false;
-        },
-
-        notifyEvent(
-            _eventId: number,
-            _data1: number, _data2: number,
-            _str1: string, _str2: string,
-        ): void {
-            // Optional: could dispatch a CustomEvent on the canvas
-        },
-
-        takeScreenshot(): boolean {
-            // Trigger a download of the canvas as a PNG
-            try {
-                const link = document.createElement("a");
-                link.download = "brogue-screenshot.png";
-                link.href = canvas.toDataURL("image/png");
-                link.click();
-                return true;
-            } catch {
-                return false;
-            }
-        },
-
-        setGraphicsMode(_mode: GraphicsMode): GraphicsMode {
-            // Text-only rendering for now
-            return GraphicsMode.Text;
-        },
+  // ---- Coordinate mapping ----
+  function pixelToCell(px: number, py: number): { x: number; y: number } {
+    return {
+      x: Math.min(COLS - 1, Math.max(0, Math.floor(px / cellWidth))),
+      y: Math.min(ROWS - 1, Math.max(0, Math.floor(py / cellHeight))),
     };
+  }
 
-    return browserConsole;
+  // ---- DOM event handlers ----
+
+  function translateKey(domEvent: KeyboardEvent): number | null {
+    switch (domEvent.key) {
+      case "Escape":
+        return ESCAPE_KEY;
+      case "ArrowUp":
+        return UP_ARROW;
+      case "ArrowDown":
+        return DOWN_ARROW;
+      case "ArrowLeft":
+        return LEFT_ARROW;
+      case "ArrowRight":
+        return RIGHT_ARROW;
+      case "Enter":
+        return RETURN_KEY;
+      case "Backspace":
+        return DELETE_KEY;
+      case "Tab":
+        return TAB_KEY;
+      case "PrintScreen":
+        return PRINTSCREEN_KEY;
+      default:
+        break;
+    }
+
+    // Numpad digits
+    if (
+      domEvent.code.startsWith("Numpad") &&
+      domEvent.key.length === 1 &&
+      domEvent.key >= "0" &&
+      domEvent.key <= "9"
+    ) {
+      const numpadKeys = [
+        NUMPAD_0,
+        NUMPAD_1,
+        NUMPAD_2,
+        NUMPAD_3,
+        NUMPAD_4,
+        NUMPAD_5,
+        NUMPAD_6,
+        NUMPAD_7,
+        NUMPAD_8,
+        NUMPAD_9,
+      ];
+      return numpadKeys[parseInt(domEvent.key, 10)];
+    }
+
+    // Printable single characters
+    if (domEvent.key.length === 1) {
+      return domEvent.key.charCodeAt(0);
+    }
+
+    return null;
+  }
+
+  function onKeyDown(domEvent: KeyboardEvent): void {
+    const keyCode = translateKey(domEvent);
+    if (keyCode === null) return;
+
+    domEvent.preventDefault();
+
+    enqueueEvent({
+      eventType: EventType.Keystroke,
+      param1: keyCode,
+      param2: 0,
+      controlKey: domEvent.ctrlKey || domEvent.metaKey,
+      shiftKey: domEvent.shiftKey,
+    });
+  }
+
+  function onMouseDown(domEvent: MouseEvent): void {
+    const rect = canvas.getBoundingClientRect();
+    const { x, y } = pixelToCell(
+      domEvent.clientX - rect.left,
+      domEvent.clientY - rect.top,
+    );
+    const eventType =
+      domEvent.button === 2 ? EventType.RightMouseDown : EventType.MouseDown;
+
+    enqueueEvent({
+      eventType,
+      param1: x,
+      param2: y,
+      controlKey: domEvent.ctrlKey || domEvent.metaKey,
+      shiftKey: domEvent.shiftKey,
+    });
+  }
+
+  function onMouseUp(domEvent: MouseEvent): void {
+    const rect = canvas.getBoundingClientRect();
+    const { x, y } = pixelToCell(
+      domEvent.clientX - rect.left,
+      domEvent.clientY - rect.top,
+    );
+    const eventType =
+      domEvent.button === 2 ? EventType.RightMouseUp : EventType.MouseUp;
+
+    enqueueEvent({
+      eventType,
+      param1: x,
+      param2: y,
+      controlKey: domEvent.ctrlKey || domEvent.metaKey,
+      shiftKey: domEvent.shiftKey,
+    });
+  }
+
+  function onMouseMove(domEvent: MouseEvent): void {
+    const rect = canvas.getBoundingClientRect();
+    const { x, y } = pixelToCell(
+      domEvent.clientX - rect.left,
+      domEvent.clientY - rect.top,
+    );
+    if (x !== lastMouseCellX || y !== lastMouseCellY) {
+      lastMouseCellX = x;
+      lastMouseCellY = y;
+      enqueueEvent({
+        eventType: EventType.MouseEnteredCell,
+        param1: x,
+        param2: y,
+        controlKey: domEvent.ctrlKey || domEvent.metaKey,
+        shiftKey: domEvent.shiftKey,
+      });
+    }
+  }
+
+  // ---- Attach DOM listeners ----
+
+  canvas.addEventListener("keydown", onKeyDown);
+  canvas.addEventListener("mousedown", onMouseDown);
+  canvas.addEventListener("mouseup", onMouseUp);
+  canvas.addEventListener("mousemove", onMouseMove);
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // Make the canvas focusable so it can receive keyboard events
+  if (!canvas.hasAttribute("tabindex")) {
+    canvas.setAttribute("tabindex", "0");
+  }
+
+  // ---- Modifier state ----
+  let shiftHeld = false;
+  let ctrlHeld = false;
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Shift") shiftHeld = true;
+    if (e.key === "Control" || e.key === "Meta") ctrlHeld = true;
+  });
+  document.addEventListener("keyup", (e) => {
+    if (e.key === "Shift") shiftHeld = false;
+    if (e.key === "Control" || e.key === "Meta") ctrlHeld = false;
+  });
+
+  // ---- Build the console ----
+  const browserConsole: BrogueConsole & {
+    waitForEvent(): Promise<RogueEvent>;
+    handleResize(): void;
+  } = {
+    waitForEvent: _waitForEvent,
+    handleResize: recalcCellSize,
+
+    gameLoop(): void {
+      if (onGameLoop) onGameLoop();
+    },
+
+    pauseForMilliseconds(
+      _milliseconds: number,
+      behavior: PauseBehavior,
+    ): boolean {
+      // In a synchronous C port, this blocks. In the browser, we check the
+      // event queue and return immediately. The actual delay is handled by
+      // the caller via async scheduling.
+      const ev = dequeueEventIfAvailable();
+      if (ev) {
+        if (
+          ev.eventType !== EventType.MouseEnteredCell ||
+          behavior.interruptForMouseMove
+        ) {
+          // Put it back — the caller will consume it via nextKeyOrMouseEvent
+          eventQueue.unshift({ event: ev });
+          return true;
+        }
+      }
+      return false;
+    },
+
+    nextKeyOrMouseEvent(
+      _textInput: boolean,
+      _colorsDance: boolean,
+    ): RogueEvent {
+      // For the synchronous API shape, pop from queue if available.
+      // The actual async waiting version is `waitForEvent()`.
+      const ev = dequeueEventIfAvailable();
+      if (ev) return ev;
+
+      // Fallback: return a no-op event. In practice, callers should use
+      // the async adapter that calls `waitForEvent()`.
+      return {
+        eventType: EventType.Keystroke,
+        param1: 0,
+        param2: 0,
+        controlKey: false,
+        shiftKey: false,
+      };
+    },
+
+    plotChar(
+      inputChar: DisplayGlyph,
+      x: number,
+      y: number,
+      foreRed: number,
+      foreGreen: number,
+      foreBlue: number,
+      backRed: number,
+      backGreen: number,
+      backBlue: number,
+    ): void {
+      const fr = Math.round((foreRed * 255) / 100);
+      const fg = Math.round((foreGreen * 255) / 100);
+      const fb = Math.round((foreBlue * 255) / 100);
+      const br = Math.round((backRed * 255) / 100);
+      const bg = Math.round((backGreen * 255) / 100);
+      const bb = Math.round((backBlue * 255) / 100);
+
+      const px = x * cellWidth;
+      const py = y * cellHeight;
+
+      ctx2d.fillStyle = `rgb(${br},${bg},${bb})`;
+      ctx2d.fillRect(px, py, cellWidth, cellHeight);
+
+      const useTiles =
+        tiles &&
+        spriteMap &&
+        isInDungeonViewport(x, y) &&
+        (currentGraphicsMode === GraphicsMode.Tiles ||
+          (currentGraphicsMode === GraphicsMode.Hybrid &&
+            isEnvironmentGlyph(inputChar)));
+
+      if (useTiles) {
+        const ref = spriteMap.get(inputChar);
+        const img = ref ? tiles.get(ref.sheetKey) : undefined;
+        if (img && ref) {
+          // Phase 3: tint sprite with Brogue foreground color (lighting/effects) via multiply
+          tintCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
+          tintCtx.drawImage(
+            img,
+            ref.tileX * TILE_SIZE,
+            ref.tileY * TILE_SIZE,
+            TILE_SIZE,
+            TILE_SIZE,
+            0,
+            0,
+            TILE_SIZE,
+            TILE_SIZE,
+          );
+          tintCtx.save();
+          tintCtx.globalCompositeOperation = "multiply";
+          tintCtx.fillStyle = `rgb(${fr},${fg},${fb})`;
+          tintCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+          tintCtx.restore();
+          ctx2d.drawImage(
+            tintCanvas,
+            0,
+            0,
+            TILE_SIZE,
+            TILE_SIZE,
+            px,
+            py,
+            cellWidth,
+            cellHeight,
+          );
+        } else {
+          // Unmapped glyph in viewport: draw as text so monsters, items, hover path stay readable
+          const unicode = glyphToUnicode(inputChar);
+          if (unicode > 0x20) {
+            const ch = String.fromCodePoint(unicode);
+            ctx2d.fillStyle = `rgb(${fr},${fg},${fb})`;
+            ctx2d.font = `${fontSize}px ${fontFamily}`;
+            ctx2d.textBaseline = "top";
+            ctx2d.textAlign = "center";
+            ctx2d.fillText(
+              ch,
+              px + cellWidth / 2,
+              py + (cellHeight - fontSize) / 2,
+            );
+          }
+        }
+      } else {
+        const unicode = glyphToUnicode(inputChar);
+        if (unicode > 0x20) {
+          const ch = String.fromCodePoint(unicode);
+          ctx2d.fillStyle = `rgb(${fr},${fg},${fb})`;
+          ctx2d.font = `${fontSize}px ${fontFamily}`;
+          ctx2d.textBaseline = "top";
+          ctx2d.textAlign = "center";
+          ctx2d.fillText(
+            ch,
+            px + cellWidth / 2,
+            py + (cellHeight - fontSize) / 2,
+          );
+        }
+      }
+    },
+
+    remap(_from: string, _to: string): void {
+      // Key remapping is not used in the browser build
+    },
+
+    modifierHeld(modifier: number): boolean {
+      if (modifier === 0) return shiftHeld;
+      if (modifier === 1) return ctrlHeld;
+      return false;
+    },
+
+    notifyEvent(
+      _eventId: number,
+      _data1: number,
+      _data2: number,
+      _str1: string,
+      _str2: string,
+    ): void {
+      // Optional: could dispatch a CustomEvent on the canvas
+    },
+
+    takeScreenshot(): boolean {
+      // Trigger a download of the canvas as a PNG
+      try {
+        const link = document.createElement("a");
+        link.download = "brogue-screenshot.png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+        return true;
+      } catch {
+        return false;
+      }
+    },
+
+    setGraphicsMode(mode: GraphicsMode): GraphicsMode {
+      currentGraphicsMode = mode;
+      return currentGraphicsMode;
+    },
+  };
+
+  return browserConsole;
 }
 
 // =============================================================================
@@ -415,5 +584,5 @@ export function createBrowserConsole(options: BrowserRendererOptions): BrogueCon
  * if an input event arrives and `behavior.interruptForMouseMove` is set.
  */
 export function asyncPause(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
