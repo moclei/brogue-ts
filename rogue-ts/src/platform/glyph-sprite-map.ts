@@ -1,6 +1,7 @@
 /*
  *  glyph-sprite-map.ts — DisplayGlyph → DawnLike sprite region for tile rendering
  *  Pixel-art smoke test — Initiative: initiatives/pixel-art-smoke-test
+ *  Foreground tile layers — Initiative: initiatives/pixel-art-foreground-tiles
  *
  *  Why DisplayGlyph, not TileType?
  *  - TileType = game logic (DEEP_WATER, SHALLOW_WATER, FLOOR, etc.): what the cell *is*.
@@ -20,9 +21,37 @@
  *  - tile("Floor", 0, 1) → one tile down (column 0, row 1).
  *  To pick a sprite: open the PNG, count 16px columns and rows from the top-left;
  *  use that (column, row) as (tileX, tileY).
+ *
+ *  Foreground tile layers: some TileTypes (e.g. FOLIAGE) are drawn as overlays with
+ *  transparency. For those we map "foreground TileType → background TileType"; the
+ *  renderer draws the background tile's sprite first, then the foreground sprite.
  */
 
-import { DisplayGlyph } from "../types/enums.js";
+import { DisplayGlyph, TileType } from "../types/enums.js";
+
+// -----------------------------------------------------------------------------
+// Foreground → background TileType map (transparent overlay sprites)
+// -----------------------------------------------------------------------------
+
+/** Build the foreground TileType → background TileType map. Foreground tiles (e.g. foliage)
+ *  are drawn on top of a background tile's sprite so transparent pixels show ground. */
+export function buildForegroundBackgroundMap(): Map<TileType, TileType> {
+  const m = new Map<TileType, TileType>();
+  m.set(TileType.FOLIAGE, TileType.FLOOR);
+  m.set(TileType.DEAD_FOLIAGE, TileType.FLOOR);
+  m.set(TileType.TRAMPLED_FOLIAGE, TileType.FLOOR);
+  return m;
+}
+
+const foregroundBackgroundMap = buildForegroundBackgroundMap();
+
+/** Returns the background TileType to draw under a foreground overlay, or undefined if
+ *  this TileType is not a foreground overlay (single-sprite behavior). */
+export function getBackgroundTileType(
+  foreground: TileType,
+): TileType | undefined {
+  return foregroundBackgroundMap.get(foreground);
+}
 
 export interface SpriteRef {
   sheetKey: string;
@@ -33,6 +62,70 @@ export interface SpriteRef {
 /** Build a sprite reference. Args are (sheet, column, row) — column first, then row. Default (0, 0) = top-left. */
 function tile(sheetKey: string, tileX = 0, tileY = 0): SpriteRef {
   return { sheetKey, tileX, tileY };
+}
+
+/**
+ * Build the TileType → sprite lookup for one-to-one terrain/feature sprites.
+ * Unmapped TileTypes fall back to the DisplayGlyph-based sprite in the renderer.
+ * Uses same DawnLike sheets as buildGlyphSpriteMap; pick distinct (tileX, tileY) per TileType.
+ */
+export function buildTileTypeSpriteMap(): Map<TileType, SpriteRef> {
+  const m = new Map<TileType, SpriteRef>();
+
+  // Floors and walls (match glyph map so fallback looks same when not overridden)
+  m.set(TileType.FLOOR, tile("Floor", 15, 13));
+  m.set(TileType.CARPET, tile("Tile", 3, 2));
+  m.set(TileType.MARBLE_FLOOR, tile("Tile", 7, 2));
+  m.set(TileType.WALL, tile("Wall", 10, 15));
+  m.set(TileType.TORCH_WALL, tile("Wall", 8, 18));
+  m.set(TileType.GRANITE, tile("Wall", 10, 15));
+
+  // Vegetation / terrain variety
+  m.set(TileType.GRASS, tile("Ground0", 1, 1));
+  m.set(TileType.DEAD_GRASS, tile("Ground0", 3, 1));
+  m.set(TileType.FOLIAGE, tile("Ground0", 0, 1));
+  m.set(TileType.DEAD_FOLIAGE, tile("Ground0", 2, 1));
+  m.set(TileType.TRAMPLED_FOLIAGE, tile("Ground0", 0, 0));
+  m.set(TileType.BLOODFLOWER_STALK, tile("Ground0", 3, 3));
+  m.set(TileType.BLOODFLOWER_POD, tile("Ground0", 0, 3));
+
+  // Liquids — one sprite each (normally share G_LIQUID)
+  m.set(TileType.DEEP_WATER, tile("Pit1", 1, 17));
+  m.set(TileType.SHALLOW_WATER, tile("Pit1", 2, 16));
+  m.set(TileType.LAVA, tile("Pit1", 1, 18));
+  m.set(TileType.MUD, tile("Ground0", 8, 0));
+  m.set(TileType.FLOOD_WATER_DEEP, tile("Pit1", 1, 29));
+  m.set(TileType.FLOOD_WATER_SHALLOW, tile("Pit1", 1, 17));
+
+  // Chasm
+  m.set(TileType.CHASM, tile("Pit1", 1, 1));
+  m.set(TileType.CHASM_EDGE, tile("Pit1", 1, 2));
+
+  // Doors
+  m.set(TileType.DOOR, tile("Door0", 0, 0));
+  m.set(TileType.OPEN_DOOR, tile("Door0", 1, 0));
+  m.set(TileType.LOCKED_DOOR, tile("Door0", 2, 0));
+
+  // Stairs
+  m.set(TileType.UP_STAIRS, tile("Tile", 6, 3));
+  m.set(TileType.DOWN_STAIRS, tile("Tile", 7, 3));
+  m.set(TileType.DUNGEON_EXIT, tile("Door0", 5, 5));
+
+  // Bridge
+  m.set(TileType.BRIDGE, tile("Tile", 0, 3));
+  m.set(TileType.STONE_BRIDGE, tile("Tile", 5, 2));
+
+  // Misc Items
+  m.set(TileType.STATUE_INERT, tile("Decor0", 4, 20));
+  m.set(TileType.STATUE_DORMANT, tile("Decor0", 4, 20));
+
+  // Effects
+  m.set(TileType.PLAIN_FIRE, tile("Effect0", 0, 21));
+  m.set(TileType.CONFUSION_GAS, tile("Effect0", 0, 24));
+  m.set(TileType.PARALYSIS_GAS, tile("Effect0", 0, 24));
+  m.set(TileType.HEALING_CLOUD, tile("Effect0", 1, 24));
+
+  return m;
 }
 
 /**

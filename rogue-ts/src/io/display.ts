@@ -22,6 +22,7 @@
 
 import type { CellDisplayBuffer, ScreenDisplayBuffer, SavedDisplayBuffer, Pos, WindowPos, Color } from "../types/types.js";
 import { DisplayGlyph } from "../types/enums.js";
+import type { TileType } from "../types/enums.js";
 import { COLS, ROWS, STAT_BAR_WIDTH, MESSAGE_LINES } from "../types/constants.js";
 import { clamp, cosmeticRandRange } from "../math/rng.js";
 import {
@@ -67,14 +68,17 @@ export function createScreenDisplayBuffer(): ScreenDisplayBuffer {
 export function clearDisplayBuffer(dbuf: ScreenDisplayBuffer): void {
     for (let i = 0; i < COLS; i++) {
         for (let j = 0; j < ROWS; j++) {
-            dbuf.cells[i][j].character = 32 as DisplayGlyph; // space
-            dbuf.cells[i][j].foreColorComponents[0] = 0;
-            dbuf.cells[i][j].foreColorComponents[1] = 0;
-            dbuf.cells[i][j].foreColorComponents[2] = 0;
-            dbuf.cells[i][j].backColorComponents[0] = 0;
-            dbuf.cells[i][j].backColorComponents[1] = 0;
-            dbuf.cells[i][j].backColorComponents[2] = 0;
-            dbuf.cells[i][j].opacity = 0;
+            const c = dbuf.cells[i][j];
+            c.character = 32 as DisplayGlyph; // space
+            c.foreColorComponents[0] = 0;
+            c.foreColorComponents[1] = 0;
+            c.foreColorComponents[2] = 0;
+            c.backColorComponents[0] = 0;
+            c.backColorComponents[1] = 0;
+            c.backColorComponents[2] = 0;
+            c.opacity = 0;
+            delete c.tileType;
+            delete c.underlyingTerrain;
         }
     }
 }
@@ -97,6 +101,8 @@ export function copyDisplayBuffer(toBuf: ScreenDisplayBuffer, fromBuf: Readonly<
             dst.backColorComponents[1] = src.backColorComponents[1];
             dst.backColorComponents[2] = src.backColorComponents[2];
             dst.opacity = src.opacity;
+            dst.tileType = src.tileType;
+            dst.underlyingTerrain = src.underlyingTerrain;
         }
     }
 }
@@ -202,6 +208,8 @@ export function applyOverlay(
 /**
  * Plot a character with fore/back color into a ScreenDisplayBuffer at (x, y).
  * Bakes random color components using the RNG.
+ * Optional tileType is stored for tile/hybrid renderer sprite lookup.
+ * Optional underlyingTerrain is stored for creature cells (terrain under mob).
  *
  * C: `plotCharToBuffer` in IO.c
  */
@@ -212,6 +220,8 @@ export function plotCharToBuffer(
     foreColor: Readonly<Color>,
     backColor: Readonly<Color>,
     dbuf: ScreenDisplayBuffer,
+    tileType?: TileType,
+    underlyingTerrain?: TileType,
 ): void {
     if (!locIsInWindow({ windowX: x, windowY: y })) return;
 
@@ -223,6 +233,10 @@ export function plotCharToBuffer(
     cell.backColorComponents[1] = backColor.green + cosmeticRandRange(0, backColor.greenRand) + cosmeticRandRange(0, backColor.rand);
     cell.backColorComponents[2] = backColor.blue + cosmeticRandRange(0, backColor.blueRand) + cosmeticRandRange(0, backColor.rand);
     cell.character = inputChar;
+    if (tileType !== undefined) cell.tileType = tileType;
+    else delete cell.tileType;
+    if (underlyingTerrain !== undefined) cell.underlyingTerrain = underlyingTerrain;
+    else delete cell.underlyingTerrain;
 }
 
 // =============================================================================
@@ -351,6 +365,8 @@ export function terrainColorsDancing(foreColor: Readonly<Color>, backColor: Read
 /**
  * Bake random color components and write a character + colors into the
  * main display buffer cell at window position (x, y).
+ * Optional tileType is stored for tile/hybrid renderer sprite lookup.
+ * Optional underlyingTerrain is stored for creature cells (terrain under mob).
  *
  * C: `plotCharWithColor` in IO.c
  */
@@ -360,6 +376,8 @@ export function plotCharWithColor(
     cellForeColor: Readonly<Color>,
     cellBackColor: Readonly<Color>,
     displayBuffer: ScreenDisplayBuffer,
+    tileType?: TileType,
+    underlyingTerrain?: TileType,
 ): boolean {
     if (!locIsInWindow(loc)) return false;
 
@@ -405,6 +423,10 @@ export function plotCharWithColor(
     target.backColorComponents[0] = backRed;
     target.backColorComponents[1] = backGreen;
     target.backColorComponents[2] = backBlue;
+    if (tileType !== undefined) target.tileType = tileType;
+    else delete target.tileType;
+    if (underlyingTerrain !== undefined) target.underlyingTerrain = underlyingTerrain;
+    else delete target.underlyingTerrain;
 
     return true;
 }
@@ -458,6 +480,8 @@ export function blackOutScreen(displayBuffer: ScreenDisplayBuffer): void {
             cell.backColorComponents[0] = 0;
             cell.backColorComponents[1] = 0;
             cell.backColorComponents[2] = 0;
+            delete cell.tileType;
+            delete cell.underlyingTerrain;
         }
     }
 }

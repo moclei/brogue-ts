@@ -28,7 +28,7 @@ import { buildMenuContext } from "./menus.js";
 import { mainBrogueJunction } from "./menus/main-menu.js";
 import { COLS, ROWS } from "./types/constants.js";
 import { loadTilesetImages } from "./platform/tileset-loader.js";
-import { buildGlyphSpriteMap } from "./platform/glyph-sprite-map.js";
+import { buildGlyphSpriteMap, buildTileTypeSpriteMap } from "./platform/glyph-sprite-map.js";
 
 // =============================================================================
 // Canvas setup
@@ -101,6 +101,7 @@ async function main(): Promise<void> {
         console.warn("[rogue-ts] Tileset failed to load; tile mode will show placeholders.", e);
     }
     const spriteMap = buildGlyphSpriteMap();
+    const tileTypeSpriteMap = buildTileTypeSpriteMap();
 
     // 2. Set up the browser canvas renderer and event bridge
     const canvasEl = document.getElementById("brogue-canvas");
@@ -113,6 +114,7 @@ async function main(): Promise<void> {
         devicePixelRatio: dpr,
         tiles,
         spriteMap,
+        tileTypeSpriteMap,
     });
 
     // 3. Wire the platform module (event queue + plotChar for commitDraws)

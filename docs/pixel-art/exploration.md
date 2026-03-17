@@ -16,6 +16,7 @@
 |---|-----------|--------|--------------|
 | 1 | Smoke test | **complete** | DawnLike 16x16; spritesheet + G-mode switch; viewport-only; tinting via multiply (source-atop was flat). |
 | 2 | One-to-one TileType → sprite | **planned** | Initiative: `initiatives/pixel-art-one-to-one/`. Option B (thread TileType through pipeline). |
+| 2b | Foreground tile layers | **complete** | fg→bg TileType map; two-step draw (background then foreground sprite); underlyingTerrain for creature cells; multiply transparency fix (`destination-in` alpha restore). |
 | 3 | Multi-tile sprites | not started | — |
 | 4 | Renderer abstraction (optional) | not started | Refactor: formal Renderer interface + swappable impls. Mode switch already works. |
 | 5 | Animation system | not started | — |
@@ -295,6 +296,19 @@ without enum explosion. Process and steps: see `initiatives/pixel-art-smoke-test
 
 **What it proves:** Terrain and features can be fully differentiated visually without
 relying only on color.
+
+### Initiative 2b: Foreground tile layers
+
+**Intent:** Support sprites with transparent regions (e.g. foliage) by drawing them on
+top of a background tile’s sprite instead of the cell’s flat background color.
+
+A mapping “foreground TileType → background TileType” (e.g. FOLIAGE → FLOOR). In the
+renderer, when drawing a foreground TileType, first draw the background tile’s sprite,
+then the foreground sprite; same fg/bg and multiply for both. Transparent pixels in
+the foreground then show the ground sprite. Initiative: `initiatives/pixel-art-foreground-tiles/`.
+
+**What it proves:** Overlay-style art works without editing assets; one cell can
+effectively show “ground + thing on top.”
 
 ### Initiative 3: Multi-Tile Sprites
 
