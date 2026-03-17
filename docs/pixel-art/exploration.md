@@ -15,7 +15,7 @@
 | # | Initiative | Status | Key Findings |
 |---|-----------|--------|--------------|
 | 1 | Smoke test | **complete** | DawnLike 16x16; spritesheet + G-mode switch; viewport-only; tinting via multiply (source-atop was flat). |
-| 2 | One-to-one TileType → sprite | not started | Process in smoke-test PLAN § "One-to-one TileType → sprite". |
+| 2 | One-to-one TileType → sprite | **planned** | Initiative: `initiatives/pixel-art-one-to-one/`. Option B (thread TileType through pipeline). |
 | 3 | Multi-tile sprites | not started | — |
 | 4 | Renderer abstraction (optional) | not started | Refactor: formal Renderer interface + swappable impls. Mode switch already works. |
 | 5 | Animation system | not started | — |
