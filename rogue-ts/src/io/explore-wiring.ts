@@ -44,7 +44,7 @@ export async function exploreKey(
     ctrl: boolean,
     ctx: TravelExploreContext,
     message: (msg: string, flags: number) => void | Promise<void>,
-    rogue: { gameHasEnded: boolean },
+    _rogue: { gameHasEnded: boolean },
     _playerLoc: Pos,  // unused; was stale after first player move in original
 ): Promise<void> {
     // C: adjacentFightingDir check — if fighting, skip the path check and
