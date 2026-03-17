@@ -24,5 +24,6 @@
 
 ## Phase 4: Verify and extend
 
-- [ ] Playtest: foliage (and other foreground terrain) render over ground; creature cells show terrain under mob, then mob sprite
-- [ ] Add more foreground→background entries as needed; document how to extend
+- [x] Playtest: foliage (and other foreground terrain) render over ground; creature cells show terrain under mob, then mob sprite
+- [x] Fix: multiply tint was destroying sprite transparency (`destination-in` alpha mask restore)
+- [x] Add more foreground→background entries as needed; document how to extend

@@ -47,7 +47,9 @@ const foregroundBackgroundMap = buildForegroundBackgroundMap();
 
 /** Returns the background TileType to draw under a foreground overlay, or undefined if
  *  this TileType is not a foreground overlay (single-sprite behavior). */
-export function getBackgroundTileType(foreground: TileType): TileType | undefined {
+export function getBackgroundTileType(
+  foreground: TileType,
+): TileType | undefined {
   return foregroundBackgroundMap.get(foreground);
 }
 
@@ -74,8 +76,8 @@ export function buildTileTypeSpriteMap(): Map<TileType, SpriteRef> {
   m.set(TileType.FLOOR, tile("Floor", 15, 13));
   m.set(TileType.CARPET, tile("Tile", 3, 2));
   m.set(TileType.MARBLE_FLOOR, tile("Tile", 7, 2));
-  m.set(TileType.WALL, tile("Wall", 10, 24));
-  m.set(TileType.TORCH_WALL, tile("Wall", 8, 25));
+  m.set(TileType.WALL, tile("Wall", 10, 15));
+  m.set(TileType.TORCH_WALL, tile("Wall", 8, 18));
   m.set(TileType.GRANITE, tile("Wall", 10, 15));
 
   // Vegetation / terrain variety

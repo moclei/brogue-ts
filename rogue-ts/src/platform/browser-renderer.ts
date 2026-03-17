@@ -51,6 +51,18 @@ import { getBackgroundTileType } from "./glyph-sprite-map.js";
 // Constants
 // =============================================================================
 
+/** Set true to log when two-layer draws happen (foreground terrain or creature underlyingTerrain). */
+const DEBUG_LAYERED_DRAW = false;
+/** When true (and DEBUG_LAYERED_DRAW), draw creature at 70% opacity so terrain underneath is visible. */
+const DEBUG_SHOW_TERRAIN_UNDER_CREATURE = false;
+/**
+ * When true: in Tiles/Hybrid dungeon viewport, skip the per-cell back-color fill and
+ * clear the cell instead. Transparent sprite pixels then show layers below (or canvas
+ * background). Use to verify foreground+background terrain and creature-under-terrain draws.
+ * Sidebar/message rows still get the normal fill.
+ */
+const DEBUG_SKIP_TILE_CELL_BACK_FILL = false;
+
 /** Default monospace font for the grid. */
 const DEFAULT_FONT = "monospace";
 
@@ -464,9 +476,6 @@ export function createBrowserConsole(
       const px = x * cellWidth;
       const py = y * cellHeight;
 
-      ctx2d.fillStyle = `rgb(${br},${bg},${bb})`;
-      ctx2d.fillRect(px, py, cellWidth, cellHeight);
-
       const useTiles =
         tiles &&
         spriteMap &&
@@ -474,6 +483,13 @@ export function createBrowserConsole(
         (currentGraphicsMode === GraphicsMode.Tiles ||
           (currentGraphicsMode === GraphicsMode.Hybrid &&
             isEnvironmentGlyph(inputChar)));
+
+      if (useTiles && DEBUG_SKIP_TILE_CELL_BACK_FILL) {
+        ctx2d.clearRect(px, py, cellWidth, cellHeight);
+      } else {
+        ctx2d.fillStyle = `rgb(${br},${bg},${bb})`;
+        ctx2d.fillRect(px, py, cellWidth, cellHeight);
+      }
 
       if (useTiles) {
         // One-to-one: try TileType first when provided, then fall back to DisplayGlyph
@@ -486,8 +502,13 @@ export function createBrowserConsole(
         }
         const img = ref ? tiles.get(ref.sheetKey) : undefined;
 
-        // Helper: draw one sprite with multiply tint to the cell (same fg/bg for both layers)
-        const drawSpriteTinted = (sourceImg: HTMLImageElement, spriteRef: SpriteRef) => {
+        // Helper: draw one sprite with multiply tint to the cell (same fg/bg for both layers).
+        // Optional alpha applies to the final blit to ctx2d (for debug: show terrain under creature).
+        const drawSpriteTinted = (
+          sourceImg: HTMLImageElement,
+          spriteRef: SpriteRef,
+          alpha?: number,
+        ) => {
           tintCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
           tintCtx.drawImage(
             sourceImg,
@@ -504,7 +525,28 @@ export function createBrowserConsole(
           tintCtx.globalCompositeOperation = "multiply";
           tintCtx.fillStyle = `rgb(${fr},${fg},${fb})`;
           tintCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+          // Restore original alpha mask: multiply fills transparent areas with the
+          // tint color (destroying transparency). Drawing the sprite again with
+          // destination-in clips the result to the sprite's original opaque pixels.
+          tintCtx.globalCompositeOperation = "destination-in";
+          tintCtx.drawImage(
+            sourceImg,
+            spriteRef.tileX * TILE_SIZE,
+            spriteRef.tileY * TILE_SIZE,
+            TILE_SIZE,
+            TILE_SIZE,
+            0,
+            0,
+            TILE_SIZE,
+            TILE_SIZE,
+          );
           tintCtx.restore();
+          const useAlpha =
+            alpha !== undefined &&
+            alpha < 1 &&
+            DEBUG_LAYERED_DRAW &&
+            DEBUG_SHOW_TERRAIN_UNDER_CREATURE;
+          if (useAlpha) ctx2d.globalAlpha = alpha;
           ctx2d.drawImage(
             tintCanvas,
             0,
@@ -516,33 +558,48 @@ export function createBrowserConsole(
             cellWidth,
             cellHeight,
           );
+          if (useAlpha) ctx2d.globalAlpha = 1;
         };
 
         if (img && ref) {
+          let drewExtraLayer = false;
           // Creature cells: draw terrain under the mob first, then creature sprite
           if (underlyingTerrain !== undefined && tileTypeSpriteMap && tiles) {
             const terrainRef = tileTypeSpriteMap.get(underlyingTerrain);
-            const terrainImg = terrainRef ? tiles.get(terrainRef.sheetKey) : undefined;
+            const terrainImg = terrainRef
+              ? tiles.get(terrainRef.sheetKey)
+              : undefined;
             if (terrainImg && terrainRef) {
               drawSpriteTinted(terrainImg, terrainRef);
+              drewExtraLayer = true;
             }
           }
           // Foreground tile layers: if this TileType has a background, draw background sprite first
           const backgroundTileType =
-            tileType !== undefined ? getBackgroundTileType(tileType) : undefined;
-          if (
-            backgroundTileType !== undefined &&
-            tileTypeSpriteMap &&
-            tiles
-          ) {
+            tileType !== undefined
+              ? getBackgroundTileType(tileType)
+              : undefined;
+          if (backgroundTileType !== undefined && tileTypeSpriteMap && tiles) {
             const bgRef = tileTypeSpriteMap.get(backgroundTileType);
             const bgImg = bgRef ? tiles.get(bgRef.sheetKey) : undefined;
             if (bgImg && bgRef) {
               drawSpriteTinted(bgImg, bgRef);
+              drewExtraLayer = true;
             }
           }
-          // Draw foreground sprite (or single sprite when no background layer)
-          drawSpriteTinted(img, ref);
+          if (DEBUG_LAYERED_DRAW && drewExtraLayer) {
+            console.debug("[foreground-tiles] two-layer draw", {
+              x,
+              y,
+              tileType,
+              underlyingTerrain,
+            });
+          }
+          // Draw foreground sprite (or single sprite when no background layer).
+          // When debug "show terrain under creature" is on, draw creature at 70% opacity so terrain shows through.
+          const creatureAlpha =
+            drewExtraLayer && underlyingTerrain !== undefined ? 0.7 : undefined;
+          drawSpriteTinted(img, ref, creatureAlpha);
         } else {
           // Unmapped TileType/glyph in viewport: draw as text so monsters, items, hover path stay readable
           const unicode = glyphToUnicode(inputChar);
