@@ -93,6 +93,8 @@ export interface CellDisplayBuffer {
     foreColorComponents: [number, number, number];
     backColorComponents: [number, number, number];
     opacity: number;
+    /** When set, tile/hybrid renderer may look up sprite by TileType instead of DisplayGlyph. */
+    tileType?: TileType;
 }
 
 export interface ScreenDisplayBuffer {

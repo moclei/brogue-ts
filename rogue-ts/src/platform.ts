@@ -23,6 +23,7 @@ import { buildTravelContext } from "./movement.js";
 import { travel } from "./movement/travel-explore.js";
 import { windowToMapX, windowToMapY, coordinatesAreInMap } from "./globals/tables.js";
 import { EventType } from "./types/enums.js";
+import type { TileType } from "./types/enums.js";
 import type { RogueEvent, ScreenDisplayBuffer, ButtonState } from "./types/types.js";
 import { COLS, ROWS } from "./types/constants.js";
 import { buildInputContext } from "./io/input-context.js";
@@ -76,6 +77,7 @@ type PlotCharFn = (
     inputChar: number, x: number, y: number,
     fr: number, fg: number, fb: number,
     br: number, bg: number, bb: number,
+    tileType?: TileType,
 ) => void;
 let _plotChar: PlotCharFn | null = null;
 
@@ -252,13 +254,15 @@ export function commitDraws(): void {
                 cell.foreColorComponents[2] !== prev.foreColorComponents[2] ||
                 cell.backColorComponents[0] !== prev.backColorComponents[0] ||
                 cell.backColorComponents[1] !== prev.backColorComponents[1] ||
-                cell.backColorComponents[2] !== prev.backColorComponents[2];
+                cell.backColorComponents[2] !== prev.backColorComponents[2] ||
+                cell.tileType !== prev.tileType;
 
             if (changed) {
                 _plotChar(
                     cell.character, x, y,
                     cell.foreColorComponents[0], cell.foreColorComponents[1], cell.foreColorComponents[2],
                     cell.backColorComponents[0], cell.backColorComponents[1], cell.backColorComponents[2],
+                    cell.tileType,
                 );
 
                 prev.character = cell.character;
@@ -268,6 +272,7 @@ export function commitDraws(): void {
                 prev.backColorComponents[0] = cell.backColorComponents[0];
                 prev.backColorComponents[1] = cell.backColorComponents[1];
                 prev.backColorComponents[2] = cell.backColorComponents[2];
+                prev.tileType = cell.tileType;
             }
         }
     }

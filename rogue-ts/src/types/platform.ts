@@ -10,7 +10,7 @@
  *  License, or (at your option) any later version.
  */
 
-import type { DisplayGlyph, GraphicsMode } from "./enums.js";
+import type { DisplayGlyph, GraphicsMode, TileType } from "./enums.js";
 import type { RogueEvent, PauseBehavior } from "./types.js";
 
 /**
@@ -41,7 +41,8 @@ export interface BrogueConsole {
 
     /**
      * Plot a single character at grid position (x, y) with foreground and
-     * background RGB colors.
+     * background RGB colors. Optional tileType allows tile/hybrid renderers
+     * to look up a sprite by TileType when present.
      */
     plotChar(
         inputChar: DisplayGlyph,
@@ -53,6 +54,7 @@ export interface BrogueConsole {
         backRed: number,
         backGreen: number,
         backBlue: number,
+        tileType?: TileType,
     ): void;
 
     /** Remap one key to another. */

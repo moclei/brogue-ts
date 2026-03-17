@@ -445,6 +445,7 @@ export function createBrowserConsole(
       backRed: number,
       backGreen: number,
       backBlue: number,
+      _tileType?: import("../types/enums.js").TileType,
     ): void {
       const fr = Math.round((foreRed * 255) / 100);
       const fg = Math.round((foreGreen * 255) / 100);
