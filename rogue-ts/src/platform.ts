@@ -37,6 +37,7 @@ import {
 } from "./io/menu-bar.js";
 import { actionMenu } from "./io/input-mouse.js";
 import { buildHoverHandlerFn, buildClearHoverPathFn } from "./io/hover-wiring.js";
+import { GraphicsMode } from "./types/enums.js";
 
 // =============================================================================
 // Module-level state
@@ -50,7 +51,18 @@ export interface PlatformConsole {
     waitForEvent(): Promise<RogueEvent>;
 }
 
+/** Console may optionally support graphics mode (browser renderer). */
+export interface PlatformConsoleWithGraphics extends PlatformConsole {
+    setGraphicsMode(mode: GraphicsMode): GraphicsMode;
+}
+
 let _console: PlatformConsole | null = null;
+
+/** Current graphics mode. Persists so input context and renderer stay in sync. */
+let _graphicsMode: GraphicsMode = GraphicsMode.Text;
+
+/** True when the console supports setGraphicsMode (e.g. browser renderer). */
+let _hasGraphics = false;
 
 /** Bottom-bar action button state. Initialized once when mainGameLoop starts. */
 let _menuState: ButtonState | null = null;
@@ -69,6 +81,9 @@ let _plotChar: PlotCharFn | null = null;
 
 /** Previous frame buffer for dirty-cell detection in commitDraws(). */
 let _prevBuffer: ScreenDisplayBuffer = createScreenDisplayBuffer();
+
+/** When true, next commitDraws() redraws every cell (e.g. after graphics mode change). */
+let _forceFullRedraw = false;
 
 /**
  * Event captured by pauseAndCheckForEvent() when an input arrives before the
@@ -89,12 +104,37 @@ let _lookaheadEvent: RogueEvent | null = null;
  * Test mocks that only implement waitForEvent() work fine — commitDraws()
  * becomes a no-op in that case.
  */
-export function initPlatform(browserConsole: PlatformConsole & { plotChar?: PlotCharFn }): void {
+export function initPlatform(browserConsole: PlatformConsole & { plotChar?: PlotCharFn; setGraphicsMode?: (mode: GraphicsMode) => GraphicsMode }): void {
     _console = browserConsole;
     _plotChar = browserConsole.plotChar ?? null;
+    _hasGraphics = typeof (browserConsole as PlatformConsoleWithGraphics).setGraphicsMode === "function";
     _prevBuffer = createScreenDisplayBuffer();
     registerPauseAndCheckForEvent(pauseAndCheckForEvent);
     registerPauseIgnoringHover(pauseAndCheckForEventIgnoringHover);
+}
+
+/**
+ * Current graphics mode (Text / Tiles / Hybrid). Used by input context and renderer.
+ */
+export function getGraphicsMode(): GraphicsMode {
+    return _graphicsMode;
+}
+
+/**
+ * Set graphics mode and notify the console if it supports it. Returns the mode set.
+ * Schedules a full redraw so the new mode is visible immediately (matches C behavior).
+ */
+export function setGraphicsMode(mode: GraphicsMode): GraphicsMode {
+    _graphicsMode = mode;
+    const c = _console as PlatformConsoleWithGraphics | null;
+    if (c?.setGraphicsMode) c.setGraphicsMode(mode);
+    _forceFullRedraw = true;
+    return _graphicsMode;
+}
+
+/** True when the console supports tile/hybrid graphics (e.g. browser renderer). */
+export function hasGraphics(): boolean {
+    return _hasGraphics;
 }
 
 // =============================================================================
@@ -204,16 +244,17 @@ export function commitDraws(): void {
         for (let y = 0; y < ROWS; y++) {
             const cell = displayBuffer.cells[x][y];
             const prev = _prevBuffer.cells[x][y];
-
-            if (
+            const changed =
+                _forceFullRedraw ||
                 cell.character !== prev.character ||
                 cell.foreColorComponents[0] !== prev.foreColorComponents[0] ||
                 cell.foreColorComponents[1] !== prev.foreColorComponents[1] ||
                 cell.foreColorComponents[2] !== prev.foreColorComponents[2] ||
                 cell.backColorComponents[0] !== prev.backColorComponents[0] ||
                 cell.backColorComponents[1] !== prev.backColorComponents[1] ||
-                cell.backColorComponents[2] !== prev.backColorComponents[2]
-            ) {
+                cell.backColorComponents[2] !== prev.backColorComponents[2];
+
+            if (changed) {
                 _plotChar(
                     cell.character, x, y,
                     cell.foreColorComponents[0], cell.foreColorComponents[1], cell.foreColorComponents[2],
@@ -230,6 +271,7 @@ export function commitDraws(): void {
             }
         }
     }
+    if (_forceFullRedraw) _forceFullRedraw = false;
 }
 
 // =============================================================================
