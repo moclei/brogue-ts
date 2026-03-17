@@ -45,6 +45,7 @@ import {
 import { glyphToUnicode, isEnvironmentGlyph } from "./glyph-map.js";
 import { TILE_SIZE } from "./tileset-loader.js";
 import type { SpriteRef } from "./glyph-sprite-map.js";
+import { getBackgroundTileType } from "./glyph-sprite-map.js";
 
 // =============================================================================
 // Constants
@@ -483,13 +484,14 @@ export function createBrowserConsole(
           ref = spriteMap.get(inputChar);
         }
         const img = ref ? tiles.get(ref.sheetKey) : undefined;
-        if (img && ref) {
-          // Tint sprite with Brogue foreground color (lighting/effects) via multiply
+
+        // Helper: draw one sprite with multiply tint to the cell (same fg/bg for both layers)
+        const drawSpriteTinted = (sourceImg: HTMLImageElement, spriteRef: SpriteRef) => {
           tintCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
           tintCtx.drawImage(
-            img,
-            ref.tileX * TILE_SIZE,
-            ref.tileY * TILE_SIZE,
+            sourceImg,
+            spriteRef.tileX * TILE_SIZE,
+            spriteRef.tileY * TILE_SIZE,
             TILE_SIZE,
             TILE_SIZE,
             0,
@@ -513,6 +515,25 @@ export function createBrowserConsole(
             cellWidth,
             cellHeight,
           );
+        };
+
+        if (img && ref) {
+          // Foreground tile layers: if this TileType has a background, draw background sprite first
+          const backgroundTileType =
+            tileType !== undefined ? getBackgroundTileType(tileType) : undefined;
+          if (
+            backgroundTileType !== undefined &&
+            tileTypeSpriteMap &&
+            tiles
+          ) {
+            const bgRef = tileTypeSpriteMap.get(backgroundTileType);
+            const bgImg = bgRef ? tiles.get(bgRef.sheetKey) : undefined;
+            if (bgImg && bgRef) {
+              drawSpriteTinted(bgImg, bgRef);
+            }
+          }
+          // Draw foreground sprite (or single sprite when no background layer)
+          drawSpriteTinted(img, ref);
         } else {
           // Unmapped TileType/glyph in viewport: draw as text so monsters, items, hover path stay readable
           const unicode = glyphToUnicode(inputChar);
