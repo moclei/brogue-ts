@@ -24,22 +24,55 @@ import type { Pos } from "../types/types.js";
 // exploreKey — IO.c:2313
 // =============================================================================
 
-/**
- * Run one exploration pass. Shows "no path" if no exploration target exists
- * from the player's current position BEFORE starting exploration.
- *
- * C: void exploreKey(boolean controlKey) in IO.c:2313
- *
- * Fix (B86): The original TS implementation called explore() first, then
- * checked nextStep with a stale playerLoc reference (ctx.player.loc is
- * replaced, not mutated, during movement). The correct order (matching C)
- * is to verify a reachable target exists BEFORE calling explore(), using
- * the current player position.
- *
- * Note: C recurses after explore() to find the next target; TS does not
- * loop — the player presses 'x' again to continue exploring, matching the
- * effective UX since C's proposeOrConfirmLocation also requires another press.
- */
+// B86 debug: set to true to dump explore-map diagnostics when "no path" fires
+const DEBUG_EXPLORE = true;
+
+function debugExploreMap(
+    map: number[][],
+    playerLoc: Pos,
+    ctx: TravelExploreContext,
+): void {
+    const { x, y } = playerLoc;
+    const depth = ctx.rogue.depthLevel;
+    const playerDist = map[x][y];
+
+    // Count goal cells (distance < 30000 means Dijkstra reached them)
+    let goalCount = 0;
+    let reachedCount = 0;
+    for (let i = 0; i < map.length; i++) {
+        for (let j = 0; j < map[i].length; j++) {
+            if (map[i][j] < 0) goalCount++;
+            if (map[i][j] < 30000) reachedCount++;
+        }
+    }
+
+    console.group(`[B86 explore debug] depth=${depth} playerLoc=(${x},${y}) dist=${playerDist} goals=${goalCount} reachedCells=${reachedCount}`);
+
+    for (let dir = 0; dir < 8; dir++) {
+        const nx = x + ctx.nbDirs[dir][0];
+        const ny = y + ctx.nbDirs[dir][1];
+        if (!ctx.coordinatesAreInMap(nx, ny)) {
+            console.log(`  dir=${dir} (${nx},${ny}) OUT_OF_MAP`);
+            continue;
+        }
+        const neighborDist = map[nx][ny];
+        const score = playerDist - neighborDist;
+        const known = ctx.knownToPlayerAsPassableOrSecretDoor({ x: nx, y: ny });
+        const diagBlocked = ctx.diagonalBlocked(x, y, nx, ny, true);
+        const wouldStep = score > 0 && known && !diagBlocked;
+        console.log(
+            `  dir=${dir} (${nx},${ny}) dist=${neighborDist} score=${score} known=${known} diagBlocked=${diagBlocked} → ${wouldStep ? 'WOULD STEP' : 'blocked'}`,
+        );
+    }
+
+    // Also log upLoc and downLoc distances
+    const upDist = map[ctx.rogue.upLoc.x]?.[ctx.rogue.upLoc.y];
+    const downDist = map[ctx.rogue.downLoc.x]?.[ctx.rogue.downLoc.y];
+    console.log(`  upLoc=(${ctx.rogue.upLoc.x},${ctx.rogue.upLoc.y}) dist=${upDist}`);
+    console.log(`  downLoc=(${ctx.rogue.downLoc.x},${ctx.rogue.downLoc.y}) dist=${downDist}`);
+    console.groupEnd();
+}
+
 export async function exploreKey(
     ctrl: boolean,
     ctx: TravelExploreContext,
@@ -47,13 +80,8 @@ export async function exploreKey(
     _rogue: { gameHasEnded: boolean },
     _playerLoc: Pos,  // unused; was stale after first player move in original
 ): Promise<void> {
-    // C: adjacentFightingDir check — if fighting, skip the path check and
-    // let explore() handle the combat directly.
     const fightDir = adjacentFightingDir(ctx);
     if (fightDir === -1) {
-        // Follow the explore map from the player's CURRENT position to
-        // determine whether any reachable exploration target exists.
-        // This mirrors C IO.c:2340-2354, evaluated BEFORE calling explore().
         const playerLoc = ctx.player.loc;
         const map = ctx.allocGrid();
         getExploreMap(map, false, ctx);
@@ -67,9 +95,14 @@ export async function exploreKey(
                 y += ctx.nbDirs[dir][1];
             }
         } while (dir !== -1);
+
+        const noPath = x === playerLoc.x && y === playerLoc.y;
+        if (DEBUG_EXPLORE && noPath) {
+            debugExploreMap(map, playerLoc, ctx);
+        }
         ctx.freeGrid(map);
 
-        if (x === playerLoc.x && y === playerLoc.y) {
+        if (noPath) {
             await message("I see no path for further exploration.", 0);
             return;
         }
