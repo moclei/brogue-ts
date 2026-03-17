@@ -3,8 +3,7 @@
  *  Port V2 — rogue-ts
  *
  *  Ported from: src/brogue/IO.c (exploreKey)
- *  Checks for a reachable exploration target BEFORE calling explore(), then
- *  loops (equivalent to C's tail-recursive exploreKey call after explore()).
+ *  Checks for a reachable exploration target BEFORE calling explore().
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -19,7 +18,6 @@ import {
     adjacentFightingDir,
     type TravelExploreContext,
 } from "../movement/travel-explore.js";
-import { TileFlag } from "../types/flags.js";
 import type { Pos } from "../types/types.js";
 
 // =============================================================================
@@ -27,77 +25,55 @@ import type { Pos } from "../types/types.js";
 // =============================================================================
 
 /**
- * Run exploration passes until fully explored, disturbed, or game ends.
+ * Run one exploration pass. Shows "no path" if no exploration target exists
+ * from the player's current position BEFORE starting exploration.
  *
  * C: void exploreKey(boolean controlKey) in IO.c:2313
  *
  * Fix (B86): The original TS implementation called explore() first, then
- * checked for a path from the final (frontier) position — which always
- * returns NO_DIRECTION, causing a false "no path" message after the first
- * depth. The correct logic (matching C) is:
- *   1. Check adjacentFightingDir — if fighting, target the enemy tile.
- *   2. Check tooDark — if any adjacent cell is undiscovered, message and return.
- *   3. Follow the explore map to find whether a target exists (from current pos).
- *   4. If no target: message and return.
- *   5. Call explore() to walk toward the target.
- *   6. Loop (C achieves the same via tail-recursion).
+ * checked nextStep with a stale playerLoc reference (ctx.player.loc is
+ * replaced, not mutated, during movement). The correct order (matching C)
+ * is to verify a reachable target exists BEFORE calling explore(), using
+ * the current player position.
+ *
+ * Note: C recurses after explore() to find the next target; TS does not
+ * loop — the player presses 'x' again to continue exploring, matching the
+ * effective UX since C's proposeOrConfirmLocation also requires another press.
  */
 export async function exploreKey(
     ctrl: boolean,
     ctx: TravelExploreContext,
     message: (msg: string, flags: number) => void | Promise<void>,
     rogue: { gameHasEnded: boolean },
-    _playerLoc: Pos,  // unused; ctx.player.loc is always current
+    _playerLoc: Pos,  // unused; was stale after first player move in original
 ): Promise<void> {
-    while (!rogue.gameHasEnded) {
+    // C: adjacentFightingDir check — if fighting, skip the path check and
+    // let explore() handle the combat directly.
+    const fightDir = adjacentFightingDir(ctx);
+    if (fightDir === -1) {
+        // Follow the explore map from the player's CURRENT position to
+        // determine whether any reachable exploration target exists.
+        // This mirrors C IO.c:2340-2354, evaluated BEFORE calling explore().
         const playerLoc = ctx.player.loc;
-
-        // C: check adjacentFightingDir first; if fighting, explore toward enemy.
-        // explore() handles the fighting case internally, so we just fall through.
-        const fightDir = adjacentFightingDir(ctx);
-        if (fightDir === -1) {
-            // No adjacent fight — check whether any neighbour is undiscovered.
-            let tooDark = false;
-            for (let dir = 0; dir < 8; dir++) {
-                const nx = playerLoc.x + ctx.nbDirs[dir][0];
-                const ny = playerLoc.y + ctx.nbDirs[dir][1];
-                if (
-                    ctx.coordinatesAreInMap(nx, ny) &&
-                    !(ctx.pmap[nx][ny].flags & (TileFlag.DISCOVERED | TileFlag.MAGIC_MAPPED))
-                ) {
-                    tooDark = true;
-                    break;
-                }
+        const map = ctx.allocGrid();
+        getExploreMap(map, false, ctx);
+        let x = playerLoc.x;
+        let y = playerLoc.y;
+        let dir: number;
+        do {
+            dir = nextStep(map, { x, y }, null, false, ctx);
+            if (dir !== -1) {
+                x += ctx.nbDirs[dir][0];
+                y += ctx.nbDirs[dir][1];
             }
-            if (tooDark) {
-                await message("It's too dark to explore!", 0);
-                return;
-            }
+        } while (dir !== -1);
+        ctx.freeGrid(map);
 
-            // Follow the explore map from the player's current position to
-            // determine whether any reachable exploration target exists.
-            const map = ctx.allocGrid();
-            getExploreMap(map, false, ctx);
-            let x = playerLoc.x;
-            let y = playerLoc.y;
-            let dir: number;
-            do {
-                dir = nextStep(map, { x, y }, null, false, ctx);
-                if (dir !== -1) {
-                    x += ctx.nbDirs[dir][0];
-                    y += ctx.nbDirs[dir][1];
-                }
-            } while (dir !== -1);
-            ctx.freeGrid(map);
-
-            if (x === playerLoc.x && y === playerLoc.y) {
-                await message("I see no path for further exploration.", 0);
-                return;
-            }
+        if (x === playerLoc.x && y === playerLoc.y) {
+            await message("I see no path for further exploration.", 0);
+            return;
         }
-
-        // Explore until disturbed (or game ends).
-        // C then tail-recurses; we loop instead.
-        await explore(ctrl ? 1 : 50, ctx);
     }
+
+    await explore(ctrl ? 1 : 50, ctx);
 }
