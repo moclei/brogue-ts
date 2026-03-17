@@ -188,7 +188,7 @@ only if the path is genuinely not reachable in normal play.
   `RogueMain.c` (machine-key pickup handler).
   TS: `tile-effects-wiring.ts`, `lifecycle.ts`, `items/item-commands.ts`. **M**
 
-- [ ] **B86 — Auto-explore ('x') stops working after first depth** — On depth 1 pressing
+- [x] **B86 — Auto-explore ('x') stops working after first depth** — On depth 1 pressing
   'x' correctly visits all rooms. From depth 2 onward it frequently reports "I see no
   path for further exploration" even when unexplored cells are clearly reachable. Likely
   cause: the explore path-state or the exploration target map is not being reset on

@@ -71,3 +71,18 @@ Symptom: wands and charms found in vaults are always the same kind (e.g., always
 
 Root cause: lifecycle.ts:259 — initializeGameVariantBrogue() (and rapid/bullet variants) never set gameConst.numberWandKinds or numberCharmKinds; both stay 0; chooseKind loops 0 times (totalFrequencies=0), randRange(1,0) returns 1, loop exits at i=0 every time
 Steps logged: 5
+
+---
+
+## B86 — Auto-explore ('x') stops working after first depth
+Symptom: pressing 'x' explores depth 1 fully, then every subsequent press immediately shows "I see no path for further exploration." even when unexplored areas exist
+
+- Suspect no-path check is evaluated from the wrong position — Read: explore-wiring.ts:39-49 → confirms: explore() called first, then nextStep checked from frontier position
+- Checked C reference for correct order — Read: IO.c:2313-2363 → C computes explore map and follows path to target BEFORE calling explore(); calls explore() only if target found
+- Verified nextStep returns NO_DIRECTION at frontier — Read: travel-explore.ts:186-200 → knownToPlayerAsPassableOrSecretDoor blocks stepping into undiscovered cells; at frontier all distances equal
+- Confirmed pmap not the issue — Read: core.ts:270 + architect/architect.ts:129 → pmap mutated in-place; clearLevel zeroes flags; not a stale reference
+- Confirmed player.loc not stale — Read: movement.ts:441+ → player.loc mutated in-place during moves; captured reference stays valid
+- Confirmed updateVision fires on each move — Read: turn.ts:276 + game-level.ts:411 → updateVision called in playerTurnEnded inside playerMoves; DISCOVERED flags set correctly
+
+Root cause: explore-wiring.ts:39 — exploreKey calls explore() then checks nextStep from the frontier; at frontier nextStep always returns NO_DIRECTION because undiscovered cells are not knownToPlayerAsPassableOrSecretDoor; fix is to follow explore map from initial position BEFORE calling explore(), matching C IO.c:2340-2354
+Steps logged: 6
