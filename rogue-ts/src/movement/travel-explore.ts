@@ -541,7 +541,10 @@ export function getExploreMap(
                     map[i][j] = exploreGoalValue(i);
                 }
             } else if (theItem && !ctx.monsterAvoids(ctx.player, { x: i, y: j })) {
-                if (theItem.flags & ItemFlag.ITEM_PLAYER_AVOIDS) {
+                if (i === ctx.player.loc.x && j === ctx.player.loc.y) {
+                    // Player is already here; don't mark as item goal (avoids local minimum
+                    // when item pickup is deferred — player's cell stays at dist=30000).
+                } else if (theItem.flags & ItemFlag.ITEM_PLAYER_AVOIDS) {
                     costMap[i][j] = 20;
                 } else {
                     costMap[i][j] = 1;

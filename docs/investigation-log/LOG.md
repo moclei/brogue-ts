@@ -84,5 +84,10 @@ Symptom: pressing 'x' explores depth 1 fully, then every subsequent press immedi
 - Confirmed player.loc not stale — Read: movement.ts:441+ → player.loc mutated in-place during moves; captured reference stays valid
 - Confirmed updateVision fires on each move — Read: turn.ts:276 + game-level.ts:411 → updateVision called in playerTurnEnded inside playerMoves; DISCOVERED flags set correctly
 
-Root cause: explore-wiring.ts:39 — exploreKey calls explore() then checks nextStep from the frontier; at frontier nextStep always returns NO_DIRECTION because undiscovered cells are not knownToPlayerAsPassableOrSecretDoor; fix is to follow explore map from initial position BEFORE calling explore(), matching C IO.c:2340-2354
-Steps logged: 6
+- Traced C knownToPlayerAsPassableOrSecretDoor — Read: Monsters.c:3668 → calls getLocationFlags(limitToPlayerKnowledge=true); for undiscovered cells uses ACTUAL terrain flags (floor→passable, wall→not)
+- Compared TS implementation — Read: movement.ts:525 → returns false for ALL undiscovered cells; this is the bug: TS nextStep can never step into undiscovered floor tiles
+- Confirmed Dijkstra item-goal issue — Read: travel-explore.ts:543-549 → item at player's cell makes player's dist a local minimum (exploreGoalValue-10); since pickUpItemAt is stubbed, player stands on items
+- Read getLocationFlags C logic — Read: Movement.c:1751-1777 → DISCOVERED+MAGIC_MAPPED+!visible→remembered flags; else→actual flags
+
+Root cause (revised): movement.ts:525 — knownToPlayerAsPassableOrSecretDoor returns false for ALL undiscovered cells; C uses actual terrain flags (passable floors allowed). Secondary: travel-explore.ts:543 — item at player's cell creates Dijkstra local minimum (since pickUpItemAt is stubbed). Fix: (1) match C's getLocationFlags behavior for undiscovered cells; (2) skip item-goal for player's current cell.
+Steps logged: 10

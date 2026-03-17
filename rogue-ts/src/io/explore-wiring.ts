@@ -25,7 +25,7 @@ import type { Pos } from "../types/types.js";
 // =============================================================================
 
 // B86 debug: set to true to dump explore-map diagnostics when "no path" fires
-const DEBUG_EXPLORE = true;
+const DEBUG_EXPLORE = false;
 
 function debugExploreMap(
     map: number[][],
