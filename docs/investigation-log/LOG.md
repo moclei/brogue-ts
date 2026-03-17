@@ -91,3 +91,14 @@ Symptom: pressing 'x' explores depth 1 fully, then every subsequent press immedi
 
 Root cause (revised): movement.ts:525 — knownToPlayerAsPassableOrSecretDoor returns false for ALL undiscovered cells; C uses actual terrain flags (passable floors allowed). Secondary: travel-explore.ts:543 — item at player's cell creates Dijkstra local minimum (since pickUpItemAt is stubbed). Fix: (1) match C's getLocationFlags behavior for undiscovered cells; (2) skip item-goal for player's current cell.
 Steps logged: 10
+
+---
+
+## B52 — Teleport scroll: player symbol missing until next move
+Symptom: after using a scroll of teleport, the `@` glyph does not appear at the new location until the player takes another action
+
+- Backlog says likely cause is missing refreshDungeonCell for new location — Read: items.ts:384 → inline setMonsterLocation calls refreshDungeonCell(monst.loc) for old loc but never for new loc
+- Confirmed C setMonsterLocation calls both — Read: Monsters.c:3675 → refreshDungeonCell(monst->loc) line 3678 (old), refreshDungeonCell(newLoc) line 3691 (new)
+
+Root cause: items.ts inline setMonsterLocation (teleport context) missing refreshDungeonCell(loc) for the new location
+Steps logged: 2

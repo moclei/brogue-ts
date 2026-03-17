@@ -390,6 +390,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                     monst.loc = { ...loc };
                     if (pmap[loc.x]?.[loc.y]) {
                         pmap[loc.x][loc.y].flags |= flag;
+                        refreshDungeonCell(loc);
                     }
                     if (
                         (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_SUBMERGED) &&

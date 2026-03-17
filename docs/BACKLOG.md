@@ -66,7 +66,7 @@ only if the path is genuinely not reachable in normal play.
   C: `RogueMain.c:547` (startLevel), `IO.c` (displayLevel, displayMonster).
   TS: `lifecycle.ts` (buildLevelContext / startLevel sequence), `turn-processing.ts`. **S**
 
-- [ ] **B52 — Teleport scroll: player symbol missing until next move** —
+- [x] **B52 — Teleport scroll: player symbol missing until next move** —
   After the player teleports (via scroll or bolt), the `@` glyph at the destination is not
   drawn until the player takes another action. The old position is correctly cleared. Likely
   cause: `refreshDungeonCell` is called for the old location but not the new one, or
