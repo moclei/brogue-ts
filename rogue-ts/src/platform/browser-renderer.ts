@@ -14,6 +14,7 @@
 import type { BrogueConsole } from "../types/platform.js";
 import type { RogueEvent, PauseBehavior } from "../types/types.js";
 import { EventType, GraphicsMode, DisplayGlyph } from "../types/enums.js";
+import type { TileType } from "../types/enums.js";
 import {
   COLS,
   ROWS,
@@ -103,6 +104,9 @@ export interface BrowserRendererOptions {
 
   /** Glyph → sprite region for tile rendering. Used with `tiles`. */
   spriteMap?: Map<DisplayGlyph, SpriteRef>;
+
+  /** TileType → sprite for one-to-one terrain sprites. When present, lookup tries this before spriteMap. */
+  tileTypeSpriteMap?: Map<TileType, SpriteRef>;
 }
 
 // =============================================================================
@@ -134,6 +138,7 @@ export function createBrowserConsole(
     onGameLoop,
     tiles,
     spriteMap,
+    tileTypeSpriteMap,
   } = options;
   const ctx2d = canvas.getContext("2d")!;
 
@@ -445,7 +450,7 @@ export function createBrowserConsole(
       backRed: number,
       backGreen: number,
       backBlue: number,
-      _tileType?: import("../types/enums.js").TileType,
+      tileType?: TileType,
     ): void {
       const fr = Math.round((foreRed * 255) / 100);
       const fg = Math.round((foreGreen * 255) / 100);
@@ -469,10 +474,17 @@ export function createBrowserConsole(
             isEnvironmentGlyph(inputChar)));
 
       if (useTiles) {
-        const ref = spriteMap.get(inputChar);
+        // One-to-one: try TileType first when provided, then fall back to DisplayGlyph
+        let ref: SpriteRef | undefined;
+        if (tileType !== undefined && tileTypeSpriteMap) {
+          ref = tileTypeSpriteMap.get(tileType);
+        }
+        if (ref === undefined) {
+          ref = spriteMap.get(inputChar);
+        }
         const img = ref ? tiles.get(ref.sheetKey) : undefined;
         if (img && ref) {
-          // Phase 3: tint sprite with Brogue foreground color (lighting/effects) via multiply
+          // Tint sprite with Brogue foreground color (lighting/effects) via multiply
           tintCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
           tintCtx.drawImage(
             img,
@@ -502,7 +514,7 @@ export function createBrowserConsole(
             cellHeight,
           );
         } else {
-          // Unmapped glyph in viewport: draw as text so monsters, items, hover path stay readable
+          // Unmapped TileType/glyph in viewport: draw as text so monsters, items, hover path stay readable
           const unicode = glyphToUnicode(inputChar);
           if (unicode > 0x20) {
             const ch = String.fromCodePoint(unicode);

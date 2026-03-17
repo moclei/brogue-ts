@@ -22,7 +22,7 @@
  *  use that (column, row) as (tileX, tileY).
  */
 
-import { DisplayGlyph } from "../types/enums.js";
+import { DisplayGlyph, TileType } from "../types/enums.js";
 
 export interface SpriteRef {
   sheetKey: string;
@@ -33,6 +33,18 @@ export interface SpriteRef {
 /** Build a sprite reference. Args are (sheet, column, row) — column first, then row. Default (0, 0) = top-left. */
 function tile(sheetKey: string, tileX = 0, tileY = 0): SpriteRef {
   return { sheetKey, tileX, tileY };
+}
+
+/**
+ * Build the TileType → sprite lookup for one-to-one terrain/feature sprites.
+ * Unmapped TileTypes fall back to the DisplayGlyph-based sprite in the renderer.
+ * Phase 5 will populate representative entries; empty map is valid (all fall back to glyph).
+ */
+export function buildTileTypeSpriteMap(): Map<TileType, SpriteRef> {
+  const m = new Map<TileType, SpriteRef>();
+  // Phase 5 will add entries (e.g. DEEP_WATER, SHALLOW_WATER, LAVA, doors, key terrain).
+  // For now the map is empty; renderer falls back to DisplayGlyph sprite.
+  return m;
 }
 
 /**

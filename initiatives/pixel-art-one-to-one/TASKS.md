@@ -21,9 +21,9 @@
 
 ## Phase 4: TileType → sprite map and renderer lookup
 
-- [ ] Add TileType → sprite map: `buildTileTypeSpriteMap()` (or equivalent) and load it alongside the glyph map; define in `glyph-sprite-map.ts` or `tile-type-sprite-map.ts`
-- [ ] In browser renderer tile/hybrid branch: if `tileType` is provided, look up sprite by TileType first; if missing or not terrain, fall back to DisplayGlyph
-- [ ] Add fallback for unmapped TileTypes (e.g. use DisplayGlyph-based sprite or placeholder)
+- [x] Add TileType → sprite map: `buildTileTypeSpriteMap()` (or equivalent) and load it alongside the glyph map; define in `glyph-sprite-map.ts` or `tile-type-sprite-map.ts`
+- [x] In browser renderer tile/hybrid branch: if `tileType` is provided, look up sprite by TileType first; if missing or not terrain, fall back to DisplayGlyph
+- [x] Add fallback for unmapped TileTypes (e.g. use DisplayGlyph-based sprite or placeholder)
 
 ## Phase 5: Populate and verify
 
