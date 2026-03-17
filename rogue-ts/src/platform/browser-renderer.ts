@@ -452,6 +452,7 @@ export function createBrowserConsole(
       backGreen: number,
       backBlue: number,
       tileType?: TileType,
+      underlyingTerrain?: TileType,
     ): void {
       const fr = Math.round((foreRed * 255) / 100);
       const fg = Math.round((foreGreen * 255) / 100);
@@ -518,6 +519,14 @@ export function createBrowserConsole(
         };
 
         if (img && ref) {
+          // Creature cells: draw terrain under the mob first, then creature sprite
+          if (underlyingTerrain !== undefined && tileTypeSpriteMap && tiles) {
+            const terrainRef = tileTypeSpriteMap.get(underlyingTerrain);
+            const terrainImg = terrainRef ? tiles.get(terrainRef.sheetKey) : undefined;
+            if (terrainImg && terrainRef) {
+              drawSpriteTinted(terrainImg, terrainRef);
+            }
+          }
           // Foreground tile layers: if this TileType has a background, draw background sprite first
           const backgroundTileType =
             tileType !== undefined ? getBackgroundTileType(tileType) : undefined;

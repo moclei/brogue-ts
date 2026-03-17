@@ -16,11 +16,11 @@
 
 ## Phase 3: Variable terrain under creatures (underlyingTerrain)
 
-- [ ] getCellAppearance: return optional `underlyingTerrain` when the cell is drawn as player or monster (dominant terrain from tile loop before entity overlay)
-- [ ] Display buffer: add optional `underlyingTerrain?: TileType` to cell type; clear/copy in buffer helpers
-- [ ] plotCharToBuffer / plotCharWithColor: accept and store optional `underlyingTerrain`; refreshDungeonCell (and any creature write path) pass it through
-- [ ] commitDraws and plotChar: extend to pass `underlyingTerrain` (platform interface, null platform, browser renderer)
-- [ ] Browser renderer: when `underlyingTerrain` is set, draw that TileType’s sprite first (same rect, same tint), then draw creature sprite from glyph map
+- [x] getCellAppearance: return optional `underlyingTerrain` when the cell is drawn as player or monster (dominant terrain from tile loop before entity overlay)
+- [x] Display buffer: add optional `underlyingTerrain?: TileType` to cell type; clear/copy in buffer helpers
+- [x] plotCharToBuffer / plotCharWithColor: accept and store optional `underlyingTerrain`; refreshDungeonCell (and any creature write path) pass it through
+- [x] commitDraws and plotChar: extend to pass `underlyingTerrain` (platform interface, null platform, browser renderer)
+- [x] Browser renderer: when `underlyingTerrain` is set, draw that TileType’s sprite first (same rect, same tint), then draw creature sprite from glyph map
 
 ## Phase 4: Verify and extend
 
