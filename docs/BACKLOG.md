@@ -254,6 +254,17 @@ only if the path is genuinely not reachable in normal play.
       scrolls/rings).
       TS: item initialization in `lifecycle.ts` or `items.ts`. **M**
 
+- [x] **B97 — Monsters disappear during multi-monster combat and reappear on player move** —
+      When fighting a group of monsters, one or more monsters visually vanish mid-combat
+      and reappear after the player moves. Root cause: `runicCtx.setMonsterLocation` in
+      `combat.ts` used `HAS_MONSTER` for all creatures (including the player) and never
+      called `refreshDungeonCell`. When a monster with `MA_ATTACKS_STAGGER` hit the player,
+      the stagger push left a stale `HAS_PLAYER` flag at the player's old tile; a second monster
+      could then "move into" that tile (monsterAtLoc returned null), stacking `HAS_MONSTER` with
+      the stale `HAS_PLAYER`; getCellAppearance shows the player glyph, hiding the monster.
+      C: `Combat.c:processStaggerHit`, `Monsters.c:setMonsterLocation`.
+      TS: `combat.ts` (`runicCtx.setMonsterLocation`). **S**
+
 - [ ] **B96 — Explore oscillation after item pickup; item shown on floor despite being in inventory** —
       After picking up a scroll (observed on Depth 2), pressing 'x' to auto-explore causes the
       character to oscillate indefinitely between the item's former square and an adjacent square.

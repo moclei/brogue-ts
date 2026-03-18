@@ -116,3 +116,19 @@ Symptom: when a pit bloat explodes beneath the player, the game jumps immediatel
 
 Root cause: playerFalls is sync but calls async message() without await; the REQUIRE_ACKNOWLEDGMENT message fires and is ignored; startLevel runs immediately
 Steps logged: 5
+
+---
+
+## B97 — Monsters disappear during multi-monster combat and reappear on player move
+Symptom: fighting a pack (rats, jackals, kobolds, goblins), one monster vanishes mid-combat; it reappears when the player moves
+
+- Ruled out special abilities / stagger weapons on player side — symptom occurs in normal melee
+- Traced stagger path — Read: combat-attack.ts:603 → player stagger weapon path; combat-runics.ts:184 → specialHitFn calls processStaggerHit when attacker.abilityFlags & MA_ATTACKS_STAGGER
+- Found MA_ATTACKS_STAGGER carriers — ogres (Globals.c:1062), juggernauts (1404), any mutated monster (mutation-catalog.ts:86); mixed into pack if ogre/mutant nearby
+- Read canonical C setMonsterLocation — Read: Monsters.c:3675 → uses `monst == &player ? HAS_PLAYER : HAS_MONSTER`; calls refreshDungeonCell for both old and new positions
+- Read TS runicCtx.setMonsterLocation — Read: combat.ts:347 → always clears/sets HAS_MONSTER; never HAS_PLAYER; never calls refreshDungeonCell
+- Traced flag corruption: after stagger push, pmap[P].HAS_PLAYER not cleared; pmap[newLoc].HAS_MONSTER set instead of HAS_PLAYER; monsterAtLoc(P) returns null (player.loc ≠ P); moveMonster takes "just move" path into P → double-flagged cell (HAS_PLAYER stale + HAS_MONSTER new) → getCellAppearance shows player glyph, hiding the monster
+- Confirmed turn.ts:582 and turn-monster-zap-wiring.ts:371 already correct (HAS_PLAYER/HAS_MONSTER distinction present)
+
+Root cause: combat.ts:347 runicCtx.setMonsterLocation — always used HAS_MONSTER for all creatures (including player) and never called refreshDungeonCell; stagger push leaves stale HAS_PLAYER flag at player's old tile, allowing a second monster to "move in" undetected
+Steps logged: 7
