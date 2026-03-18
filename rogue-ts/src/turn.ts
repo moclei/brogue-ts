@@ -531,7 +531,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         monsterShouldFall: () => false,
         monstersFall: () => {},
         decrementPlayerStatus: () => decrementPlayerStatusFn(decrementStatusCtx),
-        playerFalls: () => {
+        playerFalls: async () => {
             const fallCtx = {
                 player, rogue, pmap, gameConst,
                 cellHasTMFlag: (pos: Pos, flags: number) => cellHasTMFlagFn(pmap, pos, flags),
@@ -601,7 +601,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
                 animateFlares: () => {},    // stub — flare animation is visual
                 GENERIC_FLASH_LIGHT: LightType.GENERIC_FLASH_LIGHT,
             };
-            playerFallsFn(fallCtx as unknown as CreatureEffectsContext);
+            await playerFallsFn(fallCtx as unknown as CreatureEffectsContext);
         },
         handleHealthAlerts: () => {},
         updateScent() {

@@ -894,66 +894,66 @@ describe("decrementPlayerStatus", () => {
 // =============================================================================
 
 describe("playerFalls", () => {
-    it("increments depth level and calls startLevel", () => {
+    it("increments depth level and calls startLevel", async () => {
         const ctx = makeCtx();
         ctx.rogue.depthLevel = 3;
         ctx.gameConst.deepestLevel = 26;
-        playerFalls(ctx);
+        await playerFalls(ctx);
         expect(ctx.rogue.depthLevel).toBe(4);
         expect(ctx.startLevel).toHaveBeenCalledWith(3, 0);
     });
 
-    it("clears falling/seized/seizing flags", () => {
+    it("clears falling/seized/seizing flags", async () => {
         const ctx = makeCtx();
         ctx.player.bookkeepingFlags = MonsterBookkeepingFlag.MB_IS_FALLING | MonsterBookkeepingFlag.MB_SEIZED;
         ctx.rogue.depthLevel = 3;
         ctx.gameConst.deepestLevel = 26;
-        playerFalls(ctx);
+        await playerFalls(ctx);
         expect(ctx.player.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_FALLING).toBeFalsy();
         expect(ctx.player.bookkeepingFlags & MonsterBookkeepingFlag.MB_SEIZED).toBeFalsy();
     });
 
-    it("teleports when at deepest level", () => {
+    it("teleports when at deepest level", async () => {
         const ctx = makeCtx();
         ctx.rogue.depthLevel = 26;
         ctx.gameConst.deepestLevel = 26;
-        playerFalls(ctx);
+        await playerFalls(ctx);
         expect(ctx.teleport).toHaveBeenCalled();
         expect(ctx.rogue.depthLevel).toBe(26); // No change
     });
 
-    it("inflicts fall damage", () => {
+    it("inflicts fall damage", async () => {
         const ctx = makeCtx();
         ctx.rogue.depthLevel = 3;
         ctx.gameConst.deepestLevel = 26;
-        playerFalls(ctx);
+        await playerFalls(ctx);
         expect(ctx.inflictDamage).toHaveBeenCalled();
     });
 
-    it("triggers game over if fall damage kills player", () => {
+    it("triggers game over if fall damage kills player", async () => {
         const ctx = makeCtx();
         ctx.rogue.depthLevel = 3;
         ctx.gameConst.deepestLevel = 26;
         (ctx.inflictDamage as any).mockReturnValue(true);
-        playerFalls(ctx);
+        await playerFalls(ctx);
         expect(ctx.killCreature).toHaveBeenCalledWith(ctx.player, false);
         expect(ctx.gameOver).toHaveBeenCalledWith("Killed by a fall", true);
     });
 
-    it("updates deepestLevel if applicable", () => {
+    it("updates deepestLevel if applicable", async () => {
         const ctx = makeCtx();
         ctx.rogue.depthLevel = 5;
         ctx.rogue.deepestLevel = 5;
         ctx.gameConst.deepestLevel = 26;
-        playerFalls(ctx);
+        await playerFalls(ctx);
         expect(ctx.rogue.deepestLevel).toBe(6);
     });
 
-    it("sets disturbed flag", () => {
+    it("sets disturbed flag", async () => {
         const ctx = makeCtx();
         ctx.rogue.depthLevel = 3;
         ctx.gameConst.deepestLevel = 26;
-        playerFalls(ctx);
+        await playerFalls(ctx);
         expect(ctx.rogue.disturbed).toBe(true);
     });
 });

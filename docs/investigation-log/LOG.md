@@ -102,3 +102,17 @@ Symptom: after using a scroll of teleport, the `@` glyph does not appear at the 
 
 Root cause: items.ts inline setMonsterLocation (teleport context) missing refreshDungeonCell(loc) for the new location
 Steps logged: 2
+
+---
+
+## B62 — Pit bloat fall: no message or keypress before showing lower level
+Symptom: when a pit bloat explodes beneath the player, the game jumps immediately to the lower level with no message or keypress prompt
+
+- Located playerFalls in C to understand expected behavior — Read: Time.c:977-1028 → calls message(flavorText, REQUIRE_ACKNOWLEDGMENT) BEFORE startLevel()
+- Located TS playerFalls implementation — Read: creature-effects.ts:702-761 → calls ctx.message() without await; function is sync (void return)
+- Checked call sites in turn-processing.ts — Read: turn-processing.ts:440-445, 807-811 → ctx.playerFalls() called without await at both locations
+- Checked wiring in turn.ts — Read: turn.ts:534-605 → playerFalls closure calls playerFallsFn() synchronously, message not awaited
+- Confirmed interface declares wrong return type — Read: creature-effects.ts:128 → message declared as void (not void | Promise<void>); turn-processing.ts:197 → playerFalls declared as void
+
+Root cause: playerFalls is sync but calls async message() without await; the REQUIRE_ACKNOWLEDGMENT message fires and is ignored; startLevel runs immediately
+Steps logged: 5
