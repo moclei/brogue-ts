@@ -36,7 +36,8 @@ import { buildCostMapFovContext } from "../movement-cost-map.js";
 import { dijkstraScan as dijkstraScanFn } from "../dijkstra/dijkstra.js";
 import { allocGrid, fillGrid as fillGridFn } from "../grid/grid.js";
 import { buildRefreshDungeonCellFn, buildGetCellAppearanceFn } from "../io-wiring.js";
-import { buildPrintLocationDescriptionFn } from "./sidebar-wiring.js";
+import { buildPrintLocationDescriptionFn, buildRefreshSideBarWithFocusFn } from "./sidebar-wiring.js";
+import { MESSAGE_LINES } from "../types/constants.js";
 import { applyColorAugment as applyColorAugmentFn, separateColors as separateColorsFn } from "./color.js";
 import { mapToWindow as mapToWindowFn, plotCharWithColor as plotCharWithColorFn } from "./display.js";
 import { white } from "../globals/colors.js";
@@ -137,6 +138,7 @@ function buildPathTracingCtx(
  */
 export function buildHoverHandlerFn(): (mapX: number, mapY: number) => void {
     const printLocDesc = buildPrintLocationDescriptionFn();
+    const refreshSideBar = buildRefreshSideBarWithFocusFn();
     let prevCursorLoc: Pos | null = null;
 
     return (mapX: number, mapY: number) => {
@@ -155,11 +157,42 @@ export function buildHoverHandlerFn(): (mapX: number, mapY: number) => void {
         // Always clear old path first (mirrors C clearCursorPath at outer-loop top)
         clearCursorPath(pathCtx);
 
-        if (!coordinatesAreInMap(mapX, mapY)) return;
+        // ------------------------------------------------------------------
+        // Resolve the target dungeon location.
+        // - Dungeon hover: use mapX/mapY directly.
+        // - Sidebar hover (mapX < 0): look up sidebarLocationList[windowY].
+        // - Off-screen/no entity: clear sidebar focus and return.
+        // ------------------------------------------------------------------
+        let targetX: number;
+        let targetY: number;
+        let isDungeonHover: boolean;
+
+        if (mapX < 0) {
+            // Sidebar panel hover
+            const windowY = mapY + MESSAGE_LINES;
+            const loc = rogue.sidebarLocationList[windowY];
+            if (loc && loc.x >= 0 && loc.y >= 0) {
+                targetX = loc.x;
+                targetY = loc.y;
+                isDungeonHover = false;
+            } else {
+                refreshSideBar(-1, -1, false);
+                return;
+            }
+        } else if (!coordinatesAreInMap(mapX, mapY)) {
+            refreshSideBar(-1, -1, false);
+            return;
+        } else {
+            targetX = mapX;
+            targetY = mapY;
+            isDungeonHover = true;
+        }
 
         // ------------------------------------------------------------------
-        // Path computation: Dijkstra from cursor to everywhere, trace back
+        // Path computation: Dijkstra from target to everywhere, trace back
         // from player.loc following the gradient.
+        // Applies for both dungeon hover and sidebar hover so that hovering
+        // a sidebar entry shows the path to that entity on screen.
         // C: mainInputLoop — populateCreatureCostMap, fillGrid, dijkstraScan,
         //    backupCost trick, getPlayerPathOnMap.
         // ------------------------------------------------------------------
@@ -169,33 +202,27 @@ export function buildHoverHandlerFn(): (mapX: number, mapY: number) => void {
 
         const distMap = allocGrid();
         fillGridFn(distMap, 30000);
-        distMap[mapX][mapY] = 0;
+        distMap[targetX][targetY] = 0;
 
-        // Temporarily set cost to 1 so Dijkstra can enter the destination cell
-        const backupCost = costMap[mapX][mapY];
-        costMap[mapX][mapY] = 1;
+        const backupCost = costMap[targetX][targetY];
+        costMap[targetX][targetY] = 1;
         dijkstraScanFn(distMap, costMap, true);
-        costMap[mapX][mapY] = backupCost;
+        costMap[targetX][targetY] = backupCost;
 
-        // Trace path from player toward cursor
         const tracingCtx = buildPathTracingCtx(player, pmap, monsters);
         const path: Pos[] = [];
         let steps = getPlayerPathOnMapFn(path, distMap, player.loc, tracingCtx);
 
-        // Add destination (cursor cell) as the final path element, matching C:
-        //   path[steps] = pathDestination; steps++;
-        path[steps] = { x: mapX, y: mapY };
+        path[steps] = { x: targetX, y: targetY };
         steps++;
 
-        // Hilite the path when player is not already at cursor and a valid
-        // path exists (player.loc has a finite distance from cursor).
-        const atCursor = player.loc.x === mapX && player.loc.y === mapY;
+        const atCursor = player.loc.x === targetX && player.loc.y === targetY;
         if (!atCursor && distMap[player.loc.x][player.loc.y] < 30000) {
             hilitePath(path, steps, false, pathCtx);
         }
 
         // ------------------------------------------------------------------
-        // Highlight the cursor cell with a white tint.
+        // Highlight the target cell with a white tint.
         // C: hiliteCell(rogue.cursorLoc.x, rogue.cursorLoc.y, &white, 100, true)
         // ------------------------------------------------------------------
         const hiliteCellCtx = {
@@ -212,14 +239,23 @@ export function buildHoverHandlerFn(): (mapX: number, mapY: number) => void {
             ) => plotCharWithColorFn(g as never, wp, fg as never, bg as never, displayBuffer),
             mapToWindow: mapToWindowFn,
         } as unknown as TargetingContext;
-        hiliteCell(mapX, mapY, white, 100, true, hiliteCellCtx);
-        prevCursorLoc = { x: mapX, y: mapY };
+        hiliteCell(targetX, targetY, white, 100, true, hiliteCellCtx);
+        prevCursorLoc = { x: targetX, y: targetY };
 
         // ------------------------------------------------------------------
-        // Print flavor text description for the hovered cell.
+        // Update sidebar focus.
+        // C: mainInputLoop refreshSideBar(rogue.cursorLoc.x, rogue.cursorLoc.y, false)
+        // ------------------------------------------------------------------
+        refreshSideBar(targetX, targetY, false);
+
+        // ------------------------------------------------------------------
+        // Print flavor text description (dungeon hover only — sidebar hover
+        // shows the entity description via the sidebar focus highlight instead).
         // C: printLocationDescription(rogue.cursorLoc.x, rogue.cursorLoc.y)
         // ------------------------------------------------------------------
-        printLocDesc(mapX, mapY);
+        if (isDungeonHover) {
+            printLocDesc(targetX, targetY);
+        }
     };
 }
 
