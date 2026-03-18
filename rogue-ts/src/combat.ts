@@ -345,13 +345,17 @@ export function buildCombatAttackContext(): AttackContext {
         getTerrainFlags: (loc) => terrainFlagsFn(pmap, loc),
         monsterAtLoc,
         setMonsterLocation(monst, loc) {
+            const refreshCell = buildRefreshDungeonCellFn();
+            const creatureFlag = monst === player ? TileFlag.HAS_PLAYER : TileFlag.HAS_MONSTER;
             if (coordinatesAreInMap(monst.loc.x, monst.loc.y)) {
-                pmap[monst.loc.x][monst.loc.y].flags &= ~TileFlag.HAS_MONSTER;
+                pmap[monst.loc.x][monst.loc.y].flags &= ~creatureFlag;
+                refreshCell(monst.loc);
             }
             monst.loc = { x: loc.x, y: loc.y };
             if (coordinatesAreInMap(loc.x, loc.y)) {
-                pmap[loc.x][loc.y].flags |= TileFlag.HAS_MONSTER;
+                pmap[loc.x][loc.y].flags |= creatureFlag;
             }
+            refreshCell(monst.loc);
         },
 
         // ── Monster queries ───────────────────────────────────────────────────
