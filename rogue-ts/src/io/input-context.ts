@@ -324,10 +324,17 @@ export function buildInputContext(): InputContext {
         return null;
     };
 
-    // Overlay screens await a single event; falls back to no-op when platform
-    // not initialised (tests).
+    // Overlay screens await a real user action (keypress or mouse click).
+    // MouseEnteredCell (hover) must not dismiss the screen — C uses
+    // waitForKeystrokeOrMouseClick() which ignores mouse-move events.
     const overlayWaitFn = async (): Promise<void> => {
-        try { commitDraws(); await waitForEvent(); } catch {}
+        try {
+            commitDraws();
+            let ev: RogueEvent;
+            do {
+                ev = await waitForEvent();
+            } while (ev.eventType === EventType.MouseEnteredCell);
+        } catch {}
     };
 
     const refreshSideBarFn = buildRefreshSideBarFn();

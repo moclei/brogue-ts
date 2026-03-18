@@ -136,7 +136,7 @@ only if the path is genuinely not reachable in normal play.
       C: `Architect.c` (machine done-check / cage promotion).
       TS: `turn.ts` (`updateEnvironment` / machine state). **M**
 
-- [ ] **B73 — "Discovered items" menu closes immediately on mouse move** — Opening the
+- [x] **B73 — "Discovered items" menu closes immediately on mouse move** — Opening the
       discovered-items screen (via the menu) and then moving the mouse dismisses it. The screen
       should wait for an explicit keypress. The event loop for this screen is likely calling
       `pauseAndCheckForEvent` or `nextBrogueEvent` and treating `MouseEnteredCell` as a dismiss
