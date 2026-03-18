@@ -850,29 +850,6 @@ export async function playerTurnEnded(
         ctx.rogue.receivedLevitationWarning = false;
     }
 
-    // B97 DIAG: flag consistency checker — run before removeDeadMonsters to catch stale flags
-    {
-        const pf = ctx.pmapAt(ctx.player.loc).flags;
-        if (!(pf & TileFlag.HAS_PLAYER)) {
-            console.warn(`[B97] STALE: HAS_PLAYER missing at player.loc (${ctx.player.loc.x},${ctx.player.loc.y}) flags=0x${pf.toString(16)}`);
-        }
-        for (const m of ctx.monsters) {
-            const mf = ctx.pmapAt(m.loc).flags;
-            if (!(mf & TileFlag.HAS_MONSTER)) {
-                console.warn(`[B97] STALE: HAS_MONSTER missing for live ${m.info.monsterName} @(${m.loc.x},${m.loc.y}) flags=0x${mf.toString(16)}`);
-            }
-        }
-        // Check for HAS_PLAYER set anywhere other than player.loc
-        for (let x = 0; x < ctx.DCOLS; x++) {
-            for (let y = 0; y < ctx.DROWS; y++) {
-                const f = ctx.pmapAt({ x, y }).flags;
-                if ((f & TileFlag.HAS_PLAYER) && (x !== ctx.player.loc.x || y !== ctx.player.loc.y)) {
-                    console.warn(`[B97] STALE: HAS_PLAYER set at (${x},${y}) but player is at (${ctx.player.loc.x},${ctx.player.loc.y}) flags=0x${f.toString(16)}`);
-                }
-            }
-        }
-    }
-
     ctx.removeDeadMonsters();
     ctx.rogue.playbackBetweenTurns = true;
     ctx.RNGCheck();

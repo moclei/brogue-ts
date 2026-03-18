@@ -240,10 +240,15 @@ export function processStaggerHit(
     const newX = defender.loc.x + dx;
     const newY = defender.loc.y + dy;
 
+    // Check both the pmap flags AND monsterAtLoc: killCreature clears HAS_MONSTER
+    // before removeDeadMonsters runs, so a dying monster's cell looks empty via
+    // cellFlags alone. Without the monsterAtLoc guard a stagger push could place
+    // a creature into a cell that still holds a dying monster. (B97)
     if (
         coordinatesAreInMap(newX, newY) &&
         !ctx.cellHasTerrainFlag({ x: newX, y: newY }, TerrainFlag.T_OBSTRUCTS_PASSABILITY) &&
-        !(ctx.cellFlags({ x: newX, y: newY }) & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER))
+        !(ctx.cellFlags({ x: newX, y: newY }) & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER)) &&
+        !ctx.monsterAtLoc({ x: newX, y: newY })
     ) {
         ctx.setMonsterLocation(defender, { x: newX, y: newY });
     }
@@ -337,14 +342,6 @@ export function attack(
     lungeAttack: boolean,
     ctx: AttackContext,
 ): boolean {
-    // B97 DIAG: log attacker/defender identity, locations, and cell flags at entry
-    console.log(
-        `[B97] attack: ${attacker === ctx.player ? "PLAYER" : attacker.info.monsterName}` +
-        ` @(${attacker.loc.x},${attacker.loc.y}) flags=0x${ctx.cellFlags(attacker.loc).toString(16)}` +
-        ` → ${defender === ctx.player ? "PLAYER" : defender.info.monsterName}` +
-        ` @(${defender.loc.x},${defender.loc.y}) flags=0x${ctx.cellFlags(defender.loc).toString(16)}`,
-    );
-
     let damage: number;
     let poisonDamage = 0;
 

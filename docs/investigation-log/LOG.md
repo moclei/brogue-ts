@@ -130,8 +130,9 @@ Symptom: fighting a pack (rats, jackals, kobolds, goblins), one monster vanishes
 - Traced flag corruption: after stagger push, pmap[P].HAS_PLAYER not cleared; pmap[newLoc].HAS_MONSTER set instead of HAS_PLAYER; monsterAtLoc(P) returns null (player.loc ≠ P); moveMonster takes "just move" path into P → double-flagged cell (HAS_PLAYER stale + HAS_MONSTER new) → getCellAppearance shows player glyph, hiding the monster
 - Confirmed turn.ts:582 and turn-monster-zap-wiring.ts:371 already correct (HAS_PLAYER/HAS_MONSTER distinction present)
 
-Root cause: combat.ts:347 runicCtx.setMonsterLocation — always used HAS_MONSTER for all creatures (including player) and never called refreshDungeonCell; stagger push leaves stale HAS_PLAYER flag at player's old tile, allowing a second monster to "move in" undetected
-Steps logged: 7
+Root cause (PR #66, confirmed fixed): combat.ts:347 runicCtx.setMonsterLocation — always used HAS_MONSTER for all creatures (including player) and never called refreshDungeonCell; stagger push leaves stale HAS_PLAYER flag at player's old tile, allowing a second monster to "move in" undetected
+Root cause (PR #68, residual bug): killCreature calls clearCellMonsterFlag immediately, clearing HAS_MONSTER before removeDeadMonsters runs. Both playerMoves (player-movement.ts:417) and processStaggerHit (combat-attack.ts:246) checked only cellFlags for occupancy — so a dying monster's cell appeared "empty", allowing the player to walk into it or a stagger push to place a creature there. Fixed by also consulting monsterAtLoc in both occupancy checks.
+Steps logged: 14
 
 ---
 
