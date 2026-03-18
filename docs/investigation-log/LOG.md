@@ -116,3 +116,18 @@ Symptom: when a pit bloat explodes beneath the player, the game jumps immediatel
 
 Root cause: playerFalls is sync but calls async message() without await; the REQUIRE_ACKNOWLEDGMENT message fires and is ignored; startLevel runs immediately
 Steps logged: 5
+
+---
+
+## B67 — Potion of paralysis: status appears instant (no tick-down)
+Symptom: after drinking a paralysis potion, the paralysis status bar appears and vanishes without counting down
+
+- Checked C decrementPlayerStatus and drinkPotion for paralysis case — Read: Time.c:1969-2020, Items.c:7315 → gas cloud spawned; decrementPlayerStatus decrements STATUS_PARALYZED by 1 per 100-tick environment update
+- Verified TS port of decrementPlayerStatus and applyInstantTileEffectsToCreature — Read: creature-effects.ts:584-631 and 1163-1183 → both correct; paralysis gas sets status to max(current, 20)
+- Confirmed gas tile spawning path — Read: machines.ts:980-1008 → gas layer: sets pmap[x][y].volume and layers[Gas]; tile catalog entry has T_CAUSES_PARALYSIS flag
+- Checked how cellHasTerrainFlag reads gas layer — Read: helpers.ts:36-43 → correctly OR-combines all layers including Gas
+- Found the stub — Read: turn.ts:405 → pauseAnimation: () => false — stub returns immediately without commitDraws() or yielding to browser
+- Confirmed callers need await — Read: turn-processing.ts:652,786 → both call sites are in async playerTurnEnded but didn't await; sidebar refreshes during paralysis loop never flushed to canvas
+
+Root cause: TurnProcessingContext.pauseAnimation stubbed as () => false in turn.ts; during the paralysis do-while loop, refreshSideBar was called ~20 times but commitDraws() was never called, so the browser rendered only the final state (paralysis gone) when JS yielded
+Steps logged: 6

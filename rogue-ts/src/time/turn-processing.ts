@@ -149,7 +149,7 @@ export interface TurnProcessingContext {
     flashMessage(msg: string, x: number, y: number, duration: number, foreColor: Color, backColor: Color): void | Promise<void>;
     recordKeystroke(key: number, shift: boolean, alt: boolean): void;
     confirmMessages(): void;
-    pauseAnimation(duration: number, behavior: any): boolean;
+    pauseAnimation(duration: number, behavior: any): boolean | Promise<boolean>;
 
     // Colors
     goodMessageColor: Color;
@@ -650,7 +650,7 @@ export async function playerTurnEnded(
                 }
 
                 if (ctx.player.ticksUntilTurn > 100 && !fastForward) {
-                    fastForward = ctx.rogue.playbackFastForward || ctx.pauseAnimation(25, null);
+                    fastForward = ctx.rogue.playbackFastForward || await ctx.pauseAnimation(25, null);
                 }
 
                 // Rolling waypoint refresh
@@ -783,7 +783,7 @@ export async function playerTurnEnded(
 
         if (ctx.player.status[StatusEffect.Paralyzed]) {
             if (!fastForward) {
-                fastForward = ctx.rogue.playbackFastForward || ctx.pauseAnimation(25, null);
+                fastForward = ctx.rogue.playbackFastForward || await ctx.pauseAnimation(25, null);
             }
         }
 

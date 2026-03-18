@@ -88,6 +88,7 @@ import { keyMatchesLocation as keyMatchesLocationFn } from "./items/item-utils.j
 import { wandTable, staffTable, ringTable, charmTable, armorTable } from "./globals/item-catalog.js";
 import type { ItemTable } from "./types/types.js";
 import { buildMonstersApproachStairsCtx, monstersApproachStairs as monstersApproachStairsFn } from "./time/stairs-wiring.js";
+import { commitDraws, pauseAndCheckForEvent } from "./platform.js";
 
 // =============================================================================
 // Minimal combat context — used by inflictDamage/killCreature/addPoison calls
@@ -402,7 +403,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         flashMessage: () => {},
         recordKeystroke: () => {},
         confirmMessages: io.confirmMessages,
-        pauseAnimation: () => false,
+        pauseAnimation: (duration: number) => { commitDraws(); return pauseAndCheckForEvent(duration); },
 
         // ── Colors ───────────────────────────────────────────────────────────
         goodMessageColor, badMessageColor, advancementMessageColor, itemMessageColor,
