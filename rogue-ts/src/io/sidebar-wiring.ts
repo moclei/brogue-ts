@@ -56,6 +56,7 @@ import {
     monsterIsInClass as monsterIsInClassFn,
 } from "../monsters/monster-queries.js";
 import { monsterDetails as monsterDetailsFn, type MonsterDetailsContext } from "../monsters/monster-details.js";
+import { monsterCanSubmergeNow as monsterCanSubmergeNowFn } from "../monsters/monster-spawning.js";
 import { hitProbability, monsterDamageAdjustmentAmount } from "../combat/combat-math.js";
 import { monsterClassCatalog } from "../globals/monster-class-catalog.js";
 import { randPercent } from "../math/rng.js";
@@ -330,7 +331,7 @@ export function buildPrintLocationDescriptionFn(): (x: number, y: number) => voi
             playerCanDirectlySee: (px: number, py: number) => !!(pmap[px]?.[py]?.flags & TileFlag.VISIBLE),
             itemMagicPolarity: () => 0,
             monsterName: (m: Creature, incArt: boolean) => monsterNameFn(m, incArt, mqCtx),
-            monsterCanSubmergeNow: () => false,
+            monsterCanSubmergeNow: (m) => monsterCanSubmergeNowFn(m, cellHasTMFlag, cellHasTerrainFlag),
             describedItemName: (item: import("../types/types.js").Item, maxLen: number) =>
                 itemNameFn(item, false, false,
                 { gameConstants: {}, depthLevel: rogue.depthLevel, potionTable: mutablePotionTable, scrollTable: mutableScrollTable,

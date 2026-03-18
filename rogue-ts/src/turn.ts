@@ -82,6 +82,11 @@ import { teleport as teleportFn, disentangle as disentangleFn } from "./monsters
 import { createFlare as createFlareFn } from "./light/flares.js";
 import { calculateDistances } from "./dijkstra/dijkstra.js";
 import { forbiddenFlagsForMonster as forbiddenFlagsForMonsterFn, avoidedFlagsForMonster as avoidedFlagsForMonsterFn } from "./monsters/monster-spawning.js";
+import {
+    canSeeMonster as canSeeMonsterFn,
+    canDirectlySeeMonster as canDirectlySeeMonsterFn,
+    monsterRevealed as monsterRevealedFn,
+} from "./monsters/monster-queries.js";
 import { lightCatalog } from "./globals/light-catalog.js";
 import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
 import { keyMatchesLocation as keyMatchesLocationFn } from "./items/item-utils.js";
@@ -313,6 +318,16 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         getCellFlags: (x: number, y: number) => pmap[x]?.[y]?.flags ?? 0,
     };
 
+    // Monster query context — needed for correct canSeeMonster (checks MB_SUBMERGED etc.)
+    const mqCtx = {
+        player,
+        cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
+        cellHasGas: (loc: Pos) => !!(pmap[loc.x]?.[loc.y]?.layers[DungeonLayer.Gas]),
+        playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playbackOmniscience: rogue.playbackOmniscience,
+    };
+
     return {
         player,
         rogue: rogue as unknown as TurnProcessingContext["rogue"],
@@ -346,9 +361,9 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         pmapAt,
 
         // ── Monster helpers ───────────────────────────────────────────────────
-        canSeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
-        canDirectlySeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
-        monsterRevealed: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+        canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
+        canDirectlySeeMonster: (m) => canDirectlySeeMonsterFn(m, mqCtx),
+        monsterRevealed: (m) => monsterRevealedFn(m, player),
         monsterName(buf, m, includeArticle) {
             if (m === player) { buf[0] = "you"; return; }
             const pfx = includeArticle

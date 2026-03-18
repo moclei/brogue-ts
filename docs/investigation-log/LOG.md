@@ -132,3 +132,18 @@ Symptom: fighting a pack (rats, jackals, kobolds, goblins), one monster vanishes
 
 Root cause: combat.ts:347 runicCtx.setMonsterLocation — always used HAS_MONSTER for all creatures (including player) and never called refreshDungeonCell; stagger push leaves stale HAS_PLAYER flag at player's old tile, allowing a second monster to "move in" undetected
 Steps logged: 7
+
+---
+
+## B93 — "You see an eel" fires when eel is submerged
+Symptom: message area shows "you see an eel" even when eel is submerged; sidebar shows eel with health bar
+
+- Need to find where MB_SUBMERGED is set — Grep: monsterCanSubmergeNow in turn-monster-ai.ts → line 215, real impl wired
+- Confirm MB_SUBMERGED is actually set — Read: monster-state.ts:896 → confirmed, set via monsterCanSubmergeNowFn in decrementMonsterStatus
+- Find where "you see" message fires — Grep: MB_WAS_VISIBLE in turn-processing.ts → line 709, canSeeMonster gate
+- Check how canSeeMonster is wired in turn.ts — Read: turn.ts:349 → STUB: only checks TileFlag.VISIBLE, skips monsterIsHidden
+- Confirmed sidebar uses real canSeeMonsterFn (sidebar-wiring.ts:172) with mqCtx — Read: sidebar-wiring.ts:115 → correct, but sidebar monsterCanSubmergeNow still stubbed
+- Confirmed monster-queries.ts has real canSeeMonster, canDirectlySeeMonster, monsterRevealed — Read: monster-queries.ts → all three present
+
+Root cause: turn.ts:349-351 — canSeeMonster/canDirectlySeeMonster/monsterRevealed are bare VISIBLE-flag stubs; never call monsterIsHidden, so MB_SUBMERGED is ignored and submerged monsters trigger "you see" messages
+Steps logged: 6
