@@ -194,7 +194,7 @@ export interface TurnProcessingContext {
     monsterShouldFall(monst: Creature): boolean;
     monstersFall(): void;
     decrementPlayerStatus(): void;
-    playerFalls(): void;
+    playerFalls(): void | Promise<void>;
     handleHealthAlerts(): void | Promise<void>;
     updateScent(): void;
     currentStealthRange(): number;
@@ -438,7 +438,7 @@ export async function playerTurnEnded(
     recordCurrentCreatureHealths(ctx);
 
     if (ctx.player.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_FALLING) {
-        ctx.playerFalls();
+        await ctx.playerFalls();
         if (!ctx.rogue.gameHasEnded) {
             await ctx.handleHealthAlerts();
         }
@@ -805,7 +805,7 @@ export async function playerTurnEnded(
         }
 
         if (ctx.player.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_FALLING) {
-            ctx.playerFalls();
+            await ctx.playerFalls();
             await ctx.handleHealthAlerts();
             return;
         }

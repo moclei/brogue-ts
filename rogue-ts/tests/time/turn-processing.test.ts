@@ -505,7 +505,7 @@ describe("playerTurnEnded", () => {
         expect(resetDFSpy).toHaveBeenCalled();
     });
 
-    it("handles player falling", () => {
+    it("handles player falling", async () => {
         const fallSpy = vi.fn();
         const healthSpy = vi.fn();
         const ctx = makeCtx({
@@ -514,7 +514,7 @@ describe("playerTurnEnded", () => {
         });
         ctx.player.bookkeepingFlags |= MonsterBookkeepingFlag.MB_IS_FALLING;
 
-        playerTurnEnded(ctx);
+        await playerTurnEnded(ctx);
 
         expect(fallSpy).toHaveBeenCalled();
         expect(healthSpy).toHaveBeenCalled();

@@ -125,8 +125,8 @@ export interface CreatureEffectsContext {
     flashMonster(monst: Creature, color: Color, strength: number): void;
 
     // UI
-    message(msg: string, flags: number): void;
-    messageWithColor(msg: string, color: Color, flags: number): void;
+    message(msg: string, flags: number): void | Promise<void>;
+    messageWithColor(msg: string, color: Color, flags: number): void | Promise<void>;
     flavorMessage(msg: string): void;
     refreshDungeonCell(loc: Pos): void;
     gameOver(message: string, showScore: boolean): void;
@@ -699,9 +699,9 @@ export function decrementPlayerStatus(
 // playerFalls — from Time.c:977
 // =============================================================================
 
-export function playerFalls(
+export async function playerFalls(
     ctx: CreatureEffectsContext,
-): void {
+): Promise<void> {
     if (
         ctx.cellHasTMFlag(ctx.player.loc, TerrainMechFlag.TM_IS_SECRET) &&
         ctx.playerCanSee(ctx.player.loc.x, ctx.player.loc.y)
@@ -714,12 +714,12 @@ export function playerFalls(
 
     const layer = ctx.layerWithFlag(ctx.player.loc.x, ctx.player.loc.y, TerrainFlag.T_AUTO_DESCENT);
     if (layer >= 0) {
-        ctx.message(
+        await ctx.message(
             ctx.tileCatalog[ctx.pmapAt(ctx.player.loc).layers[layer]].flavorText,
             ctx.REQUIRE_ACKNOWLEDGMENT,
         );
     } else {
-        ctx.message("You plunge downward!", ctx.REQUIRE_ACKNOWLEDGMENT);
+        await ctx.message("You plunge downward!", ctx.REQUIRE_ACKNOWLEDGMENT);
     }
 
     ctx.player.bookkeepingFlags &= ~(
@@ -735,13 +735,13 @@ export function playerFalls(
         const damage = ctx.randClumpedRange(ctx.gameConst.fallDamageMin, ctx.gameConst.fallDamageMax, 2);
         let killed = false;
         if (ctx.terrainFlags(ctx.player.loc) & TerrainFlag.T_IS_DEEP_WATER) {
-            ctx.messageWithColor("You fall into deep water, unharmed.", ctx.badMessageColor, 0);
+            await ctx.messageWithColor("You fall into deep water, unharmed.", ctx.badMessageColor, 0);
         } else {
             let actualDamage = damage;
             if (ctx.cellHasTMFlag(ctx.player.loc, TerrainMechFlag.TM_ALLOWS_SUBMERGING)) {
                 actualDamage = Math.floor(damage / 2);
             }
-            ctx.messageWithColor("You are injured by the fall.", ctx.badMessageColor, 0);
+            await ctx.messageWithColor("You are injured by the fall.", ctx.badMessageColor, 0);
             if (ctx.inflictDamage(null, ctx.player, actualDamage, ctx.red, false)) {
                 ctx.killCreature(ctx.player, false);
                 ctx.gameOver("Killed by a fall", true);
@@ -752,7 +752,7 @@ export function playerFalls(
             ctx.rogue.deepestLevel = ctx.rogue.depthLevel;
         }
     } else {
-        ctx.message("A strange force seizes you as you fall.", 0);
+        await ctx.message("A strange force seizes you as you fall.", 0);
         ctx.teleport(ctx.player, ctx.INVALID_POS, true);
     }
     ctx.createFlare(ctx.player.loc.x, ctx.player.loc.y, ctx.GENERIC_FLASH_LIGHT);
