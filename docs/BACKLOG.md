@@ -237,9 +237,7 @@ only if the path is genuinely not reachable in normal play.
       C: `RogueMain.c` (`gameOver` / quit-without-save branch).
       TS: `menus.ts`, `lifecycle-gameover.ts`. **S**
 
-- [ ] **B93 — "You see an eel" message fires when the eel is submerged** — The game
-      occasionally announces a monster sighting for a submerged eel that is not visible to the
-      player. The visibility check for submerged monsters is bypassed because
+- [x] **B93 — "You see an eel" message fires when the eel is submerged** — \* I still see eel’s that aren’t actually visible (the message area says “you see an eel” when the map shows no eel - they are submerged and so the message should not be indicating that they are there, it spoils the intended mechanic of eels submerging and surprising you. Also, the side panel shows “Something” with their health bars and status, when that should also be hidden for submerged eels (and any other similar monsters). It might be that the visibility check for submerged monsters is bypassed because
       `monsterCanSubmergeNow: () => false` is stubbed in `io/sidebar-wiring.ts:332` and
       `turn-monster-ai.ts:219`, causing submerged monsters to always appear visible.
       C: `IO.c` (`canSeeMonster` / submerge visibility gate).
@@ -266,14 +264,12 @@ only if the path is genuinely not reachable in normal play.
       TS: `combat.ts` (`runicCtx.setMonsterLocation`). **S**
       ⚠️ **Needs playtest confirmation** — fix was applied (PR #66) but the original symptom
       could not be reliably reproduced afterward. If the bug resurfaces, re-add these two
-      diagnostic logs and reproduce:
-      1. In `combat-attack.ts:attack()` entry: log attacker/defender names, locs, and
-         `ctx.cellFlags(loc).toString(16)` for both.
-      2. In `turn-processing.ts:playerTurnEnded()` just before `removeDeadMonsters()`: call
-         a consistency checker that warns on (a) `HAS_PLAYER` set at any cell other than
-         `player.loc`, (b) `HAS_MONSTER` set at a cell with no live monster, (c) a live
-         monster whose cell has no `HAS_MONSTER`. The warning type tells you which hypothesis
-         (stale flag vs. missing refresh) is the real cause.
+      diagnostic logs and reproduce: 1. In `combat-attack.ts:attack()` entry: log attacker/defender names, locs, and
+      `ctx.cellFlags(loc).toString(16)` for both. 2. In `turn-processing.ts:playerTurnEnded()` just before `removeDeadMonsters()`: call
+      a consistency checker that warns on (a) `HAS_PLAYER` set at any cell other than
+      `player.loc`, (b) `HAS_MONSTER` set at a cell with no live monster, (c) a live
+      monster whose cell has no `HAS_MONSTER`. The warning type tells you which hypothesis
+      (stale flag vs. missing refresh) is the real cause.
 
 - [ ] **B96 — Explore oscillation after item pickup; item shown on floor despite being in inventory** —
       After picking up a scroll (observed on Depth 2), pressing 'x' to auto-explore causes the

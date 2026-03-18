@@ -81,7 +81,13 @@ import { layerWithFlag as layerWithFlagFn } from "./movement/map-queries.js";
 import { teleport as teleportFn, disentangle as disentangleFn } from "./monsters/monster-teleport.js";
 import { createFlare as createFlareFn } from "./light/flares.js";
 import { calculateDistances } from "./dijkstra/dijkstra.js";
-import { forbiddenFlagsForMonster as forbiddenFlagsForMonsterFn, avoidedFlagsForMonster as avoidedFlagsForMonsterFn } from "./monsters/monster-spawning.js";
+import { forbiddenFlagsForMonster as forbiddenFlagsForMonsterFn, avoidedFlagsForMonster as avoidedFlagsForMonsterFn, monsterCanSubmergeNow as monsterCanSubmergeNowFn } from "./monsters/monster-spawning.js";
+import {
+    canSeeMonster as canSeeMonsterFn,
+    canDirectlySeeMonster as canDirectlySeeMonsterFn,
+    monsterRevealed as monsterRevealedFn,
+} from "./monsters/monster-queries.js";
+import { decrementMonsterStatus as decrementMonsterStatusFn } from "./monsters/monster-state.js";
 import { lightCatalog } from "./globals/light-catalog.js";
 import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
 import { keyMatchesLocation as keyMatchesLocationFn } from "./items/item-utils.js";
@@ -313,6 +319,42 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         getCellFlags: (x: number, y: number) => pmap[x]?.[y]?.flags ?? 0,
     };
 
+    // Monster query context — needed for correct canSeeMonster (checks MB_SUBMERGED etc.)
+    const mqCtx = {
+        player,
+        cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
+        cellHasGas: (loc: Pos) => !!(pmap[loc.x]?.[loc.y]?.layers[DungeonLayer.Gas]),
+        playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playbackOmniscience: rogue.playbackOmniscience,
+    };
+
+    // Minimal MonsterStateContext for decrementMonsterStatus — only the fields
+    // actually accessed by that function (submersion, burning, poison, etc.).
+    // Waypoints/pathfinding fields are never called from decrementMonsterStatus.
+    const decrementMonsterStatusCtx = {
+        player,
+        rng: { randRange, randPercent },
+        queryCtx: mqCtx,
+        cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
+        monsterCanSubmergeNow: (m: Creature) =>
+            monsterCanSubmergeNowFn(m,
+                (pos: Pos, f: number) => cellHasTMFlagFn(pmap, pos, f),
+                (pos: Pos, f: number) => cellHasTerrainFlagFn(pmap, pos, f)),
+        inflictDamage: (attacker: Creature | null, defender: Creature, damage: number) =>
+            inflictDamageFn(attacker, defender, damage, null, false, combatCtx),
+        killCreature: (m: Creature, quiet: boolean) => killCreatureFn(m, quiet, combatCtx),
+        // For monsters: just clear burning; player fire-color reset is in the full impl
+        extinguishFireOnCreature: (m: Creature) => { m.status[15] = 0; /* StatusEffect.Burning */ },
+        makeMonsterDropItem: (m: Creature) =>
+            doMakeMonsterDropItem(m, pmap, floorItems, (pos: Pos, f: number) => cellHasTerrainFlagFn(pmap, pos, f), refreshDungeonCell),
+        refreshDungeonCell,
+        message: io.message,
+        messageWithColor: (text: string, flags: number) => io.message(text, flags),
+        combatMessage: (text: string) => io.combatMessage(text, null),
+        playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+    } as unknown as import("./monsters/monster-state.js").MonsterStateContext;
+
     return {
         player,
         rogue: rogue as unknown as TurnProcessingContext["rogue"],
@@ -346,9 +388,9 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         pmapAt,
 
         // ── Monster helpers ───────────────────────────────────────────────────
-        canSeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
-        canDirectlySeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
-        monsterRevealed: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+        canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
+        canDirectlySeeMonster: (m) => canDirectlySeeMonsterFn(m, mqCtx),
+        monsterRevealed: (m) => monsterRevealedFn(m, player),
         monsterName(buf, m, includeArticle) {
             if (m === player) { buf[0] = "you"; return; }
             const pfx = includeArticle
@@ -362,12 +404,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         monsterIsInClass: () => false,                      // stub
         isVowelish: (w) => "aeiouAEIOU".includes(w[0] ?? ""),
         monstersTurn: (monst) => monstersTurnFn(monst, buildMonstersTurnContext()),
-        decrementMonsterStatus(monst) {
-            for (let i = 0; i < monst.status.length; i++) {
-                if (monst.status[i] > 0) monst.status[i]--;
-            }
-            return false;
-        },
+        decrementMonsterStatus: (monst) => decrementMonsterStatusFn(monst, decrementMonsterStatusCtx),
         removeCreature(list, monst) {
             const idx = list.indexOf(monst);
             if (idx >= 0) { list.splice(idx, 1); return true; }
