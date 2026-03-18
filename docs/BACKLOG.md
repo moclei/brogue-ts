@@ -152,17 +152,7 @@ only if the path is genuinely not reachable in normal play.
       TS: `turn-monster-zap-wiring.ts` — wire `updateSafetyMap` the same way it was done
       in `turn-monster-ai.ts` for `getSafetyMap` (PR #38). **S**
 
-- [ ] **B78 — Items don't drift on water tiles (`T_MOVES_ITEMS`)** — Items on deep water
-      stay put; in C they drift to an adjacent open cell each turn via `updateFloorItems`.
-      Root cause confirmed: `lifecycle.ts:521` has `updateFloorItems: () => {}` stub with the
-      comment "stub — separate backlog item". The real function `items/floor-items.ts:95` is
-      fully implemented (including the `T_MOVES_ITEMS` branch at line 162) but is never
-      called from the main turn loop. Fix: wire `buildUpdateFloorItemsFn` in the
-      `TurnProcessingContext` in `lifecycle.ts` the same way B71 wired it for vault entry.
-      C: `Items.c:1192` (`updateFloorItems`, `T_MOVES_ITEMS` branch at line 1240).
-      TS: `lifecycle.ts:521`, `items/floor-items.ts:162`. **S**
-
-- [ ] **B84 — Seed entry UI missing label and background box** — The "new seeded game"
+- [x] **B84 — Seed entry UI missing label and background box** — The "new seeded game"
       seed input screen shows only the text entry field. In C it shows a semi-transparent
       background panel with the label "Generate dungeon with seed number:" above the field.
       The TS equivalent is missing both the box/overlay and the descriptive label.
@@ -279,7 +269,7 @@ only if the path is genuinely not reachable in normal play.
       TS: `items/pickup.ts` (`pickUpItemAt`), `movement/travel-explore.ts` (`getExploreMap`),
       `movement.ts` (pickup context wiring). **P1**
 
-- [ ] **B95 — Sidebar ↔ dungeon item hover cross-highlighting not working** — Two related
+- [x] **B95 — Sidebar ↔ dungeon item hover cross-highlighting not working** — Two related
       issues:
   1. Hovering the mouse over an item entry in the left-hand sidebar panel should
      highlight that entry in brighter text; it does not.

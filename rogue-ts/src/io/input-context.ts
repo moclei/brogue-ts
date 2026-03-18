@@ -69,6 +69,7 @@ import { dijkstraScan as dijkstraScanFn } from "../dijkstra/dijkstra.js";
 import {
     buildMessageFns,
     buildRefreshDungeonCellFn,
+    buildHiliteCellFn,
     buildRefreshSideBarFn, buildConfirmFn, buildDisplayLevelFn,
 } from "../io-wiring.js";
 import { buildDebugOverlayFns } from "./debug-overlays.js";
@@ -340,6 +341,8 @@ export function buildInputContext(): InputContext {
     const refreshSideBarFn = buildRefreshSideBarFn();
     const displayLevelFn = buildDisplayLevelFn();
     const io = buildMessageFns();
+    const refreshDungeonCell = buildRefreshDungeonCellFn();
+    const hiliteCellFn = buildHiliteCellFn();
     const itemCmdDeps = {
         message: (msg: string, flags: number) => io.message(msg, flags),
         messageWithColor: (msg: string, color: Readonly<Color> | null, flags: number) => io.messageWithColor(msg, color!, flags),
@@ -556,10 +559,34 @@ export function buildInputContext(): InputContext {
                 },
                 itemAtLoc,
             }),
-        hilitePath: () => {},
-        clearCursorPath: () => {},
-        hiliteCell: () => {},
-        refreshDungeonCell: () => {},
+        hilitePath: (path, steps, unhilite) => {
+            if (unhilite) {
+                for (let i = 0; i < steps; i++) {
+                    if (pmap[path[i].x]?.[path[i].y]) pmap[path[i].x][path[i].y].flags &= ~TileFlag.IS_IN_PATH;
+                    refreshDungeonCell(path[i]);
+                }
+            } else {
+                for (let i = 0; i < steps; i++) {
+                    if (pmap[path[i].x]?.[path[i].y]) pmap[path[i].x][path[i].y].flags |= TileFlag.IS_IN_PATH;
+                    refreshDungeonCell(path[i]);
+                }
+            }
+        },
+        clearCursorPath: () => {
+            if (!rogue.playbackMode) {
+                for (let i = 1; i < DCOLS; i++) {
+                    for (let j = 1; j < DROWS; j++) {
+                        if (pmap[i]?.[j]?.flags & TileFlag.IS_IN_PATH) {
+                            pmap[i][j].flags &= ~TileFlag.IS_IN_PATH;
+                            refreshDungeonCell({ x: i, y: j });
+                        }
+                    }
+                }
+            }
+        },
+        hiliteCell: (x, y, color, opacity, distinctColors) =>
+            hiliteCellFn(x, y, color, opacity, distinctColors),
+        refreshDungeonCell: (loc) => refreshDungeonCell(loc),
 
         // ── Pathing (stubs — wired in Phase 5) ───────────────────────────────
         allocGrid: () => [],
