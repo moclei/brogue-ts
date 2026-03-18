@@ -240,10 +240,15 @@ export function processStaggerHit(
     const newX = defender.loc.x + dx;
     const newY = defender.loc.y + dy;
 
+    // Check both the pmap flags AND monsterAtLoc: killCreature clears HAS_MONSTER
+    // before removeDeadMonsters runs, so a dying monster's cell looks empty via
+    // cellFlags alone. Without the monsterAtLoc guard a stagger push could place
+    // a creature into a cell that still holds a dying monster. (B97)
     if (
         coordinatesAreInMap(newX, newY) &&
         !ctx.cellHasTerrainFlag({ x: newX, y: newY }, TerrainFlag.T_OBSTRUCTS_PASSABILITY) &&
-        !(ctx.cellFlags({ x: newX, y: newY }) & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER))
+        !(ctx.cellFlags({ x: newX, y: newY }) & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER)) &&
+        !ctx.monsterAtLoc({ x: newX, y: newY })
     ) {
         ctx.setMonsterLocation(defender, { x: newX, y: newY });
     }

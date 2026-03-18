@@ -413,10 +413,13 @@ export async function playerMoves(
     }
 
     // ── Check for defender ──
-    let defender: Creature | null = null;
-    if (pmap[newX][newY].flags & TileFlag.HAS_MONSTER) {
-        defender = ctx.monsterAtLoc({ x: newX, y: newY });
-    }
+    // Use monsterAtLoc directly rather than relying solely on HAS_MONSTER, because
+    // killCreature clears HAS_MONSTER immediately (before removeDeadMonsters runs),
+    // so a dying monster's cell can appear empty to the flag check even though the
+    // creature is still logically present. Without this, the player could walk
+    // into a dying monster's cell during the same turn it was killed. (B97)
+    let defender: Creature | null = ctx.monsterAtLoc({ x: newX, y: newY });
+    if (defender === ctx.player) defender = null;
 
     // ── Terrain promotions (opening doors, etc.) ──
     if (
