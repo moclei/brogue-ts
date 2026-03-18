@@ -56,6 +56,7 @@ import { itemName as itemNameFn } from "./items/item-naming.js";
 import {
     monsterName as monsterNameFn,
     canSeeMonster as canSeeMonsterFn,
+    canDirectlySeeMonster as canDirectlySeeMonsterFn,
     monsterIsInClass as monsterIsInClassFn,
 } from "./monsters/monster-queries.js";
 import { monsterDetails as monsterDetailsFn } from "./monsters/monster-details.js";
@@ -215,7 +216,7 @@ export function buildRefreshSideBarFn(): () => void {
         },
         itemAtLoc: (loc) => itemAtLocFn(loc, floorItems),
         canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
-        canDirectlySeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+        canDirectlySeeMonster: (m) => canDirectlySeeMonsterFn(m, mqCtx),
         playerCanSeeOrSense: (x, y) =>
             !!(pmap[x]?.[y]?.flags & (TileFlag.VISIBLE | TileFlag.WAS_VISIBLE)),
         playerCanDirectlySee: (x, y) =>
@@ -390,13 +391,20 @@ export function buildExposeCreatureToFireFn(): (monst: Creature) => void {
         cellHasTerrainFlagFn(pmap, pos, flags);
     const refreshDungeonCell = buildRefreshDungeonCellFn();
     const io = buildMessageFns();
+    const mqCtxFire = {
+        player,
+        cellHasTerrainFlag,
+        cellHasGas: () => false as const,
+        playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playbackOmniscience: rogue.playbackOmniscience,
+    };
     return (monst: Creature): void => {
         exposeCreatureToFireFn(monst, {
             player,
             rogue: { minersLight: rogue.minersLight },
             cellHasTMFlag,
-            canDirectlySeeMonster: (m: Creature) =>
-                !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+            canDirectlySeeMonster: (m: Creature) => canDirectlySeeMonsterFn(m, mqCtxFire),
             monsterName(buf: string[], m: Creature, includeArticle: boolean): void {
                 if (m === player) { buf[0] = "you"; return; }
                 const pfx = includeArticle
