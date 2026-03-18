@@ -337,6 +337,14 @@ export function attack(
     lungeAttack: boolean,
     ctx: AttackContext,
 ): boolean {
+    // B97 DIAG: log attacker/defender identity, locations, and cell flags at entry
+    console.log(
+        `[B97] attack: ${attacker === ctx.player ? "PLAYER" : attacker.info.monsterName}` +
+        ` @(${attacker.loc.x},${attacker.loc.y}) flags=0x${ctx.cellFlags(attacker.loc).toString(16)}` +
+        ` → ${defender === ctx.player ? "PLAYER" : defender.info.monsterName}` +
+        ` @(${defender.loc.x},${defender.loc.y}) flags=0x${ctx.cellFlags(defender.loc).toString(16)}`,
+    );
+
     let damage: number;
     let poisonDamage = 0;
 
