@@ -331,7 +331,7 @@ export function buildPrintLocationDescriptionFn(): (x: number, y: number) => voi
             playerCanDirectlySee: (px: number, py: number) => !!(pmap[px]?.[py]?.flags & TileFlag.VISIBLE),
             itemMagicPolarity: () => 0,
             monsterName: (m: Creature, incArt: boolean) => monsterNameFn(m, incArt, mqCtx),
-            monsterCanSubmergeNow: (m) => monsterCanSubmergeNowFn(m, cellHasTMFlag, cellHasTerrainFlag),
+            monsterCanSubmergeNow: (m: Creature) => monsterCanSubmergeNowFn(m, cellHasTMFlag, cellHasTerrainFlag),
             describedItemName: (item: import("../types/types.js").Item, maxLen: number) =>
                 itemNameFn(item, false, false,
                 { gameConstants: {}, depthLevel: rogue.depthLevel, potionTable: mutablePotionTable, scrollTable: mutableScrollTable,
