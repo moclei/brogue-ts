@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-16 (cleanup: archived completed items to BACKLOG-DONE.md)
+**Status:** updated 2026-03-19 (cleanup: archived more completed items; added B98–B105 from playtesting)
 **Tests at last update:** 88 files · 2324 pass · 55 skip
 
 ---
@@ -66,24 +66,7 @@ only if the path is genuinely not reachable in normal play.
       C: `RogueMain.c:547` (startLevel), `IO.c` (displayLevel, displayMonster).
       TS: `lifecycle.ts` (buildLevelContext / startLevel sequence), `turn-processing.ts`. **S**
 
-- [x] **B52 — Teleport scroll: player symbol missing until next move** —
-      After the player teleports (via scroll or bolt), the `@` glyph at the destination is not
-      drawn until the player takes another action. The old position is correctly cleared. Likely
-      cause: `refreshDungeonCell` is called for the old location but not the new one, or
-      `commitDraws` is not called after the teleport resolves, leaving the canvas stale for one
-      frame.
-      C: `Items.c` (teleport → refreshDungeonCell), `IO.c` (displayLevel / commitDraws).
-      TS: `monsters/monster-teleport.ts`, `items.ts`, `vision-wiring.ts`. **S**
 
-- [x] **B56 — Ascending stairs shows fog-of-war artifacts from the lower level** — When
-      transitioning back up to a previously explored level, cells that should show fog-of-war
-      (remembered but currently unseen) instead display stale glyph/color data from the level
-      below. The player must re-explore those cells for them to render correctly. B28 addressed
-      a similar artifact when descending; this is the ascending direction, likely a missing
-      `displayLevel` / buffer reset before the restored level is drawn.
-      C: `RogueMain.c:643` (startLevel → storeMemories), `IO.c` (displayLevel).
-      TS: `lifecycle.ts` (level transition sequence), `movement/travel-explore.ts` (stair
-      traversal → startLevel call). **S**
 
 - [ ] **B57 — Scroll of negation crashes the game** — Using a scroll of negation caused a
       crash. `negateCreature` is wired (B44/earlier), but `negationBlast` (the scroll handler)
@@ -98,12 +81,6 @@ only if the path is genuinely not reachable in normal play.
       C: `Items.c` (negationBlast, readScroll SCROLL_NEGATION:4080).
       TS: `items/item-handlers.ts` (negationBlast), `items.ts` (NegateContext). **M**
 
-- [x] **B62 — Pit bloat fall: no message or keypress before showing lower level** — When a
-      pit bloat explodes beneath the player, the game jumps immediately to the lower level with
-      no feedback. In C if you git a pit bloat and it explodes a little animation plays, and if you are on a square that "dissappears" because of the pit bloat's effect, a message appears saying "The pit boat bursts, causing the floor underneath it to dissappear!" then another message saying "You plunge downward into the hole". Then the message area says "MORE", so you have to click or press a key to continue. When you do, that is when you find yourself on the next floor, so with `REQUIRE_ACKNOWLEDGMENT` before the level transition is rendered.
-      C: `Time.c` / `RogueMain.c` (player-fall code path triggered by `DF_PIT_BLOAT_HOLE` /
-      `changeLevelIfAppropriate`).
-      TS: `lifecycle.ts` (level-transition sequence), `movement/travel-explore.ts`. **S**
 
 - [ ] **B67 — Potion of paralysis: status appears instant (no tick-down)** — After drinking
       a paralysis potion the paralysis status seems to appear and vanish without visibly counting
@@ -136,13 +113,6 @@ only if the path is genuinely not reachable in normal play.
       C: `Architect.c` (machine done-check / cage promotion).
       TS: `turn.ts` (`updateEnvironment` / machine state). **M**
 
-- [x] **B73 — "Discovered items" menu closes immediately on mouse move** — Opening the
-      discovered-items screen (via the menu) and then moving the mouse dismisses it. The screen
-      should wait for an explicit keypress. The event loop for this screen is likely calling
-      `pauseAndCheckForEvent` or `nextBrogueEvent` and treating `MouseEnteredCell` as a dismiss
-      event.
-      C: `IO.c` (displayInventory / item-screen event loop).
-      TS: `menus.ts` or the discovered-items display handler. **S**
 
 - [ ] **B75 — `monsterBlinkToSafety` uses stubbed `updateSafetyMap`** — Monsters with a
       blink-to-safety bolt (e.g. will-o-wisps) blink to a random/suboptimal destination
@@ -152,12 +122,6 @@ only if the path is genuinely not reachable in normal play.
       TS: `turn-monster-zap-wiring.ts` — wire `updateSafetyMap` the same way it was done
       in `turn-monster-ai.ts` for `getSafetyMap` (PR #38). **S**
 
-- [x] **B84 — Seed entry UI missing label and background box** — The "new seeded game"
-      seed input screen shows only the text entry field. In C it shows a semi-transparent
-      background panel with the label "Generate dungeon with seed number:" above the field.
-      The TS equivalent is missing both the box/overlay and the descriptive label.
-      C: `IO.c` (seed entry prompt — likely `displayCenteredAlert` or equivalent).
-      TS: `menus.ts` or the seed-entry UI handler. **S**
 
 - [x] **B85 — Trapped key rooms: machine effects don't fire on key pickup** — Several
       vault key room traps fail to trigger:
@@ -179,23 +143,7 @@ only if the path is genuinely not reachable in normal play.
      ⚠️ **Needs playtest confirmation** — stubs wired in PR #72, but these rooms are
      rare so the fix hasn't been verified in-game yet.
 
-- [x] **B86 — Auto-explore ('x') stops working after first depth** — On depth 1 pressing
-      'x' correctly visits all rooms. From depth 2 onward it frequently reports "I see no
-      path for further exploration" even when unexplored cells are clearly reachable. Likely
-      cause: the explore path-state or the exploration target map is not being reset on
-      level transition, so the algorithm still references the previous depth's dungeon map.
-      C: `Movement.c` (`exploreCommand`, `getQualifyingLocNear`).
-      TS: `movement/travel-explore.ts`, `lifecycle.ts` (level-transition reset). **M**
 
-- [x] **B87 — Sacrifice altar statue: no message and no monster highlighted** — Interacting
-      with the ally statue in a sacrifice-altar machine should display a message and mark a
-      specific monster on the current depth (visible as if via telepathy). The marked monster
-      must be lured onto the altar and killed to open the caged key. Neither message nor
-      monster highlight appeared. Likely cause: the machine's "ally statue" interaction event
-      is not dispatched, or the monster-reveal flag (`monsterRevealed: () => false` stub in
-      `io/input-context.ts:191` and `sidebar-wiring.ts:320`) prevents the highlight.
-      C: `Architect.c` (sacrifice-altar machine type), `Monsters.c` (monster reveal logic).
-      TS: `turn.ts`, `io/sidebar-wiring.ts:320`. **M**
 
 - [ ] **B88 — Arrow turret can spawn inside an unreachable interior corner** — An arrow
       turret spawned at a diagonal interior corner where neither the player nor the turret
@@ -227,23 +175,26 @@ only if the path is genuinely not reachable in normal play.
       C: `Time.c` (`applyInstantTileEffectsToCreature` hunger branch), `Items.c` (`eat`).
       TS: `tile-effects-wiring.ts:289`, `items/item-commands.ts`. **S**
 
-- [x] **B91 — Staffs do not recharge** — Staff charges never replenish between uses.
-      Root cause confirmed: `rechargeItemsIncrementally: () => {}` is stubbed in
-      `turn.ts:461` and `combat.ts:263`, so the per-turn recharge tick never fires.
-      C: `Time.c` (`rechargeItemsIncrementally`).
-      TS: `turn.ts:461`. **S**
 
-- [x] **B92 — "Quit and abandon run" menu option does nothing** — Opening the in-game
+- [ ] **B92 — "Quit and abandon run" menu option does nothing** — Opening the in-game
       menu and selecting "Quit and abandon" has no effect; the game continues. The quit path
       does not depend on persistence/recordings so it should be wireable now.
       C: `RogueMain.c` (`gameOver` / quit-without-save branch).
       TS: `menus.ts`, `lifecycle-gameover.ts`. **S**
+      ⚠️ **Re-opened** — a fix was applied in PR #70 but playtesting re-confirmed the issue
+      is still present. The menu option still has no effect after the fix.
 
-- [x] **B93 — "You see an eel" message fires when the eel is submerged** — \* I still see eel’s that aren’t actually visible (the message area says “you see an eel” when the map shows no eel - they are submerged and so the message should not be indicating that they are there, it spoils the intended mechanic of eels submerging and surprising you. Also, the side panel shows “Something” with their health bars and status, when that should also be hidden for submerged eels (and any other similar monsters). It might be that the visibility check for submerged monsters is bypassed because
-      `monsterCanSubmergeNow: () => false` is stubbed in `io/sidebar-wiring.ts:332` and
-      `turn-monster-ai.ts:219`, causing submerged monsters to always appear visible.
+- [ ] **B93 — “You see an eel” message fires when the eel is submerged** — The message area
+      says “you see an eel” when no eel is visible on the map (they are submerged). This spoils
+      the intended mechanic of eels submerging and surprising the player. Additionally, the side
+      panel shows “Something” with health bars and status for submerged eels, which should also
+      be hidden. Root cause: `monsterCanSubmergeNow: () => false` is stubbed in
+      `io/sidebar-wiring.ts:332` and `turn-monster-ai.ts:219`, causing submerged monsters to
+      always appear visible.
       C: `IO.c` (`canSeeMonster` / submerge visibility gate).
       TS: `io/sidebar-wiring.ts:332`, `turn-monster-ai.ts:219`. **S**
+      ⚠️ **Re-opened** — a fix was attempted but playtesting re-confirmed the issue is still
+      present. Submerged eels continue to trigger “you see an eel” messages and sidebar entries.
 
 - [ ] **B94 — Wands always show the same unidentified appearance ("bronze")** — All
       unidentified wands display the same descriptor ("bronze") rather than drawing from the
@@ -288,18 +239,60 @@ only if the path is genuinely not reachable in normal play.
       TS: `items/pickup.ts` (`pickUpItemAt`), `movement/travel-explore.ts` (`getExploreMap`),
       `movement.ts` (pickup context wiring). **P1**
 
-- [x] **B95 — Sidebar ↔ dungeon item hover cross-highlighting not working** — Two related
-      issues:
-  1. Hovering the mouse over an item entry in the left-hand sidebar panel should
-     highlight that entry in brighter text; it does not.
-  2. Hovering the mouse over an item on the dungeon floor should highlight its entry in
-     the sidebar; it does not.
-     Additionally, hovering a sidebar item may be expected to show the path-preview route
-     to that item (as mouse-hover over the dungeon tile does). Root cause: `hilitePath`,
-     `hiliteCell`, and `clearCursorPath` are all stubbed in `io/input-context.ts:552-554`;
-     sidebar hover callbacks are not wired to cross-highlight the dungeon cell.
-     C: `IO.c` (`printSideBar` / hover hilite, `hilitePath`, `hiliteCell`).
-     TS: `io/input-context.ts:552-554`, `io/sidebar-wiring.ts`. **M**
+- [ ] **B98 — No death animation** — When the player dies, there is no death animation.
+      In C the screen flashes and the player glyph animates before the game-over screen.
+      C: `RogueMain.c` / `IO.c` (death animation sequence).
+      TS: `lifecycle-gameover.ts` or `menus.ts`. **S**
+
+- [ ] **B99 — Play/View buttons show rectangle icon instead of left-arrow** — The "Play"
+      and "View" buttons on the main menu show a box/rectangle icon instead of the expected
+      left-facing arrow (▶). Likely a font or glyph mapping issue in the button renderer.
+      C: `IO.c` (button glyph rendering).
+      TS: `io/buttons.ts` or the main-menu UI. **S**
+
+- [ ] **B100 — All traps visible by default** — All trap tiles on the dungeon floor are
+      visible to the player from the start, with no fog-of-war hiding them. In C traps are
+      hidden unless the player is adjacent or has detected them. Likely cause: the
+      `DISCOVERED` flag or the trap visibility check is not set correctly during dungeon
+      generation or the FOV render.
+      C: `IO.c` (`getCellAppearance` trap visibility), `Architect.c` (trap placement).
+      TS: `io/display.ts` or `vision-wiring.ts`. **M**
+
+- [ ] **B101 — Monkey steals item; item is lost when monkey killed** — When a monkey steals
+      an item from the player and is then killed, the item disappears instead of being dropped
+      on the floor. In C killing a monster that carries a stolen item should drop it.
+      C: `Monsters.c` (`killCreature` / item-drop on death).
+      TS: `monsters/monster-death.ts` or combat kill path. **S**
+
+- [ ] **B102 — Fire status visual effect never clears after player stops burning** — After the
+      player stops being on fire, the fire visual effect (animated flames) persists on-screen
+      indefinitely. The burning status clears correctly in the sidebar but the tile/display
+      overlay is not removed.
+      C: `IO.c` (fire overlay rendering, status-based display).
+      TS: `io/display.ts` or status rendering in the turn loop. **S**
+
+- [ ] **B103 — Potion of invisibility: monsters didn't disengage** — After drinking a potion
+      of invisibility monsters that were tracking the player continued to pursue as if the
+      player were visible. In C drinking invisibility should cause tracking monsters to lose
+      the scent trail and return to wandering.
+      C: `Items.c` (`drinkPotion` invisibility branch), `Monsters.c` (scent/tracking reset).
+      TS: `items/item-handlers.ts`, `monsters/monster-ai.ts`. **S**
+
+- [ ] **B104 — Messages panel should expand on click to show scroll history** — Clicking the
+      message area should open a scrollable message history overlay. Currently clicking does
+      nothing. In C pressing `M` (or clicking the message panel) opens the full log.
+      C: `IO.c` (message history display).
+      TS: `menus.ts` or the message-panel click handler in `platform.ts` / `io-wiring.ts`. **S**
+
+- [ ] **B105 — `updateSafetyMap` crash: `ctx.coordinatesAreInMap is not a function`** —
+      Confirmed in two separate playtesting sessions (confusion potion use; fighting a monkey):
+      the game crashes with `TypeError: ctx.coordinatesAreInMap is not a function` at
+      `safety-maps.ts:300` → `updateSafetyMap` → `turn-monster-ai.ts:550` → `getSafetyMap`
+      → `monster-flee-ai.ts:81` → `monstersTurn` → `turn.ts`. The `coordinatesAreInMap`
+      function is missing from whichever context is passed to `updateSafetyMap` when called
+      from `getSafetyMap` in the monster-AI path.
+      C: `Monsters.c` (`updateSafetyMap` / safety-map context).
+      TS: `turn-monster-ai.ts:550` (getSafetyMap call site), `safety-maps.ts:300`. **P1**
 
 ---
 

@@ -916,4 +916,83 @@ Active backlog is maintained in [BACKLOG.md](./BACKLOG.md).
   C: `Items.c:4912-4974` (bolt lighting loop). TS: `staff-wiring.ts`, `vision-wiring.ts`,
   `items/zap.ts`, `items/zap-context.ts`. **M**
 
+- [x] **B52 — Teleport scroll: player symbol missing until next move** —
+      After the player teleports (via scroll or bolt), the `@` glyph at the destination is not
+      drawn until the player takes another action. The old position is correctly cleared. Likely
+      cause: `refreshDungeonCell` is called for the old location but not the new one, or
+      `commitDraws` is not called after the teleport resolves, leaving the canvas stale for one
+      frame.
+      C: `Items.c` (teleport → refreshDungeonCell), `IO.c` (displayLevel / commitDraws).
+      TS: `monsters/monster-teleport.ts`, `items.ts`, `vision-wiring.ts`. **S**
+
+- [x] **B56 — Ascending stairs shows fog-of-war artifacts from the lower level** — When
+      transitioning back up to a previously explored level, cells that should show fog-of-war
+      (remembered but currently unseen) instead display stale glyph/color data from the level
+      below. The player must re-explore those cells for them to render correctly. B28 addressed
+      a similar artifact when descending; this is the ascending direction, likely a missing
+      `displayLevel` / buffer reset before the restored level is drawn.
+      C: `RogueMain.c:643` (startLevel → storeMemories), `IO.c` (displayLevel).
+      TS: `lifecycle.ts` (level transition sequence), `movement/travel-explore.ts` (stair
+      traversal → startLevel call). **S**
+
+- [x] **B62 — Pit bloat fall: no message or keypress before showing lower level** — When a
+      pit bloat explodes beneath the player, the game jumps immediately to the lower level with
+      no feedback. In C a message and `REQUIRE_ACKNOWLEDGMENT` pause appear before the level
+      transition is rendered.
+      C: `Time.c` / `RogueMain.c` (player-fall code path triggered by `DF_PIT_BLOAT_HOLE` /
+      `changeLevelIfAppropriate`).
+      TS: `lifecycle.ts` (level-transition sequence), `movement/travel-explore.ts`. **S**
+
+- [x] **B73 — "Discovered items" menu closes immediately on mouse move** — Opening the
+      discovered-items screen (via the menu) and then moving the mouse dismisses it. The screen
+      should wait for an explicit keypress. The event loop for this screen is likely calling
+      `pauseAndCheckForEvent` or `nextBrogueEvent` and treating `MouseEnteredCell` as a dismiss
+      event.
+      C: `IO.c` (displayInventory / item-screen event loop).
+      TS: `menus.ts` or the discovered-items display handler. **S**
+
+- [x] **B84 — Seed entry UI missing label and background box** — The "new seeded game"
+      seed input screen shows only the text entry field. In C it shows a semi-transparent
+      background panel with the label "Generate dungeon with seed number:" above the field.
+      The TS equivalent is missing both the box/overlay and the descriptive label.
+      C: `IO.c` (seed entry prompt — likely `displayCenteredAlert` or equivalent).
+      TS: `menus.ts` or the seed-entry UI handler. **S**
+
+- [x] **B86 — Auto-explore ('x') stops working after first depth** — On depth 1 pressing
+      'x' correctly visits all rooms. From depth 2 onward it frequently reports "I see no
+      path for further exploration" even when unexplored cells are clearly reachable. Likely
+      cause: the explore path-state or the exploration target map is not being reset on
+      level transition, so the algorithm still references the previous depth's dungeon map.
+      C: `Movement.c` (`exploreCommand`, `getQualifyingLocNear`).
+      TS: `movement/travel-explore.ts`, `lifecycle.ts` (level-transition reset). **M**
+
+- [x] **B87 — Sacrifice altar statue: no message and no monster highlighted** — Interacting
+      with the ally statue in a sacrifice-altar machine should display a message and mark a
+      specific monster on the current depth (visible as if via telepathy). The marked monster
+      must be lured onto the altar and killed to open the caged key. Neither message nor
+      monster highlight appeared. Likely cause: the machine's "ally statue" interaction event
+      is not dispatched, or the monster-reveal flag (`monsterRevealed: () => false` stub in
+      `io/input-context.ts:191` and `sidebar-wiring.ts:320`) prevents the highlight.
+      C: `Architect.c` (sacrifice-altar machine type), `Monsters.c` (monster reveal logic).
+      TS: `turn.ts`, `io/sidebar-wiring.ts:320`. **M**
+
+- [x] **B91 — Staffs do not recharge** — Staff charges never replenish between uses.
+      Root cause confirmed: `rechargeItemsIncrementally: () => {}` is stubbed in
+      `turn.ts:461` and `combat.ts:263`, so the per-turn recharge tick never fires.
+      C: `Time.c` (`rechargeItemsIncrementally`).
+      TS: `turn.ts:461`. **S**
+
+- [x] **B95 — Sidebar ↔ dungeon item hover cross-highlighting not working** — Two related
+      issues:
+  1. Hovering the mouse over an item entry in the left-hand sidebar panel should
+     highlight that entry in brighter text; it does not.
+  2. Hovering the mouse over an item on the dungeon floor should highlight its entry in
+     the sidebar; it does not.
+     Additionally, hovering a sidebar item may be expected to show the path-preview route
+     to that item (as mouse-hover over the dungeon tile does). Root cause: `hilitePath`,
+     `hiliteCell`, and `clearCursorPath` are all stubbed in `io/input-context.ts:552-554`;
+     sidebar hover callbacks are not wired to cross-highlight the dungeon cell.
+     C: `IO.c` (`printSideBar` / hover hilite, `hilitePath`, `hiliteCell`).
+     TS: `io/input-context.ts:552-554`, `io/sidebar-wiring.ts`. **M**
+
 ---
