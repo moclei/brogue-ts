@@ -162,3 +162,16 @@ Symptom: message area shows "you see an eel" even when eel is submerged; sidebar
 
 Root cause: turn.ts:349-351 — canSeeMonster/canDirectlySeeMonster/monsterRevealed are bare VISIBLE-flag stubs; never call monsterIsHidden, so MB_SUBMERGED is ignored and submerged monsters trigger "you see" messages
 Steps logged: 6
+
+---
+
+## B92 — "Quit and abandon run" menu option does nothing
+Symptom: pressing Q in-game opens confirm dialog but game continues regardless
+
+- Backlog named input-dispatch.ts and menus.ts — Grep: "QUIT_KEY" in input-dispatch.ts → handler at line 407 calls ctx.gameOver after confirm
+- Found the stub — Read: input-context.ts:482 → gameOver: () => {} no-op stub; rogue.gameHasEnded never set; mainGameLoop continues
+- Confirmed real gameOver sets gameHasEnded — Read: game-lifecycle.ts:402 → rogue.gameHasEnded = true at end of gameOver(); quit branch skips death screen, blacksOut screen, returns to menu
+- Confirmed buildLifecycleContext already imported in input-context.ts — Read: input-context.ts:79 → import present; pattern matches enableEasyMode wiring at line 480
+
+Root cause: input-context.ts:482 — gameOver: () => {} stub; never calls real gameOver(), so rogue.gameHasEnded stays false and mainGameLoop never exits
+Steps logged: 4
