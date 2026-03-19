@@ -34,7 +34,7 @@ import type { CombatHelperContext } from "./combat/combat-helpers.js";
 import { allocGrid } from "./grid/grid.js";
 import { zeroOutGrid } from "./architect/helpers.js";
 import { FP_FACTOR } from "./math/fixpt.js";
-import { randRange, randPercent, randClumpedRange, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "./math/rng.js";
+import { randRange, randPercent, randClumpedRange, clamp, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "./math/rng.js";
 import { nbDirs, coordinatesAreInMap } from "./globals/tables.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
@@ -91,7 +91,10 @@ import { decrementMonsterStatus as decrementMonsterStatusFn } from "./monsters/m
 import { lightCatalog } from "./globals/light-catalog.js";
 import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
 import { keyMatchesLocation as keyMatchesLocationFn } from "./items/item-utils.js";
-import { wandTable, staffTable, ringTable, charmTable, armorTable } from "./globals/item-catalog.js";
+import { wandTable, staffTable, ringTable, charmTable, armorTable, charmEffectTable } from "./globals/item-catalog.js";
+import { ringWisdomMultiplier as ringWisdomMultiplierFn, charmRechargeDelay as charmRechargeDelayFn } from "./power/power-tables.js";
+import { rechargeItemsIncrementally as rechargeItemsIncrementallyFn } from "./time/misc-helpers.js";
+import type { MiscHelpersContext } from "./time/misc-helpers.js";
 import type { ItemTable } from "./types/types.js";
 import { buildMonstersApproachStairsCtx, monstersApproachStairs as monstersApproachStairsFn } from "./time/stairs-wiring.js";
 
@@ -558,8 +561,21 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         discover: (x, y) => { if (coordinatesAreInMap(x, y)) { pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY; pmap[x][y].flags |= TileFlag.DISCOVERED; } },
         storeMemories: () => {},
 
-        // ── Items / recharging (stubs) ────────────────────────────────────────
-        rechargeItemsIncrementally: () => {},
+        // ── Items / recharging ────────────────────────────────────────────────
+        rechargeItemsIncrementally: (multiplier: number) => rechargeItemsIncrementallyFn(multiplier, {
+            rogue: { wisdomBonus: rogue.wisdomBonus },
+            FP_FACTOR,
+            ringWisdomMultiplier: ringWisdomMultiplierFn,
+            packItems,
+            randClumpedRange,
+            max: Math.max,
+            clamp,
+            charmRechargeDelay: (kind: number, enchant: number) =>
+                charmRechargeDelayFn(charmEffectTable[kind], enchant),
+            itemName: (item: Item, includeDetails: boolean, includeArticle: boolean) =>
+                itemNameFn(item, includeDetails, includeArticle, namingCtx),
+            message: io.message,
+        } as unknown as MiscHelpersContext),
         processIncrementalAutoID: () => {},
 
         // ── Tile effects ──────────────────────────────────────────────────────

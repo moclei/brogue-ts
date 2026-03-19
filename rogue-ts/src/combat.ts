@@ -24,7 +24,8 @@ import {
     discoveredTerrainFlagsAtLoc as discoveredTerrainFlagsAtLocFn,
     burnedTerrainFlagsAtLoc as burnedTerrainFlagsAtLocFn,
 } from "./state/helpers.js";
-import { randRange, randPercent, randClump } from "./math/rng.js";
+import { randRange, randPercent, randClump, randClumpedRange, clamp } from "./math/rng.js";
+import { FP_FACTOR } from "./math/fixpt.js";
 import { coordinatesAreInMap } from "./globals/tables.js";
 import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
 import { alertMonster as alertMonsterFn, monsterAvoids as monsterAvoidsFn } from "./monsters/monster-state.js";
@@ -63,7 +64,10 @@ import type { RunicContext } from "./combat/combat-runics.js";
 import { itemName as itemNameFn } from "./items/item-naming.js";
 import { cloneMonster as cloneMonsterFn } from "./monsters/monster-lifecycle.js";
 import type { CloneMonsterContext } from "./monsters/monster-lifecycle.js";
-import { wandTable, staffTable, ringTable, charmTable } from "./globals/item-catalog.js";
+import { wandTable, staffTable, ringTable, charmTable, charmEffectTable } from "./globals/item-catalog.js";
+import { ringWisdomMultiplier as ringWisdomMultiplierFn, charmRechargeDelay as charmRechargeDelayFn } from "./power/power-tables.js";
+import { rechargeItemsIncrementally as rechargeItemsIncrementallyFn } from "./time/misc-helpers.js";
+import type { MiscHelpersContext } from "./time/misc-helpers.js";
 
 // =============================================================================
 // Private helpers
@@ -389,7 +393,20 @@ export function buildCombatAttackContext(): AttackContext {
 
         // ── Item / weapon ops ─────────────────────────────────────────────────
         decrementWeaponAutoIDTimer: () => {},
-        rechargeItemsIncrementally: () => {},
+        rechargeItemsIncrementally: (multiplier: number) => rechargeItemsIncrementallyFn(multiplier, {
+            rogue: { wisdomBonus: rogue.wisdomBonus },
+            FP_FACTOR,
+            ringWisdomMultiplier: ringWisdomMultiplierFn,
+            packItems,
+            randClumpedRange,
+            max: Math.max,
+            clamp,
+            charmRechargeDelay: (kind: number, enchant: number) =>
+                charmRechargeDelayFn(charmEffectTable[kind], enchant),
+            itemName: (item: Item, includeDetails: boolean, includeArticle: boolean) =>
+                itemNameFn(item, includeDetails, includeArticle, namingCtx),
+            message: (msg: string, flags: number) => { void damageCtx.message(msg, flags); },
+        } as unknown as MiscHelpersContext),
         equipItem: (item, force) => {
             const s = buildEquipState();
             equipItemFn(item, force, null, { state: s, message: () => {}, itemName: () => "item",

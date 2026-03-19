@@ -4,6 +4,20 @@ Append new entries below. Do not edit past entries.
 
 ---
 
+## B91 — Staffs do not recharge
+Symptom: staff charges never replenish between uses; charms also never tick down
+
+- Backlog named the stub — Grep: "rechargeItemsIncrementally" in rogue-ts/src → stubs at turn.ts:562 and combat.ts:392; real impl in time/misc-helpers.ts:151
+- Confirmed function scope — Read: misc-helpers.ts:151-204 → uses rogue.wisdomBonus, FP_FACTOR, ringWisdomMultiplier, packItems, randClumpedRange, clamp, charmRechargeDelay, itemName, message
+- Located needed imports — Grep: export.*ringWisdomMultiplier|export.*charmRechargeDelay → power/power-tables.ts; clamp → math/rng.ts; charmEffectTable → globals/item-catalog.ts
+- Confirmed namingCtx in scope at both call sites — Read: turn.ts:192, combat.ts:222 → namingCtx defined before both stubs
+- Verified C call sites — Bash: grep Time.c:2393, Combat.c:1136 → called each 100-tick environment tick and on reaping runic hits
+
+Root cause: `rechargeItemsIncrementally: () => {}` stubs in turn.ts:562 and combat.ts:392 discarded both the per-turn staff charge tick and the reaping-runic recharge
+Steps logged: 5
+
+---
+
 ## B64 — Staff of obstruction does nothing
 Symptom: zapping a staff of obstruction has no visible effect
 

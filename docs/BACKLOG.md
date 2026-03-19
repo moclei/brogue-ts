@@ -225,7 +225,7 @@ only if the path is genuinely not reachable in normal play.
       C: `Time.c` (`applyInstantTileEffectsToCreature` hunger branch), `Items.c` (`eat`).
       TS: `tile-effects-wiring.ts:289`, `items/item-commands.ts`. **S**
 
-- [ ] **B91 — Staffs do not recharge** — Staff charges never replenish between uses.
+- [x] **B91 — Staffs do not recharge** — Staff charges never replenish between uses.
       Root cause confirmed: `rechargeItemsIncrementally: () => {}` is stubbed in
       `turn.ts:461` and `combat.ts:263`, so the per-turn recharge tick never fires.
       C: `Time.c` (`rechargeItemsIncrementally`).
