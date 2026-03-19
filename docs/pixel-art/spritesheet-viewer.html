@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DawnLike 16×16 tile viewer</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1rem;
+      background: #1a1a1a;
+      color: #e0e0e0;
+    }
+    h1 { font-size: 1.25rem; margin-bottom: 0.5rem; }
+    .hint {
+      font-size: 0.85rem;
+      color: #888;
+      margin-bottom: 1rem;
+    }
+    .controls {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    label { font-size: 0.9rem; }
+    select {
+      padding: 0.35rem 0.5rem;
+      font-size: 0.9rem;
+      background: #2a2a2a;
+      color: #e0e0e0;
+      border: 1px solid #444;
+      border-radius: 4px;
+    }
+    .zoom label { margin-right: 0.5rem; }
+    .zoom input { width: 4rem; }
+    .readout {
+      min-height: 2.5rem;
+      padding: 0.5rem 0.75rem;
+      background: #252525;
+      border: 1px solid #444;
+      border-radius: 4px;
+      font-family: ui-monospace, monospace;
+      font-size: 0.9rem;
+      word-break: break-all;
+    }
+    .readout .code { color: #7dd3fc; }
+    .wrap {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+    .canvas-wrap {
+      position: relative;
+      line-height: 0;
+      border: 1px solid #444;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    #gridCanvas {
+      display: block;
+      cursor: crosshair;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    .error { color: #f87171; }
+  </style>
+</head>
+<body>
+  <h1>DawnLike 16×16 tile viewer</h1>
+  <p class="hint">
+    Hover over the sheet to see tile (col, row). Copy the <code>tile("Sheet", col, row)</code> line into
+    <code>rogue-ts/src/platform/glyph-sprite-map.ts</code>. Open this page via a local server from the repo root
+    (e.g. <code>npx serve .</code> → http://localhost:3000/docs/pixel-art/spritesheet-viewer.html) so images load.
+  </p>
+  <div class="controls">
+    <label for="sheet">Sheet:</label>
+    <select id="sheet"></select>
+    <div class="zoom">
+      <label for="zoom">Zoom:</label>
+      <input type="number" id="zoom" value="3" min="1" max="8" step="1">
+    </div>
+  </div>
+  <div class="readout" id="readout">Hover over the image</div>
+  <div class="wrap">
+    <div class="canvas-wrap">
+      <canvas id="gridCanvas"></canvas>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const TILE = 16;
+      const BASE = '../../rogue-ts/assets/tilesets/dawnlike';
+      const SHEETS = [
+        { name: 'Floor', path: BASE + '/Objects/Floor.png' },
+        { name: 'Wall', path: BASE + '/Objects/Wall.png' },
+        { name: 'Door0', path: BASE + '/Objects/Door0.png' },
+        { name: 'Door1', path: BASE + '/Objects/Door1.png' },
+        { name: 'Ground0', path: BASE + '/Objects/Ground0.png' },
+        { name: 'Ground1', path: BASE + '/Objects/Ground1.png' },
+        { name: 'Pit0', path: BASE + '/Objects/Pit0.png' },
+        { name: 'Pit1', path: BASE + '/Objects/Pit1.png' },
+        { name: 'Player0', path: BASE + '/Characters/Player0.png' },
+        { name: 'Decor0', path: BASE + '/Objects/Decor0.png' },
+        { name: 'Decor1', path: BASE + '/Objects/Decor1.png' },
+        { name: 'Trap0', path: BASE + '/Objects/Trap0.png' },
+        { name: 'Trap1', path: BASE + '/Objects/Trap1.png' },
+        { name: 'Map0', path: BASE + '/Objects/Map0.png' },
+        { name: 'Map1', path: BASE + '/Objects/Map1.png' },
+        { name: 'Hill0', path: BASE + '/Objects/Hill0.png' },
+        { name: 'Hill1', path: BASE + '/Objects/Hill1.png' },
+        { name: 'Tree0', path: BASE + '/Objects/Tree0.png' },
+        { name: 'Tree1', path: BASE + '/Objects/Tree1.png' },
+        { name: 'Fence', path: BASE + '/Objects/Fence.png' },
+        { name: 'Tile', path: BASE + '/Objects/Tile.png' },
+        { name: 'Ore0', path: BASE + '/Objects/Ore0.png' },
+        { name: 'Ore1', path: BASE + '/Objects/Ore1.png' },
+        { name: 'Effect0', path: BASE + '/Objects/Effect0.png' },
+        { name: 'Effect1', path: BASE + '/Objects/Effect1.png' },
+      ];
+
+      const select = document.getElementById('sheet');
+      const zoomInput = document.getElementById('zoom');
+      const readout = document.getElementById('readout');
+      const canvas = document.getElementById('gridCanvas');
+      const ctx = canvas.getContext('2d');
+
+      SHEETS.forEach(function (s) {
+        const opt = document.createElement('option');
+        opt.value = s.path;
+        opt.textContent = s.name;
+        opt.dataset.name = s.name;
+        select.appendChild(opt);
+      });
+
+      let img = null;
+      let scale = 3;
+      let currentSheetName = SHEETS[0].name;
+
+      function draw() {
+        if (!img || !img.complete || !img.naturalWidth) return;
+        const w = img.naturalWidth;
+        const h = img.naturalHeight;
+        const cols = Math.floor(w / TILE);
+        const rows = Math.floor(h / TILE);
+        canvas.width = cols * TILE * scale;
+        canvas.height = rows * TILE * scale;
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(img, 0, 0, w, h, 0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+        ctx.lineWidth = 1;
+        for (let c = 0; c <= cols; c++) {
+          ctx.beginPath();
+          ctx.moveTo(c * TILE * scale, 0);
+          ctx.lineTo(c * TILE * scale, canvas.height);
+          ctx.stroke();
+        }
+        for (let r = 0; r <= rows; r++) {
+          ctx.beginPath();
+          ctx.moveTo(0, r * TILE * scale);
+          ctx.lineTo(canvas.width, r * TILE * scale);
+          ctx.stroke();
+        }
+      }
+
+      function load(path, sheetName) {
+        currentSheetName = sheetName;
+        img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = function () {
+          readout.textContent = 'Loaded. Hover over the image.';
+          readout.classList.remove('error');
+          draw();
+        };
+        img.onerror = function () {
+          readout.textContent = 'Failed to load image. Open this page via a local server from the repo root (e.g. npx serve .).';
+          readout.classList.add('error');
+        };
+        img.src = path;
+      }
+
+      canvas.addEventListener('mousemove', function (e) {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const col = Math.floor(x / (TILE * scale));
+        const row = Math.floor(y / (TILE * scale));
+        const w = img ? img.naturalWidth : 0;
+        const h = img ? img.naturalHeight : 0;
+        const cols = Math.floor(w / TILE);
+        const rows = Math.floor(h / TILE);
+        if (col >= 0 && col < cols && row >= 0 && row < rows) {
+          readout.innerHTML = 'col <strong>' + col + '</strong>, row <strong>' + row + '</strong> &rarr; <span class="code">tile("' + currentSheetName + '", ' + col + ', ' + row + ')</span>';
+          readout.classList.remove('error');
+        }
+      });
+
+      canvas.addEventListener('mouseleave', function () {
+        readout.textContent = 'Hover over the image';
+        readout.classList.remove('error');
+      });
+
+      select.addEventListener('change', function () {
+        const opt = select.selectedOptions[0];
+        load(opt.value, opt.dataset.name || 'Sheet');
+      });
+
+      zoomInput.addEventListener('change', function () {
+        scale = Math.max(1, Math.min(8, parseInt(zoomInput.value, 10) || 3));
+        zoomInput.value = scale;
+        draw();
+      });
+
+      load(select.value, select.selectedOptions[0].dataset.name || 'Sheet');
+    })();
+  </script>
+</body>
+</html>

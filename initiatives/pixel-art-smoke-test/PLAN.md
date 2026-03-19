@@ -71,7 +71,7 @@ Build the rendering path:
    - How does the 'G' toggle feel switching between modes?
    - Performance: any noticeable lag on full redraws?
 
-3. **Document findings.** Update `docs/pixel-art/exploration.md`:
+3. **Document findings.** Update `docs/pixel-art/pixel-art-exploration.md`:
    - Set Initiative 1 status to `complete`
    - Add a findings paragraph covering what worked, what didn't, and what Initiative 2
      should address
@@ -103,7 +103,7 @@ At this stage the goal is to learn what works and what doesn’t, not to file a 
 - **Polish** — scaling crispness, performance, exact tile choices. Note if something really bothers you; otherwise we’ll do a structured pass in Phase 3.
 
 **Where to put it**
-- Quick notes: add a “Session notes” or “Playtest” subsection under this heading, or drop a short paragraph into `docs/pixel-art/exploration.md` when you’re ready to close the smoke test.
+- Quick notes: add a “Session notes” or “Playtest” subsection under this heading, or drop a short paragraph into `docs/pixel-art/pixel-art-exploration.md` when you’re ready to close the smoke test.
 
 ### Playtest feedback (2025-03)
 
@@ -117,7 +117,7 @@ At this stage the goal is to learn what works and what doesn’t, not to file a 
 - [x] G switches mode and **entire screen** updates immediately (no need to move).
 - [x] Text / Tiles / Hybrid all work; message area and sidebar stay text in every mode.
 - [x] No crashes or freezes during normal play in tile or hybrid mode.
-- [x] Phase 3 (tinting experiment + findings in exploration.md) done.
+- [x] Phase 3 (tinting experiment + findings in pixel-art-exploration.md) done.
 
 **Smoke test complete.** Tinting: `source-atop` gave flat color; `multiply` retained sprite detail and lighting; kept multiply. No blockers for Initiative 2 (one-to-one TileType). Expand glyph mapping as needed in follow-up work.
 

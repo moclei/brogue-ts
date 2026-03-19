@@ -1,6 +1,6 @@
 # Pixel Art Smoke Test
 
-> Parent exploration: `docs/pixel-art/exploration.md`
+> Parent exploration: `docs/pixel-art/pixel-art-exploration.md`
 
 ## Intent
 
