@@ -75,7 +75,7 @@ import {
 import { buildDebugOverlayFns } from "./debug-overlays.js";
 import { buildSidebarContext, buildPrintLocationDescriptionFn } from "./sidebar-wiring.js";
 import { printMonsterDetails as printMonsterDetailsFn } from "./sidebar-monsters.js";
-import { enableEasyMode as enableEasyModeImpl, type LifecycleContext } from "../game/game-lifecycle.js";
+import { enableEasyMode as enableEasyModeImpl, gameOver as gameOverImpl, type LifecycleContext } from "../game/game-lifecycle.js";
 import { buildLifecycleContext } from "../lifecycle-gameover.js";
 import {
     printHelpScreen as printHelpScreenFn,
@@ -479,7 +479,7 @@ export function buildInputContext(): InputContext {
         },
         enableEasyMode: () => enableEasyModeImpl({ ...buildLifecycleContext(), confirm: buildConfirmFn() } as unknown as LifecycleContext),
         saveGame: () => {},                         // stub — save system not yet ported
-        gameOver: () => {},                         // stub — LifecycleContext not wired
+        gameOver: (killedBy, useCustomPhrasing) => gameOverImpl(buildLifecycleContext(), killedBy, useCustomPhrasing),
         printSeed: () => { buildMessageFns().message(`Seed: ${rogue.seed}`, 0); },
         showCursor: () => {},                       // stub — cursor display (Phase 5)
         hideCursor: () => {},                       // stub — cursor display (Phase 5)

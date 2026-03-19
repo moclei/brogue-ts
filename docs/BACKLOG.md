@@ -231,7 +231,7 @@ only if the path is genuinely not reachable in normal play.
       C: `Time.c` (`rechargeItemsIncrementally`).
       TS: `turn.ts:461`. **S**
 
-- [ ] **B92 — "Quit and abandon run" menu option does nothing** — Opening the in-game
+- [x] **B92 — "Quit and abandon run" menu option does nothing** — Opening the in-game
       menu and selecting "Quit and abandon" has no effect; the game continues. The quit path
       does not depend on persistence/recordings so it should be wireable now.
       C: `RogueMain.c` (`gameOver` / quit-without-save branch).
