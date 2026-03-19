@@ -176,6 +176,8 @@ only if the path is genuinely not reachable in normal play.
      C: `Architect.c` (`triggerMachinesOfKind`, machine effect dispatch),
      `RogueMain.c` (machine-key pickup handler).
      TS: `tile-effects-wiring.ts`, `lifecycle.ts`, `items/item-commands.ts`. **M**
+     ⚠️ **Needs playtest confirmation** — stubs wired in PR #72, but these rooms are
+     rare so the fix hasn't been verified in-game yet.
 
 - [x] **B86 — Auto-explore ('x') stops working after first depth** — On depth 1 pressing
       'x' correctly visits all rooms. From depth 2 onward it frequently reports "I see no
