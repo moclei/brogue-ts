@@ -185,7 +185,7 @@ only if the path is genuinely not reachable in normal play.
       C: `Movement.c` (`exploreCommand`, `getQualifyingLocNear`).
       TS: `movement/travel-explore.ts`, `lifecycle.ts` (level-transition reset). **M**
 
-- [ ] **B87 — Sacrifice altar statue: no message and no monster highlighted** — Interacting
+- [x] **B87 — Sacrifice altar statue: no message and no monster highlighted** — Interacting
       with the ally statue in a sacrifice-altar machine should display a message and mark a
       specific monster on the current depth (visible as if via telepathy). The marked monster
       must be lured onto the altar and killed to open the caged key. Neither message nor

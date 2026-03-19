@@ -62,7 +62,7 @@ import {
 } from "./globals/colors.js";
 import { randRange, randPercent, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "./math/rng.js";
 import { DCOLS, DROWS } from "./types/constants.js";
-import { TileFlag, ItemFlag } from "./types/flags.js";
+import { TileFlag, ItemFlag, DFFlag, MonsterBookkeepingFlag } from "./types/flags.js";
 
 import { CreatureState, DungeonLayer, LightType } from "./types/enums.js";
 import { createFlare as createFlareFn } from "./light/flares.js";
@@ -114,8 +114,36 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
     };
 
     // ── EnvironmentContext for promoteTile / exposeTileToFire ──────────────────
-    const spawnFeature = (x: number, y: number, feat: any, v: boolean, o: boolean) =>
+    // Runtime spawnDungeonFeature: calls the base function then applies gameplay effects
+    // (message display, dormant monster activation) that are not needed during generation.
+    const runtimeSpawnFeature = (x: number, y: number, feat: any, v: boolean, o: boolean): void => {
         spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat, v, o);
+        // Show message if feature has description and player can see the cell (C: Architect.c:3370)
+        if (feat.description && !feat.messageDisplayed && (pmap[x]?.[y]?.flags & TileFlag.VISIBLE)) {
+            feat.messageDisplayed = true;
+            void io.message(feat.description, 0);
+        }
+        // Awaken dormant monsters at this location (C: Architect.c:3488, DFF_ACTIVATE_DORMANT_MONSTER)
+        if (feat.flags & DFFlag.DFF_ACTIVATE_DORMANT_MONSTER) {
+            for (const monst of monsters) {
+                if (
+                    (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DORMANT) &&
+                    monst.loc.x === x && monst.loc.y === y
+                ) {
+                    monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_IS_DORMANT;
+                    monst.creatureState = CreatureState.TrackingScent;
+                    monst.ticksUntilTurn = 200;
+                    pmap[x][y].flags |= TileFlag.HAS_MONSTER;
+                    if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_MARKED_FOR_SACRIFICE) {
+                        monst.bookkeepingFlags |= MonsterBookkeepingFlag.MB_TELEPATHICALLY_REVEALED;
+                        updateVision(true);
+                    }
+                    refreshDungeonCell({ x, y });
+                }
+            }
+        }
+    };
+    const spawnFeature = runtimeSpawnFeature;
 
     let exposeToFire = (_x: number, _y: number, _a: boolean): boolean => false;
     const envCtx = {
@@ -196,7 +224,7 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
         spawnDungeonFeature: (x: number, y: number, featureIndex: number, _probability: number) => {
             const feat = dungeonFeatureCatalog[featureIndex];
             if (!feat) return;
-            spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as any, true, false);
+            runtimeSpawnFeature(x, y, feat, true, false);
         },
         refreshSideBar: () => {},
         combatMessage: io.combatMessage,
@@ -321,8 +349,7 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
         // Environment
         updateVision,
         updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
-        spawnDungeonFeature: (x: number, y: number, feat: any, v: boolean, o: boolean) =>
-            spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat, v, o),
+        spawnDungeonFeature: runtimeSpawnFeature,
         promoteTile: (x: number, y: number, layer: number, useFireDF: boolean) =>
             promoteTileFn(x, y, layer as DungeonLayer, useFireDF, envCtx),
         exposeTileToFire: (x: number, y: number, alwaysIgnite: boolean) =>
