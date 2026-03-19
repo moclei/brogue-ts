@@ -23,5 +23,5 @@
 
 - [x] Experiment with Canvas2D foreground color tinting (offscreen canvas + multiply)
 - [x] Playtest several dungeon levels in tile mode — evaluate navigability, tinting, artifacts, performance
-- [x] Document findings in docs/pixel-art/exploration.md — update status table and add findings paragraph
+- [x] Document findings in docs/pixel-art/pixel-art-exploration.md — update status table and add findings paragraph
 - [x] Note blockers or surprises for Initiative 2

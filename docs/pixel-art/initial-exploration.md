@@ -385,7 +385,7 @@ initiatives are self-contained for execution (BRIEF/PLAN/TASKS as usual) but eac
 initiative's BRIEF.md includes a pointer:
 
 ```
-Parent exploration: docs/pixel-art/exploration.md
+Parent exploration: docs/pixel-art/pixel-art-exploration.md
 ```
 
 **Sync rule:** This document tracks *what we've learned and what's next*. Initiative docs

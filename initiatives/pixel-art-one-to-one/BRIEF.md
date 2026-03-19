@@ -1,6 +1,6 @@
 # Pixel Art One-to-One (TileType → Sprite)
 
-> Parent exploration: `docs/pixel-art/exploration.md`
+> Parent exploration: `docs/pixel-art/pixel-art-exploration.md`
 
 ## Intent
 

@@ -1,6 +1,6 @@
 # Pixel Art Foreground Tile Layers
 
-> Parent exploration: `docs/pixel-art/exploration.md`
+> Parent exploration: `docs/pixel-art/pixel-art-exploration.md`
 
 ## Intent
 
