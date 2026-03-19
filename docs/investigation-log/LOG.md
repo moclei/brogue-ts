@@ -166,6 +166,23 @@ Steps logged: 7
 
 ---
 
+## B85 — Trapped key rooms: machine effects don't fire on key pickup
+Symptom: vegetation room doesn't catch fire; vault door trap fires no effect; rat-swarm room shows no rats
+
+- Located the key-pickup code path — Read: movement.ts:267-268 → removeItemAt calls promoteTile(envCtx); envCtx is movement.ts's local envCtx
+- Checked envCtx.exposeTileToFire — Read: movement.ts:203 → stub `() => false`; fire never spreads on key pickup
+- Traced blueprint for burning grass room — Read: GlobalsBrogue.c:452 → ALTAR_SWITCH_RETRACTING triggers machine; PILOT_LIGHT_DORMANT activates; pilot light promotes to fire; fire spreads via exposeTileToFire
+- Checked envCtx.spawnDungeonFeature — Read: movement.ts:183-184 → raw spawnDungeonFeatureFn; no DFF_ACTIVATE_DORMANT_MONSTER handling
+- Confirmed C DFF_ACTIVATE_DORMANT_MONSTER path — Read: Architect.c:3488 → C calls toggleMonsterDormancy for each dormant monster at the affected location
+- Checked DF_WALL_SHATTER features — Read: Globals.c:678-679 → both RUBBLE entries have DFF_ACTIVATE_DORMANT_MONSTER; rat dormant behind wall never wakes up
+- Located spawnHorde stub — Read: lifecycle.ts:333 → `spawnHorde: () => null`; statuary room (MF_GENERATE_HORDE) never spawns monsters during dungeon generation
+- Confirmed real spawnHorde available — Read: monsters.ts:468-470 → uses buildMonsterSpawningContext(); same pattern applicable in lifecycle.ts
+
+Root cause: (1) movement.ts:203 — `exposeTileToFire: () => false` prevents fire spreading on key-triggered machine activation; (2) movement.ts:183 — raw spawnDungeonFeatureFn skips DFF_ACTIVATE_DORMANT_MONSTER, so dormant rats never wake when wall shatters; (3) lifecycle.ts:333 — `spawnHorde: () => null` stub prevents machine hordes (statuary, kennel rooms) from spawning during dungeon generation
+Steps logged: 8
+
+---
+
 ## B93 — "You see an eel" fires when eel is submerged
 Symptom: message area shows "you see an eel" even when eel is submerged; sidebar shows eel with health bar
 
