@@ -71,7 +71,7 @@ import {
     monsterShouldFall as monsterShouldFallFn,
     updatePlayerUnderwaterness as updatePlayerUnderwaternessFn,
 } from "./time/creature-effects.js";
-import { promoteTile as promoteTileFn } from "./time/environment.js";
+import { promoteTile as promoteTileFn, exposeTileToFire as exposeTileToFireFn } from "./time/environment.js";
 import { useKeyAt as useKeyAtFn, checkForMissingKeys as checkForMissingKeysFn } from "./movement/item-helpers.js";
 import { getQualifyingPathLocNear as getQualifyingPathLocNearFn } from "./movement/path-qualifying.js";
 import { pickUpItemAt as pickUpItemAtFn } from "./items/pickup.js";
@@ -107,7 +107,7 @@ import { allocGrid, freeGrid } from "./grid/grid.js";
 import { dijkstraScan, calculateDistances } from "./dijkstra/dijkstra.js";
 import { FP_FACTOR } from "./math/fixpt.js";
 import { randRange, randPercent, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "./math/rng.js";
-import { TileFlag, TerrainFlag, TerrainMechFlag, ItemFlag } from "./types/flags.js";
+import { TileFlag, TerrainFlag, TerrainMechFlag, ItemFlag, DFFlag, MonsterBookkeepingFlag } from "./types/flags.js";
 import { ItemCategory, CreatureState, DungeonLayer } from "./types/enums.js";
 import {
     ASCEND_KEY, DESCEND_KEY, RETURN_KEY,
@@ -180,8 +180,38 @@ export function buildMovementContext(): PlayerMoveContext {
     const canSeeMonster = (m: Creature) =>
         !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE);
 
-    const spawnFeature = (x: number, y: number, feat: unknown, rc: boolean, ab: boolean) =>
-        spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, rc, ab, rc ? refreshDungeonCell : undefined);
+    const updateVision = buildUpdateVisionFn();
+
+    // Runtime spawnDungeonFeature: calls the base function then shows feature messages
+    // and activates dormant monsters (DFF_ACTIVATE_DORMANT_MONSTER) for key-triggered effects.
+    const runtimeSpawnFeature = (x: number, y: number, feat: any, rc: boolean, ab: boolean): boolean => {
+        const result = spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, rc, ab, rc ? refreshDungeonCell : undefined);
+        if (result) {
+            if (feat.description && !feat.messageDisplayed && (pmap[x]?.[y]?.flags & TileFlag.VISIBLE)) {
+                feat.messageDisplayed = true;
+                void io.message(feat.description, 0);
+            }
+            if (feat.flags & DFFlag.DFF_ACTIVATE_DORMANT_MONSTER) {
+                for (const monst of monsters) {
+                    if (
+                        (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DORMANT) &&
+                        monst.loc.x === x && monst.loc.y === y
+                    ) {
+                        monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_IS_DORMANT;
+                        monst.creatureState = CreatureState.TrackingScent;
+                        monst.ticksUntilTurn = 200;
+                        pmap[x][y].flags |= TileFlag.HAS_MONSTER;
+                        if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_MARKED_FOR_SACRIFICE) {
+                            monst.bookkeepingFlags |= MonsterBookkeepingFlag.MB_TELEPATHICALLY_REVEALED;
+                            updateVision(true);
+                        }
+                        refreshDungeonCell({ x, y });
+                    }
+                }
+            }
+        }
+        return result;
+    };
 
     const monsterStateCtx = buildMonsterStateContext();
     const attackCtx = buildCombatAttackContext();
@@ -190,9 +220,10 @@ export function buildMovementContext(): PlayerMoveContext {
     // fillSequentialList/shuffleList must be real: activateMachine fills and
     // shuffles sCols/sRows before iterating pmap; stubs leave them undefined
     // and pmap[undefined] crashes.  monstersTurn remains stubbed (complex wiring).
+    let exposeToFire = (_x: number, _y: number, _a: boolean): boolean => false;
     const envCtx = {
         pmap, rogue, tileCatalog, dungeonFeatureCatalog, DCOLS, DROWS, monsters, levels,
-        refreshDungeonCell, spawnDungeonFeature: spawnFeature, cellHasTerrainFlag, cellHasTMFlag,
+        refreshDungeonCell, spawnDungeonFeature: runtimeSpawnFeature, cellHasTerrainFlag, cellHasTMFlag,
         coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
         monstersFall: () => {}, updateFloorItems: () => {}, monstersTurn: () => {}, keyOnTileAt: () => null,
         removeCreature: () => false, prependCreature: () => {},
@@ -200,8 +231,9 @@ export function buildMovementContext(): PlayerMoveContext {
         max: Math.max, min: Math.min,
         fillSequentialList: (list: number[], _len: number) => fillSequentialListFn(list),
         shuffleList: (list: number[], _len: number) => shuffleListFn(list),
-        exposeTileToFire: () => false,
+        exposeTileToFire: (x: number, y: number, a: boolean) => exposeToFire(x, y, a),
     } as unknown as EnvironmentContext;
+    exposeToFire = (x, y, a) => exposeTileToFireFn(x, y, a, envCtx);
 
     // Partial ItemHelperContext for useKeyAt/checkForMissingKeys.
     const itemHelperCtx = {
@@ -382,7 +414,7 @@ export function buildMovementContext(): PlayerMoveContext {
         promoteTile: (x, y, layer, useFireDF) => promoteTileFn(x, y, layer as DungeonLayer, useFireDF, envCtx),
         refreshDungeonCell,
         discoverCell: (x, y) => { if (coordinatesAreInMap(x, y)) { pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY; pmap[x][y].flags |= TileFlag.DISCOVERED; } },
-        spawnDungeonFeature: spawnFeature,
+        spawnDungeonFeature: runtimeSpawnFeature,
         dungeonFeatureCatalog,
         useStairs: (delta) => {
             console.log("[playerMoves] useStairs called delta=%d", delta);
@@ -409,7 +441,7 @@ export function buildMovementContext(): PlayerMoveContext {
             vomitFn(monst, {
                 player,
                 dungeonFeatureCatalog,
-                spawnDungeonFeature: spawnFeature,
+                spawnDungeonFeature: runtimeSpawnFeature,
                 canDirectlySeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
                 monsterName: buildMonsterNameHelper(player),
                 combatMessage: io.combatMessage,

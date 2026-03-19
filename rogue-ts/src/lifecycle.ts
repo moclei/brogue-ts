@@ -60,7 +60,7 @@ import { analyzeMap } from "./architect/analysis.js";
 import { getFOVMask } from "./light/fov.js";
 import { populateGenericCostMap } from "./movement/cost-maps-fov.js";
 import { populateItems } from "./items/item-population.js";
-import { populateMonsters } from "./monsters/monster-spawning.js";
+import { populateMonsters, spawnHorde as spawnHordeFn } from "./monsters/monster-spawning.js";
 import { generateItem, itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
 import { placeItemAt as placeItemAtFn } from "./items/floor-items.js";
 import { addItemToPack, numberOfMatchingPackItems, itemAtLoc as itemAtLocFn, deleteItem as deleteItemFn } from "./items/item-inventory.js";
@@ -330,7 +330,9 @@ export function buildLevelContext(): LevelContext {
     // ---- Architect context ---------------------------------------------------
     const monsterOps = createMonsterOps({
         monsters,
-        spawnHorde: () => null,
+        spawnHorde(leaderID, pos, forbiddenFlags, requiredFlags) {
+            return spawnHordeFn(leaderID, pos, forbiddenFlags, requiredFlags, buildMonsterSpawningContext());
+        },
         monsterAtLoc(pos) {
             if (pos.x === player.loc.x && pos.y === player.loc.y) return player;
             return monsters.find(m => m.loc.x === pos.x && m.loc.y === pos.y) ?? null;
