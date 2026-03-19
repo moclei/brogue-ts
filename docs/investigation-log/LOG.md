@@ -150,6 +150,22 @@ Steps logged: 14
 
 ---
 
+## B87 — Sacrifice altar statue: no message and no monster highlighted
+Symptom: stepping on the sacrifice altar trigger shows no message; the sacrifice-target monster is not revealed via telepathy
+
+- Backlog points to monsterRevealed stubs and machine event not dispatched — Read: Globals.c:487-494 → sacrifice altar machine uses MF_GENERATE_HORDE+HORDE_SACRIFICE_TARGET (sacrifice monster) and DF_TRIGGER_AREA+SACRIFICE_ALTAR_DORMANT (trigger+message)
+- Traced message path: SACRIFICE_ALTAR_DORMANT (TM_IS_WIRED) → promoteTile → activateMachine → spawnDungeonFeature(DF_SACRIFICE_ALTAR) — Read: dungeon-feature-catalog.ts:2084 → TS catalog has description "a demonic presence whispers..." but spawnDungeonFeatureFn never shows it
+- Confirmed spawnDungeonFeatureFn missing message display — Read: machines.ts:980-1078 → no message display, no DFF_ACTIVATE_DORMANT_MONSTER handling
+- Confirmed DFF_ACTIVATE_DORMANT_MONSTER also missing — Grep: DFF_ACTIVATE_DORMANT_MONSTER in machines.ts → 0 hits in spawnDungeonFeature body
+- Traced monster marking: HORDE_SACRIFICE_TARGET sets MB_MARKED_FOR_SACRIFICE at spawn; toggleMonsterDormancy sets MB_TELEPATHICALLY_REVEALED on wake (Monsters.c:4174) — Read: monster-ops.ts:113 → TS version only flips flag, no MB_TELEPATHICALLY_REVEALED
+- Confirmed spawnHorde stubbed in architect — Read: lifecycle.ts:333 → spawnHorde: () => null; sacrifice monster never spawned (B85 dependency)
+- Confirmed monsterRevealed stubs — Read: input-context.ts:192, sidebar-wiring.ts:323 → both return () => false; affects cursor-hover location description
+
+Root cause: (1) spawnDungeonFeature wrapper never shows feat.description → message missing; (2) DFF_ACTIVATE_DORMANT_MONSTER not handled → dormant monster not awakened; (3) monsterRevealed stubs prevent location descriptions; (4) spawnHorde stubbed (B85) → sacrifice monster never spawned
+Steps logged: 7
+
+---
+
 ## B93 — "You see an eel" fires when eel is submerged
 Symptom: message area shows "you see an eel" even when eel is submerged; sidebar shows eel with health bar
 

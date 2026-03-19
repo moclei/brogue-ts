@@ -55,6 +55,7 @@ import {
     canSeeMonster as canSeeMonsterFn,
     canDirectlySeeMonster as canDirectlySeeMonsterFn,
     monsterIsInClass as monsterIsInClassFn,
+    monsterRevealed as monsterRevealedFn,
 } from "../monsters/monster-queries.js";
 import { monsterDetails as monsterDetailsFn, type MonsterDetailsContext } from "../monsters/monster-details.js";
 import { monsterCanSubmergeNow as monsterCanSubmergeNowFn } from "../monsters/monster-spawning.js";
@@ -320,7 +321,7 @@ export function buildPrintLocationDescriptionFn(): (x: number, y: number) => voi
             monsterAtLoc,
             dormantMonsterAtLoc: () => null,
             canSeeMonster: (m: Creature) => canSeeMonsterFn(m, mqCtx),
-            monsterRevealed: () => false,
+            monsterRevealed: (m: Creature) => monsterRevealedFn(m, player),
             refreshDungeonCell: () => {},
             dungeonFeatureCatalog,
             itemAtLoc: (loc: Pos) => floorItems.find(i => i.loc.x === loc.x && i.loc.y === loc.y) ?? null,

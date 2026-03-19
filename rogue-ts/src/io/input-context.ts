@@ -46,7 +46,7 @@ import { openPathBetween } from "../items/bolt-geometry.js";
 import { negationWillAffectMonster } from "../items/bolt-helpers.js";
 import { boltCatalog } from "../globals/bolt-catalog.js";
 import { mutationCatalog } from "../globals/mutation-catalog.js";
-import { monstersAreTeammates as monstersAreTeammatesFn } from "../monsters/monster-queries.js";
+import { monstersAreTeammates as monstersAreTeammatesFn, monsterRevealed as monsterRevealedFn } from "../monsters/monster-queries.js";
 import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
     cellHasTMFlag as cellHasTMFlagFn,
@@ -189,7 +189,7 @@ function buildMiscHelpersContext(): MiscHelpersContext {
                 playerCanSee: (x2, y2) => !!(pmap[x2]?.[y2]?.flags & TileFlag.VISIBLE),
                 monsterAtLoc,
                 canSeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
-                monsterRevealed: () => false,
+                monsterRevealed: (m) => monsterRevealedFn(m, player),
                 spawnDungeonFeature: spawnFeature as never,
                 refreshDungeonCell,
                 dungeonFeatureCatalog,
