@@ -58,7 +58,7 @@ only if the path is genuinely not reachable in normal play.
       C: `Time.c` (applyInstantTileEffectsToCreature), `Architect.c` (triggerMachinesOfKind).
       TS: `tile-effects-wiring.ts`, `time/creature-effects.ts`. **M**
 
-- [ ] **B51 — Depth transition: first-turn monsters not drawn until player moves** — On
+- [x] **B51 — Depth transition: first-turn monsters not drawn until player moves** — On
       entering a new dungeon level, monsters that should be immediately visible in the player's
       field of view are not rendered. After the player takes one move they appear correctly.
       Likely cause: `displayLevel` or `commitDraws` is called before monster positions are
