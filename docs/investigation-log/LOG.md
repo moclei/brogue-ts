@@ -198,6 +198,19 @@ Steps logged: 6
 
 ---
 
+## B49 — Pressure plate → steam vent → crash ~2 moves later
+Symptom: stepping on pressure plate triggers steam vents; game crashes approximately 2 moves later
+
+- Backlog suspects gas spawn killing/moving a creature mid-iteration or spawnDungeonFeature creating inconsistent pmap state — Read: tile-effects-wiring.ts:119-144 → runtimeSpawnFeature looks structurally correct; spawnDungeonFeatureFn called, then DFF_ACTIVATE_DORMANT_MONSTER handled; no obvious list mutation hazard
+- Looking for the actual crash: B105 backlog entry describes `TypeError: ctx.coordinatesAreInMap is not a function` at safety-maps.ts:300 triggered by fleeing monsters — Grep: coordinatesAreInMap in safety-maps.ts → used at line 300 in resetDistanceCellInGrid, required by SafetyMapsContext interface (line 72)
+- Confirmed coordinatesAreInMap is missing from updateSafetyMap call site — Read: turn-monster-ai.ts:550-571 → updateSafetyMapFn is passed a partial context (rogue, player, pmap, safetyMap, DCOLS, DROWS, cellHasTerrainFlag, cellHasTMFlag, discoveredTerrainFlagsAtLoc, monsterAtLoc, allocGrid, freeGrid, dijkstraScan) but coordinatesAreInMap is absent
+- Traced the crash path: steam damages nearby monsters → damaged monster with flee behavior calls getSafetyMapFn → updateSafetyMapFn → dijkstraScan → resetDistanceCellInGrid → ctx.coordinatesAreInMap is undefined → TypeError
+
+Root cause: B49 crash IS the B105 crash. Steam damages nearby monsters; on next 1–2 turns those monsters flee, calling updateSafetyMapFn (turn-monster-ai.ts:550) whose context is missing coordinatesAreInMap; resetDistanceCellInGrid at safety-maps.ts:300 dereferences undefined and crashes.
+Steps logged: 4
+
+---
+
 ## B92 — "Quit and abandon run" menu option does nothing
 Symptom: pressing Q in-game opens confirm dialog but game continues regardless
 

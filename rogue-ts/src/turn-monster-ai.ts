@@ -557,6 +557,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
                 FP_FACTOR: 1,                     // unused by updateSafetyMap
                 cellHasTerrainFlag: chTF,
                 cellHasTMFlag: chTMF,
+                coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
                 discoveredTerrainFlagsAtLoc: (pos: Pos) => discoveredTerrainFlagsAtLocFn(
                     pmap, pos, tileCatalog,
                     (tileType) => {
