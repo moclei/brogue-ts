@@ -54,6 +54,7 @@ only if the path is genuinely not reachable in normal play.
       ⚠️ **Confirm before coding:** hard to reproduce; need to isolate seed + sequence. The
       crash may have been incidental — confirm it is still present and stems from the pressure-plate
       event rather than unrelated monster-turn processing.
+      Don't fix it right away! instead, let the user know what you think the bug is, and ask for permission to fix.
       C: `Time.c` (applyInstantTileEffectsToCreature), `Architect.c` (triggerMachinesOfKind).
       TS: `tile-effects-wiring.ts`, `time/creature-effects.ts`. **M**
 
@@ -65,8 +66,6 @@ only if the path is genuinely not reachable in normal play.
       empty dungeon and monsters only appear after the next full turn redraw.
       C: `RogueMain.c:547` (startLevel), `IO.c` (displayLevel, displayMonster).
       TS: `lifecycle.ts` (buildLevelContext / startLevel sequence), `turn-processing.ts`. **S**
-
-
 
 - [ ] **B57 — Scroll of negation crashes the game** — Using a scroll of negation caused a
       crash. `negateCreature` is wired (B44/earlier), but `negationBlast` (the scroll handler)
@@ -80,7 +79,6 @@ only if the path is genuinely not reachable in normal play.
       triggered mid-loop.
       C: `Items.c` (negationBlast, readScroll SCROLL_NEGATION:4080).
       TS: `items/item-handlers.ts` (negationBlast), `items.ts` (NegateContext). **M**
-
 
 - [ ] **B67 — Potion of paralysis: status appears instant (no tick-down)** — After drinking
       a paralysis potion the paralysis status seems to appear and vanish without visibly counting
@@ -113,7 +111,6 @@ only if the path is genuinely not reachable in normal play.
       C: `Architect.c` (machine done-check / cage promotion).
       TS: `turn.ts` (`updateEnvironment` / machine state). **M**
 
-
 - [ ] **B75 — `monsterBlinkToSafety` uses stubbed `updateSafetyMap`** — Monsters with a
       blink-to-safety bolt (e.g. will-o-wisps) blink to a random/suboptimal destination
       instead of the genuinely safest reachable cell, because the `blinkToSafetyCtx` in
@@ -121,7 +118,6 @@ only if the path is genuinely not reachable in normal play.
       C: `Monsters.c:monsterBlinkToSafety` uses the global safety map.
       TS: `turn-monster-zap-wiring.ts` — wire `updateSafetyMap` the same way it was done
       in `turn-monster-ai.ts` for `getSafetyMap` (PR #38). **S**
-
 
 - [x] **B85 — Trapped key rooms: machine effects don't fire on key pickup** — Several
       vault key room traps fail to trigger:
@@ -142,8 +138,6 @@ only if the path is genuinely not reachable in normal play.
      TS: `tile-effects-wiring.ts`, `lifecycle.ts`, `items/item-commands.ts`. **M**
      ⚠️ **Needs playtest confirmation** — stubs wired in PR #72, but these rooms are
      rare so the fix hasn't been verified in-game yet.
-
-
 
 - [ ] **B88 — Arrow turret can spawn inside an unreachable interior corner** — An arrow
       turret spawned at a diagonal interior corner where neither the player nor the turret
@@ -174,7 +168,6 @@ only if the path is genuinely not reachable in normal play.
       also be missing a `refreshSideBar` call.
       C: `Time.c` (`applyInstantTileEffectsToCreature` hunger branch), `Items.c` (`eat`).
       TS: `tile-effects-wiring.ts:289`, `items/item-commands.ts`. **S**
-
 
 - [ ] **B92 — "Quit and abandon run" menu option does nothing** — Opening the in-game
       menu and selecting "Quit and abandon" has no effect; the game continues. The quit path
@@ -332,4 +325,3 @@ impact. Do not implement.
 
 Full list of context-property stubs (CodeQL-generated, 2026-03-16) lives in
 [`docs/STUBS.md`](./STUBS.md). Do not fix any stub without a corresponding backlog item.
-
