@@ -44,7 +44,7 @@ only if the path is genuinely not reachable in normal play.
 
 ## Bug reports from playtesting
 
-- [ ] **B49 — Pressure plate → steam vent → crash ~2 moves later** — Stepping on a pressure
+- [x] **B49 — Pressure plate → steam vent → crash ~2 moves later** — Stepping on a pressure
       plate triggered steam from two vents. The game crashed approximately two moves after the
       event, not immediately. The delayed crash suggests a corrupt/dangling reference introduced
       during the terrain-effect chain rather than a direct throw. Possible causes: monster or
@@ -277,7 +277,7 @@ only if the path is genuinely not reachable in normal play.
       C: `IO.c` (message history display).
       TS: `menus.ts` or the message-panel click handler in `platform.ts` / `io-wiring.ts`. **S**
 
-- [ ] **B105 — `updateSafetyMap` crash: `ctx.coordinatesAreInMap is not a function`** —
+- [x] **B105 — `updateSafetyMap` crash: `ctx.coordinatesAreInMap is not a function`** —
       Confirmed in two separate playtesting sessions (confusion potion use; fighting a monkey):
       the game crashes with `TypeError: ctx.coordinatesAreInMap is not a function` at
       `safety-maps.ts:300` → `updateSafetyMap` → `turn-monster-ai.ts:550` → `getSafetyMap`
