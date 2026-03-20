@@ -46,6 +46,8 @@ import { glyphToUnicode, isEnvironmentGlyph } from "./glyph-map.js";
 import { TILE_SIZE } from "./tileset-loader.js";
 import type { SpriteRef } from "./glyph-sprite-map.js";
 import { getBackgroundTileType } from "./glyph-sprite-map.js";
+import { TextRenderer } from "./text-renderer.js";
+import type { CellRect } from "./renderer.js";
 
 // =============================================================================
 // Constants
@@ -198,9 +200,16 @@ export function createBrowserConsole(
     // Reset and apply DPR scaling to the 2D context so all subsequent
     // drawing operations use CSS-pixel coordinates.
     ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    if (textRenderer) textRenderer.fontSize = fontSize;
   }
 
+  // ---- Text renderer ----
+  // Declared before recalcCellSize() so the reference exists (as undefined)
+  // during the initial call; assigned immediately after.
+  let textRenderer!: TextRenderer;
   recalcCellSize();
+  textRenderer = new TextRenderer(ctx2d, fontFamily, fontSize);
 
   // ---- Event queue ----
   const eventQueue: QueuedEvent[] = [];
@@ -484,14 +493,13 @@ export function createBrowserConsole(
           (currentGraphicsMode === GraphicsMode.Hybrid &&
             isEnvironmentGlyph(inputChar)));
 
-      if (useTiles && DEBUG_SKIP_TILE_CELL_BACK_FILL) {
-        ctx2d.clearRect(px, py, cellWidth, cellHeight);
-      } else {
-        ctx2d.fillStyle = `rgb(${br},${bg},${bb})`;
-        ctx2d.fillRect(px, py, cellWidth, cellHeight);
-      }
-
       if (useTiles) {
+        if (DEBUG_SKIP_TILE_CELL_BACK_FILL) {
+          ctx2d.clearRect(px, py, cellWidth, cellHeight);
+        } else {
+          ctx2d.fillStyle = `rgb(${br},${bg},${bb})`;
+          ctx2d.fillRect(px, py, cellWidth, cellHeight);
+        }
         // One-to-one: try TileType first when provided, then fall back to DisplayGlyph
         let ref: SpriteRef | undefined;
         if (tileType !== undefined && tileTypeSpriteMap) {
@@ -617,19 +625,8 @@ export function createBrowserConsole(
           }
         }
       } else {
-        const unicode = glyphToUnicode(inputChar);
-        if (unicode > 0x20) {
-          const ch = String.fromCodePoint(unicode);
-          ctx2d.fillStyle = `rgb(${fr},${fg},${fb})`;
-          ctx2d.font = `${fontSize}px ${fontFamily}`;
-          ctx2d.textBaseline = "top";
-          ctx2d.textAlign = "center";
-          ctx2d.fillText(
-            ch,
-            px + cellWidth / 2,
-            py + (cellHeight - fontSize) / 2,
-          );
-        }
+        const cellRect: CellRect = { x: px, y: py, width: cellWidth, height: cellHeight };
+        textRenderer.drawCell(cellRect, inputChar, fr, fg, fb, br, bg, bb);
       }
     },
 
