@@ -538,9 +538,13 @@ export function buildLevelContext(): LevelContext {
         updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
         updatePlayerRegenerationDelay: () => { updatePlayerRegenerationDelayFn({ player, regenerationBonus: rogue.regenerationBonus }); },
         displayLevel() {
+            // Use getGameState() here: setMonsters()/setDormantMonsters() during startLevel()
+            // replace the module-level array references after this context was built, so the
+            // captured `monsters`/`dormantMonsters`/`floorItems` would be stale on level entry.
+            const state = getGameState();
             const getCellApp = (loc: { x: number; y: number }) => getCellAppearance(
                 loc, pmap, tmap, displayBuffer, rogue, player,
-                monsters, dormantMonsters, floorItems,
+                state.monsters, state.dormantMonsters, state.floorItems,
                 tileCatalog, dungeonFeatureCatalog, monsterCatalog,
                 terrainRandomValues, displayDetail, getScentMap() ?? [],
             );
