@@ -123,34 +123,219 @@ These are the candidates worth cloning/downloading and studying at the source le
 
 #### 3.1. Tiles.c in BrogueCE (C source)
 
-- **Link:** `src/platform/tiles.c` in this repo (813 lines)
+- **Link:** `src/platform/tiles.c` (813 lines), `src/platform/sdl2-platform.c` (mapping
+  logic), `src/brogue/Rogue.h` (`enum displayGlyph`)
 - **Problem it solves:** Sprite rendering for the same game, using SDL2
 - **Relevance:** **Deep-dive** — this is our most direct reference. Same game, same
   `plotChar` abstraction, same display model.
-- **Preliminary findings:**
-  - **White-sprite tinting:** All 384 tiles in the 2048x5568 PNG are white/grayscale
-    outlines. Color comes entirely from `SDL_SetTextureColorMod(foreR, foreG, foreB)`.
-    This is the opposite of our prototype approach (colored DawnLike sprites + multiply).
-  - **Tile processing categories:** Each tile has a processing mode — `'s'` (stretch to
-    fill), `'f'` (fit preserving aspect ratio, up to 20% stretch), `'t'` (text: vertical
-    alignment for letters), `'#'` (symbols: other Unicode, max 40% stretch). Defined in a
-    24x16 lookup table `TileProcessing`.
-  - **Sophisticated downscaling:** `downscaleTile()` splits tiles into 16 sub-regions with
-    independent sub-pixel alignment, operates in linear color space (gamma=2.0), and
-    pre-computes optimal shifts per tile per size (saved to `tiles.bin`). Text tiles get
-    special x-height/baseline alignment.
-  - **Multi-texture approach:** Up to 4 textures at sizes WxH, (W+1)xH, Wx(H+1), (W+1)x(H+1)
-    to cover non-integer window divisions without padding. Tiles are re-rendered on resize.
-  - **Rendering order:** Background colors first (single pass), then 4 tile passes grouped
-    by texture to minimize OpenGL state changes.
-  - **No autotiling, no adjacency, no creature facing, no layer compositing.** The C version
-    has the same limitations we're trying to solve.
-  - **Procedural wall tops:** Rows 16/21/22 generate diagonal sine-wave patterns rather
-    than using fixed sprite art.
-- **What to study in deep-dive:** The white-sprite tinting model (should we adopt it?),
-  the tile processing categories (do we need equivalent logic?), the multi-resolution
-  texture strategy (relevant to our scaling question).
-- **Status:** Partially reviewed (need focused analysis session)
+- **Status:** Deep-dive complete
+
+##### Deep-dive findings
+
+**A. White-sprite tinting model**
+
+The C tile renderer uses a fundamentally different tinting approach from our Canvas2D
+prototype. Understanding the difference is critical for art pipeline decisions.
+
+Source sprites in `tiles.png` (2048×5568, 128×232px per tile, 24 rows × 16 cols = 384
+tiles) are white/grayscale outlines on a black background. During the `downscaleTile()`
+downscaling step, the pixel luminance from the source PNG is converted entirely to alpha:
+
+```c
+uint32_t alpha = (value == 0 ? 0 : value > 64770 ? 255 : round(sqrt(value)));
+*pixel++ = (alpha << 24) | 0xffffffU;  // white pixel, variable opacity
+```
+
+Every pixel in the resulting texture is pure white (RGB 1,1,1) with opacity derived from
+the original grayscale value. Color is then applied at render time in a two-pass model:
+
+1. **Background pass:** `SDL_SetRenderDrawColor(bgR, bgG, bgB, 255)` +
+   `SDL_RenderFillRect` fills the cell with the background color.
+2. **Foreground pass:** `SDL_SetTextureColorMod(fgR, fgG, fgB)` multiplies the all-white
+   texture by the foreground color, then `SDL_RenderCopy` alpha-blends it over the
+   background. Since white × color = color, the foreground color *becomes* the sprite
+   color. The original grayscale values control only the alpha (edge softness, weight).
+
+**Comparison with our Canvas2D approach:**
+
+| Aspect | C tiles.c (white sprites) | Our prototype (colored sprites + multiply) |
+|--------|--------------------------|-------------------------------------------|
+| Sprite color | None — grayscale/white only | Full-color DawnLike sprites |
+| Foreground tint | Color *becomes* the sprite | Color *modifies* existing colors |
+| Background handling | Solid fill behind sprite | Solid fill behind sprite |
+| Artistic expression | Low — sprites are just shapes | High — sprites carry inherent color |
+| Tint fidelity | Perfect — Brogue's lighting colors show exactly | Approximate — multiply can muddy bright colors |
+| Alpha channel | Naturally preserved (luminance → alpha) | Requires `destination-in` composite fix |
+| Art pipeline complexity | Simpler — artist draws shapes, game colors them | Higher — artist chooses colors that must tint well |
+
+**Recommendation:** White sprites are the right choice for *production* art in this game.
+Brogue's color system is not a cosmetic tint — it encodes gameplay information (lighting,
+terrain type, status, fog). White sprites let the game's colors express fully without
+fighting artist-chosen hues. Our current colored-sprite prototype works for DawnLike
+placeholders, but the production art pipeline should target white/grayscale sprites.
+
+The Caves of Qud 3-color system (Section 3.7) offers an interesting middle ground: black
+pixels → foreground color, white pixels → detail color, transparent → background. This
+preserves some artistic control (two-tone sprites) while still responding to game coloring.
+Worth prototyping alongside pure white sprites when we reach the art pipeline initiative.
+
+**B. Tile processing categories**
+
+Each tile has a processing mode defined in `TileProcessing[24][16]`, controlling how it
+scales to fit variable-size screen cells:
+
+| Mode | Max stretch | Aspect ratio | Alignment | Used for |
+|------|------------|--------------|-----------|----------|
+| `'s'` (stretch) | Unlimited | Not preserved | Fill entire cell | Walls, doors, backgrounds, terrain that must tile seamlessly |
+| `'f'` (fit) | 20% | Preserved | Centered, blank space at top/bottom absorbed | Items, objects, features with defined shape |
+| `'t'` (text) | 40% | Preserved | X-height and baseline pixel-aligned across all text tiles | Letters, digits, punctuation |
+| `'#'` (symbols) | 40% | Preserved | Centered | Non-letter Unicode symbols (♦, •, ≈, etc.) |
+
+The `downscaleTile` function implements this by computing `glyphWidth`/`glyphHeight`
+within each mode's constraints, then using 5-stop piecewise-linear coordinate mapping
+(splitting the tile into 16 sub-regions via 3 horizontal + 3 vertical cut lines) for
+independently aligned downscaling.
+
+Text-mode specifics: `TEXT_X_HEIGHT` (100px) and `TEXT_BASELINE` (46px) in the source
+PNG are pixel-aligned on screen, ensuring letters line up vertically regardless of glyph
+height differences. A custom brightness curve (`value < 255*255/2 ? value/2 : value*3/2
+- 255*255/2`) reduces perceived boldness at small sizes.
+
+**Do we need equivalent logic?** Partially. Our sprite renderer doesn't downscale from
+high-res source art — we draw pre-sized sprites via `drawImage`. But the *categories*
+matter:
+
+- **Stretch mode** is needed for terrain tiles that must fill cells completely (walls,
+  floors). Our current approach already implicitly does this (`drawImage` to full cell).
+- **Fit mode** matters if we ever have sprites of varying visual density — e.g., a large
+  dragon sprite vs. a small rat sprite that shouldn't fill the cell edge-to-edge. Not
+  critical for 16×16 pixel art where everything fits the grid, but becomes important at
+  larger tile sizes (24×24, 32×32) or with mixed-size tilesets.
+- **Text mode** is irrelevant — our text rendering stays in `TextRenderer` via `fillText`.
+- **Symbol mode** is irrelevant for the same reason.
+
+**Recommendation:** Don't implement tile processing modes now. Revisit if we adopt tilesets
+larger than 16×16 or if sprite size variation becomes a design goal. If needed, it would
+be a simple `SpriteConfig` property per tile: `{ mode: 'stretch' | 'fit', maxStretch? }`.
+
+**C. Multi-resolution texture strategy**
+
+The C renderer solves the non-integer division problem: 100 columns into (say) 1600px
+gives tiles of exactly 16px each, but 100 into 1593px gives 15.93px — some tiles must be
+15px and others 16px.
+
+The solution: pre-render all 384 tiles at 4 sizes — `W×H`, `(W+1)×H`, `W×(H+1)`,
+`(W+1)×(H+1)` — into 4 GPU textures. During rendering:
+
+```
+tileWidth  = ((x+1) * outputWidth / COLS) - (x * outputWidth / COLS)   // 15 or 16
+tileHeight = ((y+1) * outputHeight / ROWS) - (y * outputHeight / ROWS) // varies
+textureIndex = (tileWidth > baseTileWidth ? 1 : 0) + (tileHeight > baseTileHeight ? 2 : 0)
+```
+
+Each cell picks the texture whose tile dimensions match its computed width/height. The 5
+rendering passes (1 background + 4 tile passes) group by texture to minimize GPU state
+changes (OpenGL texture binding is expensive if interleaved).
+
+When tiles exceed `MAX_TILE_SIZE` (64px), a single texture is used with `linear`
+interpolation instead of `nearest`, accepting slight blur.
+
+**Do we need this?** No, not directly. Canvas2D's `drawImage(src, sx, sy, sw, sh, dx, dy,
+dw, dh)` handles non-integer scaling natively — the browser composites per-cell without
+requiring pre-rendered texture atlases at multiple sizes. CSS `image-rendering: pixelated`
+on the canvas gives us nearest-neighbor scaling for the pixel-art aesthetic.
+
+The deeper insight is the *problem* this solves: non-integer cell sizes in a fixed grid.
+We face the same issue. Our current renderer computes `cellWidth = canvas.width / COLS`
+and rounds, which can leave 1-2px gaps. The C approach of computing each cell's position
+as `x * outputWidth / COLS` (integer division, progressive) is cleaner and should be
+adopted in our cell-sizing logic regardless of sprite vs. text rendering.
+
+**Recommendation:** Don't replicate the 4-texture strategy. Do adopt the progressive
+integer-division cell positioning: `cellX = x * canvasWidth / COLS`, `cellWidth =
+((x+1) * canvasWidth / COLS) - cellX`. This eliminates sub-pixel gaps without multiple
+texture copies.
+
+**D. Procedural wall tops**
+
+Three specific tile positions generate diagonal sine-wave patterns instead of using
+sprite art:
+
+- Row 16, column 2 (`charIndex` 258)
+- Row 21, column 1 (`charIndex` 337)
+- Row 22, column 4 (`charIndex` 356)
+
+The pattern: `sin(2π × (x/W × numH + y/H × numV)) / 2 + 0.5`, where `numH` and `numV`
+scale with tile size (2–6 horizontal waves, 2–11 vertical waves). This produces diagonal
+stripes that adapt to any tile size, used for the decorative tops of stone walls.
+
+For row 21 (the main wall top), the sine wave fills the entire tile. For rows 16/22, it
+fills only the top half (stops when it hits existing non-empty pixel rows). The wave
+count adapts: `numHorizWaves = clamp(round(tileWidth × 0.25), 2, 6)`, so the pattern
+stays roughly the same density regardless of resolution.
+
+**Do we need this?** Unlikely. Procedural wall tops exist in the C version because the
+white-sprite tinting model can't carry detailed wall-top textures (there's no color
+information in the sprite). With colored pixel art sprites, we'd draw actual wall-top
+art. Additionally, autotiling (Initiative 3) would replace the current wall-top selection
+logic with neighbor-aware variant sprites that include proper edges and transitions.
+
+**Recommendation:** Skip procedural wall tops. Use authored pixel art for wall transitions
+and let the autotiling system handle variant selection.
+
+**E. Tile-to-glyph mapping (charIndex)**
+
+The mapping from game logic to tile grid is a three-step chain:
+
+1. **Game logic** emits `enum displayGlyph` values (defined in `Rogue.h`). Values 0–127
+   are ASCII. Values 128+ are game-specific glyphs (`G_UP_ARROW=128`, `G_WALL=132`,
+   `G_FLOOR=277`, etc.).
+
+2. **`fontIndex()` in `sdl2-platform.c`** converts displayGlyph to charIndex:
+   - ASCII (0–127): `charIndex = glyph` (direct mapping to rows 0–7 of the tile grid)
+   - G_UP_ARROW/G_DOWN_ARROW: special-cased to font positions 0x90/0x91 (always text)
+   - Tile mode: `charIndex = glyph + 128 - 2` (rows 8–23). The `-2` skips the two
+     arrow glyphs that stay as text.
+   - Hybrid mode: `isEnvironmentGlyph()` decides whether a glyph gets tile or text
+     treatment. Environment glyphs (walls, floors, doors, etc.) use tiles; items and
+     creatures use text/Unicode fallback.
+   - Text/Unicode fallback: Unicode code points are mapped to specific positions in
+     rows 8–9 (special symbols like ♦, •, Ω, etc.)
+
+3. **`tiles.c` rendering** converts charIndex to tile grid position:
+   `tileRow = charIndex / 16`, `tileColumn = charIndex % 16`.
+
+The 24×16 tile grid layout:
+- **Rows 0–7** (charIndex 0–127): ASCII font — letters, digits, punctuation, special
+  symbols. These are the text-mode glyphs.
+- **Rows 8–15** (charIndex 128–255): Unicode symbol alternatives for text mode — special
+  roguelike symbols (middle dot, diamond, arrows, etc.) at specific positions; rest
+  available for expansion.
+- **Rows 16–23** (charIndex 256–383): Game-specific tile art — walls, floors, doors,
+  creatures, items, features. Mapped from `displayGlyph` enum values via the `+128-2`
+  offset.
+
+**Mapping to our TypeScript port:**
+
+Our `DisplayGlyph` enum in `types/enums.ts` mirrors the C `displayGlyph` enum. Our
+`glyph-sprite-map.ts` uses a `Map<DisplayGlyph, SpriteRef>` for the tile lookup,
+bypassing the charIndex indirection entirely. The charIndex scheme is an artifact of the
+single-PNG-atlas approach where position = identity. Our approach (explicit map from
+enum to spritesheet coordinates) is more flexible and doesn't constrain the spritesheet
+layout.
+
+**F. Confirmed limitations (no change from preliminary scan)**
+
+The C tile renderer has none of:
+- Autotiling / adjacency-aware tile selection
+- Layer compositing (one sprite per cell, period)
+- Creature facing or directional sprites
+- Animation of any kind
+- Alpha blending between multiple sprites in one cell
+
+These are exactly the gaps we're solving with Initiatives 2–7. The C renderer is a useful
+reference for the tinting model and cell-sizing math, but not for the rendering
+architecture we need to build.
 
 #### 3.2. DCSS tiles (Dungeon Crawl Stone Soup)
 

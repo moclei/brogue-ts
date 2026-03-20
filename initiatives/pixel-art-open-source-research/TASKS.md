@@ -2,17 +2,17 @@
 
 ## Phase 1: BrogueCE tiles.c Deep-Dive
 
-- [ ] Re-read `src/platform/tiles.c` with focus on: (a) the white-sprite tinting model —
+- [x] Re-read `src/platform/tiles.c` with focus on: (a) the white-sprite tinting model —
   how `SDL_SetTextureColorMod` applies foreground color, what happens with the background
   color pass, and how this compares to our Canvas2D multiply approach; (b) the tile
   processing categories (`TileProcessing` table) — do we need equivalent stretch/fit/text
   modes?; (c) the multi-resolution texture strategy — how it handles non-integer window
   divisions and whether we need something similar for CSS pixel scaling; (d) the procedural
   wall tops (sine wave generation for rows 16/21/22) — is this something we'd want?
-- [ ] Update Section 3.1 in `pixel-art-exploration.md`: replace "Preliminary findings" with
+- [x] Update Section 3.1 in `pixel-art-exploration.md`: replace "Preliminary findings" with
   "Deep-dive findings" covering the above. Add concrete recommendations: should we adopt
   white sprites? Do we need tile processing modes?
-- [ ] Check `src/platform/tiles.h` and any other files that define the tile-to-glyph mapping
+- [x] Check `src/platform/tiles.h` and any other files that define the tile-to-glyph mapping
   in the C codebase — how does charIndex map to tile position? Document the mapping strategy.
 
 # --- handoff point ---
