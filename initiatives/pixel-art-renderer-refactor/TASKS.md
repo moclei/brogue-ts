@@ -21,25 +21,15 @@
 
 ## Phase 2: SpriteRenderer Extraction
 
-- [ ] Create `SpriteRenderer` in `platform/sprite-renderer.ts`. Extract from
-  `plotChar`'s tile path:
-  - `resolveSprite(tileType, glyph)`: tries tileTypeSpriteMap, then spriteMap
-  - `drawSpriteTinted(img, spriteRef, alpha?)`: offscreen tintCanvas, multiply
-    composite, destination-in alpha restore, blit to main canvas
-  - `drawCell(...)`: background fill, underlyingTerrain layer, foreground tile
-    layer (getBackgroundTileType), main sprite, unmapped fallback to textRenderer
-  - Debug flags: `DEBUG_LAYERED_DRAW`, `DEBUG_SHOW_TERRAIN_UNDER_CREATURE`,
-    `DEBUG_SKIP_TILE_CELL_BACK_FILL`
-  Constructor receives: `CanvasRenderingContext2D`, `tiles` map, `spriteMap`,
-  `tileTypeSpriteMap`, `TextRenderer` (for unmapped-glyph fallback).
-- [ ] Test: `sprite-renderer.test.ts` — verify resolveSprite lookup chain:
-  (a) tileType found in tileTypeSpriteMap; (b) falls back to spriteMap when
-  tileType not mapped; (c) returns undefined when neither maps the glyph.
-  Test drawCell with underlyingTerrain (verifies two-layer draw order).
-- [ ] Wire SpriteRenderer into `browser-renderer.ts`: create it after
-  TextRenderer (only when `tiles` option is provided), delegate tile-mode
-  plotChar calls to it. Hybrid mode: use isEnvironmentGlyph + viewport check
-  to pick renderer.
+- [x] Create `SpriteRenderer` in `platform/sprite-renderer.ts` — 195 lines.
+  Extracts resolveSprite, drawSpriteTinted, drawCell with two-layer logic,
+  debug flags. Constructor: ctx, tiles, spriteMap, tileTypeSpriteMap, textRenderer.
+- [x] Test: `sprite-renderer.test.ts` — 11 tests: resolveSprite lookup chain
+  (tileType → spriteMap → undefined), drawCell fallback, background fill,
+  tint compositing, two-layer draw, foreground overlay.
+- [x] Wire SpriteRenderer into `browser-renderer.ts` — plotChar is now a thin
+  dispatcher (viewport + mode check → spriteRenderer.drawCell or
+  textRenderer.drawCell). Removed 140 lines of inline tile code. File: 545 lines.
 
 # --- handoff point ---
 
