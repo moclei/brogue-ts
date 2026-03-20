@@ -238,3 +238,16 @@ Symptom: using a scroll of negation caused a crash (specific error unknown; may 
 
 Root cause: **Cannot confirm active crash.** The two crash candidates described in the backlog (list-mutation, () => {} stubs) are already handled: snapshot at item-effects.ts:90 prevents list mutation; negateCtx callbacks are all real functions. The crash may have been fixed as part of B44 wiring work, or may have been coincidental. Minor gap: refreshSideBar is not called after NEGATABLE_TRAITS strip (NegateContext has no refreshSideBar slot), causing a sidebar display glitch after negation of fiery monsters — not a crash.
 Steps logged: 8
+
+---
+
+## B67 — Potion of paralysis: status appears instant (no tick-down)
+Symptom: drinking a paralysis potion shows status appear and vanish immediately; no visible countdown
+
+- Confirmed potion spawns gas correctly — Read: item-handlers.ts:900 → spawnDungeonFeature(DF_PARALYSIS_GAS_CLOUD_POTION); dungeon-feature-catalog.ts:1877 → tile=PARALYSIS_GAS, layer=Gas; enums match C (DF_PARALYSIS_GAS_CLOUD_POTION=131, catalog[131]=PARALYSIS_GAS) ✓
+- Confirmed do-while loop and decrementPlayerStatus are correct — Read: turn-processing.ts:451,630 → do { ... decrementPlayerStatus(); applyInstantTileEffects(); } while (Paralyzed); structure matches C exactly
+- Found root cause: pauseAnimation stub — Read: turn.ts:445 → `pauseAnimation: () => false` synchronous no-op; call sites in turn-processing.ts:653,786 not awaited; the 20-iteration do-while loop runs without any commitDraws() or yield, so browser renders only the final state (paralyzed=0)
+- Confirmed fix pattern — Read: movement.ts:592 → `pauseAnimation: async (ms, _behavior) => { commitDraws(); return platformPauseIgnoringHover(ms); }` — same pattern for travel animation
+
+Root cause: turn.ts pauseAnimation wired as `() => false` (sync no-op); call sites not awaited; 20 paralysis iterations run synchronously, no commitDraws() between them, browser shows only the final state
+Steps logged: 4
