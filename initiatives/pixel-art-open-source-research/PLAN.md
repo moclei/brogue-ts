@@ -88,8 +88,12 @@ description in TASKS.md should specify which functions/sections to focus on.
 
 ## Open Questions
 
-- How large is `cata_tiles.cpp`? If it's 3000+ lines, the CDDA session may need to be
-  split into two: one for the multitile/autotile logic, one for the rendering pipeline.
+- ~~How large is `cata_tiles.cpp`? If it's 3000+ lines, the CDDA session may need to be
+  split into two: one for the multitile/autotile logic, one for the rendering pipeline.~~
+  **Resolved (Phase 3):** 5557 lines. Focused on multitile selection logic in one session.
+  General rendering infrastructure (sprite drawing, texture management) was skipped —
+  not needed for our design decisions. The critical functions are `get_rotation_and_subtile`
+  (4-bit bitmask → subtile+rotation) and `get_connect_values` (connect_group neighbor check).
 - ~~Does DCSS have a separate `tilepick.cc` or similar that handles tile selection logic
   distinct from `tileview.cc`? The preliminary scan only found `tileview.cc`.~~
   **Resolved (Phase 2):** Yes. `tilepick.cc` (5179 lines) handles all feature/monster/item
@@ -118,3 +122,26 @@ Key findings that affect future phases:
 - `tileview.cc` is 1328 lines (not 1542 as originally noted in PLAN.md).
 - `tilepick.cc` (5179 lines) is the real tile selection brain. Worth noting for CDDA
   comparison — does CDDA split tile selection similarly?
+
+### Phase 3 — CDDA Deep-Dive
+
+Key findings that affect Phase 4 synthesis:
+
+- **CDDA uses 4-bit cardinal bitmask (16 tiles), not 8-bit blob (47 tiles).** The most
+  feature-rich open-source roguelike autotile system chose the simpler approach. 6 subtile
+  types × rotations = 16 unique visuals per terrain type. This strongly suggests 4-bit
+  is sufficient for our needs.
+- **connect_groups system is the key differentiator.** Not just same-type matching — tiles
+  connect to *groups* of types (all walls connect to each other, doors connect to walls).
+  We need this for Brogue where walls, doors, and doorframes should visually connect.
+- **11 draw layers validates our 11-layer proposal.** CDDA and Brogue both need ~11 layers,
+  though the specific layers differ. Our proposal is not overkill.
+- **CDDA has 2-directional creature facing (left/right flip).** Combined with DCSS having
+  no facing at all, 2-directional is clearly the right choice for our system.
+- **No runtime tinting (same as DCSS).** Pre-baked texture variants for lighting states.
+  Neither DCSS nor CDDA has Brogue's continuous per-cell RGB lighting. We're implementing
+  something neither reference project needed.
+- **`layering.json` is narrower than expected.** Context-sensitive item sprite overrides,
+  not a general layer ordering system.
+- **The 4x4 template + slice_multitile.py tooling is directly adoptable** for our art
+  pipeline. Author one template image, slice into 16 named connection sprites + JSON.

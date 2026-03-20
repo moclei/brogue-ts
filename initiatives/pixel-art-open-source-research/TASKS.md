@@ -46,24 +46,31 @@
 
 ## Phase 3: Cataclysm: DDA Tile System Deep-Dive
 
-- [ ] Clone CDDA repo with sparse checkout (see PLAN.md clone strategy). Verify checkout.
-- [ ] Check the size of `src/cata_tiles.cpp`. If > 2500 lines, split the reading: focus
+- [x] Clone CDDA repo with sparse checkout (see PLAN.md clone strategy). Verify checkout.
+- [x] Check the size of `src/cata_tiles.cpp`. If > 2500 lines, split the reading: focus
   this session on the multitile/autotile selection logic (search for `multitile`,
   `connect`, `rotates_to`, `edge`, `corner`, `t_connection`). Skip general rendering
   infrastructure for a follow-up if needed.
-- [ ] Read the autotile/multitile selection logic in `cata_tiles.cpp` — focus on: (a) how
+  ANSWER: 5557 lines. Focused on multitile selection logic only.
+- [x] Read the autotile/multitile selection logic in `cata_tiles.cpp` — focus on: (a) how
   neighbor tiles are checked; (b) how the connection type (edge, corner, t_connection,
   center, end_piece, unconnected) is determined; (c) how `connect_groups` and `connects_to`
   differ from raw bitmask matching; (d) how fallbacks work when a specific variant is
   missing.
-- [ ] Skim `src/sdltiles.cpp` for the layer compositing model — how many draw passes, what
+- [x] Skim `src/sdltiles.cpp` for the layer compositing model — how many draw passes, what
   order, any special blend modes?
-- [ ] Find and read a sample `tile_config.json` from an actual tileset (e.g., in
+- [x] Find and read a sample `tile_config.json` from an actual tileset (e.g., in
   `gfx/UltimateCataclysm/` or similar) — see the autotile format in practice with real
   data.
-- [ ] If context allows: find `layering.json` and document its structure.
-- [ ] Update Section 3.3 in `pixel-art-exploration.md` with deep-dive findings.
-- [ ] Delete CDDA clone: `rm -rf _research/cdda`
+  NOTE: UltimateCataclysm not in the main repo. Read Larwick_Overmap (5266 lines) and
+  ASCIITileset (143 lines) tile_config.json files. Both have multitile entries.
+- [x] If context allows: find `layering.json` and document its structure.
+  ANSWER: No layering.json found in sparse checkout (neither in gfx/ tilesets nor
+  data/json/). Documented from TILESET.md spec and load_layers() source code instead.
+  layering.json is a context-sensitive item/field sprite override system, not a general
+  layer ordering mechanism.
+- [x] Update Section 3.3 in `pixel-art-exploration.md` with deep-dive findings.
+- [x] Delete CDDA clone: `rm -rf _research/cdda`
 
 # --- handoff point ---
 

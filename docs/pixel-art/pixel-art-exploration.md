@@ -641,34 +641,307 @@ This is essentially what our planned art pipeline (Initiative 8) would include.
   layer compositing
 - **Relevance:** **Deep-dive** — the best-documented autotile/multitile system in any open
   source roguelike. The JSON format and tooling are directly informative.
-- **Preliminary findings:**
-  - **JSON tile definitions:** Entries map game entity IDs to fg/bg sprites. IDs can be
-    arrays (many entities sharing one sprite config).
-  - **Adjacency systems:** Two mechanisms: `connect_groups`/`connects_to` for terrain
-    adjacency, and `rotates_to` for auto-rotation based on neighbors.
-  - **Autotile ("multitile") templates:** 4x4 grid template with named connection types:
-    `center` (4-way), `t_connection` (3-way), `edge` (straight line), `corner` (L-shape),
-    `end_piece` (one side), `unconnected` (isolated). Uses transparency for background
-    overlap — draw autotile on top of background, transparent edges show terrain beneath.
-  - **Two autotile philosophies:** "bench-like" (usually single-width, so t_connection draws
-    as intersection) vs. "table-like" (usually multi-wide, so t_connection draws as solid
-    surface). This distinction matters for walls vs. open terrain.
-  - **Template tooling:** `tools/slice_multitile.py` slices a template image into individual
-    tiles + connection JSON. Also supports tall tiles, isometric tiles, and variant slicing.
-  - **Compositing:** `layering.json` configures layer ordering for items and fields.
-    `sdltiles.cpp` handles SDL rendering. `cata_tiles.cpp` handles tile selection logic.
-  - **Compose pipeline:** `compose.py` converts directories of individual sprites into
-    game-ready tilesheets + `tile_config.json`.
-- **Specific questions for deep-dive:**
-  - How does `cata_tiles.cpp` select which multitile variant to draw? What's the neighbor
-    lookup algorithm?
-  - What does `layering.json` look like in practice? How many layers?
-  - How does the `connect_groups` system differ from raw bitmask autotiling?
-  - Could we adopt the 4x4 template format for our own tile creation?
-- **What to study:** `src/cata_tiles.cpp` (tile selection), `src/sdltiles.cpp` (rendering),
-  `doc/TILESET.md` (format spec), `layering.json` (layer model), `tools/slice_multitile.py`
-  (template tooling), one actual tileset's `tile_config.json` (concrete example).
-- **Status:** Not started — queued for deep-dive
+- **Status:** Deep-dive complete
+
+##### Deep-dive findings
+
+**A. Multitile/autotile selection algorithm — the core of CDDA's system**
+
+CDDA uses a **4-bit cardinal bitmask** system, not the 8-bit blob system. Only the four
+cardinal neighbors (N/S/E/W) are checked — diagonal neighbors are ignored entirely. This
+produces 16 possible connection states (2^4), mapped to 6 named subtile types:
+
+| Bitmask value | Subtile type | Rotation | Description |
+|---------------|-------------|----------|-------------|
+| `0` (0000) | `unconnected` | 0 | No neighbors connected |
+| `1` (0001) | `end_piece` | 0 | Connected only to south |
+| `2` (0010) | `end_piece` | 1 | Connected only to east |
+| `3` (0011) | `corner` | 0 | Connected S+E |
+| `4` (0100) | `end_piece` | 3 | Connected only to west |
+| `5` (0101) | `corner` | 3 | Connected S+W |
+| `6` (0110) | `edge` | 1 | Connected E+W (horizontal) |
+| `7` (0111) | `t_connection` | 0 | Connected S+E+W |
+| `8` (1000) | `end_piece` | 2 | Connected only to north |
+| `9` (1001) | `edge` | 0 | Connected N+S (vertical) |
+| `10` (1010) | `corner` | 1 | Connected N+E |
+| `11` (1011) | `t_connection` | 1 | Connected N+S+E |
+| `12` (1100) | `corner` | 2 | Connected N+W |
+| `13` (1101) | `t_connection` | 3 | Connected N+S+W |
+| `14` (1110) | `t_connection` | 2 | Connected N+E+W |
+| `15` (1111) | `center` | 0 | All four neighbors connected |
+
+The algorithm lives in `get_rotation_and_subtile()` (`cata_tiles.cpp` line 5016) — a single
+`switch(val)` on the 4-bit connection value. Each case sets `subtile` (which named sprite
+to use) and `rotation` (which rotation variant of that sprite). The rotation value selects
+from the pre-rotated sprite array in the tileset JSON, or triggers SDL `RenderCopyEx`
+rotation at draw time (90°/180°/270° or horizontal flip).
+
+Neighbor lookup is straightforward: check the 4 cardinal neighbors against the same tile
+type (`neighborhood[i] == tid` for simple same-type matching) or against a connect_group
+bitset (`connect_group.any()` path via `map::get_known_connections()`).
+
+The 6 subtile types produce a total of **16 unique visuals** from just **6 authored sprite
+sets** (where each set has 1, 2, or 4 rotation variants):
+- `center`: 1 sprite (no rotation needed)
+- `corner`: 4 rotation variants (NW, SW, SE, NE)
+- `t_connection`: 4 rotation variants (N, W, S, E)
+- `edge`: 2 rotation variants (N-S vertical, E-W horizontal)
+- `end_piece`: 4 rotation variants (N, W, S, E)
+- `unconnected`: 1–2 sprites (or up to 16 for `rotates_to` furniture)
+
+**B. connect_groups vs. raw bitmask — the connection model**
+
+CDDA separates connection logic into two orthogonal systems defined on the **terrain/furniture
+object** (not in the tileset):
+
+1. **`connect_groups`**: Declares which connection groups a terrain/furniture type belongs to.
+   A brick wall might be in group `"WALL"`. These are bitset-based — each group is a bit in a
+   `std::bitset<NUM_TERCONN>`.
+
+2. **`connects_to`**: Declares which groups this type visually connects to. A brick wall
+   `connects_to: "WALL"` means it connects to any terrain in the `WALL` group — including
+   other wall types like wood walls, metal walls, etc.
+
+The key insight: **connections are asymmetric and group-based, not identity-based.**
+`get_connect_values()` checks each cardinal neighbor's `connect_to_groups` bitset against
+the current tile's `connect_to_groups` — if any bits overlap, they're connected. This means:
+- A brick wall connects to a wood wall (both in `WALL` group) without needing any special
+  brick-to-wood transition sprites
+- Doors automatically connect to walls (doors are in the `WALL` group)
+- Windows connect to walls (via `CONNECT_WITH_WALL` flag)
+
+For tiles without `connect_groups`, CDDA falls back to `get_terrain_orientation()` which
+does **same-type matching** — the simpler `neighborhood[i] == tid` check. The
+`NO_SELF_CONNECT` flag disables this for furniture that should never self-connect.
+
+There's also a third mechanism: **`rotates_to`** — a separate group-based system for tiles
+that should orient *toward* neighboring features rather than *connect* to them. Street lights
+rotate to face the pavement; doors rotate to show inside vs. outside. `rotates_to` modifies
+the rotation of `edge`, `end_piece`, and `unconnected` subtiles but doesn't change the
+subtile type itself.
+
+**Relevance to our system:** The connect_groups concept is directly applicable to Brogue.
+We have cases where different terrain types should visually connect:
+- All wall types (granite, dungeon, crystal) should connect to each other
+- Doors should connect to walls
+- Deep water should connect to shallow water
+- Lava should connect to brimstone
+
+A simple identity-based bitmask (connect only to same type) wouldn't handle these cases.
+We should adopt a group-based system, though we don't need the full complexity of CDDA's
+bitset approach — a string-based group map would suffice for Brogue's ~40 terrain types.
+
+**C. Multitile fallbacks — graceful degradation**
+
+When `draw_from_id_string_internal()` is called with a multitile tile and a subtile index,
+it tries to find a subtile sprite by appending the subtile key to the tile ID
+(e.g., `t_wall_w_center`). The fallback chain:
+
+1. Look for the multitile subtile variant (`id + "_" + multitile_keys[subtile]`)
+2. If not found, fall back to the base tile (the root `fg` sprite)
+3. If base tile not found, try `looks_like` chain (one tile can declare it looks like another)
+4. If still nothing, try ASCII tile fallback (generate a tile from the Unicode symbol + colors)
+5. Final fallback: the `unknown` tile (bright magenta square)
+
+This means a tileset can define a partial multitile (e.g., only `corner` and `edge`) and
+everything else falls back to the base sprite. A tileset that hasn't implemented multitile
+at all still works — every tile renders as its base sprite with no connections.
+
+**D. Draw layer ordering — CDDA's 11-layer model**
+
+The `draw()` function iterates through a fixed array of 11 drawing layer functions, called
+in order for each cell (`cata_tiles.cpp` line 1763):
+
+| Order | Layer function | Content |
+|-------|---------------|---------|
+| 1 | `draw_terrain` | Base terrain (floor, wall, road, etc.) |
+| 2 | `draw_furniture` | Furniture on top of terrain (desk, counter, etc.) |
+| 3 | `draw_graffiti` | Graffiti painted on surfaces |
+| 4 | `draw_trap` | Traps (bear trap, land mine, etc.) |
+| 5 | `draw_part_con` | Partial constructions in progress |
+| 6 | `draw_field_or_item` | Fields (fire, smoke, acid) and items on the ground |
+| 7 | `draw_vpart_no_roof` | Vehicle parts without roof (wheels, frames) |
+| 8 | `draw_vpart_roof` | Vehicle roof parts |
+| 9 | `draw_critter_at` | Monsters, NPCs, player character |
+| 10 | `draw_zone_mark` | Zone markers (loot zones, no-auto-pickup, etc.) |
+| 11 | `draw_zombie_revival_indicators` | Revival indicators on corpses |
+
+Each layer function draws via `draw_from_id_string()` → `draw_tile_at()` which itself
+does two sub-passes: **bg sprite first, then fg sprite** (each `tile_type` has both a `bg`
+and `fg` weighted sprite list). All drawing uses standard alpha compositing via
+`SDL_RenderCopyEx` — no multiply, no additive blending, no special blend modes for
+individual layers.
+
+Additionally, **color block overlays** are drawn *after* all tile layers, using a
+configurable `SDL_BlendMode` (typically `SDL_BLENDMODE_BLEND` for semi-transparent
+colored rectangles). These handle highlighting, selection UI, etc.
+
+**Comparison with our proposed 11-layer stack:** CDDA's 11 layers are strikingly similar
+in count to our proposal, though the *content* differs because CDDA has vehicles, partial
+constructions, and zones that Brogue doesn't. Our layer needs map roughly to:
+
+| Our proposed layer | CDDA equivalent |
+|-------------------|-----------------|
+| 1. Background terrain | `draw_terrain` |
+| 2. Terrain feature | `draw_furniture` / `draw_trap` |
+| 3. Surface effect | `draw_field_or_item` (fields) |
+| 4. Item | `draw_field_or_item` (items) |
+| 5. Entity | `draw_critter_at` |
+| 6. Gas/cloud | `draw_field_or_item` (fire, smoke) |
+| 7. Liquid animation | (no equivalent — CDDA water is just terrain) |
+| 8. Lighting | Pre-baked texture variants (shadow/night/overexposed) |
+| 9. Status effect | Entity overlays (drawn inside `draw_critter_at`) |
+| 10. Bolt/projectile | `draw_bullet` / `draw_hit` (transient overlays) |
+| 11. UI overlay | Color block overlays + `draw_zone_mark` |
+
+CDDA validates that 11-ish layers is a reasonable count for a complex roguelike. However,
+CDDA doesn't need a runtime multiply-tint pass (our layer 8) because it pre-generates
+shadow/night/overexposed texture variants at load time.
+
+**E. `layering.json` — context-sensitive item/field rendering**
+
+`layering.json` is *not* a general layer ordering system. It's a narrower feature: it
+defines **context-sensitive sprite overrides** for items and fields placed on specific
+furniture/terrain. For example:
+- A laptop on a desk (`f_desk`) uses `desk_laptop` sprite instead of the generic laptop
+- A fire on a desk uses `desk_fd_fire` sprite instead of the generic fire
+- Items on a desk have a `layer` integer (1-100) controlling intra-layer draw order
+
+Each entry has: `context` (furniture/terrain ID or flag), `item_variants` (array of
+item→sprite mappings with layer ordering, offsets, and weighted sprite variants), and
+`field_variants` (similar for fields).
+
+This is essentially a "looks different on furniture" system, not the layer-ordering
+mechanism we expected. For our system, this maps to a simpler concept: terrain-aware
+sprite overrides (e.g., a torch on a wall vs. a torch on the floor could use different
+sprites). Not a priority for our current pipeline.
+
+**F. Lighting/tinting model — pre-baked texture variants**
+
+CDDA does **not** do per-pixel color tinting at render time. Instead, at tileset load time,
+it generates 5 complete copies of every tile texture:
+
+| Variant | Color filter | Used when |
+|---------|-------------|-----------|
+| `tile_values` | None (original colors) | Normal lit tiles |
+| `shadow_tile_values` | Grayscale | `lit_level::LOW` |
+| `night_tile_values` | Night vision (green tint) | Night vision goggles active + low light |
+| `overexposed_tile_values` | Overexposed (washed out) | Night vision goggles + bright light |
+| `memory_tile_values` | Configurable (sepia, grayscale) | Previously seen, now out of sight |
+
+The filter functions (`color_pixel_grayscale`, `color_pixel_nightvision`, etc.) are applied
+per-pixel during texture loading via `apply_color_filter()` — a CPU-side surface transform
+that runs once, producing GPU textures that are then used without any further color
+manipulation.
+
+**This is fundamentally incompatible with Brogue's approach.** Brogue has per-cell
+foreground and background RGB colors that vary continuously based on light sources, torch
+flicker, status effects, and fog of war. We need runtime tinting, not pre-baked lighting
+states. CDDA can get away with this because its lighting model is discrete (lit/dim/dark/
+memorized), not the continuous RGB gradient that Brogue uses.
+
+**G. Creature facing direction — CDDA does it**
+
+CDDA implements **2-directional creature facing** (left/right), confirming this is a
+standard approach for tile-based roguelikes:
+
+```cpp
+int rot_facing = -2;
+if( m->facing == FacingDirection::RIGHT ) {
+    rot_facing = 0;
+} else if( m->facing == FacingDirection::LEFT ) {
+    rot_facing = -1;  // triggers SDL_FLIP_HORIZONTAL
+}
+```
+
+Monsters store a `facing` field (`FacingDirection::LEFT` or `FacingDirection::RIGHT`).
+When drawing, `rot_facing = -1` triggers `SDL_FLIP_HORIZONTAL` in `draw_sprite_at()`,
+mirroring the sprite. `rot_facing = 0` draws normally (facing right is the default).
+
+Characters (player, NPCs) are drawn via `draw_entity_with_overlays()` which composites
+the base sprite with equipment overlays, wielded weapon, mutations, and status effects.
+The character facing is passed to this function and affects the base sprite orientation.
+
+**Relevance to our system:** CDDA's approach matches our proposed 2-directional plan
+exactly. One sprite per creature, mirrored via canvas `scale(-1, 1)` for left-facing.
+This validates our approach:
+- Default facing: right (convention matches DCSS and CDDA)
+- Left movement: horizontal flip
+- Vertical movement: retain last horizontal facing
+- Spawned creatures: default facing based on context or random
+
+Combined with DCSS (which has no facing at all), the evidence strongly supports
+2-directional as the right choice — even the most feature-rich open-source roguelike
+tile system only does left/right.
+
+**H. Rotation and sprite selection mechanics**
+
+CDDA handles rotation in two ways, selectable per-tile:
+
+1. **Pre-rotated sprites** (rotation selects from sprite array):
+   When `fg` is an array like `[sprite_n, sprite_w, sprite_s, sprite_e]`, the rotation
+   value indexes into the array: `sprite_num = rota % spritelist.size()`. This is used
+   for multitile subtiles — corner tiles have 4 pre-drawn variants for each orientation.
+
+2. **SDL rotation** (single sprite, runtime transform):
+   When `fg` is a single sprite and `rotates: true`, SDL applies the rotation: 90°, 180°
+   (via double flip), or 270° via `SDL_RenderCopyEx`. Also used for creature facing with
+   `SDL_FLIP_HORIZONTAL`.
+
+The multitile JSON format makes this concrete. A full multitile entry for a wall:
+
+```json
+{
+    "multitile": true,
+    "additional_tiles": [
+        { "id": "center", "fg": "wall_center" },
+        { "id": "corner", "fg": ["wall_nw", "wall_sw", "wall_se", "wall_ne"] },
+        { "id": "t_connection", "fg": ["wall_t_n", "wall_t_w", "wall_t_s", "wall_t_e"] },
+        { "id": "edge", "fg": ["wall_ns", "wall_ew"] },
+        { "id": "end_piece", "fg": ["wall_end_n", "wall_end_w", "wall_end_s", "wall_end_e"] },
+        { "id": "unconnected", "fg": ["wall_alone", "wall_alone"] }
+    ]
+}
+```
+
+Total unique sprites needed per terrain type: **1 + 4 + 4 + 2 + 4 + 1 = 16 sprites**
+for the full set. This matches the 4x4 autotile template that `slice_multitile.py`
+generates from. Many tilesets define fewer (e.g., omitting `unconnected` or `end_piece`)
+and rely on fallback to the base sprite.
+
+**I. Tile lookup and the `looks_like` chain**
+
+CDDA has a powerful fallback system via `looks_like` declarations on terrain/furniture
+definitions. When a specific tile sprite isn't found, `find_tile_looks_like()` follows a
+chain: `t_brick_wall` → `t_wall` → `t_wall_half` → `unknown`. This allows tilesets to
+define sprites at any level of specificity — a tileset can define one generic wall sprite
+and all wall subtypes automatically use it.
+
+This is relevant for our tileset architecture: we could define sprite overrides at the
+TileType level (specific) or at the DisplayGlyph level (generic), with automatic fallback.
+
+**J. Confirmed findings vs. preliminary scan**
+
+- **4-bit cardinal, not 8-bit blob.** CDDA uses only 4 cardinal neighbors (16 combinations),
+  not 8-neighbor blob tiles (256/47 combinations). This produces visually clean results but
+  cannot distinguish inner corners from outer corners — a diagonal neighbor touching a
+  corner doesn't produce a different tile. For Brogue's relatively simple terrain (walls,
+  floors, water, lava), 4-bit cardinal is likely sufficient and much simpler to implement
+  and author sprites for.
+- **No runtime per-pixel tinting.** Like DCSS, CDDA bakes lighting into pre-generated
+  texture variants. Neither project has Brogue's continuous per-cell RGB lighting. We're
+  on our own for the tinting model.
+- **11 draw layers, matching our proposal count.** CDDA's 11-layer model validates our
+  proposed layer count, though the specific layers differ (CDDA has vehicles/constructions;
+  we need lighting tint and liquid animation).
+- **Creature facing exists.** CDDA implements 2-directional left/right facing via
+  `FacingDirection` enum and `SDL_FLIP_HORIZONTAL`, exactly as we proposed.
+- **`layering.json` is narrower than expected.** Not a general layer-ordering system, but
+  context-sensitive sprite overrides for items on specific furniture.
+- **The tile pipeline tooling is mature.** `compose.py` (spritesheet packing) and
+  `slice_multitile.py` (template slicing) form a production-quality art pipeline. The
+  template approach (author a 4x4 grid, slice into 16 named sprites + JSON) is directly
+  adoptable for our art pipeline initiative.
 
 ### Reference Tier: Useful Documentation, No Source Dive Needed
 
