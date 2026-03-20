@@ -54,8 +54,8 @@
   setGraphicsMode(Text) uses TextRenderer, setGraphicsMode(Hybrid) uses
   SpriteRenderer for environment glyphs and TextRenderer for items/creatures.
   _(8 tests in browser-renderer-mode.test.ts)_
-- [ ] Verify: all existing tests pass. Manual check: G-key cycling works,
-  all three modes render correctly.
+- [x] Verify: all existing tests pass. Manual check: G-key cycling works,
+  all three modes render correctly. _(91 files, 2351 pass, 55 skip — 0 failures)_
 
 # --- handoff point ---
 
