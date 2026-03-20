@@ -87,12 +87,13 @@
 
 ## Phase 5: Final Verification
 
-- [ ] Run full test suite. All existing tests pass, no regressions.
-- [ ] Manual playtest: text mode, tile mode, hybrid mode. G-key cycling.
-  Resize window. Sidebar and messages always render as text.
-- [ ] Verify file line counts: `browser-renderer.ts`, `text-renderer.ts`,
-  `sprite-renderer.ts`, `renderer.ts` all under 600 lines.
-- [ ] Update `docs/pixel-art/pixel-art-exploration.md` Section 6 roadmap
+- [x] Run full test suite. All existing tests pass, no regressions.
+  _(158 files, 4640 pass, 55 skip — 0 failures)_
+- [x] Manual playtest: text mode, tile mode, hybrid mode. G-key cycling.
+  Sidebar and messages always render as text. No visual regressions.
+- [x] Verify file line counts: `browser-renderer.ts` 566, `text-renderer.ts`
+  68, `sprite-renderer.ts` 195, `renderer.ts` 47 — all under 600.
+- [x] Update `docs/pixel-art/pixel-art-exploration.md` Section 6 roadmap
   table: mark Initiative 1 as complete.
 
 ## Deferred
