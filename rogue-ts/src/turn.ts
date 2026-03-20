@@ -97,6 +97,8 @@ import { rechargeItemsIncrementally as rechargeItemsIncrementallyFn } from "./ti
 import type { MiscHelpersContext } from "./time/misc-helpers.js";
 import type { ItemTable } from "./types/types.js";
 import { buildMonstersApproachStairsCtx, monstersApproachStairs as monstersApproachStairsFn } from "./time/stairs-wiring.js";
+import { commitDraws } from "./platform.js";
+import { platformPauseIgnoringHover } from "./platform-bridge.js";
 
 // =============================================================================
 // Minimal combat context — used by inflictDamage/killCreature/addPoison calls
@@ -442,7 +444,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         flashMessage: () => {},
         recordKeystroke: () => {},
         confirmMessages: io.confirmMessages,
-        pauseAnimation: () => false,
+        pauseAnimation: async (ms) => { commitDraws(); return platformPauseIgnoringHover(ms); },
 
         // ── Colors ───────────────────────────────────────────────────────────
         goodMessageColor, badMessageColor, advancementMessageColor, itemMessageColor,
