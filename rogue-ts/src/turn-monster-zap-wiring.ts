@@ -293,6 +293,7 @@ export function buildMonsterZapFn() {
                     messageColorFromVictimFn(m, player, false, false, () => false) as Color,
                 extinguishFireOnCreature: () => {},
                 refreshDungeonCell: () => {},
+                refreshSideBar: () => {},
                 applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
                 resolvePronounEscapes: buildResolvePronounEscapesFn(player, pmap, rogue),
             }),
