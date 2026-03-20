@@ -1487,7 +1487,7 @@ starts.
 | 0b | pixel-art-one-to-one | **complete** (playtest pending) | 0a | TileType through pipeline |
 | 0c | pixel-art-foreground-tiles | **complete** | 0b | Two-layer draw, transparency fix |
 | R1 | Open source research | **complete** | — | 3 deep-dives + synthesis done |
-| 1 | Renderer refactor | not started | 0a-0c | — |
+| 1 | Renderer refactor | **complete** | 0a-0c | Phases 1–5; TextRenderer, SpriteRenderer, progressive cell sizing |
 | 2 | Layer compositing model | not started | 1 | 11-layer stack validated by R1 |
 | 3 | Autotiling system | not started | 1, 2 | 8-bit blob + connect_groups (decided in R1) |
 | 4 | Creature facing | not started | 1 | 2-directional left/right flip (decided in R1) |

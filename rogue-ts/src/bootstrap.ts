@@ -29,6 +29,8 @@ import { mainBrogueJunction } from "./menus/main-menu.js";
 import { COLS, ROWS } from "./types/constants.js";
 import { loadTilesetImages } from "./platform/tileset-loader.js";
 import { buildGlyphSpriteMap, buildTileTypeSpriteMap } from "./platform/glyph-sprite-map.js";
+import { TextRenderer } from "./platform/text-renderer.js";
+import { SpriteRenderer } from "./platform/sprite-renderer.js";
 
 // =============================================================================
 // Canvas setup
@@ -103,18 +105,25 @@ async function main(): Promise<void> {
     const spriteMap = buildGlyphSpriteMap();
     const tileTypeSpriteMap = buildTileTypeSpriteMap();
 
-    // 2. Set up the browser canvas renderer and event bridge
+    // 2. Set up canvas, renderers, and the browser console event bridge
     const canvasEl = document.getElementById("brogue-canvas");
     if (!canvasEl) throw new Error("Could not find #brogue-canvas element");
     const canvas = canvasEl as HTMLCanvasElement;
     const { cellSize, dpr } = sizeCanvas(canvas);
+
+    const ctx2d = canvas.getContext("2d")!;
+    const initialFontSize = Math.max(8, cellSize - 2);
+    const textRenderer = new TextRenderer(ctx2d, "monospace", initialFontSize);
+    const spriteRenderer = tiles
+        ? new SpriteRenderer(ctx2d, tiles, spriteMap, tileTypeSpriteMap, textRenderer)
+        : undefined;
+
     const browserConsole = initBrowserConsole({
         canvas,
-        fontSize: Math.max(8, cellSize - 2),
+        fontSize: initialFontSize,
         devicePixelRatio: dpr,
-        tiles,
-        spriteMap,
-        tileTypeSpriteMap,
+        textRenderer,
+        spriteRenderer,
     });
 
     // 3. Wire the platform module (event queue + plotChar for commitDraws)

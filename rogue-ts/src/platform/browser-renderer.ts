@@ -42,32 +42,69 @@ import {
   NUMPAD_9,
   PRINTSCREEN_KEY,
 } from "../types/constants.js";
-import { glyphToUnicode, isEnvironmentGlyph } from "./glyph-map.js";
-import { TILE_SIZE } from "./tileset-loader.js";
-import type { SpriteRef } from "./glyph-sprite-map.js";
-import { getBackgroundTileType } from "./glyph-sprite-map.js";
+import { isEnvironmentGlyph } from "./glyph-map.js";
+import { TextRenderer } from "./text-renderer.js";
+import { SpriteRenderer } from "./sprite-renderer.js";
+import type { CellRect } from "./renderer.js";
 
 // =============================================================================
 // Constants
 // =============================================================================
 
-/** Set true to log when two-layer draws happen (foreground terrain or creature underlyingTerrain). */
-const DEBUG_LAYERED_DRAW = false;
-/** When true (and DEBUG_LAYERED_DRAW), draw creature at 70% opacity so terrain underneath is visible. */
-const DEBUG_SHOW_TERRAIN_UNDER_CREATURE = false;
-/**
- * When true: in Tiles/Hybrid dungeon viewport, skip the per-cell back-color fill and
- * clear the cell instead. Transparent sprite pixels then show layers below (or canvas
- * background). Use to verify foreground+background terrain and creature-under-terrain draws.
- * Sidebar/message rows still get the normal fill.
- */
-const DEBUG_SKIP_TILE_CELL_BACK_FILL = false;
-
-/** Default monospace font for the grid. */
-const DEFAULT_FONT = "monospace";
-
 /** Polling interval (ms) while waiting for input with color dance. */
 export const PAUSE_BETWEEN_EVENT_POLLING = 36;
+
+// =============================================================================
+// Progressive cell sizing — pure functions (exported for testing)
+// =============================================================================
+
+/** Left pixel edge of column `col` for a canvas of `canvasWidth` CSS pixels. */
+export function cellLeftEdge(col: number, canvasWidth: number, cols: number): number {
+  return Math.floor(col * canvasWidth / cols);
+}
+
+/** Top pixel edge of row `row` for a canvas of `canvasHeight` CSS pixels. */
+export function cellTopEdge(row: number, canvasHeight: number, rows: number): number {
+  return Math.floor(row * canvasHeight / rows);
+}
+
+/** Full CellRect for grid position (col, row). */
+export function cellRect(
+  col: number, row: number,
+  canvasWidth: number, canvasHeight: number,
+  cols: number, rows: number,
+): CellRect {
+  const left = cellLeftEdge(col, canvasWidth, cols);
+  const top = cellTopEdge(row, canvasHeight, rows);
+  return {
+    x: left,
+    y: top,
+    width: cellLeftEdge(col + 1, canvasWidth, cols) - left,
+    height: cellTopEdge(row + 1, canvasHeight, rows) - top,
+  };
+}
+
+/**
+ * Map a CSS-pixel coordinate to a grid cell using linear scan.
+ * Returns clamped column and row indices.
+ */
+export function pixelToCellCoord(
+  px: number, py: number,
+  canvasWidth: number, canvasHeight: number,
+  cols: number, rows: number,
+): { x: number; y: number } {
+  let col = cols - 1;
+  for (let c = 1; c <= cols; c++) {
+    if (px < cellLeftEdge(c, canvasWidth, cols)) { col = c - 1; break; }
+  }
+
+  let row = rows - 1;
+  for (let r = 1; r <= rows; r++) {
+    if (py < cellTopEdge(r, canvasHeight, rows)) { row = r - 1; break; }
+  }
+
+  return { x: Math.max(0, col), y: Math.max(0, row) };
+}
 
 // =============================================================================
 // Internal state
@@ -85,9 +122,6 @@ interface QueuedEvent {
 export interface BrowserRendererOptions {
   /** The <canvas> element to render to. */
   canvas: HTMLCanvasElement;
-
-  /** Font family to use (default: "monospace"). */
-  fontFamily?: string;
 
   /** Font size in CSS pixels (auto-calculated from canvas size if omitted). */
   fontSize?: number;
@@ -112,14 +146,11 @@ export interface BrowserRendererOptions {
    */
   onColorsDance?: () => void;
 
-  /** Loaded tileset images (sheet key → image). When set, tile/hybrid mode draws sprites. */
-  tiles?: Map<string, HTMLImageElement>;
+  /** Pre-constructed text renderer for glyph drawing. */
+  textRenderer: TextRenderer;
 
-  /** Glyph → sprite region for tile rendering. Used with `tiles`. */
-  spriteMap?: Map<DisplayGlyph, SpriteRef>;
-
-  /** TileType → sprite for one-to-one terrain sprites. When present, lookup tries this before spriteMap. */
-  tileTypeSpriteMap?: Map<TileType, SpriteRef>;
+  /** Pre-constructed sprite renderer for tile drawing (optional; omit for text-only). */
+  spriteRenderer?: SpriteRenderer;
 }
 
 // =============================================================================
@@ -145,14 +176,7 @@ export function createBrowserConsole(
   /** Recalculate cell sizes after canvas resize. */
   handleResize(): void;
 } {
-  const {
-    canvas,
-    fontFamily = DEFAULT_FONT,
-    onGameLoop,
-    tiles,
-    spriteMap,
-    tileTypeSpriteMap,
-  } = options;
+  const { canvas, onGameLoop, textRenderer, spriteRenderer } = options;
   const ctx2d = canvas.getContext("2d")!;
 
   /** Current graphics mode; used by plotChar to choose text vs. tiles (Phase 2). */
@@ -168,36 +192,34 @@ export function createBrowserConsole(
     );
   }
 
-  /** Offscreen 16×16 canvas for sprite tinting (Phase 3: apply Brogue foreground color). */
-  const tintCanvas = document.createElement("canvas");
-  tintCanvas.width = TILE_SIZE;
-  tintCanvas.height = TILE_SIZE;
-  const tintCtx = tintCanvas.getContext("2d")!;
+  // ---- Cell sizing state (delegates to exported pure functions) ----
 
-  // ---- Cell sizing (in CSS pixels — DPR scaling applied to the context) ----
-  let cellWidth = 0;
-  let cellHeight = 0;
+  let cssWidth = 0;
+  let cssHeight = 0;
   let fontSize = options.fontSize ?? 0;
   let dpr = options.devicePixelRatio ?? 1;
+
+  function getCellRect(col: number, row: number): CellRect {
+    return cellRect(col, row, cssWidth, cssHeight, COLS, ROWS);
+  }
 
   function recalcCellSize(): void {
     dpr = options.devicePixelRatio ?? 1;
 
-    // Cell dimensions in CSS pixels (the coordinate space we draw in).
-    // The canvas backing store is dpr × larger, so we divide it out.
-    cellWidth = canvas.width / (COLS * dpr);
-    cellHeight = canvas.height / (ROWS * dpr);
+    cssWidth = canvas.width / dpr;
+    cssHeight = canvas.height / dpr;
 
     if (options.fontSize) {
       fontSize = options.fontSize;
     } else {
-      // Auto-size: largest integer font that fits one cell
-      fontSize = Math.max(1, Math.floor(Math.min(cellWidth, cellHeight)));
+      const baseCellWidth = Math.floor(cssWidth / COLS);
+      const baseCellHeight = Math.floor(cssHeight / ROWS);
+      fontSize = Math.max(1, Math.floor(Math.min(baseCellWidth, baseCellHeight)));
     }
 
-    // Reset and apply DPR scaling to the 2D context so all subsequent
-    // drawing operations use CSS-pixel coordinates.
     ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    textRenderer.fontSize = fontSize;
   }
 
   recalcCellSize();
@@ -240,12 +262,9 @@ export function createBrowserConsole(
     return null;
   }
 
-  // ---- Coordinate mapping ----
+  // ---- Coordinate mapping (delegates to exported pixelToCellCoord) --------
   function pixelToCell(px: number, py: number): { x: number; y: number } {
-    return {
-      x: Math.min(COLS - 1, Math.max(0, Math.floor(px / cellWidth))),
-      y: Math.min(ROWS - 1, Math.max(0, Math.floor(py / cellHeight))),
-    };
+    return pixelToCellCoord(px, py, cssWidth, cssHeight, COLS, ROWS);
   }
 
   // ---- DOM event handlers ----
@@ -473,163 +492,22 @@ export function createBrowserConsole(
       const bg = Math.round((backGreen * 255) / 100);
       const bb = Math.round((backBlue * 255) / 100);
 
-      const px = x * cellWidth;
-      const py = y * cellHeight;
+      const cellRect = getCellRect(x, y);
 
       const useTiles =
-        tiles &&
-        spriteMap &&
+        spriteRenderer &&
         isInDungeonViewport(x, y) &&
         (currentGraphicsMode === GraphicsMode.Tiles ||
           (currentGraphicsMode === GraphicsMode.Hybrid &&
             isEnvironmentGlyph(inputChar)));
 
-      if (useTiles && DEBUG_SKIP_TILE_CELL_BACK_FILL) {
-        ctx2d.clearRect(px, py, cellWidth, cellHeight);
-      } else {
-        ctx2d.fillStyle = `rgb(${br},${bg},${bb})`;
-        ctx2d.fillRect(px, py, cellWidth, cellHeight);
-      }
-
       if (useTiles) {
-        // One-to-one: try TileType first when provided, then fall back to DisplayGlyph
-        let ref: SpriteRef | undefined;
-        if (tileType !== undefined && tileTypeSpriteMap) {
-          ref = tileTypeSpriteMap.get(tileType);
-        }
-        if (ref === undefined) {
-          ref = spriteMap.get(inputChar);
-        }
-        const img = ref ? tiles.get(ref.sheetKey) : undefined;
-
-        // Helper: draw one sprite with multiply tint to the cell (same fg/bg for both layers).
-        // Optional alpha applies to the final blit to ctx2d (for debug: show terrain under creature).
-        const drawSpriteTinted = (
-          sourceImg: HTMLImageElement,
-          spriteRef: SpriteRef,
-          alpha?: number,
-        ) => {
-          tintCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
-          tintCtx.drawImage(
-            sourceImg,
-            spriteRef.tileX * TILE_SIZE,
-            spriteRef.tileY * TILE_SIZE,
-            TILE_SIZE,
-            TILE_SIZE,
-            0,
-            0,
-            TILE_SIZE,
-            TILE_SIZE,
-          );
-          tintCtx.save();
-          tintCtx.globalCompositeOperation = "multiply";
-          tintCtx.fillStyle = `rgb(${fr},${fg},${fb})`;
-          tintCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
-          // Restore original alpha mask: multiply fills transparent areas with the
-          // tint color (destroying transparency). Drawing the sprite again with
-          // destination-in clips the result to the sprite's original opaque pixels.
-          tintCtx.globalCompositeOperation = "destination-in";
-          tintCtx.drawImage(
-            sourceImg,
-            spriteRef.tileX * TILE_SIZE,
-            spriteRef.tileY * TILE_SIZE,
-            TILE_SIZE,
-            TILE_SIZE,
-            0,
-            0,
-            TILE_SIZE,
-            TILE_SIZE,
-          );
-          tintCtx.restore();
-          const useAlpha =
-            alpha !== undefined &&
-            alpha < 1 &&
-            DEBUG_LAYERED_DRAW &&
-            DEBUG_SHOW_TERRAIN_UNDER_CREATURE;
-          if (useAlpha) ctx2d.globalAlpha = alpha;
-          ctx2d.drawImage(
-            tintCanvas,
-            0,
-            0,
-            TILE_SIZE,
-            TILE_SIZE,
-            px,
-            py,
-            cellWidth,
-            cellHeight,
-          );
-          if (useAlpha) ctx2d.globalAlpha = 1;
-        };
-
-        if (img && ref) {
-          let drewExtraLayer = false;
-          // Creature cells: draw terrain under the mob first, then creature sprite
-          if (underlyingTerrain !== undefined && tileTypeSpriteMap && tiles) {
-            const terrainRef = tileTypeSpriteMap.get(underlyingTerrain);
-            const terrainImg = terrainRef
-              ? tiles.get(terrainRef.sheetKey)
-              : undefined;
-            if (terrainImg && terrainRef) {
-              drawSpriteTinted(terrainImg, terrainRef);
-              drewExtraLayer = true;
-            }
-          }
-          // Foreground tile layers: if this TileType has a background, draw background sprite first
-          const backgroundTileType =
-            tileType !== undefined
-              ? getBackgroundTileType(tileType)
-              : undefined;
-          if (backgroundTileType !== undefined && tileTypeSpriteMap && tiles) {
-            const bgRef = tileTypeSpriteMap.get(backgroundTileType);
-            const bgImg = bgRef ? tiles.get(bgRef.sheetKey) : undefined;
-            if (bgImg && bgRef) {
-              drawSpriteTinted(bgImg, bgRef);
-              drewExtraLayer = true;
-            }
-          }
-          if (DEBUG_LAYERED_DRAW && drewExtraLayer) {
-            console.debug("[foreground-tiles] two-layer draw", {
-              x,
-              y,
-              tileType,
-              underlyingTerrain,
-            });
-          }
-          // Draw foreground sprite (or single sprite when no background layer).
-          // When debug "show terrain under creature" is on, draw creature at 70% opacity so terrain shows through.
-          const creatureAlpha =
-            drewExtraLayer && underlyingTerrain !== undefined ? 0.7 : undefined;
-          drawSpriteTinted(img, ref, creatureAlpha);
-        } else {
-          // Unmapped TileType/glyph in viewport: draw as text so monsters, items, hover path stay readable
-          const unicode = glyphToUnicode(inputChar);
-          if (unicode > 0x20) {
-            const ch = String.fromCodePoint(unicode);
-            ctx2d.fillStyle = `rgb(${fr},${fg},${fb})`;
-            ctx2d.font = `${fontSize}px ${fontFamily}`;
-            ctx2d.textBaseline = "top";
-            ctx2d.textAlign = "center";
-            ctx2d.fillText(
-              ch,
-              px + cellWidth / 2,
-              py + (cellHeight - fontSize) / 2,
-            );
-          }
-        }
+        spriteRenderer.drawCell(
+          cellRect, inputChar, fr, fg, fb, br, bg, bb,
+          tileType, underlyingTerrain,
+        );
       } else {
-        const unicode = glyphToUnicode(inputChar);
-        if (unicode > 0x20) {
-          const ch = String.fromCodePoint(unicode);
-          ctx2d.fillStyle = `rgb(${fr},${fg},${fb})`;
-          ctx2d.font = `${fontSize}px ${fontFamily}`;
-          ctx2d.textBaseline = "top";
-          ctx2d.textAlign = "center";
-          ctx2d.fillText(
-            ch,
-            px + cellWidth / 2,
-            py + (cellHeight - fontSize) / 2,
-          );
-        }
+        textRenderer.drawCell(cellRect, inputChar, fr, fg, fb, br, bg, bb);
       }
     },
 
