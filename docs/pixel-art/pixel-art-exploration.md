@@ -344,31 +344,293 @@ architecture we need to build.
   sprites, directional creatures, effect overlays, viewport scrolling
 - **Relevance:** **Deep-dive** — the most mature open-source roguelike tile system. Solves
   several of the exact problems we face.
-- **Preliminary findings:**
-  - **Tile format:** 32x32 PNG files. Background tiles cover entire square; foreground
-    images can be smaller. Inventory tiles are 28x28 (2px colored border).
-  - **rltiles system:** A build tool that processes individual tile PNGs and packs them
-    into category-organized tilesheets: MAIN (items/clouds), ICONS (overlays), PLAYER
-    (actors/monsters), DNGN (walls/floors/features), GUI (spells/skills). Also generates
-    C++ enum code for tile indices.
-  - **Tile view logic:** `tileview.cc` (1542 lines) handles tile selection including
-    `tile_flavour` for wall variants. This is where autotiling logic lives.
-  - **Layered system:** Background and foreground rendered separately, allowing sprite
-    compositing (e.g., monster on top of terrain). Status icons (8x8 or 10x10) overlay
-    foreground sprites.
-  - **Tile creation guide:** Comprehensive developer docs at
-    `crawl-ref/docs/develop/tiles_creation.txt` covering design principles, tile creation,
-    code integration, and compilation.
-  - **Separate art repo:** `crawl/tiles` contains artwork and licensing separately from code.
-- **Specific questions for deep-dive:**
-  - How does `tileview.cc` compute wall variants / tile_flavour? Is it bitmask-based?
-  - What's the full layer compositing model (how many layers, blend modes)?
-  - How does DCSS handle viewport/camera for the tile version?
-  - How are creature sprites oriented — does DCSS do facing?
-  - How does the rltiles packer work and could we adapt the approach?
-- **What to study:** `tileview.cc`, `rltiles/` directory, tile creation docs, tile_flavour
-  logic for autotiling, layer rendering order.
-- **Status:** Not started — queued for deep-dive
+- **Status:** Deep-dive complete
+
+##### Deep-dive findings
+
+**A. tile_flavour: how wall and floor variants work**
+
+DCSS does **not** use bitmask-based autotiling for walls and floors. Instead it uses a
+`tile_flavour` struct stored per-cell at level generation time (in `tile_env.flv[x][y]`),
+containing:
+
+```cpp
+struct tile_flavour {
+    tileidx_t floor;     // specific floor tile (pre-picked variant)
+    tileidx_t wall;      // specific wall tile (pre-picked variant)
+    tileidx_t feat;      // optional feature override (stairs, doors)
+    unsigned short special; // random seed for variant picking + door offsets
+    unsigned short floor_idx, wall_idx, feat_idx; // indices within variant set
+};
+```
+
+**Variant selection** happens once per cell during `tile_init_flavour()` (called at level
+creation). Each floor/wall tile type has multiple variants defined in the rltiles `.txt`
+files with `%weight` directives. The function `pick_dngn_tile()` uses a deterministic hash
+(seeded from birth_time + branch + depth + x/y position) to select a variant, weighted by
+the `%weight` values. Once picked, the variant is stored in `tile_flavour` and never
+recomputed unless the level is regenerated. This is a **static random variant** system,
+not adjacency-based autotiling.
+
+For example, `TILE_WALL_BRICK_DARK_1` has 12 variants at weights 100/100/100/100/10/10/10/10/5/5/5/5.
+The first four are common; the last eight are rare accent tiles. The hash picks one variant
+per cell, creating visual variety without neighbor-awareness.
+
+**Depth-based wall sets:** For the Dungeon and Depths branches, wall tile selection is more
+complex. `_get_dungeon_wall_tiles_by_depth()` returns multiple candidate tile bases with
+overlapping depth ranges (e.g., BRICK_DARK_1 on D:1-5, BRICK_DARK_2 on D:3-8 with torch
+variants, BRICK_DARK_3 on D:6-11). `_pick_dngn_tile_multi()` picks among candidates by
+total weight, then picks a variant within the winner. Torch tiles get extra weight on the
+last floor of each branch. This creates smooth visual transitions between dungeon depths
+without any adjacency logic.
+
+**Branch-specific tile mapping:** `tile_default_flv()` maps each branch to a default
+wall/floor tile pair via a large switch statement (e.g., `BRANCH_CRYPT` → `ROCK_WALL_CRYPT`
++ `FLOOR_CRYPT`). Some branches like Abyss and Pandemonium randomize within the branch
+using `tile_dngn_coloured()` to apply color variations based on `env.rock_colour`/`env.floor_colour`.
+
+**Color variations (the `%variation` system):** The rltiles build system generates colored
+variants of tiles at build time using `%hue`, `%lum`, `%desat` directives. For example,
+`DNGN_STONE_WALL` has 15 color variants (blue, green, cyan, red, magenta, brown, darkgray,
+yellow, lightblue, etc.), each produced by hue-shifting or luminance-adjusting the base PNG.
+`tile_dngn_coloured(base, colour)` maps a tile + color enum to the corresponding variant.
+This is used for Abyss/Pan random wall colors and grid-specific color overrides.
+
+**Key insight for our system:** DCSS achieves visual richness through *weighted random
+variant selection*, not through adjacency-based autotiling. Walls all use the same tile type
+within a branch/depth — they just pick different random variants from a pool of 4-16 sprites.
+This is dramatically simpler than 8-bit bitmask autotiling but produces less sophisticated
+results (no distinct edge/corner tiles, no transitions between terrain types). DCSS
+compensates with the floor halo and wall shadow overlay systems (see below).
+
+**B. Floor halo system — DCSS's adjacency-aware rendering**
+
+The closest thing to autotiling in DCSS is `tile_floor_halo()` in `tileview.cc`. This is a
+9-tile directional overlay system: for a given target feature type (e.g., trees), floor cells
+adjacent to the target get a special halo tile that transitions visually from the target
+into the floor.
+
+The halo tiles are defined in dc-floor.txt with directional names:
+
+```
+grass_n HALO_GRASS    # north edge
+grass_ne              # northeast corner
+grass_e               # east edge
+grass_se              # southeast corner
+grass_s, grass_sw, grass_w, grass_nw  # other edges/corners
+grass_full            # fully surrounded
+```
+
+The algorithm in `tile_floor_halo()` is a two-pass system:
+
+1. **First pass:** For each floor cell adjacent to the target, check all four cardinal
+   neighbors. Classify each neighbor as "normal floor" (`l_nrm`, `r_nrm`, etc.) or "special
+   floor" (also adjacent to target: `l_spc`, `r_spc`). Based on these 8 booleans, select one
+   of the 9 directional tiles (N, NE, E, SE, S, SW, W, NW, FULL). Ambiguous cases use
+   `coinflip()` or `_jitter()` for randomization.
+
+2. **Second pass:** Clean up inconsistent adjacent tiles. If a SPECIAL_N tile is next to a
+   SPECIAL_S tile horizontally, replace them with SPECIAL_NE/SPECIAL_SW to create a
+   proper visual separation.
+
+This system is used for grass halos around trees, dirt halos around certain features, and
+vault floor borders. It operates at the **floor tile level** (replacing `flv.floor`), not
+as composited overlays.
+
+Separately, dc-floor.txt defines directional **overlay sprites** for terrain transitions:
+
+- `SLIME_OVERLAY` — N/E/S/W/NW/NE/SE/SW overlays for slime edges
+- `ICE_OVERLAY` — same 8 directions for ice edges
+- `WAVE` tiles — shallow/deep water wave edges in 8 directions
+- `SHORE` tiles — water-to-land transitions
+
+These overlays are alpha-composited on top of the floor tile, providing edge transitions
+between terrain types. The system uses **4-directional + 4-diagonal = 8-direction overlays**,
+not bitmask autotiling. Each direction is a separate pre-authored sprite.
+
+**Wall shadow overlays:** dc-wall.txt defines 7 directional wall shadow tiles
+(`shadow_w`, `shadow_nw`, `shadow_n`, `shadow_ne`, `shadow_e`, `shadow_w_top`,
+`shadow_e_top`) plus darker variants. These are drawn on floor tiles adjacent to walls
+to give walls a sense of depth and occlusion. The shadow direction depends on which side
+of the wall the floor is on.
+
+**Relevance to our system:** The floor halo approach is simpler than full bitmask autotiling
+but less flexible. It works well for transition borders (grass→stone, water→land) but cannot
+produce the range of edge/corner/T-junction variants that a 47-tile blob set provides.
+The overlay approach (separate directional edge sprites composited on the floor) is closer
+to what we'd want for water edges and terrain transitions — it separates the edge art from
+the base terrain tile, so one set of edge sprites works with any floor tile.
+
+**C. Layer compositing model**
+
+DCSS uses a **3-layer model** with flags, not a deep layer stack:
+
+| Layer | Storage | Content |
+|-------|---------|---------|
+| `bk_bg` | `tile_env.bk_bg[x][y]` | Background: dungeon feature tile (floor, wall, door, stair, trap, etc.) + flag bits |
+| `bk_fg` | `tile_env.bk_fg[x][y]` | Foreground: monster tile, item tile, or invisible-monster indicator |
+| `bk_cloud` | `tile_env.bk_cloud[x][y]` | Cloud layer: gas, fog, steam, etc. |
+
+Additional visual information is packed into **flag bits** on `bk_bg`:
+
+- `TILE_FLAG_WATER` — cell contains water/lava (affects rendering)
+- `TILE_FLAG_NEW_STAIR` / `TILE_FLAG_NEW_TRANSPORTER` — discovery markers
+- `TILE_FLAG_CURSOR3` — autopickup highlight
+- `TILE_FLAG_TRAV_EXCL` / `TILE_FLAG_EXCL_CTR` — travel exclusion markers
+- `TILE_FLAG_RAMPAGE` — rampage target indicator
+- `TILE_FLAG_S_UNDER` — "something under" (item under monster)
+- Tentacle overlay flags (NW/NE/SE/SW for kraken tentacle corner rendering)
+
+The `packed_cell` struct (used for actual rendering) extends this with computed properties:
+
+- `halo` — halo type (divine halo, umbra, orb glow) applied as overlay
+- `is_bloody` / `blood_rotation` — blood splatter overlay with rotation
+- `is_liquefied` / `is_sanctuary` / `is_silenced` / `is_blasphemy` — status overlays
+- `travel_trail` — travel path direction indicator
+- `flv` — the `tile_flavour` for variant resolution
+- `icons` — set of status effect icons for monsters (8x8/10x10 sprites)
+
+**Draw order** (inferred from the data flow):
+
+1. Background tile (`bk_bg` → resolved via `apply_variations` using `flv`)
+2. Floor overlays (halo edges, slime/ice/wave overlays, wall shadows)
+3. Item or monster (`bk_fg`) — items have a stacking indicator (`S_UNDER` flag)
+4. Cloud overlay (`bk_cloud`) — semi-transparent gas/fog
+5. Status overlays (halo, blood, sanctuary, liquefied, etc.)
+6. Status icons (on monsters: 8x8/10x10 icons for conditions)
+7. UI overlays (cursor, travel trail, exclusion zones, name tags)
+
+**Blend modes:** DCSS does not use Canvas2D-style blend modes. Tiles are 32x32 PNGs with
+alpha channels. Foreground sprites (monsters, items) are drawn with standard alpha
+compositing over the background. Clouds have built-in semi-transparency in their PNGs.
+Status overlays like halos and sanctuary use pre-authored semi-transparent sprites. There
+is no multiply tinting, additive blending, or per-pixel color manipulation at render time
+— all color information is baked into the tile PNGs (or generated at build time via the
+`%hue`/`%lum`/`%desat` rltiles directives).
+
+**Relevance to our system:** DCSS's 3-layer model is much simpler than our proposed 11-layer
+stack. Their model works because: (a) items and monsters are mutually exclusive per cell
+(one `bk_fg` value), (b) clouds have their own dedicated layer, (c) overlays and status
+effects are composited as flags/properties rather than independent layers. Our system needs
+more layers because Brogue has per-cell lighting tints (requiring a multiply pass), surface
+effects (foliage, fungus) that coexist with items/creatures, and bolt animations. But DCSS
+proves that a production roguelike can work with far fewer explicit layers than we initially
+proposed — the key is treating overlays as composited decorations rather than full layers.
+
+**D. Creature/monster tile selection — no facing direction**
+
+DCSS does **not** implement creature facing direction. Monster tiles are static sprites
+with a single fixed orientation. The tile selection pipeline:
+
+1. `tileidx_monster()` takes a `monster_info` and returns a tile index + flags
+2. `tileidx_monster_base()` is a massive switch on monster type → tile enum
+3. Humanoid monsters can display wielded weapons dynamically via `tilemcache.cc`
+   (the weapon sprite is offset and composited at a hand position defined per monster)
+4. Weapon sprites can be "mirrored" (`mirror_weapon()` in `tilepick-p.cc`) — this flips
+   the weapon sprite horizontally for left-hand wielding, but does **not** flip the monster
+
+The only direction-aware monster rendering in DCSS is for **kraken tentacles**: tentacle
+segments have directional sprites (N/NE/E/SE/S/SW/W/NW) and a connector system with
+diagonal overlay sprites. This is a special-case system for a single multi-tile monster,
+not a general facing system.
+
+**Monster variant selection:** Some monsters have multiple tile variants. The variant is
+stored in `mon.props[TILE_NUM_KEY]` as a random number assigned at spawn time. Most monster
+tiles have exactly one variant. Ugly things pick their tile based on `mon.colour`.
+
+The `tiles_creation.txt` design guide explicitly shows the convention: "Humanoid monsters,
+in particular uniques, will usually be facing to the left with their right hand outstretched
+so they can be displayed wielding their current weapon." All monster sprites face the same
+direction by convention — there is no runtime flipping or multi-directional sprites.
+
+**Relevance to our system:** DCSS's lack of creature facing validates our 2-directional
+(left/right flip) approach as a reasonable minimum. The most mature open-source roguelike
+tile system doesn't bother with creature facing at all, and it works fine visually. If we
+implement horizontal flip based on last-move-direction, we'll already exceed DCSS's
+capability here.
+
+**E. Tile assignment: feature → tile mapping**
+
+Dungeon features are mapped to tiles via `tileidx_feature_base()` in `tilepick.cc` — a
+switch on `dungeon_feature_type` → tile enum. This returns a "generic" tile (e.g.,
+`TILE_FLOOR_NORMAL`, `TILE_WALL_NORMAL`, `TILE_DNGN_CLOSED_DOOR`).
+
+Then `apply_variations()` resolves the generic tile to a specific variant:
+
+1. `TILE_FLOOR_NORMAL` → replaced by `flv.floor` (the per-cell pre-picked floor variant)
+2. `TILE_WALL_NORMAL` → replaced by `flv.wall` (the per-cell pre-picked wall variant)
+3. Door tiles → offset by `flv.special` to select gate position variants
+4. Web traps → 4-bit cardinal neighbor check (solid/web neighbors encoded as bitmask 0-15,
+   selecting from 15 directional web sprites). This is the only true bitmask autotiling
+   in DCSS's entire codebase.
+5. Other features → `pick_dngn_tile(tile, flv.special)` selects a weighted random variant
+
+The two-step resolution (generic → branch-specific → variant-specific) is clean and avoids
+embedding branch knowledge into the game logic. Game code emits `DNGN_FLOOR`; the tile
+system resolves it to `TILE_FLOOR_SNAKE_C + 2` (third variant of Snake Pit floor C).
+
+**`tilepick.cc` is the real tile brain (5179 lines).** It handles:
+- All feature→tile mapping (`tileidx_feature_base`)
+- All monster→tile mapping (`tileidx_monster_base`, 2000+ lines of switch cases)
+- All item→tile mapping (`tileidx_item`, `tileidx_weapon_base`, `tileidx_armour_base`)
+- Branch-specific tile overrides (`_apply_branch_tile_overrides`)
+- Color-based tile variation (`tile_dngn_coloured`)
+- Missile direction octant calculation
+- Travel trail direction encoding
+- Status icon mapping (50+ monster status → icon tile mappings)
+
+**F. rltiles definition format**
+
+The `.txt` files in `rltiles/` are a custom DSL processed by a build tool to generate:
+(a) packed tilesheet PNGs, and (b) C++ enum definitions + variant count/weight arrays.
+
+Key directives:
+- `%sdir dngn/wall` — set source directory for subsequent tile PNGs
+- `%weight 10` — set probability weight for subsequent variant tiles
+- `filename ENUM_NAME` — map a PNG file to an enum value; subsequent lines without
+  an enum name are additional variants of the same tile
+- `%variation BASE color` — declare a color variant produced by hue/lum/desat transforms
+- `%hue FROM TO` — shift hue FROM degrees to TO degrees
+- `%lum HUE DELTA` — adjust luminance of pixels near HUE by DELTA
+- `%desat HUE` — desaturate pixels near the given hue
+- `%repeat SOURCE TARGET` — reuse a previous tile definition with current color transforms
+- `%resetcol` — reset color transforms
+- `%start / %compose / %finish` — composite multiple source tiles into one output tile
+- `%rim 0/1` — control whether the build tool adds a black outline
+- `%domino N` — tag tile with a domino variant index (for Crypt floor tiling)
+
+This format is a spritesheet packer + code generator in one. It automates the tedious work
+of maintaining enum values, variant counts, weight tables, and tilesheet coordinates. The
+color variation system (`%hue`/`%lum`/`%desat`) is particularly clever — it generates
+15 color variants of a wall type from a single set of source PNGs.
+
+**Could we adapt this approach?** The concept is excellent but the tool is tightly coupled
+to DCSS's C++ build system. For our TypeScript port, an equivalent would be a build script
+that:
+1. Reads a tile definition file (JSON or YAML, not a custom DSL)
+2. Packs individual tile PNGs into a tilesheet
+3. Generates a TypeScript enum + variant metadata (counts, weights, tilesheet coordinates)
+4. Optionally generates color variants via canvas-based hue/lum transforms
+
+This is essentially what our planned art pipeline (Initiative 8) would include.
+
+**G. Confirmed limitations and differences from preliminary scan**
+
+- **No bitmask autotiling for walls/floors.** The preliminary scan suggested `tileview.cc`
+  contained "autotiling logic." In practice, it's weighted random variant selection, not
+  adjacency-based tile selection. The only bitmask-style logic is for web traps (4-bit
+  cardinal neighbors) and floor halos (9-tile directional system). Walls and floors use
+  static random variants, not edge-aware tiles.
+- **No per-pixel tinting at render time.** All color is baked into tile PNGs at build time
+  (via the `%hue`/`%lum`/`%desat` system) or selected from pre-colored variants. DCSS
+  does not multiply-tint sprites with game colors the way BrogueCE does. This is a
+  fundamental difference — Brogue's per-cell lighting system requires runtime tinting.
+- **Simpler layer model than expected.** 3 layers (bg/fg/cloud) + flag bits + overlays,
+  not the deep compositing stack we anticipated.
+- **`tilepick.cc` exists and is large (5179 lines).** The PLAN.md open question is
+  resolved: tile selection logic is split between `tileview.cc` (flavour initialization,
+  floor halos, animation) and `tilepick.cc` (all feature/monster/item → tile mapping).
+  `tilepick-p.cc` (1235 lines) handles player doll tile selection separately.
 
 #### 3.3. Cataclysm: DDA tileset system
 

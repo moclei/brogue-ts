@@ -90,8 +90,11 @@ description in TASKS.md should specify which functions/sections to focus on.
 
 - How large is `cata_tiles.cpp`? If it's 3000+ lines, the CDDA session may need to be
   split into two: one for the multitile/autotile logic, one for the rendering pipeline.
-- Does DCSS have a separate `tilepick.cc` or similar that handles tile selection logic
-  distinct from `tileview.cc`? The preliminary scan only found `tileview.cc`.
+- ~~Does DCSS have a separate `tilepick.cc` or similar that handles tile selection logic
+  distinct from `tileview.cc`? The preliminary scan only found `tileview.cc`.~~
+  **Resolved (Phase 2):** Yes. `tilepick.cc` (5179 lines) handles all feature/monster/item
+  → tile mapping plus `apply_variations()`. `tilepick-p.cc` (1235 lines) handles player
+  doll equipment. `tileview.cc` handles flavour init, floor halos, and animations.
 
 ## Rejected Approaches
 
@@ -99,4 +102,19 @@ _(none yet)_
 
 ## Session Notes
 
-_(updated by each session)_
+### Phase 2 — DCSS Deep-Dive
+
+Key findings that affect future phases:
+
+- **DCSS does NOT use bitmask autotiling for walls/floors.** It uses weighted random variant
+  selection per cell, computed once at level generation. The only bitmask logic is for web
+  traps (4-bit cardinal). Floor halos use a 9-tile directional overlay system.
+- **3-layer model (bg/fg/cloud) + flags**, not the deep compositing stack we anticipated.
+  Our 11-layer proposal may be overkill — need to validate against CDDA in Phase 3.
+- **No creature facing direction at all.** All monsters face one fixed direction by
+  convention. Our 2-directional flip plan already exceeds DCSS.
+- **No runtime tinting.** All color baked at build time via rltiles `%hue`/`%lum`/`%desat`.
+  This is a fundamental difference from Brogue where per-cell lighting requires runtime tint.
+- `tileview.cc` is 1328 lines (not 1542 as originally noted in PLAN.md).
+- `tilepick.cc` (5179 lines) is the real tile selection brain. Worth noting for CDDA
+  comparison — does CDDA split tile selection similarly?

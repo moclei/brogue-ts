@@ -19,22 +19,28 @@
 
 ## Phase 2: DCSS Tile System Deep-Dive
 
-- [ ] Clone DCSS repo with sparse checkout (see PLAN.md clone strategy). Verify the
+- [x] Clone DCSS repo with sparse checkout (see PLAN.md clone strategy). Verify the
   checkout contains `tileview.cc`, `rltiles/`, and `tiles_creation.txt`.
-- [ ] Read `crawl-ref/source/tileview.cc` — focus on: (a) how `tile_flavour` works for wall
+- [x] Read `crawl-ref/source/tileview.cc` — focus on: (a) how `tile_flavour` works for wall
   variants (is it bitmask-based? how many variants?); (b) the layer compositing model
   (which layers exist, draw order, blend modes); (c) creature/monster tile selection (any
   facing/direction logic?); (d) how dungeon tiles are assigned to cells.
   If the file is too long to read fully, focus on functions related to wall/floor tile
   selection and skip UI/menu tile logic.
-- [ ] Read `crawl-ref/source/rltiles/dc-dngn.txt` — understand how dungeon tiles are
+- [x] Read `crawl-ref/source/rltiles/dc-dngn.txt` — understand how dungeon tiles are
   defined, named, and organized. How are wall variants specified?
-- [ ] Skim `crawl-ref/docs/develop/tiles_creation.txt` — extract tile design principles,
+  NOTE: dc-dngn.txt is just a 4-line header; actual tiles are in dc-wall.txt (2226 lines),
+  dc-floor.txt (1435 lines), dc-feat.txt (1095 lines). Read dc-wall.txt and dc-floor.txt
+  in full.
+- [x] Skim `crawl-ref/docs/develop/tiles_creation.txt` — extract tile design principles,
   layer model documentation, and any autotile/variant documentation.
-- [ ] If context allows: check if `tilepick.cc` or `tilepick-p.cc` exists and handles
+- [x] If context allows: check if `tilepick.cc` or `tilepick-p.cc` exists and handles
   tile-to-cell assignment separately from `tileview.cc`.
-- [ ] Update Section 3.2 in `pixel-art-exploration.md` with deep-dive findings.
-- [ ] Delete DCSS clone: `rm -rf _research/crawl`
+  ANSWER: Yes, both exist. tilepick.cc (5179 lines) is the main tile selection brain
+  (feature→tile, monster→tile, item→tile, apply_variations). tilepick-p.cc (1235 lines)
+  handles player doll equipment tile selection.
+- [x] Update Section 3.2 in `pixel-art-exploration.md` with deep-dive findings.
+- [x] Delete DCSS clone: `rm -rf _research/crawl`
 
 # --- handoff point ---
 
