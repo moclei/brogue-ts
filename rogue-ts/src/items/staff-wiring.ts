@@ -432,6 +432,7 @@ export function buildStaffZapFn() {
                     messageColorFromVictimFn(m, player, false, false, () => false) as Color,
                 extinguishFireOnCreature: () => {},  // permanent-defer
                 refreshDungeonCell: () => {},
+                refreshSideBar: () => {},
                 applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
                 resolvePronounEscapes: buildResolvePronounEscapesFn(player, pmap, rogue),
             }),
