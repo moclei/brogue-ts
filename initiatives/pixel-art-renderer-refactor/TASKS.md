@@ -50,9 +50,10 @@
   (`tiles`, `spriteMap`, `tileTypeSpriteMap`). Add `textRenderer` and optional
   `spriteRenderer`. This is a breaking change to the options type but the only
   caller is bootstrap.ts.
-- [ ] Test: mode switching — verify setGraphicsMode(Tiles) uses SpriteRenderer,
+- [x] Test: mode switching — verify setGraphicsMode(Tiles) uses SpriteRenderer,
   setGraphicsMode(Text) uses TextRenderer, setGraphicsMode(Hybrid) uses
   SpriteRenderer for environment glyphs and TextRenderer for items/creatures.
+  _(8 tests in browser-renderer-mode.test.ts)_
 - [ ] Verify: all existing tests pass. Manual check: G-key cycling works,
   all three modes render correctly.
 
