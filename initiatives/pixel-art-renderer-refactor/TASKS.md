@@ -35,17 +35,18 @@
 
 ## Phase 3: Console Cleanup
 
-- [ ] Slim `browser-renderer.ts`: plotChar is now a thin dispatcher (viewport
+- [x] Slim `browser-renderer.ts`: plotChar is now a thin dispatcher (viewport
   check + mode check → delegate to renderer). Remove all inline drawing code
   (fillText, drawImage, drawSpriteTinted, tintCanvas creation). The file
   should contain only: event queue, DOM handlers, cell sizing, pixelToCell,
   plotChar dispatcher, setGraphicsMode, and the console object. Verify file
-  is under 600 lines.
-- [ ] Update `bootstrap.ts`: simplify init — canvas 2d context created first,
+  is under 600 lines. _(Audit 2025-03-20: no inline drawing in file; ~546 lines;
+  no dead imports/helpers to remove.)_
+- [x] Update `bootstrap.ts`: simplify init — canvas 2d context created first,
   then TextRenderer, then SpriteRenderer (if tiles loaded), then
   createBrowserConsole receives the renderers. Remove `tiles`, `spriteMap`,
   `tileTypeSpriteMap` from BrowserRendererOptions (they go to SpriteRenderer).
-- [ ] Update `BrowserRendererOptions` type: remove tile-related fields
+- [x] Update `BrowserRendererOptions` type: remove tile-related fields
   (`tiles`, `spriteMap`, `tileTypeSpriteMap`). Add `textRenderer` and optional
   `spriteRenderer`. This is a breaking change to the options type but the only
   caller is bootstrap.ts.

@@ -43,7 +43,6 @@ import {
   PRINTSCREEN_KEY,
 } from "../types/constants.js";
 import { isEnvironmentGlyph } from "./glyph-map.js";
-import type { SpriteRef } from "./glyph-sprite-map.js";
 import { TextRenderer } from "./text-renderer.js";
 import { SpriteRenderer } from "./sprite-renderer.js";
 import type { CellRect } from "./renderer.js";
@@ -51,9 +50,6 @@ import type { CellRect } from "./renderer.js";
 // =============================================================================
 // Constants
 // =============================================================================
-
-/** Default monospace font for the grid. */
-const DEFAULT_FONT = "monospace";
 
 /** Polling interval (ms) while waiting for input with color dance. */
 export const PAUSE_BETWEEN_EVENT_POLLING = 36;
@@ -74,9 +70,6 @@ interface QueuedEvent {
 export interface BrowserRendererOptions {
   /** The <canvas> element to render to. */
   canvas: HTMLCanvasElement;
-
-  /** Font family to use (default: "monospace"). */
-  fontFamily?: string;
 
   /** Font size in CSS pixels (auto-calculated from canvas size if omitted). */
   fontSize?: number;
@@ -101,14 +94,11 @@ export interface BrowserRendererOptions {
    */
   onColorsDance?: () => void;
 
-  /** Loaded tileset images (sheet key → image). When set, tile/hybrid mode draws sprites. */
-  tiles?: Map<string, HTMLImageElement>;
+  /** Pre-constructed text renderer for glyph drawing. */
+  textRenderer: TextRenderer;
 
-  /** Glyph → sprite region for tile rendering. Used with `tiles`. */
-  spriteMap?: Map<DisplayGlyph, SpriteRef>;
-
-  /** TileType → sprite for one-to-one terrain sprites. When present, lookup tries this before spriteMap. */
-  tileTypeSpriteMap?: Map<TileType, SpriteRef>;
+  /** Pre-constructed sprite renderer for tile drawing (optional; omit for text-only). */
+  spriteRenderer?: SpriteRenderer;
 }
 
 // =============================================================================
@@ -134,14 +124,7 @@ export function createBrowserConsole(
   /** Recalculate cell sizes after canvas resize. */
   handleResize(): void;
 } {
-  const {
-    canvas,
-    fontFamily = DEFAULT_FONT,
-    onGameLoop,
-    tiles,
-    spriteMap,
-    tileTypeSpriteMap,
-  } = options;
+  const { canvas, onGameLoop, textRenderer, spriteRenderer } = options;
   const ctx2d = canvas.getContext("2d")!;
 
   /** Current graphics mode; used by plotChar to choose text vs. tiles (Phase 2). */
@@ -182,21 +165,10 @@ export function createBrowserConsole(
     // drawing operations use CSS-pixel coordinates.
     ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    if (textRenderer) textRenderer.fontSize = fontSize;
+    textRenderer.fontSize = fontSize;
   }
 
-  // ---- Text renderer ----
-  // Declared before recalcCellSize() so the reference exists (as undefined)
-  // during the initial call; assigned immediately after.
-  let textRenderer!: TextRenderer;
   recalcCellSize();
-  textRenderer = new TextRenderer(ctx2d, fontFamily, fontSize);
-
-  // ---- Sprite renderer (only when tiles are loaded) ----
-  const spriteRenderer: SpriteRenderer | undefined =
-    tiles && spriteMap
-      ? new SpriteRenderer(ctx2d, tiles, spriteMap, tileTypeSpriteMap ?? new Map(), textRenderer)
-      : undefined;
 
   // ---- Event queue ----
   const eventQueue: QueuedEvent[] = [];
