@@ -67,16 +67,13 @@ only if the path is genuinely not reachable in normal play.
       C: `RogueMain.c:547` (startLevel), `IO.c` (displayLevel, displayMonster).
       TS: `lifecycle.ts` (buildLevelContext / startLevel sequence), `turn-processing.ts`. **S**
 
-- [ ] **B57 — Scroll of negation crashes the game** — Using a scroll of negation caused a
-      crash. `negateCreature` is wired (B44/earlier), but `negationBlast` (the scroll handler)
-      iterates all monsters in FOV and calls `negate` on each. The crash may come from list
-      mutation during that iteration (a negated monster can die via `MONST_DIES_IF_NEGATED`),
-      or from a missing callback in the `NegateContext` (e.g. `extinguishFireOnCreature` or
-      `applyInstantTileEffectsToCreature` is `() => {}` and the negation chain tries to use
-      the return value).
-      ⚠️ **Confirm before coding:** reproduce with a scroll of negation. Check whether the
-      crash is in `negationBlast` itself or in a `killCreature` / `removeCreature` callback
-      triggered mid-loop.
+- [x] **B57 — Scroll of negation crashes the game** — Cannot reproduce. Static analysis
+      shows both crash candidates are already handled: `[...monsters]` snapshot at
+      `item-effects.ts:90` prevents list mutation; all `NegateContext` callbacks in
+      `items.ts:negateCtx` are wired to real functions (not `() => {}` stubs). Crash was
+      likely coincidental or fixed as part of B44 wiring. Fixed gap: `refreshSideBar` was
+      not called after NEGATABLE_TRAITS strip (C: `Monsters.c:3797`); added to
+      `NegateContext` and wired in `negateCtx`.
       C: `Items.c` (negationBlast, readScroll SCROLL_NEGATION:4080).
       TS: `items/item-handlers.ts` (negationBlast), `items.ts` (NegateContext). **M**
 

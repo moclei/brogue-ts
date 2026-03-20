@@ -221,3 +221,20 @@ Symptom: pressing Q in-game opens confirm dialog but game continues regardless
 
 Root cause: input-context.ts:482 — gameOver: () => {} stub; never calls real gameOver(), so rogue.gameHasEnded stays false and mainGameLoop never exits
 Steps logged: 4
+
+---
+
+## B57 — Scroll of negation crashes the game
+Symptom: using a scroll of negation caused a crash (specific error unknown; may be coincidental)
+
+- Located negationBlast implementation — Read: item-effects.ts:70-148 → already snapshots `[...monsters]` at line 90 to prevent list-mutation crash; C source negate() at Items.c:3734 matches TS port structurally
+- Confirmed NegateContext callbacks in items.ts — Read: items.ts:247-271 → all callbacks are wired: killCreature → killCreatureFn(m, false, combatCtx), applyInstantTileEffectsToCreature → buildApplyInstantTileEffectsFn(), extinguishFireOnCreature → extinguishFireOnCreatureFn (NOT () => {} stubs)
+- Checked combatCtx.spawnDungeonFeature (called when MA_DF_ON_DEATH monster is killed) — Read: combat.ts:116-123 → calls real spawnDungeonFeatureFn; safe
+- Checked flashMonster call — Read: combat-damage.ts:145-163 → real function, accesses monst.flashStrength/flashColor/bookkeepingFlags; all present in Creature type
+- Checked extinguishFireOnCreature path — Read: creature-effects.ts:266-278 → only touches rogue.minersLight when monst===player; in negateCreature it's only called when monst!==player, so rogue.minersLight is never accessed
+- Checked for `throw` statements in code path — Grep: throw in monster-negate.ts, item-effects.ts, combat-damage.ts → no results
+- Identified one missing call vs C source — Read: Monsters.c:3797 → C calls refreshSideBar after NEGATABLE_TRAITS strip; TS negateCreature:135 calls refreshDungeonCell but has no refreshSideBar (not in NegateContext interface); minor sidebar glitch only, not a crash
+- Checked updateIdentifiableItems stub — Read: items.ts:548-552 → updateIdentifiableItem: () => {} stub; called for ring negation; no-op, no crash
+
+Root cause: **Cannot confirm active crash.** The two crash candidates described in the backlog (list-mutation, () => {} stubs) are already handled: snapshot at item-effects.ts:90 prevents list mutation; negateCtx callbacks are all real functions. The crash may have been fixed as part of B44 wiring work, or may have been coincidental. Minor gap: refreshSideBar is not called after NEGATABLE_TRAITS strip (NegateContext has no refreshSideBar slot), causing a sidebar display glitch after negation of fiery monsters — not a crash.
+Steps logged: 8

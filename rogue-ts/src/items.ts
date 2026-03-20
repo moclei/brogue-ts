@@ -266,6 +266,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 message: io.message,
             } as unknown as CreatureEffectsContext),
         refreshDungeonCell,
+        refreshSideBar,
         applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
         resolvePronounEscapes: buildResolvePronounEscapesFn(player, pmap, rogue),
     };
