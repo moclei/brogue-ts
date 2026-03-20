@@ -55,6 +55,58 @@ import type { CellRect } from "./renderer.js";
 export const PAUSE_BETWEEN_EVENT_POLLING = 36;
 
 // =============================================================================
+// Progressive cell sizing — pure functions (exported for testing)
+// =============================================================================
+
+/** Left pixel edge of column `col` for a canvas of `canvasWidth` CSS pixels. */
+export function cellLeftEdge(col: number, canvasWidth: number, cols: number): number {
+  return Math.floor(col * canvasWidth / cols);
+}
+
+/** Top pixel edge of row `row` for a canvas of `canvasHeight` CSS pixels. */
+export function cellTopEdge(row: number, canvasHeight: number, rows: number): number {
+  return Math.floor(row * canvasHeight / rows);
+}
+
+/** Full CellRect for grid position (col, row). */
+export function cellRect(
+  col: number, row: number,
+  canvasWidth: number, canvasHeight: number,
+  cols: number, rows: number,
+): CellRect {
+  const left = cellLeftEdge(col, canvasWidth, cols);
+  const top = cellTopEdge(row, canvasHeight, rows);
+  return {
+    x: left,
+    y: top,
+    width: cellLeftEdge(col + 1, canvasWidth, cols) - left,
+    height: cellTopEdge(row + 1, canvasHeight, rows) - top,
+  };
+}
+
+/**
+ * Map a CSS-pixel coordinate to a grid cell using linear scan.
+ * Returns clamped column and row indices.
+ */
+export function pixelToCellCoord(
+  px: number, py: number,
+  canvasWidth: number, canvasHeight: number,
+  cols: number, rows: number,
+): { x: number; y: number } {
+  let col = cols - 1;
+  for (let c = 1; c <= cols; c++) {
+    if (px < cellLeftEdge(c, canvasWidth, cols)) { col = c - 1; break; }
+  }
+
+  let row = rows - 1;
+  for (let r = 1; r <= rows; r++) {
+    if (py < cellTopEdge(r, canvasHeight, rows)) { row = r - 1; break; }
+  }
+
+  return { x: Math.max(0, col), y: Math.max(0, row) };
+}
+
+// =============================================================================
 // Internal state
 // =============================================================================
 
@@ -140,29 +192,31 @@ export function createBrowserConsole(
     );
   }
 
-  // ---- Cell sizing (in CSS pixels — DPR scaling applied to the context) ----
-  let cellWidth = 0;
-  let cellHeight = 0;
+  // ---- Cell sizing state (delegates to exported pure functions) ----
+
+  let cssWidth = 0;
+  let cssHeight = 0;
   let fontSize = options.fontSize ?? 0;
   let dpr = options.devicePixelRatio ?? 1;
+
+  function getCellRect(col: number, row: number): CellRect {
+    return cellRect(col, row, cssWidth, cssHeight, COLS, ROWS);
+  }
 
   function recalcCellSize(): void {
     dpr = options.devicePixelRatio ?? 1;
 
-    // Cell dimensions in CSS pixels (the coordinate space we draw in).
-    // The canvas backing store is dpr × larger, so we divide it out.
-    cellWidth = canvas.width / (COLS * dpr);
-    cellHeight = canvas.height / (ROWS * dpr);
+    cssWidth = canvas.width / dpr;
+    cssHeight = canvas.height / dpr;
 
     if (options.fontSize) {
       fontSize = options.fontSize;
     } else {
-      // Auto-size: largest integer font that fits one cell
-      fontSize = Math.max(1, Math.floor(Math.min(cellWidth, cellHeight)));
+      const baseCellWidth = Math.floor(cssWidth / COLS);
+      const baseCellHeight = Math.floor(cssHeight / ROWS);
+      fontSize = Math.max(1, Math.floor(Math.min(baseCellWidth, baseCellHeight)));
     }
 
-    // Reset and apply DPR scaling to the 2D context so all subsequent
-    // drawing operations use CSS-pixel coordinates.
     ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     textRenderer.fontSize = fontSize;
@@ -208,12 +262,9 @@ export function createBrowserConsole(
     return null;
   }
 
-  // ---- Coordinate mapping ----
+  // ---- Coordinate mapping (delegates to exported pixelToCellCoord) --------
   function pixelToCell(px: number, py: number): { x: number; y: number } {
-    return {
-      x: Math.min(COLS - 1, Math.max(0, Math.floor(px / cellWidth))),
-      y: Math.min(ROWS - 1, Math.max(0, Math.floor(py / cellHeight))),
-    };
+    return pixelToCellCoord(px, py, cssWidth, cssHeight, COLS, ROWS);
   }
 
   // ---- DOM event handlers ----
@@ -441,9 +492,7 @@ export function createBrowserConsole(
       const bg = Math.round((backGreen * 255) / 100);
       const bb = Math.round((backBlue * 255) / 100);
 
-      const px = x * cellWidth;
-      const py = y * cellHeight;
-      const cellRect: CellRect = { x: px, y: py, width: cellWidth, height: cellHeight };
+      const cellRect = getCellRect(x, y);
 
       const useTiles =
         spriteRenderer &&

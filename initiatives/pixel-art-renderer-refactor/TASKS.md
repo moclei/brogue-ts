@@ -61,22 +61,24 @@
 
 ## Phase 4: Progressive Cell Sizing
 
-- [ ] Implement progressive integer-division cell sizing in
+- [x] Implement progressive integer-division cell sizing in
   `browser-renderer.ts`. Replace uniform `cellWidth`/`cellHeight` with
-  `cellLeft(col)` / `cellTop(row)` / `getCellRect(x, y)` functions.
-  Formula: `cellLeft(x) = floor(x * cssWidth / COLS)`,
+  exported pure functions `cellLeftEdge()`, `cellTopEdge()`, `cellRect()`,
+  `pixelToCellCoord()`. Console closures delegate to these. Formula:
+  `cellLeft(x) = floor(x * cssWidth / COLS)`,
   `cellWidth(x) = cellLeft(x+1) - cellLeft(x)`.
-- [ ] Update `pixelToCell` to work with variable-width cells. Linear scan
-  over `cellLeft(0..COLS)` to find which column a pixel lands in (100 cols
-  is negligible cost).
-- [ ] Update font size computation: base on `floor(cssWidth / COLS)` (minimum
+- [x] Update `pixelToCell` to work with variable-width cells. Linear scan
+  over `cellLeftEdge(0..COLS)` to find which column a pixel lands in (100 cols
+  is negligible cost). Delegates to exported `pixelToCellCoord()`.
+- [x] Update font size computation: base on `floor(cssWidth / COLS)` (minimum
   cell width) instead of exact cellWidth, so text doesn't overflow narrower
   cells.
-- [ ] Test: `cell-sizing.test.ts` — verify:
-  (a) `cellLeft(0) == 0` and `cellLeft(COLS) == cssWidth` (full coverage);
+- [x] Test: `cell-sizing.test.ts` — 25 tests covering:
+  (a) `cellLeftEdge(0) == 0` and `cellLeftEdge(COLS) == cssWidth` (full coverage);
   (b) all cell widths are `floor(cssWidth/COLS)` or `floor(cssWidth/COLS)+1`;
-  (c) `pixelToCell` maps the first pixel of each cell to that cell;
-  (d) test with non-divisible canvas widths (e.g. 1593px for 100 cols).
+  (c) `pixelToCellCoord` maps first/last pixel of each cell correctly;
+  (d) non-divisible canvas widths (1593, 1001, 800, 1920, etc.);
+  (e) gap-free tiling, edge clamping, negative coords.
 - [ ] Verify: rendering has no visible gaps between cells. Manual check at
   several browser window sizes.
 
