@@ -27,5 +27,8 @@ node_modules/
 ts/dist/
 rogue-ts/dist/
 
+# Research clones (temporary, deleted after study)
+_research/
+
 # CodeQL — databases are large build artifacts, never committed
 codeql/databases/

@@ -111,63 +111,295 @@ These initiatives left working but architecturally rough code in:
 
 ## 3. Research: Open Source References
 
-> **Status:** Not yet performed. This section is a template for a dedicated research
-> session. Work through each candidate, fill in findings, and update the status.
+> **Status:** Preliminary scan complete. Each candidate below has been assessed for
+> relevance and feasibility. Candidates marked **deep-dive** are queued for source-level
+> investigation in the `pixel-art-open-source-research` initiative. Candidates marked
+> **reference only** provide useful documentation but don't need source-level study.
+> Candidates marked **skip** are not worth further investigation.
 
-### Candidates
+### Priority Tier: Deep-Dive Candidates
 
-#### Tiles.c in BrogueCE (C source)
-- **Link:** `src/platform/tiles.c` in this repo
+These are the candidates worth cloning/downloading and studying at the source level.
+
+#### 3.1. Tiles.c in BrogueCE (C source)
+
+- **Link:** `src/platform/tiles.c` in this repo (813 lines)
 - **Problem it solves:** Sprite rendering for the same game, using SDL2
-- **Key takeaway:** (already partially documented in `initial-exploration.md` — white-sprite
-  approach with `SDL_SetTextureColorMod`, 2048x5568 PNG, 384 tiles)
-- **Status:** Partially reviewed
+- **Relevance:** **Deep-dive** — this is our most direct reference. Same game, same
+  `plotChar` abstraction, same display model.
+- **Preliminary findings:**
+  - **White-sprite tinting:** All 384 tiles in the 2048x5568 PNG are white/grayscale
+    outlines. Color comes entirely from `SDL_SetTextureColorMod(foreR, foreG, foreB)`.
+    This is the opposite of our prototype approach (colored DawnLike sprites + multiply).
+  - **Tile processing categories:** Each tile has a processing mode — `'s'` (stretch to
+    fill), `'f'` (fit preserving aspect ratio, up to 20% stretch), `'t'` (text: vertical
+    alignment for letters), `'#'` (symbols: other Unicode, max 40% stretch). Defined in a
+    24x16 lookup table `TileProcessing`.
+  - **Sophisticated downscaling:** `downscaleTile()` splits tiles into 16 sub-regions with
+    independent sub-pixel alignment, operates in linear color space (gamma=2.0), and
+    pre-computes optimal shifts per tile per size (saved to `tiles.bin`). Text tiles get
+    special x-height/baseline alignment.
+  - **Multi-texture approach:** Up to 4 textures at sizes WxH, (W+1)xH, Wx(H+1), (W+1)x(H+1)
+    to cover non-integer window divisions without padding. Tiles are re-rendered on resize.
+  - **Rendering order:** Background colors first (single pass), then 4 tile passes grouped
+    by texture to minimize OpenGL state changes.
+  - **No autotiling, no adjacency, no creature facing, no layer compositing.** The C version
+    has the same limitations we're trying to solve.
+  - **Procedural wall tops:** Rows 16/21/22 generate diagonal sine-wave patterns rather
+    than using fixed sprite art.
+- **What to study in deep-dive:** The white-sprite tinting model (should we adopt it?),
+  the tile processing categories (do we need equivalent logic?), the multi-resolution
+  texture strategy (relevant to our scaling question).
+- **Status:** Partially reviewed (need focused analysis session)
 
-#### UnBrogue / Brogue forks with tile support
-- **Link:** TBD (search GitHub for Brogue forks with tiles)
-- **Problem it solves:** Same game, different tile approaches
-- **Key takeaway:** _not yet reviewed_
-- **Status:** Not started
+#### 3.2. DCSS tiles (Dungeon Crawl Stone Soup)
 
-#### DCSS tiles (Dungeon Crawl Stone Soup)
-- **Link:** https://github.com/crawl/crawl
+- **Link:** https://github.com/crawl/crawl (main), https://github.com/crawl/tiles (art assets)
 - **Problem it solves:** Mature tile system for a complex roguelike — autotiling, layered
   sprites, directional creatures, effect overlays, viewport scrolling
-- **Key takeaway:** _not yet reviewed_
-- **Specific questions:** How does DCSS handle viewport zoom/scroll? How does it do wall
-  autotiling? What's its layer compositing model? How does it handle creature facing?
-- **Status:** Not started
+- **Relevance:** **Deep-dive** — the most mature open-source roguelike tile system. Solves
+  several of the exact problems we face.
+- **Preliminary findings:**
+  - **Tile format:** 32x32 PNG files. Background tiles cover entire square; foreground
+    images can be smaller. Inventory tiles are 28x28 (2px colored border).
+  - **rltiles system:** A build tool that processes individual tile PNGs and packs them
+    into category-organized tilesheets: MAIN (items/clouds), ICONS (overlays), PLAYER
+    (actors/monsters), DNGN (walls/floors/features), GUI (spells/skills). Also generates
+    C++ enum code for tile indices.
+  - **Tile view logic:** `tileview.cc` (1542 lines) handles tile selection including
+    `tile_flavour` for wall variants. This is where autotiling logic lives.
+  - **Layered system:** Background and foreground rendered separately, allowing sprite
+    compositing (e.g., monster on top of terrain). Status icons (8x8 or 10x10) overlay
+    foreground sprites.
+  - **Tile creation guide:** Comprehensive developer docs at
+    `crawl-ref/docs/develop/tiles_creation.txt` covering design principles, tile creation,
+    code integration, and compilation.
+  - **Separate art repo:** `crawl/tiles` contains artwork and licensing separately from code.
+- **Specific questions for deep-dive:**
+  - How does `tileview.cc` compute wall variants / tile_flavour? Is it bitmask-based?
+  - What's the full layer compositing model (how many layers, blend modes)?
+  - How does DCSS handle viewport/camera for the tile version?
+  - How are creature sprites oriented — does DCSS do facing?
+  - How does the rltiles packer work and could we adapt the approach?
+- **What to study:** `tileview.cc`, `rltiles/` directory, tile creation docs, tile_flavour
+  logic for autotiling, layer rendering order.
+- **Status:** Not started — queued for deep-dive
 
-#### Cataclysm: DDA tileset system
+#### 3.3. Cataclysm: DDA tileset system
+
 - **Link:** https://github.com/CleverRaven/Cataclysm-DDA
-- **Problem it solves:** JSON-driven tile definitions, rotation, adjacency-aware tiles
-- **Key takeaway:** _not yet reviewed_
-- **Specific questions:** How are tile variants defined in JSON? How does adjacency/rotation
-  work? Is the format extensible for modding?
-- **Status:** Not started
+- **Docs:** https://docs.cataclysmdda.org/TILESET.html,
+  https://i-am-erk.github.io/CDDA-Tilesets/how-to/autotiles.html
+- **Problem it solves:** JSON-driven tile definitions, rotation, adjacency-aware tiles,
+  layer compositing
+- **Relevance:** **Deep-dive** — the best-documented autotile/multitile system in any open
+  source roguelike. The JSON format and tooling are directly informative.
+- **Preliminary findings:**
+  - **JSON tile definitions:** Entries map game entity IDs to fg/bg sprites. IDs can be
+    arrays (many entities sharing one sprite config).
+  - **Adjacency systems:** Two mechanisms: `connect_groups`/`connects_to` for terrain
+    adjacency, and `rotates_to` for auto-rotation based on neighbors.
+  - **Autotile ("multitile") templates:** 4x4 grid template with named connection types:
+    `center` (4-way), `t_connection` (3-way), `edge` (straight line), `corner` (L-shape),
+    `end_piece` (one side), `unconnected` (isolated). Uses transparency for background
+    overlap — draw autotile on top of background, transparent edges show terrain beneath.
+  - **Two autotile philosophies:** "bench-like" (usually single-width, so t_connection draws
+    as intersection) vs. "table-like" (usually multi-wide, so t_connection draws as solid
+    surface). This distinction matters for walls vs. open terrain.
+  - **Template tooling:** `tools/slice_multitile.py` slices a template image into individual
+    tiles + connection JSON. Also supports tall tiles, isometric tiles, and variant slicing.
+  - **Compositing:** `layering.json` configures layer ordering for items and fields.
+    `sdltiles.cpp` handles SDL rendering. `cata_tiles.cpp` handles tile selection logic.
+  - **Compose pipeline:** `compose.py` converts directories of individual sprites into
+    game-ready tilesheets + `tile_config.json`.
+- **Specific questions for deep-dive:**
+  - How does `cata_tiles.cpp` select which multitile variant to draw? What's the neighbor
+    lookup algorithm?
+  - What does `layering.json` look like in practice? How many layers?
+  - How does the `connect_groups` system differ from raw bitmask autotiling?
+  - Could we adopt the 4x4 template format for our own tile creation?
+- **What to study:** `src/cata_tiles.cpp` (tile selection), `src/sdltiles.cpp` (rendering),
+  `doc/TILESET.md` (format spec), `layering.json` (layer model), `tools/slice_multitile.py`
+  (template tooling), one actual tileset's `tile_config.json` (concrete example).
+- **Status:** Not started — queued for deep-dive
 
-#### rot.js
-- **Link:** https://github.com/nickyringland/nickyringland.github.io (ondras/rot.js)
+### Reference Tier: Useful Documentation, No Source Dive Needed
+
+These provide well-documented algorithms or approaches we can learn from without cloning.
+
+#### 3.4. Godot TileMap / Terrains
+
+- **Link:** https://docs.godotengine.org/en/4.5/tutorials/2d/using_tilesets.html
+- **Problem it solves:** Well-documented autotiling algorithms (bitmask, blob, peering bits)
+- **Relevance:** **Reference only** — Godot's documentation is the clearest explanation of
+  the algorithms. We wouldn't use Godot code, but the algorithm descriptions are canonical.
+- **Preliminary findings:**
+  - **Godot 4 "Terrains" system:** Replaces Godot 3 "Autotile." Uses "Peering Bits" in a
+    3x3 grid: surrounding 8 squares define adjacent terrain, center defines own terrain.
+  - **Two modes:** "Match Corners and Sides" (8-neighbor, 47 unique tiles — the blob/Wang
+    approach) and "Match Sides" (4-neighbor, 16 tiles — simpler cardinal approach).
+  - **47-tile blob format:** Considers all 8 neighbors (256 combinations) but only 47
+    visually distinct tile shapes are needed. Industry standard. Produces the smoothest
+    transitions with proper inner corners and diagonal handling.
+  - **16-tile cardinal format:** Only considers N/S/E/W (16 combinations). Blockier results,
+    no inner corners, but much easier to draw and implement.
+- **Decision input:** The 47-tile blob format is the clear winner for quality. The 16-tile
+  format could be a viable first step (get something working, upgrade later).
+- **Status:** Complete (documentation reviewed — no source dive needed)
+
+#### 3.5. Excalibur.js Autotiling Blog Post + Demo
+
+- **Link (article):** https://excaliburjs.com/blog/Autotiling%20Technique/
+- **Link (demo source):** https://github.com/jyoung4242/CA-itchdemo
+- **Problem it solves:** Complete TypeScript implementation of 8-bit bitmask autotiling
+  with Wang blob tiles
+- **Relevance:** **Reference only** — the most directly applicable code reference. TypeScript,
+  Canvas2D, complete working implementation with source code.
+- **Preliminary findings:**
+  - **Full implementation walkthrough:** The article covers bitmask encoding, neighbor
+    lookup, Wang tile mapping, and rendering — all in TypeScript.
+  - **Algorithm:** For each tile, encode 8 neighbors as bits (1=solid, 0=not). The resulting
+    0-255 value maps to a coordinate in a 47-tile Wang blob spritesheet via a
+    `Record<number, [x, y]>` lookup table.
+  - **Key code patterns:**
+    - `neighborOffsets` array: `[[1,1], [0,1], [-1,1], [1,0], [-1,0], [1,-1], [0,-1], [-1,-1]]`
+    - `_getBitmask()`: loops neighbors, `bitmask |= 1 << i` for solid neighbors
+    - Out-of-bounds cells treated as solid (configurable)
+    - Floor drawn first, then wall sprite on top (two-layer approach)
+  - **The tedious part:** Manually mapping all 256 bitmask values to one of 47 tile sprites.
+    The article author did this by trial and error. Some bitmask values map to the same
+    tile (e.g., bitmask 0, 1, 4, 128, 32 all map to the same "isolated" tile).
+  - **Directly reusable:** The bitmask computation and lookup table approach could be
+    transplanted into our `SpriteRenderer` almost verbatim.
+- **Status:** Complete (reviewed — the article IS the source dive)
+
+#### 3.6. `autotile` npm package (node-autotile)
+
+- **Link:** https://github.com/tlhunter/node-autotile / https://www.npmjs.com/package/autotile
+- **Problem it solves:** Standalone 8-bit bitmask autotile computation
+- **Relevance:** **Reference only** — too limited to use directly, but confirms the algorithm.
+- **Preliminary findings:**
+  - 8-bit cornered bitmask approach. Takes 2D array of truthy/falsey, returns tile offset
+    indices. Zero dependencies.
+  - **Limitations:** Only binary terrain (wall/floor). No multi-terrain support. Last
+    updated 2017. ~2 downloads/week. Planned 4-bit mode never implemented.
+  - **Verdict:** Too simple and unmaintained to depend on. The algorithm is the same as
+    Excalibur.js (above) which has a better explanation. We'd implement our own.
+- **Status:** Complete (not worth further investigation)
+
+#### 3.7. Caves of Qud tile system
+
+- **Link:** Not open source. Modding wiki: https://wiki.cavesofqud.com/wiki/Modding:Tiles
+- **Problem it solves:** Rich layered rendering, 3-color tile system, adjacency-aware walls
+- **Relevance:** **Reference only** — interesting design choices but closed-source limits depth.
+- **Preliminary findings:**
+  - **3-color tile system:** Black non-transparent pixels → foreground color. White
+    non-transparent → detail color. Transparent → background color. Optional 4th color
+    (RGBA 124,101,44,255) creates a weighted foreground/detail blend.
+  - **Truecolor mode:** Mods can use `shadermode: "1"` to render tiles with natural colors
+    + background color blend, bypassing the 3-color system.
+  - **Wave Function Collapse:** Used for procedural map generation (not tile rendering).
+    Adjacency constraints define which tiles can be neighbors — more powerful than Wang
+    tiles for generation, but a different problem than display-time autotiling.
+  - **No source access:** Can't study the actual rendering code or autotile implementation.
+- **Useful insight:** The 3-color system is a middle ground between our "colored sprites +
+  multiply tint" and C BrogueCE's "white sprites + color mod." It preserves some sprite
+  character while allowing color control. Worth considering for our art pipeline decisions.
+- **Status:** Complete (documentation reviewed — no source available)
+
+### Skip Tier
+
+#### 3.8. rot.js
+
+- **Link:** https://github.com/ondras/rot.js
 - **Problem it solves:** TypeScript roguelike toolkit with tile rendering
-- **Key takeaway:** _not yet reviewed_
-- **Specific questions:** How does rot.js handle tile displays? What's the API for sprite
-  rendering? Does it have any layering or autotile support?
-- **Status:** Not started
+- **Relevance:** **Skip** — the tile display is too simple to inform our design.
+- **Preliminary findings:**
+  - TypeScript library with Canvas2D + WebGL display backends. Well-built for ASCII
+    roguelikes. Tile display (`src/display/tile.ts`) is ~80 lines.
+  - **Tile rendering:** Draws sprites from a tileset at grid positions. Optional colorization
+    via `globalCompositeOperation` (same approach as our prototype). Supports drawing
+    multiple characters/sprites per cell as layers.
+  - **No autotiling, no adjacency, no compositing model, no creature facing.** The tile
+    display is a thin grid-to-sprite mapper.
+  - The colorization approach (offscreen canvas + composite op) is the same pattern we
+    already use. Nothing new to learn here.
+- **Status:** Complete (not worth further investigation)
 
-#### Caves of Qud
-- **Link:** Not open source, but well-documented community resources exist
-- **Problem it solves:** Adjacency-aware tiles (wall autotiling), rich layered rendering
-- **Key takeaway:** _not yet reviewed_
-- **Status:** Not started
+#### 3.9. UnBrogue / Brogue forks (gBrogue, BrogueTiles, kBrogue)
 
-#### RPG Maker / Godot autotile
-- **Link:** Godot docs (TileMap autotile), RPG Maker wiki
-- **Problem it solves:** Well-documented autotiling algorithms (Wang tiles, blob patterns,
-  bitmask-to-tile lookup tables)
-- **Key takeaway:** _not yet reviewed_
-- **Specific questions:** Which autotile algorithm best fits our case? 4-bit cardinal
-  (16 variants) vs. 8-bit blob (47 variants) vs. Wang tiles?
-- **Status:** Not started
+- **Link:** https://github.com/gbelo/gBrogue, https://github.com/dethmuffin/BrogueTiles
+- **Problem it solves:** Same game, different tile approaches
+- **Relevance:** **Skip** — no novel tile rendering approaches beyond what BrogueCE `tiles.c`
+  already provides.
+- **Preliminary findings:**
+  - **gBrogue:** Fork of Brogue v1.7.4 (2019). C/C++ mix. No tile-specific innovations
+    visible from the repo description.
+  - **BrogueTiles:** Contains Brogue source + fonts/resources. No novel rendering.
+  - **kBrogue:** Experimental additions to BrogueCE. No tile-specific work.
+  - **UnBrogue:** No public GitHub repo found. Available only as compiled binaries for
+    Mac/Windows. Gameplay changes only (weapons, armor, wands), not rendering.
+- **Status:** Complete (not worth further investigation)
+
+### New Candidates (discovered during research)
+
+#### 3.10. BrogueCE Issue #332 — Adjacency Tiles Proposal
+
+- **Link:** https://github.com/tmewett/BrogueCE/issues/332
+- **Problem it solves:** Exactly our autotiling problem, proposed for BrogueCE itself
+- **Relevance:** **Reference only** — essential context for our design decisions.
+- **Preliminary findings:**
+  - Opened by @pender (BrogueCE contributor) in 2021. Still open.
+  - Proposes extending the current wall-top logic (which already selects `G_WALL_TOP` based
+    on the cell below) to use 4 or 8 adjacent tiles for tile selection.
+  - **Includes visual examples:** 8-bit blob template (6 tilesets showing all edge types),
+    and a simpler 4-bit cardinal template (16 tiles as binary bitmap of 4 neighbors).
+  - Quote: "I think an approach like this could be a good way to level up the appearance
+    of obstruction and liquid tiles in particular."
+  - Labeled `enhancement` by @tmewett (maintainer) in 2023.
+  - **Directly validates our approach.** The BrogueCE community has already identified this
+    as the right direction, with the same algorithm options we're considering.
+- **Status:** Complete (issue reviewed)
+
+#### 3.11. Excalibur.js CA Autotile Demo (TypeScript reference implementation)
+
+- **Link:** https://github.com/jyoung4242/CA-itchdemo
+- **Problem it solves:** Working TypeScript autotile implementation with demo
+- **Relevance:** **Reference only** — could be cloned to study if the blog post (3.5) isn't
+  sufficient, but the blog post covers the code thoroughly.
+- **Status:** Queued as optional supplement to 3.5
+
+#### 3.12. `phaser3-autotile` (Phaser 3 autotile plugin)
+
+- **Link:** https://github.com/browndragon/phaser3-autotile
+- **Problem it solves:** Wang blob tile generation and autotiling within Phaser 3
+- **Relevance:** **Skip** — tied to Phaser framework, last updated 2023. Algorithm is same
+  as Excalibur.js reference. No new information.
+- **Status:** Complete (not worth further investigation)
+
+#### 3.13. LDtk Level Designer
+
+- **Link:** https://ldtk.io/docs/general/auto-layers/auto-layer-rules
+- **Problem it solves:** Visual autotile rule editor with JSON export
+- **Relevance:** **Reference only** — the rules assistant and auto-layer system design
+  could inform a future tile editor or rule-based tile selection system.
+- **Preliminary findings:**
+  - Auto-layer rules use grid patterns to determine tile placement. Rules check neighboring
+    cells and paint specific tiles when patterns match.
+  - v1.2.0 added a Rules Assistant that auto-generates rules from template layouts,
+    including symmetrical rules for missing orientations.
+  - JSON export with TypeScript type generation via QuickType.
+  - More relevant to our art pipeline (Initiative 8) than to the runtime renderer.
+- **Status:** Complete (documentation reviewed)
+
+#### 3.14. Flare Engine
+
+- **Link:** https://github.com/flareteam/flare-engine
+- **Problem it solves:** Multi-layer tile rendering, fog of war, isometric support
+- **Relevance:** **Skip** — it's a full C++ SDL2 engine for action RPGs. The layer model
+  is interesting but the codebase is too large and too different from our browser Canvas2D
+  context to justify a deep-dive. The same concepts are better studied in DCSS or CDDA.
+- **Status:** Complete (not worth further investigation)
 
 ---
 
@@ -341,14 +573,15 @@ BRIEF/PLAN/TASKS are created when the initiative starts.
 | 0a | pixel-art-smoke-test | **complete** | — | Proved end-to-end sprite rendering |
 | 0b | pixel-art-one-to-one | **complete** (playtest pending) | 0a | TileType through pipeline |
 | 0c | pixel-art-foreground-tiles | **complete** | 0b | Two-layer draw, transparency fix |
+| R1 | Open source research | **in progress** | — | Preliminary scan done; deep-dives pending |
 | 1 | Renderer refactor | not started | 0a-0c | — |
-| 2 | Layer compositing model | not started | 1 | — |
-| 3 | Autotiling system | not started | 1, 2 | Pending research |
-| 4 | Creature facing | not started | 1 | — |
+| 2 | Layer compositing model | not started | 1 | Research R1 may refine layer design |
+| 3 | Autotiling system | not started | 1, 2, R1 | Algorithm choice informed by R1 |
+| 4 | Creature facing | not started | 1 | R1/DCSS may inform approach |
 | 5 | Effect overlays | not started | 2 | — |
 | 6 | Viewport / camera system | not started | 1 | See Open Questions |
 | 7 | Animation framework | not started | 2 | — |
-| 8 | Art pipeline | not started | — | Can proceed in parallel |
+| 8 | Art pipeline | not started | R1 | Tinting strategy informed by R1 |
 
 > Update this table when an initiative completes or is created.
 
@@ -426,7 +659,38 @@ palette reduction), spritesheet packing, and integration with the sprite registr
   CSS `image-rendering: pixelated` on a fixed-size canvas, or render to an offscreen canvas
   and scale up?
 
-### New questions from this planning
+### New questions from Section 3 research
+
+- **White-sprite vs. colored-sprite tinting.** The C `tiles.c` uses white sprites where
+  foreground color *becomes* the sprite color. Our prototype uses colored DawnLike sprites
+  where foreground color *modifies* the sprite color via multiply. Caves of Qud uses a
+  3-color system (black=foreground, white=detail, transparent=background). Which approach
+  produces the best results for production art? This affects the entire art pipeline.
+  The white-sprite approach is simpler but limits artistic expression. The 3-color approach
+  is a middle ground worth prototyping.
+- **Tile processing categories.** The C `tiles.c` defines per-tile processing modes
+  (stretch, fit, text, symbol) with different aspect ratio and alignment rules. Do we need
+  equivalent logic in our sprite renderer? Our current system assumes all tiles are the
+  same size with no processing modes. This could matter when we have tiles of varying
+  visual density.
+- **4-bit cardinal first, then upgrade to 8-bit blob?** The research strongly suggests the
+  47-tile blob format (8-bit) is the industry standard and the right long-term choice. But
+  implementing 16-tile cardinal (4-bit) first would be simpler, require fewer sprite
+  variants, and still be a significant visual improvement. The Excalibur.js reference shows
+  the 8-bit implementation is not much harder in code — the complexity is in the tile
+  mapping table (256 entries) and in drawing 47 tile variants per terrain type.
+- **CDDA's connect_groups system.** CDDA separates adjacency into `connect_groups` (which
+  tile types connect to each other) and `connects_to` (specific connections). This is more
+  flexible than a simple "same tile type = connected" bitmask. Brogue has cases where this
+  matters: walls should visually connect to doors, water should connect to deep water, etc.
+  Should we adopt a similar grouping system?
+- **CDDA's "bench vs. table" autotile philosophy.** Whether a t_connection/center tile draws
+  as an intersection or a solid surface depends on whether the tile is typically drawn
+  single-width or multi-width. Walls are "table-like" (usually multi-tile, so center should
+  be solid). Paths might be "bench-like" (usually single-width, so center shows edges).
+  This distinction affects how we design tile variants.
+
+### Questions from initial planning (still open)
 
 - **Viewport zoom and camera follow for pixel art mode.** Pixel art sprites at 16x16 appear
   visually smaller than the ASCII glyphs they replace, requiring browser zoom to see detail.
