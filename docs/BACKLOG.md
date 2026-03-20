@@ -77,7 +77,7 @@ only if the path is genuinely not reachable in normal play.
       C: `Items.c` (negationBlast, readScroll SCROLL_NEGATION:4080).
       TS: `items/item-handlers.ts` (negationBlast), `items.ts` (NegateContext). **M**
 
-- [ ] **B67 — Potion of paralysis: status appears instant (no tick-down)** — After drinking
+- [x] **B67 — Potion of paralysis: status appears instant (no tick-down)** — After drinking
       a paralysis potion the paralysis status seems to appear and vanish without visibly counting
       down. Either `decrementPlayerStatus` for `STATUS_PARALYZED` is not firing each turn, the
       sidebar is not refreshing to show intermediate values, or `haste` / `paralysis` duration is
