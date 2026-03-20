@@ -76,28 +76,27 @@
 
 ## Phase 4: Synthesis and Recommendations
 
-- [ ] Re-read Sections 3 and 4 of `pixel-art-exploration.md` (all findings + all technical
+- [x] Re-read Sections 3 and 4 of `pixel-art-exploration.md` (all findings + all technical
   challenges).
-- [ ] Write Section `### 3.S. Synthesis and Recommendations` covering:
-  - **Autotiling:** Recommended algorithm (4-bit vs 8-bit), data structures, where to
-    compute (getCellAppearance vs renderer vs cached grid), connection groups or not.
-    Cite which reference projects informed each decision.
-  - **Layer compositing:** Recommended layer model (validate/revise the 11-layer table in
-    Section 4d based on how DCSS and CDDA actually do it). Are 11 layers overkill? What
-    do production roguelikes actually use?
-  - **Creature facing:** What do DCSS/CDDA do? Is 2-directional (flip) standard? Does any
-    roguelike actually do 4-directional?
-  - **Tinting strategy:** White sprites vs. colored sprites vs. 3-color (Qud-style).
-    Recommendation for our art pipeline.
-  - **Architecture patterns:** Renderer interface patterns seen across projects. What
-    should our `SpriteRenderer` look like based on real-world examples?
-  - **Libraries/tools we could use or adapt:** Any code, algorithms, or tools from the
-    research that we could directly use (e.g., bitmask lookup table from Excalibur.js,
-    template format from CDDA, rltiles-style spritesheet packer).
-- [ ] Update Section 6 (Roadmap) if the research changes initiative ordering or scope.
-- [ ] Update Section 7 (Open Questions) — resolve questions that the research answered,
+- [x] Write Section `### 3.S. Synthesis and Recommendations` covering:
+  - **Autotiling:** 8-bit blob (47 tiles) with connection groups, computed at draw time.
+    Excalibur.js for algorithm, CDDA for connect_groups, Godot for documentation.
+  - **Layer compositing:** 11-layer stack validated by DCSS (~7 effective) and CDDA (11
+    explicit). Revised layer ordering — lighting below status/bolts.
+  - **Creature facing:** 2-directional (left/right flip). CDDA does this; DCSS has none.
+  - **Tinting strategy:** White sprites for production; prototype Qud 3-color alongside.
+  - **Architecture patterns:** CDDA-style layer function array, two-tier tile lookup with
+    fallback, proposed SpriteRenderer interface.
+  - **Libraries/tools:** Excalibur.js lookup table, CDDA template format, DCSS build-time
+    color transforms, tiles.c progressive cell sizing.
+- [x] Update Section 6 (Roadmap) if the research changes initiative ordering or scope.
+  Updated: R1 marked complete, initiative descriptions reflect decisions, dependencies
+  cleaned up.
+- [x] Update Section 7 (Open Questions) — resolve questions that the research answered,
   add any new questions that emerged.
-- [ ] Final review of all Section 3 entries for completeness and consistency.
+  Resolved 6 questions, kept 6 still open, added 3 new questions.
+- [x] Final review of all Section 3 entries for completeness and consistency.
+  Updated Section 3 header, Section 4 decision markers, Section 5 decisions log.
 
 ## Deferred
 

@@ -111,11 +111,9 @@ These initiatives left working but architecturally rough code in:
 
 ## 3. Research: Open Source References
 
-> **Status:** Preliminary scan complete. Each candidate below has been assessed for
-> relevance and feasibility. Candidates marked **deep-dive** are queued for source-level
-> investigation in the `pixel-art-open-source-research` initiative. Candidates marked
-> **reference only** provide useful documentation but don't need source-level study.
-> Candidates marked **skip** are not worth further investigation.
+> **Status:** All research complete. Three deep-dives (tiles.c, DCSS, CDDA) finished.
+> Reference-tier and skip-tier candidates reviewed. Synthesis and recommendations in
+> Section 3.S below.
 
 ### Priority Tier: Deep-Dive Candidates
 
@@ -1121,6 +1119,196 @@ These provide well-documented algorithms or approaches we can learn from without
   context to justify a deep-dive. The same concepts are better studied in DCSS or CDDA.
 - **Status:** Complete (not worth further investigation)
 
+### 3.S. Synthesis and Recommendations
+
+> Cross-referencing all findings from Sections 3.1–3.14 into concrete design decisions
+> for the BrogueCE pixel art system.
+
+#### Autotiling: 8-bit blob (47 tiles) with connection groups
+
+**Decision:** Use the **8-bit blob / Wang blob** autotiling algorithm (47 unique tile shapes
+per terrain type). Adopt CDDA-style **connection groups** for cross-type neighbor matching.
+
+**Algorithm:** For each cell, encode 8 neighbors as a bitmask (N/NE/E/SE/S/SW/W/NW, bits
+0-7). Map the resulting 0-255 value to one of 47 tile variants via a
+`Record<number, SpriteVariant>` lookup table. The Excalibur.js reference (Section 3.5) has
+a complete TypeScript implementation of this, including the 256-entry lookup table and the
+`_getBitmask()` function. The Red Blob Games article explains the quarter-tile decomposition
+that makes 47 tiles sufficient to cover all 256 cases.
+
+**Why 8-bit over 4-bit:** CDDA chose 4-bit cardinal (Section 3.3) and it works well for
+their game. But Brogue's dungeon layouts are more visually dense — cavern walls with many
+diagonal adjacencies — where the lack of inner corner distinction would be visible. RPG
+Maker, Godot, Celeste, and Stardew Valley all use the 47-tile approach. The code complexity
+difference is minimal (the bitmask computation adds 4 diagonal checks); the main cost is
+the art burden (47 vs. 16 authored sprites per terrain type). For Brogue's ~6-8 connectable
+terrain types, this is manageable (~280-370 total autotile sprites).
+
+**Connection groups (from CDDA, Section 3.3B):** Neighbor matching should be group-based,
+not identity-based. Define a `ConnectionGroup` map:
+
+```typescript
+const CONNECTION_GROUPS: Record<string, TileType[]> = {
+  WALL: [TileType.GRANITE, TileType.DUNGEON_WALL, TileType.CRYSTAL_WALL,
+         TileType.TORCH_WALL, TileType.CLOSED_DOOR, TileType.OPEN_DOOR, ...],
+  WATER: [TileType.DEEP_WATER, TileType.SHALLOW_WATER],
+  LAVA: [TileType.LAVA, TileType.BRIMSTONE],
+  FLOOR: [TileType.FLOOR, TileType.CARPET, TileType.MARBLE_FLOOR],
+};
+```
+
+A wall cell checks whether each neighbor is in the `WALL` group (not whether it's the exact
+same wall type). This handles wall-to-door connections, shallow-to-deep water transitions,
+and similar cross-type adjacencies that a simple identity check would miss.
+
+**Where to compute:** Option B — in the sprite renderer, at draw time, reading from `pmap`.
+Rationale: Brogue is turn-based; the full 79x29 viewport is only ~2300 cells. Eight neighbor
+lookups per cell is ~18,400 lookups per frame — trivial on modern hardware. This avoids
+cache invalidation complexity (CDDA's approach of computing at draw time via
+`get_connect_values()` confirms this is viable in a production system). If performance is
+ever an issue, Option C (cached grid with dirty-flag invalidation) is a clean upgrade path,
+but premature optimization here.
+
+**Reference projects informing this decision:**
+- Excalibur.js (3.5): TypeScript bitmask algorithm and lookup table
+- Godot (3.4): Algorithm documentation, 47-tile "Match Corners and Sides" mode
+- CDDA (3.3): connection groups concept, draw-time computation pattern
+- BrogueCE Issue #332 (3.10): validates this direction for BrogueCE specifically
+
+#### Layer compositing: 11 layers, validated
+
+**Decision:** Keep the proposed 11-layer stack from Section 4d. Both DCSS (3 stored layers +
+flags + overlays ≈ 7 effective layers) and CDDA (11 explicit draw layers) validate that
+production roguelikes use this order of magnitude.
+
+**Revised layer stack** (incorporating research findings):
+
+| Layer | Content | Compositing | Source |
+|-------|---------|-------------|--------|
+| 1. Background terrain | Floor, grass, water surface | Opaque fill + sprite | All three references |
+| 2. Terrain feature | Door, stairs, trap, altar | Alpha over bg | CDDA `draw_furniture`/`draw_trap` |
+| 3. Surface effect | Foliage, fungus, cobweb, blood | Alpha overlay | CDDA `draw_field_or_item` (fields) |
+| 4. Item | Weapon, potion, scroll on ground | Alpha over terrain | CDDA `draw_field_or_item` (items) |
+| 5. Entity | Player, monster | Alpha over terrain | CDDA `draw_critter_at` |
+| 6. Gas / cloud | Confusion gas, steam, poison | Semi-transparent alpha | DCSS `bk_cloud` layer |
+| 7. Lighting tint | Per-cell fg/bg color tinting | Multiply over all below | Unique to Brogue (no reference) |
+| 8. Status effect | On-fire, entranced, paralyzed | Additive/screen on entity | CDDA entity overlays |
+| 9. Bolt / projectile | Zap trail, thrown item arc | Alpha with glow | CDDA `draw_bullet`/`draw_hit` |
+| 10. Liquid animation | Water shimmer, lava glow | Animated overlay on L1 | No reference (Brogue-specific) |
+| 11. UI overlay | Cursor, path preview, targeting | Colored overlay | CDDA color blocks + zones |
+
+**Key change from original proposal:** Lighting (layer 7) moved below status effects and
+bolts. This is intentional — status effects and bolts should render at full brightness
+regardless of cell lighting, the same way the ASCII renderer shows them. Lighting tints
+layers 1-6 (terrain through gas) but not 8-11.
+
+**Layer 7 (lighting) is our unique challenge.** Neither DCSS nor CDDA does runtime per-pixel
+tinting. DCSS bakes color into tiles at build time via `%hue`/`%lum`/`%desat` (Section
+3.2F). CDDA pre-generates grayscale/night/overexposed texture copies at load time (Section
+3.3F). Brogue's continuous per-cell RGB lighting is architecturally distinct from both
+projects. Our current prototype approach (offscreen canvas + `multiply` composite +
+`destination-in` alpha restore per sprite) works but is expensive for multi-layer cells.
+This is the area most likely to need a WebGL upgrade if Canvas2D performance is
+insufficient.
+
+#### Creature facing: 2-directional (left/right flip)
+
+**Decision:** 2-directional facing via horizontal sprite flip.
+
+**Evidence:** CDDA implements exactly this — `FacingDirection::LEFT`/`RIGHT` with
+`SDL_FLIP_HORIZONTAL` (Section 3.3G). DCSS has no creature facing at all (Section 3.2D).
+No open-source roguelike we studied implements 4-directional creature sprites. Our Canvas2D
+equivalent is `ctx.scale(-1, 1)` before drawing.
+
+**Implementation:**
+- Add `lastMoveDir: number` to `Creature` (set during movement)
+- Derive facing from horizontal component: dirs 1,2,3 → right; dirs 5,6,7 → left;
+  dirs 0,4 (pure N/S) → retain previous facing
+- Default facing for newly spawned creatures: right (matching DCSS/CDDA convention)
+- Sprite renderer applies horizontal flip when facing === left
+
+#### Tinting strategy: white/grayscale sprites for production art
+
+**Decision:** Production art pipeline should target **white/grayscale sprites** (the
+BrogueCE C tiles.c approach, Section 3.1A). Continue using colored DawnLike sprites as
+development placeholders.
+
+**Rationale:** Brogue's color system is not cosmetic — it encodes gameplay information.
+Light sources, terrain types, status effects, and fog of war all express through per-cell
+color. White sprites let the game's colors show exactly as intended (white × color = color).
+Colored sprites fight the tinting (multiply can muddy bright colors, producing unintended
+hues).
+
+The **Caves of Qud 3-color system** (Section 3.7) is worth prototyping as an alternative:
+black pixels → foreground color, white pixels → detail color, transparent → background.
+This preserves some artistic control (two-tone sprites with a detail accent) while still
+responding to game coloring. Recommendation: prototype both approaches in the art pipeline
+initiative and compare results on 3-4 representative terrain/creature sprites before
+committing.
+
+**What we can rule out:** Runtime-free tinting like DCSS (`%hue`/`%lum`/`%desat` at build
+time, Section 3.2F) and CDDA (pre-baked texture variants, Section 3.3F). Both are
+incompatible with Brogue's continuous per-cell lighting model.
+
+#### Architecture patterns: SpriteRenderer design
+
+**Decision:** Adopt a layered rendering architecture inspired by CDDA's draw function
+pattern, adapted for Canvas2D.
+
+**Pattern from CDDA (Section 3.3D):** The `draw()` function iterates a fixed array of
+layer-drawing functions. Each function receives the cell position and draws one layer via
+`draw_from_id_string()` → `draw_tile_at()` (bg sprite, then fg sprite). This is clean,
+extensible (add a layer = add a function to the array), and avoids the deep switch/if
+branching of our current `plotChar`.
+
+**Proposed `SpriteRenderer` interface:**
+
+```typescript
+interface SpriteRenderer {
+  drawCell(x: number, y: number, cell: CellRenderData): void;
+}
+
+interface CellRenderData {
+  bg: Color;
+  fg: Color;
+  terrain: TileType;
+  feature?: TileType;        // door, stairs, trap
+  surface?: TileType;        // foliage, fungus
+  item?: DisplayGlyph;       // item on ground
+  entity?: DisplayGlyph;     // creature/player
+  entityFacing?: Facing;     // LEFT or RIGHT
+  gas?: { type: TileType; volume: number };
+  adjacencyMask?: number;    // 8-bit bitmask for autotiling
+  connectionGroup?: string;  // which group this terrain belongs to
+}
+```
+
+**Tile lookup fallback chain (from CDDA, Section 3.3I):** When looking up a sprite:
+1. Try `TileType` → sprite (most specific, terrain-aware)
+2. Try `DisplayGlyph` → sprite (generic glyph mapping)
+3. Fall back to text rendering (`fillText`) for unmapped glyphs
+
+This matches our current two-tier lookup (`tileTypeSpriteMap` first, `spriteMap` second)
+and is validated by CDDA's `looks_like` fallback chain.
+
+#### Libraries, tools, and code to adapt
+
+| Resource | From | What to use | Initiative |
+|----------|------|------------|------------|
+| 8-bit bitmask algorithm + 256→47 lookup table | Excalibur.js (3.5) | Transplant into autotile system | Initiative 3 |
+| Connection group concept | CDDA (3.3B) | Implement as `ConnectionGroup` map | Initiative 3 |
+| 4x4 autotile template format | CDDA `slice_multitile.py` (3.3H) | Adapt for our art pipeline | Initiative 8 |
+| Progressive integer-division cell sizing | tiles.c (3.1C) | `cellX = x * canvasWidth / COLS` | Initiative 1 |
+| `destination-in` alpha restore after multiply | Our prototype (Section 2) | Keep as-is | Already done |
+| `%hue`/`%lum`/`%desat` build-time transforms | DCSS rltiles (3.2F) | Adapt as optional tilesheet color variant generator | Initiative 8 |
+
+**Tools we should NOT adopt:**
+- DCSS's custom `.txt` tile definition DSL — too coupled to C++ build. Use JSON/YAML instead.
+- CDDA's `compose.py` directly — too CDDA-specific. Write our own spritesheet packer that
+  understands our tileset format.
+- Any of the npm autotile packages (3.6) — too limited. Our own implementation is trivial
+  and more flexible.
+
 ---
 
 ## 4. Technical Challenges
@@ -1160,8 +1348,8 @@ floor-interior, etc.
   it. Pro: fastest at render time. Con: cache invalidation when terrain changes (doors
   opening, terrain promoting, lakes flooding).
 
-**Decision needed:** Which autotile algorithm? Where to compute adjacency? (Pending research
-in Section 3.)
+**Decision made (Section 3.S):** 8-bit blob (47 tiles) with connection groups, computed at
+draw time in the renderer.
 
 ### 4b. Creature Facing Direction
 
@@ -1185,8 +1373,8 @@ quality sprites, we want at minimum left/right facing, ideally 4-directional.
   with a single sprite + horizontal flip. 4-directional (up/down/left/right) is better
   but quadruples art requirements.
 
-**Decision needed:** 2-directional or 4-directional? (Affects art pipeline and sprite
-count significantly.)
+**Decision made (Section 3.S):** 2-directional (left/right flip). Validated by CDDA
+(implements exactly this) and DCSS (no facing at all).
 
 ### 4c. Rendering Architecture Refactor
 
@@ -1277,14 +1465,19 @@ a model will result in increasingly fragile special-case code.
 | (one-to-one) | Option B: thread TileType through display pipeline | Avoids DisplayGlyph enum inflation; scales to all terrain/features | Option A: add new DisplayGlyph per TileType (enum explosion) |
 | (foreground) | `destination-in` after multiply to restore alpha | Multiply alone fills transparent pixels with tint color, destroying transparency | Separate alpha channel manipulation; pre-multiplied alpha sprites |
 | (foreground) | Same fg/bg multiply tint for both foreground and background layers | Keeps lighting consistent across layers | Different tint per layer (would look wrong with Brogue's lighting model) |
+| (research) | 8-bit blob autotiling (47 tiles) with connection groups | Inner corner quality; industry standard (RPG Maker, Godot, Celeste); Excalibur.js TypeScript reference | 4-bit cardinal/16 tiles (CDDA uses this, simpler but no inner corners); Wang tiles (too complex) |
+| (research) | 2-directional creature facing (left/right flip) | CDDA does exactly this; DCSS has none; no roguelike does 4-dir | 4-directional (quadruples art); no facing (DCSS approach) |
+| (research) | White/grayscale sprites for production art | Brogue's color system encodes gameplay; white × color = exact color | Colored sprites + multiply (current prototype, muddy results); Qud 3-color (worth prototyping) |
+| (research) | Compute adjacency at draw time in renderer | CDDA validates this in production; avoids cache invalidation | Cached grid (upgrade path if needed); getCellAppearance (adds complexity to game logic) |
+| (research) | Connection groups for cross-type neighbor matching | Walls→doors, water→deep water need cross-type connections (CDDA pattern) | Identity-only matching (too limited for Brogue) |
 
 ---
 
 ## 6. Roadmap
 
-Preliminary ordering based on current understanding. The research session (Section 3) may
-revise this significantly. Each initiative gets a one-paragraph intent statement here; full
-BRIEF/PLAN/TASKS are created when the initiative starts.
+Ordering updated based on research findings (Section 3.S). Each initiative gets a
+one-paragraph intent statement here; full BRIEF/PLAN/TASKS are created when the initiative
+starts.
 
 ### Status Table
 
@@ -1293,15 +1486,15 @@ BRIEF/PLAN/TASKS are created when the initiative starts.
 | 0a | pixel-art-smoke-test | **complete** | — | Proved end-to-end sprite rendering |
 | 0b | pixel-art-one-to-one | **complete** (playtest pending) | 0a | TileType through pipeline |
 | 0c | pixel-art-foreground-tiles | **complete** | 0b | Two-layer draw, transparency fix |
-| R1 | Open source research | **in progress** | — | Preliminary scan done; deep-dives pending |
+| R1 | Open source research | **complete** | — | 3 deep-dives + synthesis done |
 | 1 | Renderer refactor | not started | 0a-0c | — |
-| 2 | Layer compositing model | not started | 1 | Research R1 may refine layer design |
-| 3 | Autotiling system | not started | 1, 2, R1 | Algorithm choice informed by R1 |
-| 4 | Creature facing | not started | 1 | R1/DCSS may inform approach |
+| 2 | Layer compositing model | not started | 1 | 11-layer stack validated by R1 |
+| 3 | Autotiling system | not started | 1, 2 | 8-bit blob + connect_groups (decided in R1) |
+| 4 | Creature facing | not started | 1 | 2-directional left/right flip (decided in R1) |
 | 5 | Effect overlays | not started | 2 | — |
 | 6 | Viewport / camera system | not started | 1 | See Open Questions |
 | 7 | Animation framework | not started | 2 | — |
-| 8 | Art pipeline | not started | R1 | Tinting strategy informed by R1 |
+| 8 | Art pipeline | not started | — | White sprites for production (decided in R1) |
 
 > Update this table when an initiative completes or is created.
 
@@ -1323,16 +1516,19 @@ ad-hoc foreground/background/underlyingTerrain logic with a general system.
 
 ### Initiative 3: Autotiling System
 
-Implement adjacency bitmask computation (4-bit or 8-bit, decided during research) and a
-bitmask-to-sprite-variant lookup table. Walls, floors, and water get variant sprites based
-on their neighbors. Compute adjacency either in the display pipeline or as a cached grid
-updated on terrain changes. Requires variant sprites in the tileset.
+Implement 8-bit blob bitmask computation (47 tile variants) with CDDA-style connection
+groups for cross-type neighbor matching. The bitmask algorithm and 256→47 lookup table
+come from Excalibur.js (Section 3.5). Connection groups (`WALL`, `WATER`, `LAVA`, `FLOOR`)
+enable walls connecting to doors, water connecting to deep water, etc. Computed at draw
+time in the sprite renderer (validated by CDDA's approach). Requires 47 variant sprites
+per connectable terrain type (~6-8 types = ~280-370 autotile sprites).
 
 ### Initiative 4: Creature Facing
 
-Add `lastMoveDir` to `Creature`. Set it during movement. Sprite renderer uses facing
-direction to select left/right sprite variant (or 4-directional if art supports it).
-Horizontal flip for 2-directional is the minimum viable approach.
+Add `lastMoveDir` to `Creature`. Set it during movement. Sprite renderer applies horizontal
+flip (`ctx.scale(-1, 1)`) for left-facing creatures. 2-directional only — validated by CDDA
+(which does exactly this) and DCSS (which has no facing at all). Default facing: right.
+Vertical movement retains previous horizontal facing.
 
 ### Initiative 5: Effect Overlays
 
@@ -1356,85 +1552,74 @@ input is accepted.
 
 ### Initiative 8: Art Pipeline
 
-Tooling for creating and processing production-quality sprites. Prompt generation for
-AI-assisted art (Midjourney/etc.), post-processing scripts (background removal, downscale,
-palette reduction), spritesheet packing, and integration with the sprite registry. The
-`initiatives/pixel-art-pipeline/` initiative has a preliminary BRIEF/PLAN/TASKS for this.
+Tooling for creating and processing production-quality sprites. Target **white/grayscale
+sprites** for production art (tiles.c approach, Section 3.1A) — prototype alongside
+Caves of Qud 3-color system (Section 3.7) and compare. Adopt CDDA's 4x4 autotile template
+approach: author one template image per terrain type, slice into 47 named connection
+sprites. Build a spritesheet packer (inspired by CDDA's `compose.py` but TypeScript-native).
+Optional: build-time color variant generation (inspired by DCSS's `%hue`/`%lum`/`%desat`).
+The `initiatives/pixel-art-pipeline/` initiative has a preliminary BRIEF/PLAN/TASKS.
 
 ---
 
 ## 7. Open Questions
 
-### Carried forward from initial-exploration.md (still relevant)
+### Resolved by research (Section 3)
 
-- What does color tinting actually look like on production-quality (non-placeholder) sprites?
-  The smoke test validated multiply tinting on DawnLike tiles, but DawnLike's simple pixel
-  art may tint differently than more detailed sprites.
-- Should sprites be white/grayscale (foreground color fully determines visual) or have
-  inherent colors with tinting as a modifier? The C `tiles.c` uses white sprites. Our
-  prototype uses colored DawnLike sprites with multiply. These produce different results.
-- How do we handle the title screen and other full-screen UI (inventory, help) — keep as
-  text, or sprite-ify?
-- What's the right scaling strategy for pixel art in arbitrary browser window sizes?
-  CSS `image-rendering: pixelated` on a fixed-size canvas, or render to an offscreen canvas
-  and scale up?
+- ~~**White-sprite vs. colored-sprite tinting.**~~ **Resolved:** White/grayscale sprites for
+  production art. Caves of Qud 3-color system worth prototyping as alternative. See
+  Section 3.S (Tinting strategy). Colored DawnLike sprites remain as development
+  placeholders.
+- ~~**Autotile algorithm choice.**~~ **Resolved:** 8-bit blob (47 tiles). CDDA uses 4-bit
+  but we want inner corner quality. Excalibur.js (3.5) provides the TypeScript
+  implementation. See Section 3.S (Autotiling).
+- ~~**Creature facing: 2 or 4 directions?**~~ **Resolved:** 2-directional (left/right flip).
+  CDDA does exactly this. DCSS has no facing at all. No open-source roguelike does
+  4-directional. See Section 3.S (Creature facing).
+- ~~**CDDA's connect_groups system.**~~ **Resolved:** Yes, adopt connection groups. Needed for
+  wall→door, water→deep water connections. See Section 3.S (Autotiling).
+- ~~**When to compute autotile adjacency.**~~ **Resolved:** At draw time in the renderer.
+  CDDA validates this approach in production (5557-line cata_tiles.cpp). Cached grid is an
+  upgrade path if needed. See Section 3.S (Autotiling).
+- ~~**Tile processing categories.**~~ **Resolved:** Not needed now. All sprites are same-size
+  grid-fit. Revisit only if we adopt tilesets larger than 16×16. See Section 3.1B.
 
-### New questions from Section 3 research
+### Still open
 
-- **White-sprite vs. colored-sprite tinting.** The C `tiles.c` uses white sprites where
-  foreground color *becomes* the sprite color. Our prototype uses colored DawnLike sprites
-  where foreground color *modifies* the sprite color via multiply. Caves of Qud uses a
-  3-color system (black=foreground, white=detail, transparent=background). Which approach
-  produces the best results for production art? This affects the entire art pipeline.
-  The white-sprite approach is simpler but limits artistic expression. The 3-color approach
-  is a middle ground worth prototyping.
-- **Tile processing categories.** The C `tiles.c` defines per-tile processing modes
-  (stretch, fit, text, symbol) with different aspect ratio and alignment rules. Do we need
-  equivalent logic in our sprite renderer? Our current system assumes all tiles are the
-  same size with no processing modes. This could matter when we have tiles of varying
-  visual density.
-- **4-bit cardinal first, then upgrade to 8-bit blob?** The research strongly suggests the
-  47-tile blob format (8-bit) is the industry standard and the right long-term choice. But
-  implementing 16-tile cardinal (4-bit) first would be simpler, require fewer sprite
-  variants, and still be a significant visual improvement. The Excalibur.js reference shows
-  the 8-bit implementation is not much harder in code — the complexity is in the tile
-  mapping table (256 entries) and in drawing 47 tile variants per terrain type.
-- **CDDA's connect_groups system.** CDDA separates adjacency into `connect_groups` (which
-  tile types connect to each other) and `connects_to` (specific connections). This is more
-  flexible than a simple "same tile type = connected" bitmask. Brogue has cases where this
-  matters: walls should visually connect to doors, water should connect to deep water, etc.
-  Should we adopt a similar grouping system?
-- **CDDA's "bench vs. table" autotile philosophy.** Whether a t_connection/center tile draws
-  as an intersection or a solid surface depends on whether the tile is typically drawn
-  single-width or multi-width. Walls are "table-like" (usually multi-tile, so center should
-  be solid). Paths might be "bench-like" (usually single-width, so center shows edges).
-  This distinction affects how we design tile variants.
+- **Color tinting quality on production sprites.** The research confirmed white sprites are
+  the right approach, but we haven't actually tested multiply tinting on white/grayscale art
+  yet. The DawnLike placeholders are colored. Need a prototype with actual white sprites to
+  validate the visual quality before committing the art pipeline. Also need to compare
+  against the Qud 3-color approach.
+- **Viewport zoom and camera follow for pixel art mode.** Still open. Neither DCSS nor CDDA
+  provided a directly applicable scrolling viewport model (both are C++/SDL with different
+  grid assumptions). This remains a significant rendering change and is its own initiative
+  (Initiative 6).
+- **Performance with many layers per cell.** Still open. 11 layers × multiply tinting per
+  sprite is the worst case. Canvas2D may need offscreen compositing or a WebGL upgrade. The
+  research showed that neither DCSS nor CDDA does runtime per-pixel tinting, so we have no
+  performance reference for this specific pattern.
+- **How do we handle the title screen and other full-screen UI?** Still open. Keep as text
+  for now.
+- **Pixel art scaling strategy.** Still open. CSS `image-rendering: pixelated` on a
+  fixed-size canvas is the current approach. The tiles.c progressive integer-division cell
+  sizing (Section 3.1C) should be adopted for gap-free rendering regardless of scale.
+- **CDDA's "bench vs. table" autotile philosophy.** Noted but deferred. Walls are
+  "table-like" (center = solid). We'll address this during sprite authoring in Initiative 8,
+  not in the autotile algorithm itself.
 
-### Questions from initial planning (still open)
+### New questions from research
 
-- **Viewport zoom and camera follow for pixel art mode.** Pixel art sprites at 16x16 appear
-  visually smaller than the ASCII glyphs they replace, requiring browser zoom to see detail.
-  But browser zoom pushes the sidebar, message area, and bottom panel out of view. A
-  dedicated "pixel art viewport" mode could: render the dungeon at 2x or 3x tile scale,
-  show only a portion of the 79x29 dungeon grid centered on the player, scroll/pan as the
-  player moves, and keep the sidebar and message area as fixed framing outside the scrolling
-  viewport. This is a significant rendering change (the current model draws all 100x34 cells
-  at fixed positions) and should be its own initiative. Research: how does DCSS handle this?
-  How does the C BrogueCE `tiles.c` handle tile scaling vs. viewport size?
-- **Autotile algorithm choice.** 4-bit cardinal (16 variants, simple, no corners) vs. 8-bit
-  blob (47 variants, handles corners, industry standard) vs. Wang tiles (mathematical,
-  complex). The right choice depends on art complexity and tileset size. Research references
-  in Section 3 should inform this.
-- **Creature facing: 2 or 4 directions?** 2-directional (left/right + flip) is half the art
-  but can look odd for vertical movement. 4-directional is standard but quadruples creature
-  sprite count.
-- **Performance with many layers per cell.** A cell with foliage on grass, a monster, in
-  confusion gas, lit by a torch could need 5+ `drawImage` calls. Is Canvas2D fast enough
-  for this on a full 79x29 viewport redraw? Should we batch via offscreen canvases or
-  consider WebGL for the sprite renderer?
-- **When to compute autotile adjacency.** Terrain changes during play (doors open, bridges
-  collapse, lava spreads, dungeon features trigger). If adjacency is cached, how do we
-  invalidate? If computed at render time, is it fast enough?
+- **Autotile template format for 47 tiles.** CDDA's 4x4 template gives 16 tiles. For
+  47 tiles, we need a different template layout. RPG Maker uses a specific 6-tile mini
+  template that generates 47 via quarter-tile assembly. Godot uses a full 47-tile atlas.
+  Which template format should our art pipeline target? This affects Initiative 8.
+- **Fallback chain depth.** CDDA has a `looks_like` chain for tile fallback. Our current
+  two-tier lookup (TileType → DisplayGlyph) is simpler. Do we need a deeper chain, e.g.,
+  `TileType → TileGroup → DisplayGlyph → text`? Affects Initiative 1.
+- **Connection group granularity.** How many groups do we actually need? A preliminary count:
+  `WALL`, `WATER`, `LAVA`, `FLOOR`, `CHASM`, `MUD/BOG`. Need to enumerate all connectable
+  terrain types in Brogue and assign groups before starting Initiative 3.
 
 ---
 

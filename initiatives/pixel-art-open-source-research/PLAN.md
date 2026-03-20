@@ -145,3 +145,16 @@ Key findings that affect Phase 4 synthesis:
   not a general layer ordering system.
 - **The 4x4 template + slice_multitile.py tooling is directly adoptable** for our art
   pipeline. Author one template image, slice into 16 named connection sprites + JSON.
+
+### Phase 4 — Synthesis
+
+All four phases complete. Key decisions documented in Section 3.S of pixel-art-exploration.md:
+- **Autotiling:** 8-bit blob (47 tiles) — user preference for inner corner quality over
+  CDDA's simpler 4-bit approach. Connection groups adopted from CDDA.
+- **Creature facing:** 2-directional (left/right flip)
+- **Tinting:** White sprites for production, Qud 3-color worth prototyping
+- **Layers:** 11-layer stack validated
+- **Architecture:** CDDA-style layer function array pattern for SpriteRenderer
+
+Section 7 (Open Questions): 6 resolved, 6 still open, 3 new. Section 6 (Roadmap) updated.
+Section 5 (Decisions Log) updated with 5 research decisions. Initiative is complete.
