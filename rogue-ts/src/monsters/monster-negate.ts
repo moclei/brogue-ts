@@ -42,6 +42,7 @@ export interface NegateContext {
     messageColorFromVictim(monst: Creature): Readonly<Color>;
     extinguishFireOnCreature(monst: Creature): void;
     refreshDungeonCell(loc: Pos): void;
+    refreshSideBar(): void;
     applyInstantTileEffectsToCreature(monst: Creature): void;
     resolvePronounEscapes(text: string, monst: Creature): string;
 }
@@ -133,6 +134,7 @@ export function negateCreature(monst: Creature, ctx: NegateContext): boolean {
             negated = true;
             monst.wasNegated = true;
             ctx.refreshDungeonCell(monst.loc);
+            ctx.refreshSideBar();
         }
 
         // 9. Strip negatable bolts; compact array to keep BF_NOT_NEGATABLE bolts
