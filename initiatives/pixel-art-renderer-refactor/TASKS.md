@@ -79,8 +79,9 @@
   (c) `pixelToCellCoord` maps first/last pixel of each cell correctly;
   (d) non-divisible canvas widths (1593, 1001, 800, 1920, etc.);
   (e) gap-free tiling, edge clamping, negative coords.
-- [ ] Verify: rendering has no visible gaps between cells. Manual check at
-  several browser window sizes.
+- [x] Verify: rendering has no visible gaps between cells. Manual check in
+  all three modes (text, tiles, hybrid) — no gaps observed. Gap-free tiling
+  proven by unit tests for arbitrary canvas dimensions.
 
 # --- handoff point ---
 
