@@ -152,22 +152,35 @@ Upgrade getCellSpriteData to compute proper per-layer tint colors for
 terrain, surface, and background. Uses existing color helpers
 (`bakeTerrainColors`, `colorMultiplierFromDungeonLight`).
 
-- [ ] Study the full color computation in `getCellAppearance` (lines
+- [x] Study the full color computation in `getCellAppearance` (lines
   157–533). Map each post-processing step to the color fidelity matrix in
   PLAN.md. Verify/update the matrix with any steps not yet captured.
-- [ ] Update `getCellSpriteData` terrain layer: compute lit foreColor via
+  Verified: fidelity matrix rows 1–13 all accounted for. Order confirmed:
+  tileCatalog colors → light multiply → (hallucination, deep-water: Phase
+  4a-ii) → bakeTerrainColors → colorDances flag. Remembered/MagicMapped
+  paths use base tileCatalog colors with no lighting (matching ASCII path).
+- [x] Update `getCellSpriteData` terrain layer: compute lit foreColor via
   `colorMultiplierFromDungeonLight` × `bakeTerrainColors`. Ensure all 8
   Color fields are copied to pooled objects before baking (`red`, `green`,
   `blue`, `redRand`, `greenRand`, `blueRand`, `rand`, `colorDances`).
-- [ ] Update `bgColor`: terrain's lit backColor (same two helpers applied).
-- [ ] Update surface layer tint: surface TileType foreColor × lighting ×
-  `bakeTerrainColors`.
-- [ ] `colorDances` flag propagation: after `bakeTerrainColors`, check
+  `copyColorTo` copies all 8 fields; `applyColorMultiplier` scales the
+  Rand fields via the light multiplier's matching Rand components.
+- [x] Update `bgColor`: terrain's lit backColor (same two helpers applied).
+- [x] Update surface layer tint: surface TileType foreColor × lighting ×
+  `bakeTerrainColors`. Surface baked via `bakeTerrainColors(surfaceTint,
+  bakeDummyColor, ...)` — dummy back ensures only fore-side vals[0-2,6]
+  bake the surface tint; back-side vals[3-5,7] are a no-op on zeros.
+- [x] `colorDances` flag propagation: after `bakeTerrainColors`, check
   layer tint `colorDances` fields; set pmap `TERRAIN_COLORS_DANCING` flag
   so color-dance refresh cycle includes this cell (color fidelity matrix
-  row 13).
-- [ ] Unit tests: verify terrain/surface/bg colors are properly lit and
-  terrain-randomized, not just base tileCatalog colors.
+  row 13). Checks TERRAIN tint, SURFACE tint, and bgColor.
+- [x] Unit tests: 14 new tests — terrain lit tint (non-trivial light),
+  terrain bake zeroes Rand, terrain bake per-cell variation, bake skip
+  without terrainRandomValues, bgColor lit, bgColor Rand zeroed, surface
+  lit, surface baked independently, fire not lit, gas not lit, remembered
+  terrain not lit, remembered bgColor not lit, colorDances set,
+  colorDances clear. Full suite: 95 files, 2516 pass, 55 skip, zero
+  regressions.
 
 # --- handoff point ---
 

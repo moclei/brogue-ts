@@ -9,8 +9,9 @@
  *  Phase 3a–3b: handles all visibility states (Visible, Remembered,
  *  Clairvoyant, Telepathic, MagicMapped, Omniscience, Shroud), hallucination,
  *  and invisible-monster-in-gas silhouette.
- *  Tint colors are placeholder (base tileCatalog foreColor, no lighting) —
- *  proper lit colors added in Phase 4a.
+ *  Phase 4a-i: TERRAIN, SURFACE, and bgColor tints are now properly lit
+ *  (colorMultiplierFromDungeonLight × bakeTerrainColors) for live-pmap states.
+ *  Remembered/MagicMapped cells still use base tileCatalog colors (no lighting).
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -38,13 +39,14 @@ import {
 } from "../monsters/monster-queries.js";
 import { itemAtLoc } from "../items/item-inventory.js";
 import { cellHasTerrainFlag } from "../state/helpers.js";
-import { randomAnimateMonster } from "./display.js";
+import { randomAnimateMonster, bakeTerrainColors } from "./display.js";
+import { colorMultiplierFromDungeonLight, applyColorMultiplier } from "./color.js";
 import { cosmeticRandRange, randClump } from "../math/rng.js";
 import {
     getHallucinatedItemCategory, getItemCategoryGlyph,
 } from "../items/item-generation.js";
 import type { ItemRNG } from "../items/item-generation.js";
-import { itemColor } from "../globals/colors.js";
+import { itemColor, basicLightColor } from "../globals/colors.js";
 
 // =============================================================================
 // Color field-by-field copy (avoids allocation)
@@ -60,6 +62,17 @@ function copyColorTo(dest: Color, src: Color): void {
     dest.rand = src.rand;
     dest.colorDances = src.colorDances;
 }
+
+/**
+ * Module-level dummy Color for baking a single foreColor via bakeTerrainColors
+ * (which requires both fore and back params). All zeros → back-side baking
+ * is a no-op, and the fore-side vals[0-2,6] bake the target correctly.
+ */
+const bakeDummyColor: Color = {
+    red: 0, green: 0, blue: 0,
+    redRand: 0, greenRand: 0, blueRand: 0,
+    rand: 0, colorDances: false,
+};
 
 // =============================================================================
 // Remembered / MagicMapped path
@@ -169,6 +182,12 @@ export function getCellSpriteData(
     // Live pmap: Visible / Clairvoyant / Telepathic / Omniscience
     // =========================================================================
 
+    // Light multiplier for this cell (matching getCellAppearance lines 192-194).
+    // Phase 4a-ii will augment this for clairvoyant/telepathic/omniscience.
+    const lightMultiplierColor = ctx.rogue.trueColorMode
+        ? basicLightColor
+        : colorMultiplierFromDungeonLight(x, y, ctx.tmap);
+
     // ---- TERRAIN layer: winner of Dungeon vs Liquid by drawPriority ----
 
     let terrainTile = 0;  // TileType.NOTHING
@@ -196,12 +215,14 @@ export function getCellSpriteData(
         const te = ctx.tileCatalog[terrainTile];
         if (te.foreColor) {
             copyColorTo(entry.tint, te.foreColor);
+            applyColorMultiplier(entry.tint, lightMultiplierColor);
         }
         spriteData.layers[RenderLayer.TERRAIN] = entry;
     }
 
     if (bgBackColor) {
         copyColorTo(spriteData.bgColor, bgBackColor);
+        applyColorMultiplier(spriteData.bgColor, lightMultiplierColor);
     }
 
     // =========================================================================
@@ -220,7 +241,10 @@ export function getCellSpriteData(
             const entry = acquireLayerEntry(pool, RenderLayer.SURFACE);
             entry.tileType = surfaceTile;
             const te = ctx.tileCatalog[surfaceTile];
-            if (te.foreColor) copyColorTo(entry.tint, te.foreColor);
+            if (te.foreColor) {
+                copyColorTo(entry.tint, te.foreColor);
+                applyColorMultiplier(entry.tint, lightMultiplierColor);
+            }
             spriteData.layers[RenderLayer.SURFACE] = entry;
         }
     }
@@ -352,6 +376,47 @@ export function getCellSpriteData(
             entry.glyph = monst.info.displayChar;
         }
         copyColorTo(entry.tint, spriteData.layers[RenderLayer.GAS]!.tint);
+    }
+
+    // =========================================================================
+    // Bake terrain colors + colorDances flag propagation
+    // Resolves random color components (redRand, greenRand, blueRand, rand)
+    // using per-cell terrain random values, matching getCellAppearance line 473.
+    // Phase 4a-ii will insert hallucination/deep-water tinting before this.
+    // =========================================================================
+
+    const terrainVals = ctx.terrainRandomValues[x]?.[y];
+
+    if (terrainVals) {
+        if (spriteData.layers[RenderLayer.TERRAIN]) {
+            bakeTerrainColors(
+                spriteData.layers[RenderLayer.TERRAIN]!.tint,
+                spriteData.bgColor,
+                terrainVals,
+                ctx.rogue.trueColorMode,
+            );
+        }
+
+        if (spriteData.layers[RenderLayer.SURFACE]) {
+            bakeTerrainColors(
+                spriteData.layers[RenderLayer.SURFACE]!.tint,
+                bakeDummyColor,
+                terrainVals,
+                ctx.rogue.trueColorMode,
+            );
+        }
+    }
+
+    // colorDances flag propagation (fidelity matrix row 13)
+    const dancing =
+        (spriteData.layers[RenderLayer.TERRAIN]?.tint.colorDances ?? false)
+        || (spriteData.layers[RenderLayer.SURFACE]?.tint.colorDances ?? false)
+        || spriteData.bgColor.colorDances;
+
+    if (dancing) {
+        cell.flags |= TileFlag.TERRAIN_COLORS_DANCING;
+    } else {
+        cell.flags &= ~TileFlag.TERRAIN_COLORS_DANCING;
     }
 
     return spriteData;

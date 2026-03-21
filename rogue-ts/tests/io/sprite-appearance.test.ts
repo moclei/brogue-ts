@@ -95,12 +95,12 @@ function makeItem(x: number, y: number, overrides?: Partial<Item>): Item {
     } as unknown as Item;
 }
 
-function makeTmap(width = DCOLS, height = DROWS) {
+function makeTmap(width = DCOLS, height = DROWS, lightLevel = 100) {
     const tmap: { light: number[] }[][] = new Array(width);
     for (let i = 0; i < width; i++) {
         tmap[i] = new Array(height);
         for (let j = 0; j < height; j++) {
-            tmap[i][j] = { light: [0, 0, 0] };
+            tmap[i][j] = { light: [lightLevel, lightLevel, lightLevel] };
         }
     }
     return tmap as unknown as readonly (readonly import("../../src/types/types.js").Tcell[])[];
@@ -1022,6 +1022,278 @@ describe("getCellSpriteData — invisible-monster-in-gas", () => {
         expect(entity).toBeDefined();
         // Hallucinated glyph from silhouette re-roll (G_RAT is the only animate entry)
         expect(entity.glyph).toBe(DisplayGlyph.G_RAT);
+    });
+});
+
+// =============================================================================
+// Phase 4a-i: Terrain + Surface + Background Lighting
+// =============================================================================
+
+function makeTerrainRandomValues(width = DCOLS, height = DROWS, vals = [0, 0, 0, 0, 0, 0, 0, 0]) {
+    const trv: number[][][] = new Array(width);
+    for (let i = 0; i < width; i++) {
+        trv[i] = new Array(height);
+        for (let j = 0; j < height; j++) {
+            trv[i][j] = [...vals];
+        }
+    }
+    return trv;
+}
+
+describe("getCellSpriteData — TERRAIN lighting", () => {
+    it("applies light multiplier to terrain foreColor", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
+        // floorForeColor = (30, 30, 30, 0, 0, 0, 35, false)
+        // light multiplier at [50,50,50] → all components = 50
+        // red = Math.trunc(30 * 50 / 100) = 15
+        expect(tint.red).toBe(15);
+        expect(tint.green).toBe(15);
+        expect(tint.blue).toBe(15);
+    });
+
+    it("bakeTerrainColors zeroes Rand fields after baking", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 100) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
+        // floorForeColor has rand: 35 — bake should resolve it to 0
+        expect(tint.redRand).toBe(0);
+        expect(tint.greenRand).toBe(0);
+        expect(tint.blueRand).toBe(0);
+        expect(tint.rand).toBe(0);
+    });
+
+    it("bakeTerrainColors applies per-cell variation via terrainRandomValues", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 100) });
+        // Non-zero vals: foreRand uses v[6]=700 → foreRand = Math.trunc(35 * 700 / 1000) = 24
+        ctx.terrainRandomValues = makeTerrainRandomValues(DCOLS, DROWS, [500, 500, 500, 500, 500, 500, 700, 500]);
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
+        // floorForeColor at light 100: (30, 30, 30, 0, 0, 0, 35)
+        // foreRand = Math.trunc(35 * 700 / 1000) = 24
+        // red = 30 + Math.trunc(0 * 500/1000) + 24 = 54
+        expect(tint.red).toBe(54);
+        expect(tint.green).toBe(54);
+        expect(tint.blue).toBe(54);
+        expect(tint.rand).toBe(0);
+    });
+
+    it("skips baking when terrainRandomValues not available", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 100) });
+        ctx.terrainRandomValues = []; // empty — no baking
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
+        // Light 100 → identity multiply; no baking → rand preserved
+        expect(tint.red).toBe(30);
+        expect(tint.rand).toBe(35);
+    });
+});
+
+describe("getCellSpriteData — bgColor lighting", () => {
+    it("applies light multiplier to terrain backColor", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        // floorBackColor = (2, 2, 10, 2, 2, 0, 0, false)
+        // After light × 50/100: red = Math.trunc(2*50/100) = 1
+        // After bake with vals=[0,...]: red = 1 + 0 + 0 = 1
+        expect(spriteData.bgColor.red).toBe(1);
+        expect(spriteData.bgColor.green).toBe(1);
+        expect(spriteData.bgColor.blue).toBe(5);
+    });
+
+    it("bakeTerrainColors zeroes bgColor Rand fields", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 100) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        // floorBackColor has redRand: 2, greenRand: 2 — bake zeroes them
+        expect(spriteData.bgColor.redRand).toBe(0);
+        expect(spriteData.bgColor.greenRand).toBe(0);
+        expect(spriteData.bgColor.blueRand).toBe(0);
+        expect(spriteData.bgColor.rand).toBe(0);
+    });
+});
+
+describe("getCellSpriteData — SURFACE lighting", () => {
+    it("applies light multiplier to surface foreColor", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+        ctx.pmap[3][3].layers[DungeonLayer.Surface] = TileType.GRASS;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const tint = spriteData.layers[RenderLayer.SURFACE]!.tint;
+        // grassColor = (15, 40, 15, 15, 50, 15, 10, false)
+        // After light × 50/100: red = Math.trunc(15*50/100) = 7, green = 20, blue = 7
+        // After bake with vals=[0,...]: no change to base RGB, Rand zeroed
+        expect(tint.red).toBe(7);
+        expect(tint.green).toBe(20);
+        expect(tint.blue).toBe(7);
+        expect(tint.redRand).toBe(0);
+        expect(tint.greenRand).toBe(0);
+        expect(tint.rand).toBe(0);
+    });
+
+    it("bakes surface tint independently from bgColor", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 100) });
+        ctx.terrainRandomValues = makeTerrainRandomValues(DCOLS, DROWS, [800, 600, 400, 500, 500, 500, 700, 500]);
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+        ctx.pmap[3][3].layers[DungeonLayer.Surface] = TileType.GRASS;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const tint = spriteData.layers[RenderLayer.SURFACE]!.tint;
+        // grassColor at light 100: (15, 40, 15, 15, 50, 15, 10, false)
+        // foreRand = Math.trunc(10 * 700 / 1000) = 7
+        // red = 15 + Math.trunc(15 * 800/1000) + 7 = 15 + 12 + 7 = 34
+        // green = 40 + Math.trunc(50 * 600/1000) + 7 = 40 + 30 + 7 = 77
+        // blue = 15 + Math.trunc(15 * 400/1000) + 7 = 15 + 6 + 7 = 28
+        expect(tint.red).toBe(34);
+        expect(tint.green).toBe(77);
+        expect(tint.blue).toBe(28);
+        expect(tint.rand).toBe(0);
+    });
+});
+
+describe("getCellSpriteData — fire/gas not lit", () => {
+    it("fire tint is raw tileCatalog foreColor (emissive, no lighting)", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+        ctx.pmap[3][3].layers[DungeonLayer.Surface] = TileType.PLAIN_FIRE;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const fire = spriteData.layers[RenderLayer.FIRE]!;
+        const expected = tileCatalog[TileType.PLAIN_FIRE].foreColor!;
+        expect(fire.tint.red).toBe(expected.red);
+        expect(fire.tint.green).toBe(expected.green);
+        expect(fire.tint.blue).toBe(expected.blue);
+    });
+
+    it("gas tint is raw tileCatalog backColor (emissive, no lighting)", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+        ctx.pmap[3][3].layers[DungeonLayer.Gas] = TileType.POISON_GAS;
+        ctx.pmap[3][3].volume = 50;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const gas = spriteData.layers[RenderLayer.GAS]!;
+        const expected = tileCatalog[TileType.POISON_GAS].backColor!;
+        expect(gas.tint.red).toBe(expected.red);
+        expect(gas.tint.green).toBe(expected.green);
+        expect(gas.tint.blue).toBe(expected.blue);
+    });
+});
+
+describe("getCellSpriteData — remembered cells not lit", () => {
+    it("remembered terrain tint uses base tileCatalog foreColor (no lighting)", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.pmap[3][3].flags = TileFlag.DISCOVERED;
+        ctx.pmap[3][3].rememberedLayers = [TileType.FLOOR, TileType.NOTHING, TileType.NOTHING, TileType.NOTHING];
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
+        const expected = tileCatalog[TileType.FLOOR].foreColor!;
+        // Remembered path does NOT apply lighting — raw tileCatalog color
+        expect(tint.red).toBe(expected.red);
+        expect(tint.green).toBe(expected.green);
+        expect(tint.blue).toBe(expected.blue);
+    });
+
+    it("remembered bgColor uses base tileCatalog backColor (no lighting)", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.pmap[3][3].flags = TileFlag.DISCOVERED;
+        ctx.pmap[3][3].rememberedLayers = [TileType.FLOOR, TileType.NOTHING, TileType.NOTHING, TileType.NOTHING];
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const expected = tileCatalog[TileType.FLOOR].backColor!;
+        expect(spriteData.bgColor.red).toBe(expected.red);
+        expect(spriteData.bgColor.green).toBe(expected.green);
+        expect(spriteData.bgColor.blue).toBe(expected.blue);
+    });
+});
+
+describe("getCellSpriteData — colorDances flag propagation", () => {
+    it("sets TERRAIN_COLORS_DANCING when terrain foreColor has colorDances", () => {
+        const dancingColor = makeColor(50, 50, 50);
+        dancingColor.colorDances = true;
+        const customCatalog = [...tileCatalog];
+        customCatalog[TileType.FLOOR] = {
+            ...tileCatalog[TileType.FLOOR],
+            foreColor: dancingColor,
+        };
+        const ctx = makeCtx({ tileCatalog: customCatalog, tmap: makeTmap(DCOLS, DROWS, 100) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(ctx.pmap[3][3].flags & TileFlag.TERRAIN_COLORS_DANCING).toBeTruthy();
+    });
+
+    it("clears TERRAIN_COLORS_DANCING when no layer has colorDances", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 100) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED | TileFlag.TERRAIN_COLORS_DANCING;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(ctx.pmap[3][3].flags & TileFlag.TERRAIN_COLORS_DANCING).toBeFalsy();
     });
 });
 
