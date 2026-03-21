@@ -46,27 +46,30 @@ Define the data model: render layer enum, layer entry type, CellSpriteData
 interface, VisibilityState enum, TileType classification, and the
 rememberedLayers field on Pcell.
 
-- [ ] Create `rogue-ts/src/platform/render-layers.ts`:
+- [x] Create `rogue-ts/src/platform/render-layers.ts`:
   - `RenderLayer` enum (10 values: TERRAIN through UI)
   - `RENDER_LAYER_COUNT = 10`
-  - `VisibilityState` enum (Visible, Remembered, Clairvoyant, Telepathic,
-    MagicMapped, Omniscience, Shroud)
+  - `VisibilityState` enum — re-exported from `cell-queries.ts` (ownership
+    stays in cell-queries; render-layers re-exports for consumer convenience)
   - `LayerEntry` interface (`tileType?: TileType`, `glyph?: DisplayGlyph`,
     `tint: Color`, `alpha?: number`)
   - `CellSpriteData` interface (`layers: (LayerEntry | undefined)[]`,
     `bgColor: Color`, `visibilityState: VisibilityState`)
   - `createCellSpriteData()` factory that allocates the reusable instance
-  - `LayerEntry` pool helpers for object reuse
-- [ ] TileType classification functions in `render-layers.ts`:
+    + paired `LayerEntryPool`
+  - `LayerEntry` pool helpers: `createLayerEntryPool`, `acquireLayerEntry`,
+    `resetCellSpriteData`
+- [x] TileType classification functions in `render-layers.ts`:
   `isTerrainTileType`, `isSurfaceTileType`, `isFireTileType`,
-  `isGasTileType`. Classification derived from which DungeonLayer each
-  TileType appears in via the tile catalog.
-- [ ] Add `rememberedLayers: TileType[]` to `Pcell` in `types/types.ts`.
-  Indexed by `DungeonLayer` (4 entries). Initialize to empty array in Pcell
-  construction. Identify where `rememberedAppearance` is snapshot and add
-  `rememberedLayers` snapshot at the same point (copy `layers[]` values).
-- [ ] Unit tests for TileType classification: coverage of all ~200 TileTypes,
-  fire vs gas distinction, surface types.
+  `isGasTileType`. Fire and gas use contiguous enum ranges; surface uses
+  main block GRASS..GUARDIAN_GLOW + post-gas extras; terrain is catch-all.
+- [x] Add `rememberedLayers: TileType[]` to `Pcell` in `types/types.ts`.
+  (Done in Phase 1.) Initialized to `[]` in both creation sites (core.ts,
+  game-init.ts). Snapshot via `snapshotCellMemory` in cell-queries.ts.
+- [x] Unit tests for TileType classification: 47 tests in
+  `tests/platform/render-layers.test.ts` — exhaustive classification
+  (every valid TileType classified exactly once), fire/gas distinction,
+  surface block + extras, terrain catch-all, pool + factory helpers.
 
 # --- handoff point ---
 
