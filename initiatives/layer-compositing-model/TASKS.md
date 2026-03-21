@@ -6,22 +6,22 @@ Extract shared logic from `getCellAppearance` into `cell-queries.ts` so both
 the ASCII and sprite data paths use the same functions. Pure refactor — no
 behavior change to `getCellAppearance`.
 
-- [ ] Read `cell-appearance.ts` fully. Identify extractable query logic:
+- [x] Read `cell-appearance.ts` fully. Identify extractable query logic:
   visibility classification (visible/remembered/shroud — including
   clairvoyant, telepathic, magic-mapped, omniscience states), creature
   lookup (handles hidden, submerged, revealed), floor item lookup.
-- [ ] Create `rogue-ts/src/io/cell-queries.ts` with extracted pure functions.
+- [x] Create `rogue-ts/src/io/cell-queries.ts` with extracted pure functions.
   Each function takes game-state slices as parameters (same pattern as
   getCellAppearance). Visibility classification should return a
   `VisibilityState` enum value (Visible, Remembered, Clairvoyant,
   Telepathic, MagicMapped, Omniscience, Shroud).
-- [ ] Refactor `getCellAppearance` to call the new shared functions. Verify
+- [x] Refactor `getCellAppearance` to call the new shared functions. Verify
   existing tests still pass — no behavior change.
-- [ ] Unit tests for each shared function in
+- [x] Unit tests for each shared function in
   `rogue-ts/tests/io/cell-queries.test.ts`: all visibility states
   (including clairvoyant, telepathic, magic-mapped, omniscience), creature
   visibility edge cases (hidden, submerged, hallucinated), item lookup.
-- [ ] Define `CellQueryContext` interface in `cell-queries.ts`: bundles all
+- [x] Define `CellQueryContext` interface in `cell-queries.ts`: bundles all
   shared closure captures (pmap, tmap, tileCatalog, dungeonFeatureCatalog,
   monsterCatalog, terrainRandomValues, displayDetail, scentMap, rogue,
   player, monsters, dormantMonsters, floorItems, displayBuffer). Include
@@ -29,11 +29,11 @@ behavior change to `getCellAppearance`.
   `monsterCatalog.map(m => m.flags)` to avoid per-cell array allocation
   during hallucination. Both `getCellAppearance` and `getCellSpriteData`
   closures take this context.
-- [ ] Build shared `MonsterQueryContext` construction from `CellQueryContext`
+- [x] Build shared `MonsterQueryContext` construction from `CellQueryContext`
   fields (player, pmap, rogue.playbackOmniscience). Both `getCellAppearance`
   and `getCellSpriteData` use this to build identical `MonsterQueryContext`
   instances for creature visibility checks.
-- [ ] Extract `snapshotCellMemory` helper: sets STABLE_MEMORY flag,
+- [x] Extract `snapshotCellMemory` helper: sets STABLE_MEMORY flag,
   stores `rememberedAppearance`, AND copies `rememberedLayers`
   (`pmap[x][y].layers.slice()`). Called from getCellAppearance at the
   existing STABLE_MEMORY store point (lines 376–394).

@@ -27,7 +27,7 @@ import { DROWS } from "../types/constants.js";
 import {
     applyColorMultiplier, applyColorAverage, applyColorAugment,
     normColor, separateColors, randomizeColor, swapColors,
-    storeColorComponents, colorFromComponents, colorMultiplierFromDungeonLight,
+    colorFromComponents, colorMultiplierFromDungeonLight,
 } from "./color.js";
 import {
     glyphIsWallish, bakeTerrainColors, mapToWindowX, mapToWindowY,
@@ -43,7 +43,6 @@ import {
 import {
     monsterRevealed, monsterIsHidden, monsterHiddenBySubmersion, canSeeMonster,
 } from "../monsters/monster-queries.js";
-import type { MonsterQueryContext } from "../monsters/monster-queries.js";
 import { itemAtLoc } from "../items/item-inventory.js";
 import {
     itemMagicPolarity, getItemCategoryGlyph, getHallucinatedItemCategory,
@@ -52,6 +51,10 @@ import type { ItemRNG } from "../items/item-generation.js";
 import { scentDistance } from "../time/turn-processing.js";
 import { cellHasTerrainFlag, cellHasTMFlag } from "../state/helpers.js";
 import { cosmeticRandRange, randClump } from "../math/rng.js";
+import {
+    classifyVisibility, lookupCreatureAt, buildMonsterQueryCtx, snapshotCellMemory,
+    VisibilityState,
+} from "./cell-queries.js";
 
 // =============================================================================
 // getCellAppearance
@@ -88,27 +91,12 @@ export function getCellAppearance(
     let underlyingTerrain: TileType | undefined;
     const cellFlags = pmap[x][y].flags;
 
-    // playerCanSeeOrSense: cell is lit and visible in any sense
     const playerCanSeeOrSense = (cx: number, cy: number): boolean =>
         (pmap[cx][cy].flags & ANY_KIND_OF_VISIBLE) !== 0;
 
-    // Find monster at loc (from either live or dormant list)
-    let monst: Creature | null = null;
-    if (cellFlags & TileFlag.HAS_MONSTER) {
-        monst = monsters.find(m => m.loc.x === x && m.loc.y === y) ?? null;
-    } else if (cellFlags & TileFlag.HAS_DORMANT_MONSTER) {
-        monst = dormantMonsters.find(m => m.loc.x === x && m.loc.y === y) ?? null;
-    }
-
-    // Build MonsterQueryContext for monster visibility checks
-    const mqCtx: MonsterQueryContext = {
-        player,
-        cellHasTerrainFlag: (p: Pos, flags: number) => cellHasTerrainFlag(pmap, p, flags),
-        cellHasGas: (p: Pos) => pmap[p.x][p.y].layers[DungeonLayer.Gas] !== 0,
-        playerCanSee: (cx: number, cy: number) => !!(pmap[cx][cy].flags & TileFlag.VISIBLE),
-        playerCanDirectlySee: (cx: number, cy: number) => !!(pmap[cx][cy].flags & TileFlag.VISIBLE),
-        playbackOmniscience: rogue.playbackOmniscience,
-    };
+    const monst = lookupCreatureAt(x, y, cellFlags, monsters, dormantMonsters);
+    const mqCtx = buildMonsterQueryCtx(pmap, player, rogue.playbackOmniscience);
+    const monsterFlagsList = monsterCatalog.map(m => m.flags);
 
     // monsterWithDetectedItem: monster carries a magic-detected item the player can't see
     let monsterWithDetectedItem = false;
@@ -261,16 +249,15 @@ export function getCellAppearance(
             underlyingTerrain = cellTileType;
             cellTileType = undefined;
             needDistinctness = true;
-            const mflags = monsterCatalog.map(m => m.flags);
             if (
                 player.status[StatusEffect.Hallucinating] > 0
                 && !(monst.info.flags & (MonsterBehaviorFlag.MONST_INANIMATE | MonsterBehaviorFlag.MONST_INVULNERABLE))
                 && !rogue.playbackOmniscience
                 && !player.status[StatusEffect.Telepathic]
             ) {
-                const i1 = randomAnimateMonster(mflags, MonsterBehaviorFlag.MONST_INANIMATE, MonsterBehaviorFlag.MONST_INVULNERABLE);
+                const i1 = randomAnimateMonster(monsterFlagsList, MonsterBehaviorFlag.MONST_INANIMATE, MonsterBehaviorFlag.MONST_INVULNERABLE);
                 cellChar = monsterCatalog[i1].displayChar;
-                const i2 = randomAnimateMonster(mflags, MonsterBehaviorFlag.MONST_INANIMATE, MonsterBehaviorFlag.MONST_INVULNERABLE);
+                const i2 = randomAnimateMonster(monsterFlagsList, MonsterBehaviorFlag.MONST_INANIMATE, MonsterBehaviorFlag.MONST_INVULNERABLE);
                 cellForeColor = { ...monsterCatalog[i2].foreColor };
             } else {
                 cellChar = monst.info.displayChar;
@@ -355,9 +342,8 @@ export function getCellAppearance(
                 && !monsterRevealed(monst, player)
                 && !monsterHiddenBySubmersion(monst, player, (p, f) => cellHasTerrainFlag(pmap, p, f))
             ) {
-                const mflags = monsterCatalog.map(m => m.flags);
                 if (player.status[StatusEffect.Hallucinating] && !rogue.playbackOmniscience && !player.status[StatusEffect.Telepathic]) {
-                    const idx = randomAnimateMonster(mflags, MonsterBehaviorFlag.MONST_INANIMATE, MonsterBehaviorFlag.MONST_INVULNERABLE);
+                    const idx = randomAnimateMonster(monsterFlagsList, MonsterBehaviorFlag.MONST_INANIMATE, MonsterBehaviorFlag.MONST_INVULNERABLE);
                     cellChar = monsterCatalog[idx].displayChar;
                 } else {
                     cellChar = monst.info.displayChar;
@@ -374,16 +360,7 @@ export function getCellAppearance(
             && (!monst || !monsterRevealed(monst, player))
             && !monsterWithDetectedItem
         ) {
-            pmap[x][y].flags |= TileFlag.STABLE_MEMORY;
-            pmap[x][y].rememberedAppearance.character = cellChar;
-            const fc = storeColorComponents(cellForeColor);
-            pmap[x][y].rememberedAppearance.foreColorComponents[0] = fc[0];
-            pmap[x][y].rememberedAppearance.foreColorComponents[1] = fc[1];
-            pmap[x][y].rememberedAppearance.foreColorComponents[2] = fc[2];
-            const bc = storeColorComponents(cellBackColor);
-            pmap[x][y].rememberedAppearance.backColorComponents[0] = bc[0];
-            pmap[x][y].rememberedAppearance.backColorComponents[1] = bc[1];
-            pmap[x][y].rememberedAppearance.backColorComponents[2] = bc[2];
+            snapshotCellMemory(pmap[x][y], cellChar, cellForeColor, cellBackColor);
             // Apply light+bake then restore (ensures this frame matches future stable-memory frames)
             applyColorAugment(lightMultiplierColor, basicLightColor, 100);
             applyColorMultiplier(cellForeColor, lightMultiplierColor);
@@ -407,71 +384,76 @@ export function getCellAppearance(
         cellChar = DisplayGlyph.G_WALL_TOP;
     }
 
-    // Visibility tinting
-    if (
+    // Visibility tinting — driven by classifyVisibility, with detected/revealed override
+    const isDetectedOrRevealed = (
         ((cellFlags & TileFlag.ITEM_DETECTED) || monsterWithDetectedItem
             || (monst !== null && monsterRevealed(monst, player)))
         && !playerCanSeeOrSense(x, y)
-    ) {
-        // Detected / revealed — leave colors as-is
-
-    } else if (!(cellFlags & TileFlag.VISIBLE) && (cellFlags & TileFlag.CLAIRVOYANT_VISIBLE)) {
-        const lm = { ...lightMultiplierColor };
-        applyColorAugment(lm, basicLightColor, 100);
-        applyColorMultiplier(cellForeColor, lm);
-        if (!rogue.trueColorMode || !needDistinctness) applyColorMultiplier(cellForeColor, clairvoyanceColor);
-        applyColorMultiplier(cellBackColor, lm);
-        applyColorMultiplier(cellBackColor, clairvoyanceColor);
-
-    } else if (!(cellFlags & TileFlag.VISIBLE) && (cellFlags & TileFlag.TELEPATHIC_VISIBLE)) {
-        const lm = { ...lightMultiplierColor };
-        applyColorAugment(lm, basicLightColor, 100);
-        applyColorMultiplier(cellForeColor, lm);
-        if (!rogue.trueColorMode || !needDistinctness) applyColorMultiplier(cellForeColor, telepathyMultiplier);
-        applyColorMultiplier(cellBackColor, lm);
-        applyColorMultiplier(cellBackColor, telepathyMultiplier);
-
-    } else if (!(cellFlags & TileFlag.DISCOVERED) && (cellFlags & TileFlag.MAGIC_MAPPED)) {
-        if (!rogue.playbackOmniscience) {
-            needDistinctness = false;
-            if (!rogue.trueColorMode || !needDistinctness) applyColorMultiplier(cellForeColor, magicMapColor);
-            applyColorMultiplier(cellBackColor, magicMapColor);
-        }
-
-    } else if (!(cellFlags & TileFlag.VISIBLE) && !rogue.playbackOmniscience) {
-        needDistinctness = false;
-        if (rogue.inWater) {
-            applyColorAverage(cellForeColor, black, 80);
-            applyColorAverage(cellBackColor, black, 80);
-        } else {
-            if (!cellHasTMFlag(pmap, loc, TerrainMechFlag.TM_BRIGHT_MEMORY) && (!rogue.trueColorMode || !needDistinctness)) {
-                applyColorMultiplier(cellForeColor, memoryColor);
-                applyColorAverage(cellForeColor, memoryOverlay, 25);
+    );
+    if (!isDetectedOrRevealed) {
+        const visState = classifyVisibility(cellFlags, rogue.playbackOmniscience);
+        switch (visState) {
+            case VisibilityState.Clairvoyant: {
+                const lm = { ...lightMultiplierColor };
+                applyColorAugment(lm, basicLightColor, 100);
+                applyColorMultiplier(cellForeColor, lm);
+                if (!rogue.trueColorMode || !needDistinctness) applyColorMultiplier(cellForeColor, clairvoyanceColor);
+                applyColorMultiplier(cellBackColor, lm);
+                applyColorMultiplier(cellBackColor, clairvoyanceColor);
+                break;
             }
-            applyColorMultiplier(cellBackColor, memoryColor);
-            applyColorAverage(cellBackColor, memoryOverlay, 25);
-        }
-
-    } else if (playerCanSeeOrSense(x, y) && rogue.playbackOmniscience && !(cellFlags & ANY_KIND_OF_VISIBLE)) {
-        const lm = { ...lightMultiplierColor };
-        applyColorAugment(lm, basicLightColor, 100);
-        applyColorMultiplier(cellForeColor, lm);
-        if (!rogue.trueColorMode || !needDistinctness) applyColorMultiplier(cellForeColor, omniscienceColor);
-        applyColorMultiplier(cellBackColor, lm);
-        applyColorMultiplier(cellBackColor, omniscienceColor);
-
-    } else {
-        // Fully visible
-        applyColorMultiplier(cellForeColor, lightMultiplierColor);
-        applyColorMultiplier(cellBackColor, lightMultiplierColor);
-        if (player.status[StatusEffect.Hallucinating] && !rogue.trueColorMode) {
-            const hallAmt = Math.trunc(40 * player.status[StatusEffect.Hallucinating] / 300) + 20;
-            randomizeColor(cellForeColor, hallAmt);
-            randomizeColor(cellBackColor, hallAmt);
-        }
-        if (rogue.inWater) {
-            applyColorMultiplier(cellForeColor, deepWaterLightColor);
-            applyColorMultiplier(cellBackColor, deepWaterLightColor);
+            case VisibilityState.Telepathic: {
+                const lm = { ...lightMultiplierColor };
+                applyColorAugment(lm, basicLightColor, 100);
+                applyColorMultiplier(cellForeColor, lm);
+                if (!rogue.trueColorMode || !needDistinctness) applyColorMultiplier(cellForeColor, telepathyMultiplier);
+                applyColorMultiplier(cellBackColor, lm);
+                applyColorMultiplier(cellBackColor, telepathyMultiplier);
+                break;
+            }
+            case VisibilityState.MagicMapped:
+                if (!rogue.playbackOmniscience) {
+                    needDistinctness = false;
+                    if (!rogue.trueColorMode || !needDistinctness) applyColorMultiplier(cellForeColor, magicMapColor);
+                    applyColorMultiplier(cellBackColor, magicMapColor);
+                }
+                break;
+            case VisibilityState.Remembered:
+                needDistinctness = false;
+                if (rogue.inWater) {
+                    applyColorAverage(cellForeColor, black, 80);
+                    applyColorAverage(cellBackColor, black, 80);
+                } else {
+                    if (!cellHasTMFlag(pmap, loc, TerrainMechFlag.TM_BRIGHT_MEMORY) && (!rogue.trueColorMode || !needDistinctness)) {
+                        applyColorMultiplier(cellForeColor, memoryColor);
+                        applyColorAverage(cellForeColor, memoryOverlay, 25);
+                    }
+                    applyColorMultiplier(cellBackColor, memoryColor);
+                    applyColorAverage(cellBackColor, memoryOverlay, 25);
+                }
+                break;
+            case VisibilityState.Omniscience: {
+                const lm = { ...lightMultiplierColor };
+                applyColorAugment(lm, basicLightColor, 100);
+                applyColorMultiplier(cellForeColor, lm);
+                if (!rogue.trueColorMode || !needDistinctness) applyColorMultiplier(cellForeColor, omniscienceColor);
+                applyColorMultiplier(cellBackColor, lm);
+                applyColorMultiplier(cellBackColor, omniscienceColor);
+                break;
+            }
+            default: // Visible
+                applyColorMultiplier(cellForeColor, lightMultiplierColor);
+                applyColorMultiplier(cellBackColor, lightMultiplierColor);
+                if (player.status[StatusEffect.Hallucinating] && !rogue.trueColorMode) {
+                    const hallAmt = Math.trunc(40 * player.status[StatusEffect.Hallucinating] / 300) + 20;
+                    randomizeColor(cellForeColor, hallAmt);
+                    randomizeColor(cellBackColor, hallAmt);
+                }
+                if (rogue.inWater) {
+                    applyColorMultiplier(cellForeColor, deepWaterLightColor);
+                    applyColorMultiplier(cellBackColor, deepWaterLightColor);
+                }
+                break;
         }
     }
 

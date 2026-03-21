@@ -34,6 +34,7 @@ function makePmap(): Pcell[][] {
                     backColorComponents: [0, 0, 0],
                     opacity: 0,
                 },
+                rememberedLayers: [],
                 rememberedItemCategory: 0,
                 rememberedItemKind: 0,
                 rememberedItemQuantity: 0,

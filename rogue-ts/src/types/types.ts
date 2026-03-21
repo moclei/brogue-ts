@@ -116,6 +116,7 @@ export interface Pcell {
     volume: number;       // quantity of gas
     machineNumber: number;
     rememberedAppearance: CellDisplayBuffer;
+    rememberedLayers: TileType[];    // indexed by DungeonLayer (4 entries) — sprite-mode remembered terrain
     rememberedItemCategory: number;  // itemCategory bitmask
     rememberedItemKind: number;
     rememberedItemQuantity: number;
