@@ -55,15 +55,16 @@ function createMockCanvas() {
   return { canvas, ctx };
 }
 
-// SpriteRenderer's constructor calls document.createElement("canvas") for its tintCanvas.
+// SpriteRenderer's constructor creates an OffscreenCanvas for tinting.
 // browser-renderer.ts calls document.addEventListener for keydown/keyup.
 const tintCtx = mockCtx();
+vi.stubGlobal("OffscreenCanvas", class MockOffscreenCanvas {
+  width: number;
+  height: number;
+  constructor(w: number, h: number) { this.width = w; this.height = h; }
+  getContext() { return tintCtx; }
+});
 vi.stubGlobal("document", {
-  createElement: () => ({
-    width: 16,
-    height: 16,
-    getContext: () => tintCtx,
-  }),
   addEventListener: vi.fn(),
 });
 

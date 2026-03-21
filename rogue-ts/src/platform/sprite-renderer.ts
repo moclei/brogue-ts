@@ -2,9 +2,9 @@
  *  sprite-renderer.ts — SpriteRenderer: tile-based cell drawing with tinting
  *  brogue-ts
  *
- *  Extracted from the tile path of plotChar() in browser-renderer.ts.
- *  Draws cells as tinted 16×16 sprites from DawnLike tileset sheets.
- *  Falls back to TextRenderer for unmapped glyphs.
+ *  Phase 5: layer compositing pipeline via drawCellLayers(). Consumes
+ *  CellSpriteData from getCellSpriteData and draws per-layer sprites with
+ *  per-layer multiply tinting. Legacy drawCell() kept as transition fallback.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -12,27 +12,42 @@
  *  License, or (at your option) any later version.
  */
 
+import type { Color } from "../types/types.js";
 import type { DisplayGlyph, TileType } from "../types/enums.js";
 import type { Renderer, CellRect } from "./renderer.js";
 import type { SpriteRef } from "./glyph-sprite-map.js";
 import { getBackgroundTileType } from "./glyph-sprite-map.js";
 import { TILE_SIZE } from "./tileset-loader.js";
 import type { TextRenderer } from "./text-renderer.js";
+import type { CellSpriteData, VisibilityOverlay } from "./render-layers.js";
+import { RENDER_LAYER_COUNT, getVisibilityOverlay } from "./render-layers.js";
 
 const DEBUG_LAYERED_DRAW = false;
-const DEBUG_SHOW_TERRAIN_UNDER_CREATURE = false;
-const DEBUG_SKIP_TILE_CELL_BACK_FILL = false;
+
+/** Brogue 0–100 scale → CSS 0–255 RGB, clamped. */
+function c100to255(v: number): number {
+  return Math.min(255, Math.max(0, Math.round((v * 255) / 100)));
+}
+
+const NEUTRAL_TINT_THRESHOLD = 98;
+
+/** True when tint is close enough to neutral that the multiply step is a no-op. */
+function isNeutralTint(tint: Readonly<Color>): boolean {
+  return tint.red >= NEUTRAL_TINT_THRESHOLD
+    && tint.green >= NEUTRAL_TINT_THRESHOLD
+    && tint.blue >= NEUTRAL_TINT_THRESHOLD;
+}
+
+function bitmapKey(ref: SpriteRef): string {
+  return `${ref.sheetKey}:${ref.tileX}:${ref.tileY}`;
+}
 
 /**
  * SpriteRenderer — draws cells as tinted sprites from tileset sheets.
  *
- * Implements the Renderer interface. Each `drawCell` call:
- *   1. Resolves the glyph/tileType to a SpriteRef (tileTypeSpriteMap → spriteMap).
- *   2. If no sprite found, delegates to TextRenderer as fallback.
- *   3. Fills cell background.
- *   4. Draws underlyingTerrain layer if present (creature cells).
- *   5. Draws background tile layer if foreground overlay (e.g. foliage on floor).
- *   6. Draws main/foreground sprite with multiply tint.
+ * Implements the Renderer interface via the legacy `drawCell` path.
+ * The new `drawCellLayers` path consumes `CellSpriteData` for full
+ * layer compositing with per-layer multiply tinting.
  */
 export class SpriteRenderer implements Renderer {
   private readonly ctx: CanvasRenderingContext2D;
@@ -41,8 +56,18 @@ export class SpriteRenderer implements Renderer {
   private readonly tileTypeSpriteMap: Map<TileType, SpriteRef>;
   private readonly textRenderer: TextRenderer;
 
-  private readonly tintCanvas: HTMLCanvasElement;
-  private readonly tintCtx: CanvasRenderingContext2D;
+  private readonly tintCanvas: OffscreenCanvas;
+  private readonly tintCtx: OffscreenCanvasRenderingContext2D;
+
+  /** Pre-created ImageBitmaps keyed by "sheetKey:tileX:tileY". */
+  private readonly bitmaps = new Map<string, ImageBitmap>();
+
+  /** Reusable Color for drawCell → drawSpriteTinted conversion (0-100 scale). */
+  private readonly tmpTint: Color = {
+    red: 0, green: 0, blue: 0,
+    redRand: 0, greenRand: 0, blueRand: 0,
+    rand: 0, colorDances: false,
+  };
 
   constructor(
     ctx: CanvasRenderingContext2D,
@@ -57,27 +82,71 @@ export class SpriteRenderer implements Renderer {
     this.tileTypeSpriteMap = tileTypeSpriteMap;
     this.textRenderer = textRenderer;
 
-    this.tintCanvas = document.createElement("canvas");
-    this.tintCanvas.width = TILE_SIZE;
-    this.tintCanvas.height = TILE_SIZE;
+    this.tintCanvas = new OffscreenCanvas(TILE_SIZE, TILE_SIZE);
     this.tintCtx = this.tintCanvas.getContext("2d")!;
   }
 
+  // ===========================================================================
+  // ImageBitmap pre-creation
+  // ===========================================================================
+
   /**
-   * Resolve a glyph/tileType to a sprite reference.
-   * Tries tileTypeSpriteMap first (one-to-one terrain), then spriteMap (glyph-based).
-   * Returns undefined when neither map has a match (caller falls back to text).
+   * Pre-create ImageBitmaps for every mapped sprite, eliminating per-frame
+   * sub-region extraction overhead. Async because createImageBitmap returns
+   * a Promise. Safe to skip — drawSpriteTinted falls back to HTMLImageElement.
+   */
+  async precreateBitmaps(): Promise<void> {
+    if (typeof createImageBitmap === "undefined") return;
+
+    const seen = new Set<string>();
+    const tasks: Promise<void>[] = [];
+
+    const schedule = (ref: SpriteRef) => {
+      const key = bitmapKey(ref);
+      if (seen.has(key)) return;
+      seen.add(key);
+      const img = this.tiles.get(ref.sheetKey);
+      if (!img) return;
+      tasks.push(
+        createImageBitmap(
+          img,
+          ref.tileX * TILE_SIZE, ref.tileY * TILE_SIZE,
+          TILE_SIZE, TILE_SIZE,
+        ).then(bmp => { this.bitmaps.set(key, bmp); }),
+      );
+    };
+
+    for (const ref of this.tileTypeSpriteMap.values()) schedule(ref);
+    for (const ref of this.spriteMap.values()) schedule(ref);
+    await Promise.all(tasks);
+  }
+
+  // ===========================================================================
+  // resolveSprite
+  // ===========================================================================
+
+  /**
+   * Resolve a tileType/glyph to a sprite reference.
+   * Tries tileTypeSpriteMap first, then spriteMap. Both parameters are
+   * optional to support LayerEntry which may set only one.
    */
   resolveSprite(
-    tileType: TileType | undefined,
-    glyph: DisplayGlyph,
+    tileType?: TileType,
+    glyph?: DisplayGlyph,
   ): SpriteRef | undefined {
     if (tileType !== undefined) {
       const ref = this.tileTypeSpriteMap.get(tileType);
       if (ref !== undefined) return ref;
     }
-    return this.spriteMap.get(glyph);
+    if (glyph !== undefined) {
+      return this.spriteMap.get(glyph);
+    }
+    return undefined;
   }
+
+  // ===========================================================================
+  // drawCell — legacy fallback (pre-layer model)
+  // ===========================================================================
 
   drawCell(
     cellRect: CellRect,
@@ -100,21 +169,20 @@ export class SpriteRenderer implements Renderer {
     }
 
     const { x, y, width, height } = cellRect;
+    this.ctx.fillStyle = `rgb(${bgR},${bgG},${bgB})`;
+    this.ctx.fillRect(x, y, width, height);
 
-    if (DEBUG_SKIP_TILE_CELL_BACK_FILL) {
-      this.ctx.clearRect(x, y, width, height);
-    } else {
-      this.ctx.fillStyle = `rgb(${bgR},${bgG},${bgB})`;
-      this.ctx.fillRect(x, y, width, height);
-    }
+    const t = this.tmpTint;
+    t.red = (fgR * 100) / 255;
+    t.green = (fgG * 100) / 255;
+    t.blue = (fgB * 100) / 255;
 
     let drewExtraLayer = false;
 
     if (underlyingTerrain !== undefined) {
       const terrainRef = this.tileTypeSpriteMap.get(underlyingTerrain);
-      const terrainImg = terrainRef ? this.tiles.get(terrainRef.sheetKey) : undefined;
-      if (terrainImg && terrainRef) {
-        this.drawSpriteTinted(terrainImg, terrainRef, cellRect, fgR, fgG, fgB);
+      if (terrainRef) {
+        this.drawSpriteTinted(terrainRef, cellRect, t);
         drewExtraLayer = true;
       }
     }
@@ -123,73 +191,140 @@ export class SpriteRenderer implements Renderer {
       tileType !== undefined ? getBackgroundTileType(tileType) : undefined;
     if (backgroundTileType !== undefined) {
       const bgRef = this.tileTypeSpriteMap.get(backgroundTileType);
-      const bgImg = bgRef ? this.tiles.get(bgRef.sheetKey) : undefined;
-      if (bgImg && bgRef) {
-        this.drawSpriteTinted(bgImg, bgRef, cellRect, fgR, fgG, fgB);
+      if (bgRef) {
+        this.drawSpriteTinted(bgRef, cellRect, t);
         drewExtraLayer = true;
       }
     }
 
     if (DEBUG_LAYERED_DRAW && drewExtraLayer) {
       console.debug("[sprite-renderer] two-layer draw", {
-        x,
-        y,
-        tileType,
-        underlyingTerrain,
+        x, y, tileType, underlyingTerrain,
       });
     }
 
-    const creatureAlpha =
-      drewExtraLayer && underlyingTerrain !== undefined ? 0.7 : undefined;
-    this.drawSpriteTinted(img, ref, cellRect, fgR, fgG, fgB, creatureAlpha);
+    this.drawSpriteTinted(ref, cellRect, t);
   }
 
+  // ===========================================================================
+  // drawCellLayers — layer compositing pipeline
+  // ===========================================================================
+
   /**
-   * Draw a single sprite with multiply tint to the cell.
+   * Draw a cell from CellSpriteData produced by getCellSpriteData.
    *
-   * 1. Copy the sprite tile to the offscreen tintCanvas.
-   * 2. Fill with foreground color using "multiply" composite (tints the sprite).
-   * 3. Restore original alpha mask via "destination-in" (clip to sprite's opaque pixels).
-   * 4. Blit tinted result to main canvas at cell position.
+   * 1. Fill background with spriteData.bgColor.
+   * 2. Iterate layers[] by index, skip undefined, resolve + draw each sprite
+   *    with per-layer multiply tint. Gas layers use volume-based globalAlpha.
+   * 3. Apply visibility overlay (multiply or dark fill) per visibilityState.
+   */
+  drawCellLayers(cellRect: CellRect, spriteData: CellSpriteData): void {
+    const { ctx } = this;
+    const { x, y, width, height } = cellRect;
+
+    const bg = spriteData.bgColor;
+    ctx.fillStyle = `rgb(${c100to255(bg.red)},${c100to255(bg.green)},${c100to255(bg.blue)})`;
+    ctx.fillRect(x, y, width, height);
+
+    for (let i = 0; i < RENDER_LAYER_COUNT; i++) {
+      const entry = spriteData.layers[i];
+      if (!entry) continue;
+
+      const ref = this.resolveSprite(entry.tileType, entry.glyph);
+      if (!ref) continue;
+
+      const hasAlpha = entry.alpha !== undefined && entry.alpha < 1;
+      if (hasAlpha) ctx.globalAlpha = entry.alpha!;
+
+      this.drawSpriteTinted(ref, cellRect, entry.tint);
+
+      if (hasAlpha) ctx.globalAlpha = 1;
+    }
+
+    const overlay = getVisibilityOverlay(
+      spriteData.visibilityState, spriteData.inWater,
+    );
+    if (overlay) this.applyVisibilityOverlay(cellRect, overlay);
+  }
+
+  // ===========================================================================
+  // applyVisibilityOverlay
+  // ===========================================================================
+
+  private applyVisibilityOverlay(
+    cellRect: CellRect,
+    overlay: VisibilityOverlay,
+  ): void {
+    const { ctx } = this;
+    const { x, y, width, height } = cellRect;
+
+    ctx.save();
+    ctx.globalCompositeOperation = overlay.composite;
+    if (overlay.alpha !== undefined) ctx.globalAlpha = overlay.alpha;
+    const c = overlay.color;
+    ctx.fillStyle = `rgb(${c100to255(c.red)},${c100to255(c.green)},${c100to255(c.blue)})`;
+    ctx.fillRect(x, y, width, height);
+    ctx.restore();
+  }
+
+  // ===========================================================================
+  // drawSpriteTinted — per-layer tinted sprite draw
+  // ===========================================================================
+
+  /**
+   * Draw a sprite with multiply tint. Tint is on Brogue 0–100 scale.
+   *
+   * Fast path: when tint components are ≈ 100, skip the offscreen canvas
+   * multiply and blit the sprite directly (saves 4 of 5 canvas ops).
+   *
+   * Full path: copy sprite → multiply fill → destination-in → blit.
    */
   private drawSpriteTinted(
-    sourceImg: HTMLImageElement,
     spriteRef: SpriteRef,
     cellRect: CellRect,
-    fgR: number,
-    fgG: number,
-    fgB: number,
-    alpha?: number,
+    tint: Readonly<Color>,
   ): void {
-    const { tintCtx, tintCanvas, ctx } = this;
-    const sx = spriteRef.tileX * TILE_SIZE;
-    const sy = spriteRef.tileY * TILE_SIZE;
+    const { ctx } = this;
+    const bitmap = this.bitmaps.get(bitmapKey(spriteRef));
+    const source: CanvasImageSource | undefined =
+      bitmap ?? this.tiles.get(spriteRef.sheetKey);
+    if (!source) return;
+
+    const sprSx = bitmap ? 0 : spriteRef.tileX * TILE_SIZE;
+    const sprSy = bitmap ? 0 : spriteRef.tileY * TILE_SIZE;
+
+    if (isNeutralTint(tint)) {
+      ctx.drawImage(
+        source, sprSx, sprSy, TILE_SIZE, TILE_SIZE,
+        cellRect.x, cellRect.y, cellRect.width, cellRect.height,
+      );
+      return;
+    }
+
+    const { tintCtx, tintCanvas } = this;
 
     tintCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
-    tintCtx.drawImage(sourceImg, sx, sy, TILE_SIZE, TILE_SIZE, 0, 0, TILE_SIZE, TILE_SIZE);
+    tintCtx.drawImage(
+      source, sprSx, sprSy, TILE_SIZE, TILE_SIZE,
+      0, 0, TILE_SIZE, TILE_SIZE,
+    );
 
     tintCtx.save();
     tintCtx.globalCompositeOperation = "multiply";
-    tintCtx.fillStyle = `rgb(${fgR},${fgG},${fgB})`;
+    tintCtx.fillStyle =
+      `rgb(${c100to255(tint.red)},${c100to255(tint.green)},${c100to255(tint.blue)})`;
     tintCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
 
     tintCtx.globalCompositeOperation = "destination-in";
-    tintCtx.drawImage(sourceImg, sx, sy, TILE_SIZE, TILE_SIZE, 0, 0, TILE_SIZE, TILE_SIZE);
+    tintCtx.drawImage(
+      source, sprSx, sprSy, TILE_SIZE, TILE_SIZE,
+      0, 0, TILE_SIZE, TILE_SIZE,
+    );
     tintCtx.restore();
 
-    const useAlpha =
-      alpha !== undefined &&
-      alpha < 1 &&
-      DEBUG_LAYERED_DRAW &&
-      DEBUG_SHOW_TERRAIN_UNDER_CREATURE;
-    if (useAlpha) ctx.globalAlpha = alpha!;
-
     ctx.drawImage(
-      tintCanvas,
-      0, 0, TILE_SIZE, TILE_SIZE,
+      tintCanvas, 0, 0, TILE_SIZE, TILE_SIZE,
       cellRect.x, cellRect.y, cellRect.width, cellRect.height,
     );
-
-    if (useAlpha) ctx.globalAlpha = 1;
   }
 }
