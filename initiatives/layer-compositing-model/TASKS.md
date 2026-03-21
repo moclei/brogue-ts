@@ -80,26 +80,30 @@ cell-query functions and `CellQueryContext` from Phase 1. Per-layer tint
 colors are placeholder (base tileCatalog colors, no lighting) — proper lit
 colors added in Phase 4a.
 
-- [ ] Create `rogue-ts/src/io/sprite-appearance.ts` with
+- [x] Create `rogue-ts/src/io/sprite-appearance.ts` with
   `getCellSpriteData()`. Takes `CellQueryContext` as parameter. Uses
   reusable `CellSpriteData` instance from `createCellSpriteData()`.
-- [ ] Shroud handling: `visibilityState = Shroud`, all layers undefined,
+- [x] Shroud handling: `visibilityState = Shroud`, all layers undefined,
   no bgColor.
-- [ ] Visible cells: populate TERRAIN (winner of `layers[Dungeon]` vs
+- [x] Visible cells: populate TERRAIN (winner of `layers[Dungeon]` vs
   `layers[Liquid]` by `drawPriority` from tileCatalog), SURFACE
   (`layers[Surface]`), ITEM (floor item glyph when no creature), ENTITY
   (player/monster glyph via shared creature query). Use `tileType` field
   for terrain/surface, `glyph` field for entity/item.
-- [ ] Gas vs fire classification: DungeonLayer.Gas TileTypes split into
+- [x] Gas vs fire classification: DungeonLayer.Gas TileTypes split into
   GAS layer (with volume-based alpha) and FIRE layer using classification
   from Phase 2.
-- [ ] Placeholder tint colors: set each `LayerEntry.tint` to the
-  tileCatalog base foreColor (no lighting applied). bgColor set to
+- [x] Placeholder tint colors: set each `LayerEntry.tint` to the
+  tileCatalog base foreColor (no lighting applied). Gas tiles use
+  backColor (all gas TileTypes have foreColor: undefined). bgColor set to
   tileCatalog terrain backColor. Overwrite pooled LayerEntry Color
   objects field-by-field (no new allocations).
-- [ ] Unit tests in `rogue-ts/tests/io/sprite-appearance.test.ts`: empty
-  floor, creature on floor, foliage surface, gas cloud, fire, item on
-  ground, shroud.
+- [x] Unit tests in `rogue-ts/tests/io/sprite-appearance.test.ts`: 31
+  tests — empty floor, terrain drawPriority, foliage surface, fire
+  routing (Surface→FIRE, Gas→FIRE), gas cloud (backColor tint,
+  volume-based alpha), item on ground, shroud, player entity, monster
+  entity, monster blocks item, multi-layer cells, non-visible state stubs,
+  pool reuse.
 
 # --- handoff point ---
 
