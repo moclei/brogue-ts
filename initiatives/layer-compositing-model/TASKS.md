@@ -318,19 +318,39 @@ draws each sprite with per-layer multiply tinting.
 Wire getCellSpriteData into the rendering pipeline. Connect the new data
 path to the existing plotChar dispatch.
 
-- [ ] `browser-renderer.ts`: add `setCellSpriteDataProvider` setter. Update
+- [x] `browser-renderer.ts`: add `setCellSpriteDataProvider` setter. Update
   `plotChar` to call `getCellSpriteDataFn` + `drawCellLayers` for
   sprite-mode dungeon viewport cells (guarded by
   `isInDungeonViewport(x, y)`). Fall back to existing `drawCell` when
-  provider is not registered.
-- [ ] Locate where `getCellAppearance`'s closure is constructed (likely
-  `buildInputContext` or equivalent). Create the `getCellSpriteData`
-  closure at the same site, capturing the same game-state slices plus
-  `terrainRandomValues`, `displayDetail`, `scentMap`. Register it via
-  `setCellSpriteDataProvider`.
-- [ ] Verify text mode is completely unchanged — run full test suite.
-- [ ] Smoke test: toggle between Text and Tiles modes with the layer
-  pipeline active.
+  provider is not registered. Added `CellSpriteDataProvider` type export.
+  Hybrid mode gating preserved (Phase 6b removes it).
+- [x] Locate where `getCellAppearance`'s closure is constructed. Created
+  `buildCellSpriteDataProvider()` factory in new `sprite-data-wiring.ts`
+  (io-wiring.ts was at 607 lines — over the 600-line limit). Captures
+  pmap, tmap, rogue, player, monsters, dormantMonsters, floorItems,
+  tileCatalog, dungeonFeatureCatalog, monsterCatalog,
+  terrainRandomValues, displayDetail, scentMap. Pre-computes
+  `monsterFlagsList`. Creates reusable CellSpriteData + LayerEntryPool.
+  Registered via `setCellSpriteDataProvider` in `platform.ts`'s
+  `mainGameLoop` at the start of the game loop (after game state is
+  available). `initPlatform` stores the setter from the console.
+- [x] Verify text mode is completely unchanged — run full test suite.
+  95 files, 2584 pass, 55 skip, zero regressions.
+- [x] Smoke test: toggle between Text and Tiles modes with the layer
+  pipeline active. Tested — terrain sprites render with per-layer
+  lighting, remembered cells have visibility overlay, Text↔Tiles
+  toggle works. Three findings:
+  (a) UI overlays (inventory) initially invisible in Tiles mode — fixed
+  by adding `tileType !== undefined` guard to plotChar dispatch (UI
+  overlay cells have tileType deleted by plotCharToBuffer).
+  (b) Gas/fire not visible — expected: gas/fire TileTypes don't have
+  sprite mappings yet (Phase 7 task).
+  (c) Remembered cells darker than ASCII mode — known divergence:
+  sprite path uses multiply-only with `memoryColor`, missing the
+  `applyColorAverage(memoryOverlay, 25)` step (documented in PLAN.md
+  "Remembered overlay simplification"). REMEMBERED_AVERAGE constants
+  exported for future refinement.
+  Full suite after fix: 95 files, 2585 pass, 55 skip, zero regressions.
 
 # --- handoff point ---
 

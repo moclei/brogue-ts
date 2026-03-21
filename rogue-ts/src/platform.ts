@@ -39,6 +39,8 @@ import {
 import { actionMenu } from "./io/input-mouse.js";
 import { buildHoverHandlerFn, buildClearHoverPathFn } from "./io/hover-wiring.js";
 import { GraphicsMode } from "./types/enums.js";
+import type { CellSpriteDataProvider } from "./platform/browser-renderer.js";
+import { buildCellSpriteDataProvider } from "./sprite-data-wiring.js";
 
 // =============================================================================
 // Module-level state
@@ -82,6 +84,10 @@ type PlotCharFn = (
 ) => void;
 let _plotChar: PlotCharFn | null = null;
 
+/** Setter for the layer compositing data provider (absent in test mocks). */
+type SetProviderFn = (provider: CellSpriteDataProvider) => void;
+let _setCellSpriteDataProvider: SetProviderFn | null = null;
+
 /** Previous frame buffer for dirty-cell detection in commitDraws(). */
 let _prevBuffer: ScreenDisplayBuffer = createScreenDisplayBuffer();
 
@@ -107,9 +113,14 @@ let _lookaheadEvent: RogueEvent | null = null;
  * Test mocks that only implement waitForEvent() work fine — commitDraws()
  * becomes a no-op in that case.
  */
-export function initPlatform(browserConsole: PlatformConsole & { plotChar?: PlotCharFn; setGraphicsMode?: (mode: GraphicsMode) => GraphicsMode }): void {
+export function initPlatform(browserConsole: PlatformConsole & {
+    plotChar?: PlotCharFn;
+    setGraphicsMode?: (mode: GraphicsMode) => GraphicsMode;
+    setCellSpriteDataProvider?: SetProviderFn;
+}): void {
     _console = browserConsole;
     _plotChar = browserConsole.plotChar ?? null;
+    _setCellSpriteDataProvider = browserConsole.setCellSpriteDataProvider ?? null;
     _hasGraphics = typeof (browserConsole as PlatformConsoleWithGraphics).setGraphicsMode === "function";
     _prevBuffer = createScreenDisplayBuffer();
     registerPauseAndCheckForEvent(pauseAndCheckForEvent);
@@ -427,6 +438,10 @@ export async function mainGameLoop(): Promise<void> {
     _menuState = buildGameMenuButtonState(rogue.playbackMode);
     _hoverHandler = buildHoverHandlerFn();
     _clearHoverPath = buildClearHoverPathFn();
+
+    if (_setCellSpriteDataProvider) {
+        _setCellSpriteDataProvider(buildCellSpriteDataProvider());
+    }
     while (!rogue.gameHasEnded) {
         // Defect 3 fix: idle animation loop — animate dancing terrain between inputs.
         // C: mainInputLoop calls displayLevel/refreshDungeonCell on a ~25ms timer.

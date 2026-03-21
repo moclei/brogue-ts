@@ -13,6 +13,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GraphicsMode, DisplayGlyph, TileType } from "../../src/types/enums.js";
 import type { SpriteRef } from "../../src/platform/glyph-sprite-map.js";
+import type { CellSpriteData } from "../../src/platform/render-layers.js";
+import { VisibilityState, createCellSpriteData } from "../../src/platform/render-layers.js";
 
 // ---------------------------------------------------------------------------
 // Mock canvas context & DOM stubs (must precede renderer imports)
@@ -251,5 +253,127 @@ describe("createBrowserConsole mode switching", () => {
     expect(bc.setGraphicsMode(GraphicsMode.Tiles)).toBe(GraphicsMode.Tiles);
     expect(bc.setGraphicsMode(GraphicsMode.Hybrid)).toBe(GraphicsMode.Hybrid);
     expect(bc.setGraphicsMode(GraphicsMode.Text)).toBe(GraphicsMode.Text);
+  });
+
+  // ---- Layer compositing pipeline (Phase 6a) ----
+
+  it("dispatches viewport cells to drawCellLayers when provider is set in Tiles mode", () => {
+    const bc = buildConsole();
+    bc.setGraphicsMode(GraphicsMode.Tiles);
+
+    const { spriteData } = createCellSpriteData();
+    const provider = vi.fn().mockReturnValue(spriteData);
+    bc.setCellSpriteDataProvider(provider);
+
+    const spriteDrawCellLayers = vi.spyOn(spriteRenderer, "drawCellLayers");
+
+    bc.plotChar(
+      DisplayGlyph.G_FLOOR,
+      VP_X, VP_Y,
+      FG_R, FG_G, FG_B,
+      BG_R, BG_G, BG_B,
+      TileType.FLOOR,
+    );
+
+    expect(provider).toHaveBeenCalledTimes(1);
+    expect(spriteDrawCellLayers).toHaveBeenCalledTimes(1);
+    expect(spriteDrawCell).not.toHaveBeenCalled();
+    expect(textDrawCell).not.toHaveBeenCalled();
+  });
+
+  it("passes correct dungeon coordinates to provider", () => {
+    const bc = buildConsole();
+    bc.setGraphicsMode(GraphicsMode.Tiles);
+
+    const { spriteData } = createCellSpriteData();
+    const provider = vi.fn().mockReturnValue(spriteData);
+    bc.setCellSpriteDataProvider(provider);
+
+    bc.plotChar(
+      DisplayGlyph.G_FLOOR,
+      VP_X, VP_Y,
+      FG_R, FG_G, FG_B,
+      BG_R, BG_G, BG_B,
+      TileType.FLOOR,
+    );
+
+    // VP_X = 30, STAT_BAR_WIDTH + 1 = 21 → dx = 9
+    // VP_Y = 10, MESSAGE_LINES = 3 → dy = 7
+    expect(provider).toHaveBeenCalledWith(9, 7);
+  });
+
+  it("falls back to drawCell in Tiles mode when provider is not set", () => {
+    const bc = buildConsole();
+    bc.setGraphicsMode(GraphicsMode.Tiles);
+
+    bc.plotChar(
+      DisplayGlyph.G_FLOOR,
+      VP_X, VP_Y,
+      FG_R, FG_G, FG_B,
+      BG_R, BG_G, BG_B,
+    );
+
+    expect(spriteDrawCell).toHaveBeenCalledTimes(1);
+    expect(textDrawCell).not.toHaveBeenCalled();
+  });
+
+  it("uses drawCell (not drawCellLayers) in Hybrid mode even with provider set", () => {
+    const bc = buildConsole();
+    bc.setGraphicsMode(GraphicsMode.Hybrid);
+
+    const { spriteData } = createCellSpriteData();
+    const provider = vi.fn().mockReturnValue(spriteData);
+    bc.setCellSpriteDataProvider(provider);
+
+    bc.plotChar(
+      DisplayGlyph.G_FLOOR,
+      VP_X, VP_Y,
+      FG_R, FG_G, FG_B,
+      BG_R, BG_G, BG_B,
+    );
+
+    expect(spriteDrawCell).toHaveBeenCalledTimes(1);
+    expect(provider).not.toHaveBeenCalled();
+  });
+
+  it("falls back to text when tileType is undefined (UI overlay) in Tiles mode with provider", () => {
+    const bc = buildConsole();
+    bc.setGraphicsMode(GraphicsMode.Tiles);
+
+    const { spriteData } = createCellSpriteData();
+    const provider = vi.fn().mockReturnValue(spriteData);
+    bc.setCellSpriteDataProvider(provider);
+
+    // UI overlay cells (inventory, text boxes) don't set tileType
+    bc.plotChar(
+      DisplayGlyph.G_FLOOR,
+      VP_X, VP_Y,
+      FG_R, FG_G, FG_B,
+      BG_R, BG_G, BG_B,
+      undefined,  // no tileType → UI overlay, not dungeon cell
+    );
+
+    expect(provider).not.toHaveBeenCalled();
+    // Falls through to drawCell, which falls back to textRenderer for unmapped glyphs
+    expect(spriteDrawCell).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not call provider for sidebar cells in Tiles mode", () => {
+    const bc = buildConsole();
+    bc.setGraphicsMode(GraphicsMode.Tiles);
+
+    const { spriteData } = createCellSpriteData();
+    const provider = vi.fn().mockReturnValue(spriteData);
+    bc.setCellSpriteDataProvider(provider);
+
+    bc.plotChar(
+      DisplayGlyph.G_FLOOR,
+      SIDE_X, SIDE_Y,
+      FG_R, FG_G, FG_B,
+      BG_R, BG_G, BG_B,
+    );
+
+    expect(provider).not.toHaveBeenCalled();
+    expect(textDrawCell).toHaveBeenCalledTimes(1);
   });
 });
