@@ -112,7 +112,7 @@ colors added in Phase 4a.
 Extend getCellSpriteData for remembered cells, other visibility states,
 hallucination, and invisible-monster-in-gas.
 
-- [ ] Remembered cells: read `rememberedLayers` (not live pmap). Classify
+- [x] Remembered cells: read `rememberedLayers` (not live pmap). Classify
   DungeonLayer-indexed entries into RenderLayers. Populate TERRAIN and
   SURFACE only — no entity, item, gas, fire. For magic-mapped cells,
   suppress SURFACE in addition to entity/item/gas/fire (matching
@@ -120,19 +120,29 @@ hallucination, and invisible-monster-in-gas.
   base tileCatalog colors (no lighting) for remembered cell tints. Set
   `visibilityState = Remembered`. When `rogue.inWater` is true, flag for
   heavy dark overlay instead of `memoryColor` multiply.
-- [ ] Other visibility states: set `visibilityState` to Clairvoyant,
+- [x] Other visibility states: set `visibilityState` to Clairvoyant,
   Telepathic, MagicMapped, or Omniscience using shared visibility
-  classification from Phase 1.
-- [ ] Hallucination: entity and item glyphs randomized when player is
+  classification from Phase 1. Clairvoyant, Telepathic, and Omniscience
+  populate from live pmap (same as Visible).
+- [x] Hallucination: entity and item glyphs randomized when player is
   hallucinating (port RNG logic from getCellAppearance, using shared
-  query functions).
-- [ ] Invisible-monster-in-gas silhouette: when a creature is invisible
-  and gas is present at the cell, draw the creature's glyph using the
-  gas layer's tint color (matching getCellAppearance's
-  `cellForeColor = cellBackColor` silhouette behavior).
-- [ ] Unit tests: remembered cell (uses rememberedLayers not live pmap),
-  hallucination, clairvoyant cell, telepathic cell,
-  invisible-monster-in-gas.
+  query functions). Respects MONST_INANIMATE/MONST_INVULNERABLE
+  exclusion for monsters, telepathy suppression, and playbackOmniscience
+  bypass. Items use getHallucinatedItemCategory + itemColor tint.
+- [x] Invisible-monster-in-gas silhouette: when a creature is invisible
+  and gas is present at the cell, entity tint overridden with the gas
+  layer's tint color (matching getCellAppearance's
+  `cellForeColor = cellBackColor` silhouette behavior). Glyph re-rolled
+  when hallucinating (second hallucination roll matching getCellAppearance).
+- [x] Unit tests: 18 new tests — remembered cell (uses rememberedLayers
+  not live pmap, TERRAIN + SURFACE only, empty rememberedLayers, fire
+  suppression, drawPriority), magic-mapped (TERRAIN only, no SURFACE),
+  clairvoyant/telepathic/omniscience (live pmap, correct visibilityState),
+  hallucination (monster glyph randomized, inanimate exempt, telepathy
+  bypass, item glyph randomized + itemColor tint, omniscience bypass),
+  invisible-monster-in-gas (entity tint matches gas, no silhouette
+  without gas, hallucinated silhouette glyph). Full suite: 95 files,
+  2502 pass, 55 skip, zero regressions.
 
 # --- handoff point ---
 

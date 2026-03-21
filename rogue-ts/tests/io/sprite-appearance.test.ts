@@ -4,9 +4,9 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { TileType, DisplayGlyph, DungeonLayer } from "../../src/types/enums.js";
-import { TileFlag } from "../../src/types/flags.js";
-import type { Pcell, Creature, Color, Item, FloorTileType } from "../../src/types/types.js";
+import { TileType, DisplayGlyph, DungeonLayer, StatusEffect } from "../../src/types/enums.js";
+import { TileFlag, MonsterBehaviorFlag } from "../../src/types/flags.js";
+import type { Pcell, Creature, Color, Item, FloorTileType, CreatureType } from "../../src/types/types.js";
 import { DCOLS, DROWS } from "../../src/types/constants.js";
 import { tileCatalog } from "../../src/globals/tile-catalog.js";
 import { VisibilityState } from "../../src/io/cell-queries.js";
@@ -637,13 +637,64 @@ describe("getCellSpriteData — multi-layer", () => {
 });
 
 // =============================================================================
-// Non-visible states (Phase 3b stubs)
+// Remembered cells (Phase 3b)
 // =============================================================================
 
-describe("getCellSpriteData — non-visible states (Phase 3b stubs)", () => {
-    it("sets Remembered visibilityState but no layers", () => {
+describe("getCellSpriteData — Remembered cells", () => {
+    it("populates TERRAIN from rememberedLayers, not live pmap", () => {
         const ctx = makeCtx();
         ctx.pmap[3][3].flags = TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.LAVA;
+        ctx.pmap[3][3].rememberedLayers = [TileType.FLOOR, TileType.NOTHING, TileType.NOTHING, TileType.NOTHING];
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.visibilityState).toBe(VisibilityState.Remembered);
+        expect(spriteData.layers[RenderLayer.TERRAIN]!.tileType).toBe(TileType.FLOOR);
+    });
+
+    it("populates SURFACE from remembered surface tile", () => {
+        const ctx = makeCtx();
+        ctx.pmap[3][3].flags = TileFlag.DISCOVERED;
+        ctx.pmap[3][3].rememberedLayers = [TileType.FLOOR, TileType.NOTHING, TileType.NOTHING, TileType.GRASS];
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.layers[RenderLayer.SURFACE]!.tileType).toBe(TileType.GRASS);
+    });
+
+    it("sets bgColor from remembered terrain backColor", () => {
+        const ctx = makeCtx();
+        ctx.pmap[3][3].flags = TileFlag.DISCOVERED;
+        ctx.pmap[3][3].rememberedLayers = [TileType.FLOOR, TileType.NOTHING, TileType.NOTHING, TileType.NOTHING];
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const expectedBg = tileCatalog[TileType.FLOOR].backColor!;
+        expect(colorsMatch(spriteData.bgColor, expectedBg)).toBe(true);
+    });
+
+    it("has no entity, item, gas, or fire layers", () => {
+        const ctx = makeCtx();
+        ctx.pmap[3][3].flags = TileFlag.DISCOVERED;
+        ctx.pmap[3][3].rememberedLayers = [TileType.FLOOR, TileType.NOTHING, TileType.NOTHING, TileType.GRASS];
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.layers[RenderLayer.ENTITY]).toBeUndefined();
+        expect(spriteData.layers[RenderLayer.ITEM]).toBeUndefined();
+        expect(spriteData.layers[RenderLayer.GAS]).toBeUndefined();
+        expect(spriteData.layers[RenderLayer.FIRE]).toBeUndefined();
+    });
+
+    it("returns no layers when rememberedLayers is empty", () => {
+        const ctx = makeCtx();
+        ctx.pmap[3][3].flags = TileFlag.DISCOVERED;
+        ctx.pmap[3][3].rememberedLayers = [];
 
         const { spriteData, pool } = createCellSpriteData();
         getCellSpriteData(3, 3, ctx, spriteData, pool);
@@ -654,17 +705,323 @@ describe("getCellSpriteData — non-visible states (Phase 3b stubs)", () => {
         }
     });
 
-    it("sets Clairvoyant visibilityState but no layers", () => {
+    it("suppresses fire tiles on remembered Surface", () => {
+        const ctx = makeCtx();
+        ctx.pmap[3][3].flags = TileFlag.DISCOVERED;
+        ctx.pmap[3][3].rememberedLayers = [TileType.FLOOR, TileType.NOTHING, TileType.NOTHING, TileType.PLAIN_FIRE];
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.layers[RenderLayer.SURFACE]).toBeUndefined();
+        expect(spriteData.layers[RenderLayer.FIRE]).toBeUndefined();
+    });
+
+    it("picks terrain by drawPriority from remembered Dungeon vs Liquid", () => {
+        const ctx = makeCtx();
+        ctx.pmap[3][3].flags = TileFlag.DISCOVERED;
+        ctx.pmap[3][3].rememberedLayers = [TileType.FLOOR, TileType.DEEP_WATER, TileType.NOTHING, TileType.NOTHING];
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.layers[RenderLayer.TERRAIN]!.tileType).toBe(TileType.DEEP_WATER);
+    });
+});
+
+// =============================================================================
+// MagicMapped cells (Phase 3b)
+// =============================================================================
+
+describe("getCellSpriteData — MagicMapped cells", () => {
+    it("sets MagicMapped visibilityState", () => {
+        const ctx = makeCtx();
+        ctx.pmap[3][3].flags = TileFlag.MAGIC_MAPPED;
+        ctx.pmap[3][3].rememberedLayers = [TileType.FLOOR, TileType.NOTHING, TileType.NOTHING, TileType.NOTHING];
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.visibilityState).toBe(VisibilityState.MagicMapped);
+    });
+
+    it("populates TERRAIN but suppresses SURFACE", () => {
+        const ctx = makeCtx();
+        ctx.pmap[3][3].flags = TileFlag.MAGIC_MAPPED;
+        ctx.pmap[3][3].rememberedLayers = [TileType.FLOOR, TileType.NOTHING, TileType.NOTHING, TileType.GRASS];
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.layers[RenderLayer.TERRAIN]).toBeDefined();
+        expect(spriteData.layers[RenderLayer.TERRAIN]!.tileType).toBe(TileType.FLOOR);
+        expect(spriteData.layers[RenderLayer.SURFACE]).toBeUndefined();
+    });
+});
+
+// =============================================================================
+// Clairvoyant / Telepathic / Omniscience (Phase 3b)
+// =============================================================================
+
+describe("getCellSpriteData — Clairvoyant", () => {
+    it("populates from live pmap and sets Clairvoyant visibilityState", () => {
         const ctx = makeCtx();
         ctx.pmap[3][3].flags = TileFlag.CLAIRVOYANT_VISIBLE;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+        ctx.pmap[3][3].layers[DungeonLayer.Surface] = TileType.GRASS;
 
         const { spriteData, pool } = createCellSpriteData();
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
         expect(spriteData.visibilityState).toBe(VisibilityState.Clairvoyant);
-        for (let i = 0; i < spriteData.layers.length; i++) {
-            expect(spriteData.layers[i]).toBeUndefined();
-        }
+        expect(spriteData.layers[RenderLayer.TERRAIN]!.tileType).toBe(TileType.FLOOR);
+        expect(spriteData.layers[RenderLayer.SURFACE]!.tileType).toBe(TileType.GRASS);
+    });
+});
+
+describe("getCellSpriteData — Telepathic", () => {
+    it("populates from live pmap and sets Telepathic visibilityState", () => {
+        const ctx = makeCtx();
+        ctx.pmap[3][3].flags = TileFlag.TELEPATHIC_VISIBLE;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.visibilityState).toBe(VisibilityState.Telepathic);
+        expect(spriteData.layers[RenderLayer.TERRAIN]!.tileType).toBe(TileType.FLOOR);
+    });
+});
+
+describe("getCellSpriteData — Omniscience", () => {
+    it("populates from live pmap and sets Omniscience visibilityState", () => {
+        const ctx = makeCtx();
+        ctx.rogue.playbackOmniscience = true;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.visibilityState).toBe(VisibilityState.Omniscience);
+        expect(spriteData.layers[RenderLayer.TERRAIN]!.tileType).toBe(TileType.FLOOR);
+    });
+});
+
+// =============================================================================
+// Hallucination — monster (Phase 3b)
+// =============================================================================
+
+function makeMonsterCatalog(): CreatureType[] {
+    return [
+        {
+            displayChar: DisplayGlyph.G_RAT, foreColor: makeColor(40, 40, 40),
+            flags: 0, abilityFlags: 0, monsterName: "rat", isLarge: false,
+        } as unknown as CreatureType,
+        {
+            displayChar: DisplayGlyph.G_KOBOLD, foreColor: makeColor(30, 60, 30),
+            flags: MonsterBehaviorFlag.MONST_INANIMATE, abilityFlags: 0,
+            monsterName: "statue", isLarge: false,
+        } as unknown as CreatureType,
+    ];
+}
+
+describe("getCellSpriteData — hallucination (monster)", () => {
+    it("randomizes monster glyph when hallucinating", () => {
+        const monsterCatalog = makeMonsterCatalog();
+        const ctx = makeCtx({
+            monsterCatalog,
+            monsterFlagsList: monsterCatalog.map(m => m.flags),
+        });
+        ctx.player.status[StatusEffect.Hallucinating] = 100;
+        const monst = makeCreature(3, 3);
+        monst.info = {
+            displayChar: DisplayGlyph.G_GOBLIN,
+            foreColor: makeColor(60, 40, 20),
+            flags: 0, abilityFlags: 0, monsterName: "goblin", isLarge: false,
+        } as any;
+        ctx.monsters = [monst];
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED | TileFlag.HAS_MONSTER;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const entity = spriteData.layers[RenderLayer.ENTITY]!;
+        expect(entity).toBeDefined();
+        // Only index 0 (G_RAT) is animate in our catalog
+        expect(entity.glyph).toBe(DisplayGlyph.G_RAT);
+    });
+
+    it("does not randomize inanimate monsters", () => {
+        const monsterCatalog = makeMonsterCatalog();
+        const ctx = makeCtx({
+            monsterCatalog,
+            monsterFlagsList: monsterCatalog.map(m => m.flags),
+        });
+        ctx.player.status[StatusEffect.Hallucinating] = 100;
+        const monst = makeCreature(3, 3);
+        monst.info = {
+            displayChar: DisplayGlyph.G_GOBLIN,
+            foreColor: makeColor(60, 40, 20),
+            flags: MonsterBehaviorFlag.MONST_INANIMATE,
+            abilityFlags: 0, monsterName: "statue", isLarge: false,
+        } as any;
+        ctx.monsters = [monst];
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED | TileFlag.HAS_MONSTER;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.layers[RenderLayer.ENTITY]!.glyph).toBe(DisplayGlyph.G_GOBLIN);
+    });
+
+    it("does not randomize when player has telepathy", () => {
+        const monsterCatalog = makeMonsterCatalog();
+        const ctx = makeCtx({
+            monsterCatalog,
+            monsterFlagsList: monsterCatalog.map(m => m.flags),
+        });
+        ctx.player.status[StatusEffect.Hallucinating] = 100;
+        ctx.player.status[StatusEffect.Telepathic] = 100;
+        const monst = makeCreature(3, 3);
+        monst.info = {
+            displayChar: DisplayGlyph.G_GOBLIN,
+            foreColor: makeColor(60, 40, 20),
+            flags: 0, abilityFlags: 0, monsterName: "goblin", isLarge: false,
+        } as any;
+        ctx.monsters = [monst];
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED | TileFlag.HAS_MONSTER;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.layers[RenderLayer.ENTITY]!.glyph).toBe(DisplayGlyph.G_GOBLIN);
+    });
+});
+
+// =============================================================================
+// Hallucination — item (Phase 3b)
+// =============================================================================
+
+describe("getCellSpriteData — hallucination (item)", () => {
+    it("randomizes item glyph and uses itemColor when hallucinating", () => {
+        const ctx = makeCtx();
+        ctx.player.status[StatusEffect.Hallucinating] = 100;
+        const item = makeItem(3, 3);
+        ctx.floorItems = [item] as any;
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED | TileFlag.HAS_ITEM;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const itemLayer = spriteData.layers[RenderLayer.ITEM]!;
+        expect(itemLayer).toBeDefined();
+        // Hallucinated glyph should be an item category glyph, not the original
+        expect(itemLayer.glyph).not.toBe(DisplayGlyph.G_POTION);
+        // Tint should be itemColor (100, 95, -30)
+        expect(itemLayer.tint.red).toBe(100);
+        expect(itemLayer.tint.green).toBe(95);
+    });
+
+    it("does not randomize item when playbackOmniscience is on", () => {
+        const ctx = makeCtx();
+        ctx.player.status[StatusEffect.Hallucinating] = 100;
+        ctx.rogue.playbackOmniscience = true;
+        const item = makeItem(3, 3);
+        ctx.floorItems = [item] as any;
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED | TileFlag.HAS_ITEM;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.layers[RenderLayer.ITEM]!.glyph).toBe(DisplayGlyph.G_POTION);
+    });
+});
+
+// =============================================================================
+// Invisible-monster-in-gas silhouette (Phase 3b)
+// =============================================================================
+
+describe("getCellSpriteData — invisible-monster-in-gas", () => {
+    it("overrides entity tint with gas color for invisible monster in gas", () => {
+        const ctx = makeCtx();
+        const monst = makeCreature(3, 3);
+        monst.info = {
+            displayChar: DisplayGlyph.G_GOBLIN,
+            foreColor: makeColor(60, 40, 20),
+            flags: 0, abilityFlags: 0, monsterName: "goblin", isLarge: false,
+        } as any;
+        monst.status[StatusEffect.Invisible] = 100;
+        ctx.monsters = [monst];
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED | TileFlag.HAS_MONSTER;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+        ctx.pmap[3][3].layers[DungeonLayer.Gas] = TileType.POISON_GAS;
+        ctx.pmap[3][3].volume = 50;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const entity = spriteData.layers[RenderLayer.ENTITY]!;
+        expect(entity).toBeDefined();
+        expect(entity.glyph).toBe(DisplayGlyph.G_GOBLIN);
+        // Entity tint should match gas tint (poison gas backColor)
+        const gasTint = spriteData.layers[RenderLayer.GAS]!.tint;
+        expect(entity.tint.red).toBe(gasTint.red);
+        expect(entity.tint.green).toBe(gasTint.green);
+        expect(entity.tint.blue).toBe(gasTint.blue);
+    });
+
+    it("does not apply silhouette when no gas is present", () => {
+        const ctx = makeCtx();
+        const monst = makeCreature(3, 3);
+        monst.info = {
+            displayChar: DisplayGlyph.G_GOBLIN,
+            foreColor: makeColor(60, 40, 20),
+            flags: 0, abilityFlags: 0, monsterName: "goblin", isLarge: false,
+        } as any;
+        monst.status[StatusEffect.Invisible] = 100;
+        ctx.monsters = [monst];
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED | TileFlag.HAS_MONSTER;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        // Without gas, invisible monster is hidden — canSeeMonster returns false
+        expect(spriteData.layers[RenderLayer.ENTITY]).toBeUndefined();
+    });
+
+    it("uses hallucinated glyph for invisible monster silhouette when hallucinating", () => {
+        const monsterCatalog = makeMonsterCatalog();
+        const ctx = makeCtx({
+            monsterCatalog,
+            monsterFlagsList: monsterCatalog.map(m => m.flags),
+        });
+        ctx.player.status[StatusEffect.Hallucinating] = 100;
+        const monst = makeCreature(3, 3);
+        monst.info = {
+            displayChar: DisplayGlyph.G_GOBLIN,
+            foreColor: makeColor(60, 40, 20),
+            flags: 0, abilityFlags: 0, monsterName: "goblin", isLarge: false,
+        } as any;
+        monst.status[StatusEffect.Invisible] = 100;
+        ctx.monsters = [monst];
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED | TileFlag.HAS_MONSTER;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+        ctx.pmap[3][3].layers[DungeonLayer.Gas] = TileType.POISON_GAS;
+        ctx.pmap[3][3].volume = 50;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const entity = spriteData.layers[RenderLayer.ENTITY]!;
+        expect(entity).toBeDefined();
+        // Hallucinated glyph from silhouette re-roll (G_RAT is the only animate entry)
+        expect(entity.glyph).toBe(DisplayGlyph.G_RAT);
     });
 });
 
