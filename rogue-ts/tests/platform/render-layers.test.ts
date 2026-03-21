@@ -17,7 +17,14 @@ import {
     createLayerEntryPool,
     acquireLayerEntry,
     resetCellSpriteData,
+    getVisibilityOverlay,
+    REMEMBERED_AVERAGE_COLOR,
+    REMEMBERED_AVERAGE_WEIGHT,
 } from "../../src/platform/render-layers.js";
+import {
+    memoryColor, clairvoyanceColor, telepathyMultiplier,
+    magicMapColor, omniscienceColor, black, memoryOverlay,
+} from "../../src/globals/colors.js";
 
 // =============================================================================
 // RenderLayer enum
@@ -342,5 +349,88 @@ describe("resetCellSpriteData", () => {
         }
         expect(spriteData.bgColor.red).toBe(0);
         expect(spriteData.visibilityState).toBe(0);
+    });
+
+    it("resets inWater to false", () => {
+        const { spriteData } = createCellSpriteData();
+        spriteData.inWater = true;
+
+        resetCellSpriteData(spriteData);
+
+        expect(spriteData.inWater).toBe(false);
+    });
+});
+
+// =============================================================================
+// Phase 4b: Visibility overlay configuration
+// =============================================================================
+
+describe("getVisibilityOverlay", () => {
+    it("returns null for Visible", () => {
+        expect(getVisibilityOverlay(VisibilityState.Visible, false)).toBeNull();
+    });
+
+    it("returns null for Shroud", () => {
+        expect(getVisibilityOverlay(VisibilityState.Shroud, false)).toBeNull();
+    });
+
+    it("returns memoryColor multiply for Remembered (not in water)", () => {
+        const overlay = getVisibilityOverlay(VisibilityState.Remembered, false);
+        expect(overlay).not.toBeNull();
+        expect(overlay!.composite).toBe("multiply");
+        expect(overlay!.color).toBe(memoryColor);
+        expect(overlay!.alpha).toBeUndefined();
+    });
+
+    it("returns dark fill for Remembered (in water)", () => {
+        const overlay = getVisibilityOverlay(VisibilityState.Remembered, true);
+        expect(overlay).not.toBeNull();
+        expect(overlay!.composite).toBe("source-over");
+        expect(overlay!.color).toBe(black);
+        expect(overlay!.alpha).toBe(0.8);
+    });
+
+    it("returns clairvoyanceColor multiply for Clairvoyant", () => {
+        const overlay = getVisibilityOverlay(VisibilityState.Clairvoyant, false);
+        expect(overlay).not.toBeNull();
+        expect(overlay!.composite).toBe("multiply");
+        expect(overlay!.color).toBe(clairvoyanceColor);
+    });
+
+    it("returns telepathyMultiplier multiply for Telepathic", () => {
+        const overlay = getVisibilityOverlay(VisibilityState.Telepathic, false);
+        expect(overlay).not.toBeNull();
+        expect(overlay!.composite).toBe("multiply");
+        expect(overlay!.color).toBe(telepathyMultiplier);
+    });
+
+    it("returns magicMapColor multiply for MagicMapped", () => {
+        const overlay = getVisibilityOverlay(VisibilityState.MagicMapped, false);
+        expect(overlay).not.toBeNull();
+        expect(overlay!.composite).toBe("multiply");
+        expect(overlay!.color).toBe(magicMapColor);
+    });
+
+    it("returns omniscienceColor multiply for Omniscience", () => {
+        const overlay = getVisibilityOverlay(VisibilityState.Omniscience, false);
+        expect(overlay).not.toBeNull();
+        expect(overlay!.composite).toBe("multiply");
+        expect(overlay!.color).toBe(omniscienceColor);
+    });
+
+    it("returns pre-allocated objects (no per-call allocation)", () => {
+        const a = getVisibilityOverlay(VisibilityState.Clairvoyant, false);
+        const b = getVisibilityOverlay(VisibilityState.Clairvoyant, false);
+        expect(a).toBe(b);
+    });
+});
+
+describe("REMEMBERED_AVERAGE constants", () => {
+    it("exports memoryOverlay as REMEMBERED_AVERAGE_COLOR", () => {
+        expect(REMEMBERED_AVERAGE_COLOR).toBe(memoryOverlay);
+    });
+
+    it("exports weight 25 matching getCellAppearance", () => {
+        expect(REMEMBERED_AVERAGE_WEIGHT).toBe(25);
     });
 });

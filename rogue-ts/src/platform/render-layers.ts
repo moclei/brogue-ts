@@ -14,8 +14,13 @@
 import type { Color } from "../types/types.js";
 import type { TileType, DisplayGlyph } from "../types/enums.js";
 import { TileType as TT } from "../types/enums.js";
+import {
+    memoryColor, memoryOverlay, clairvoyanceColor,
+    telepathyMultiplier, magicMapColor, omniscienceColor, black,
+} from "../globals/colors.js";
 
 export { VisibilityState } from "../io/cell-queries.js";
+import { VisibilityState } from "../io/cell-queries.js";
 
 // =============================================================================
 // RenderLayer
@@ -73,6 +78,9 @@ export interface CellSpriteData {
     layers: (LayerEntry | undefined)[];
     bgColor: Color;
     visibilityState: import("../io/cell-queries.js").VisibilityState;
+    /** True when `rogue.inWater` — the renderer uses this with Remembered
+     *  state to choose heavy dark fill instead of memoryColor multiply. */
+    inWater: boolean;
 }
 
 // =============================================================================
@@ -139,6 +147,7 @@ export function createCellSpriteData(): { spriteData: CellSpriteData; pool: Laye
         layers,
         bgColor: makeColor(),
         visibilityState: 0, // VisibilityState.Visible
+        inWater: false,
     };
     return { spriteData, pool };
 }
@@ -157,6 +166,69 @@ export function resetCellSpriteData(data: CellSpriteData): void {
     bg.redRand = 0; bg.greenRand = 0; bg.blueRand = 0;
     bg.rand = 0; bg.colorDances = false;
     data.visibilityState = 0;
+    data.inWater = false;
+}
+
+// =============================================================================
+// Visibility overlay configuration
+// =============================================================================
+
+/**
+ * Overlay parameters the renderer applies after all sprite layers are drawn.
+ * All non-visible, non-shroud states use Canvas2D `globalCompositeOperation =
+ * 'multiply'` + `fillRect` with the overlay color — matching
+ * getCellAppearance's per-component multiply behavior.
+ *
+ * Exception: underwater remembered cells use a heavy dark fill instead
+ * (`source-over` composite with high-alpha black), matching
+ * getCellAppearance's `applyColorAverage(black, 80)`.
+ */
+export interface VisibilityOverlay {
+    /** Canvas2D composite operation: 'multiply' for color overlays,
+     *  'source-over' for dark fills. */
+    composite: 'multiply' | 'source-over';
+    /** Fill color for the overlay rectangle. */
+    color: Readonly<Color>;
+    /** globalAlpha for 'source-over' mode (dark fill). Undefined = 1.0. */
+    alpha?: number;
+}
+
+const OVERLAY_REMEMBERED: VisibilityOverlay =
+    { composite: 'multiply', color: memoryColor };
+const OVERLAY_REMEMBERED_UNDERWATER: VisibilityOverlay =
+    { composite: 'source-over', color: black, alpha: 0.8 };
+const OVERLAY_CLAIRVOYANT: VisibilityOverlay =
+    { composite: 'multiply', color: clairvoyanceColor };
+const OVERLAY_TELEPATHIC: VisibilityOverlay =
+    { composite: 'multiply', color: telepathyMultiplier };
+const OVERLAY_MAGIC_MAPPED: VisibilityOverlay =
+    { composite: 'multiply', color: magicMapColor };
+const OVERLAY_OMNISCIENCE: VisibilityOverlay =
+    { composite: 'multiply', color: omniscienceColor };
+
+/** memoryOverlay color and weight for an optional average pass after the
+ *  multiply fill on normal remembered cells (not underwater). */
+export const REMEMBERED_AVERAGE_COLOR: Readonly<Color> = memoryOverlay;
+export const REMEMBERED_AVERAGE_WEIGHT = 25;
+
+/**
+ * Return the visibility overlay spec for a given state, or null if no
+ * overlay should be drawn (Visible, Shroud). Pre-allocated — no per-call
+ * allocation.
+ */
+export function getVisibilityOverlay(
+    state: VisibilityState,
+    inWater: boolean,
+): VisibilityOverlay | null {
+    switch (state) {
+        case VisibilityState.Remembered:
+            return inWater ? OVERLAY_REMEMBERED_UNDERWATER : OVERLAY_REMEMBERED;
+        case VisibilityState.Clairvoyant:   return OVERLAY_CLAIRVOYANT;
+        case VisibilityState.Telepathic:    return OVERLAY_TELEPATHIC;
+        case VisibilityState.MagicMapped:   return OVERLAY_MAGIC_MAPPED;
+        case VisibilityState.Omniscience:   return OVERLAY_OMNISCIENCE;
+        default:                            return null;
+    }
 }
 
 // =============================================================================

@@ -1675,6 +1675,91 @@ describe("getCellSpriteData — deep-water tint", () => {
 });
 
 // =============================================================================
+// Phase 4b: inWater flag + visibility overlay data
+// =============================================================================
+
+describe("getCellSpriteData — inWater flag (Phase 4b)", () => {
+    it("sets inWater=true for remembered cell when rogue.inWater", () => {
+        const ctx = makeCtx();
+        ctx.rogue.inWater = true;
+        ctx.pmap[3][3].flags = TileFlag.DISCOVERED;
+        ctx.pmap[3][3].rememberedLayers = [TileType.FLOOR, TileType.NOTHING, TileType.NOTHING, TileType.NOTHING];
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.visibilityState).toBe(VisibilityState.Remembered);
+        expect(spriteData.inWater).toBe(true);
+    });
+
+    it("sets inWater=false for remembered cell when not in water", () => {
+        const ctx = makeCtx();
+        ctx.rogue.inWater = false;
+        ctx.pmap[3][3].flags = TileFlag.DISCOVERED;
+        ctx.pmap[3][3].rememberedLayers = [TileType.FLOOR, TileType.NOTHING, TileType.NOTHING, TileType.NOTHING];
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.visibilityState).toBe(VisibilityState.Remembered);
+        expect(spriteData.inWater).toBe(false);
+    });
+
+    it("sets inWater for visible cells too", () => {
+        const ctx = makeCtx();
+        ctx.rogue.inWater = true;
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.visibilityState).toBe(VisibilityState.Visible);
+        expect(spriteData.inWater).toBe(true);
+    });
+
+    it("does not set inWater for shroud (early return)", () => {
+        const ctx = makeCtx();
+        ctx.rogue.inWater = true;
+        // Cell at (3,3) has no flags — shroud
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.visibilityState).toBe(VisibilityState.Shroud);
+        expect(spriteData.inWater).toBe(false);
+    });
+
+    it("sets inWater for MagicMapped cells", () => {
+        const ctx = makeCtx();
+        ctx.rogue.inWater = true;
+        ctx.pmap[3][3].flags = TileFlag.MAGIC_MAPPED;
+        ctx.pmap[3][3].rememberedLayers = [TileType.FLOOR, TileType.NOTHING, TileType.NOTHING, TileType.NOTHING];
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.visibilityState).toBe(VisibilityState.MagicMapped);
+        expect(spriteData.inWater).toBe(true);
+    });
+
+    it("resets inWater between calls via resetCellSpriteData", () => {
+        const ctx = makeCtx();
+        ctx.rogue.inWater = true;
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+        expect(spriteData.inWater).toBe(true);
+
+        ctx.rogue.inWater = false;
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+        expect(spriteData.inWater).toBe(false);
+    });
+});
+
+// =============================================================================
 // Pool reuse
 // =============================================================================
 

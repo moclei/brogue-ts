@@ -220,23 +220,27 @@ deep-water tint, and visibility-state light augmentation.
 Add visibility-state-aware tinting/overlays for all non-visible states.
 These are post-compositing effects driven by `CellSpriteData.visibilityState`.
 
-- [ ] Define visibility overlay colors in `render-layers.ts` or
-  `sprite-appearance.ts`: remembered (`memoryColor` — multiply fill for
-  blue-tinted dimming; when `rogue.inWater`, heavy dark fill matching
-  `applyColorAverage(black, 80)`), clairvoyant (clairvoyanceColor),
-  telepathic (telepathyMultiplier), magic-mapped (magicMapColor),
-  omniscience (omniscienceColor). Import color constants from
-  `globals/colors.ts`.
-- [ ] Update `getCellSpriteData` to apply appropriate pre-tint adjustments
-  for each visibility state where needed (e.g., remembered cells use
-  base tileCatalog colors rather than lit colors).
-- [ ] Update unit tests: verify each visibility state produces correct
-  `visibilityState` enum value and that tint colors are adjusted
-  appropriately for the state.
-- [ ] Add documentation note: all visibility overlays use multiply
-  composite fill matching getCellAppearance's per-component multiply.
-  Remembered uses `memoryColor` for faithful blue-tinted dimming;
-  underwater remembered uses heavy dark fill.
+- [x] Define visibility overlay colors in `render-layers.ts`:
+  `VisibilityOverlay` interface + `getVisibilityOverlay(state, inWater)`
+  lookup function. Remembered normal → multiply with `memoryColor`;
+  remembered underwater → source-over dark fill (alpha 0.8). Clairvoyant,
+  Telepathic, MagicMapped, Omniscience → multiply with their respective
+  color constants. `REMEMBERED_AVERAGE_COLOR` / `REMEMBERED_AVERAGE_WEIGHT`
+  exported for optional future refinement.
+- [x] Added `inWater: boolean` field to `CellSpriteData` interface. Set
+  from `ctx.rogue.inWater` in `getCellSpriteData` after Shroud early
+  return. Reset to false in `resetCellSpriteData`. Verified: remembered
+  cells use base tileCatalog colors (no lighting) — no additional pre-tint
+  adjustments needed; all pre-tint work completed in Phases 3b + 4a.
+- [x] Unit tests: 18 new tests — 12 in `render-layers.test.ts`
+  (getVisibilityOverlay for all 7 states + inWater variants, pre-allocated
+  object reuse, REMEMBERED_AVERAGE constants, resetCellSpriteData inWater
+  reset), 6 in `sprite-appearance.test.ts` (inWater flag for remembered,
+  visible, shroud, MagicMapped states + reset between calls). Full suite:
+  161 files, 4817 pass, 55 skip, zero regressions.
+- [x] Documentation note in PLAN.md: multiply composite fill matching
+  getCellAppearance's per-component multiply, memoryOverlay simplification,
+  TM_BRIGHT_MEMORY accepted divergence.
 
 # --- handoff point ---
 

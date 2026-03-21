@@ -176,6 +176,8 @@ export function getCellSpriteData(
         return spriteData;
     }
 
+    spriteData.inWater = ctx.rogue.inWater;
+
     // =========================================================================
     // Remembered / MagicMapped: read from rememberedLayers (not live pmap)
     // =========================================================================
