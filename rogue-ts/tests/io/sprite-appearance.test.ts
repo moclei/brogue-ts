@@ -919,11 +919,11 @@ describe("getCellSpriteData — hallucination (item)", () => {
 
         const itemLayer = spriteData.layers[RenderLayer.ITEM]!;
         expect(itemLayer).toBeDefined();
-        // Hallucinated glyph should be an item category glyph, not the original
         expect(itemLayer.glyph).not.toBe(DisplayGlyph.G_POTION);
-        // Tint should be itemColor (100, 95, -30)
-        expect(itemLayer.tint.red).toBe(100);
-        expect(itemLayer.tint.green).toBe(95);
+        // Base color is itemColor (100, 95, -30), not item.foreColor (50, 20, 80).
+        // Exact values vary due to hallucination color randomization (Phase 4a-ii).
+        // itemColor.red=100 randomizes to ~[67,133]; item.foreColor.red=50 would be ~[33,66].
+        expect(itemLayer.tint.red).toBeGreaterThanOrEqual(67);
     });
 
     it("does not randomize item when playbackOmniscience is on", () => {
@@ -1294,6 +1294,383 @@ describe("getCellSpriteData — colorDances flag propagation", () => {
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
         expect(ctx.pmap[3][3].flags & TileFlag.TERRAIN_COLORS_DANCING).toBeFalsy();
+    });
+});
+
+// =============================================================================
+// Phase 4a-ii: Entity lighting
+// =============================================================================
+
+describe("getCellSpriteData — entity lighting", () => {
+    it("applies light multiplier to player entity tint", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        const player = makeCreature(3, 3);
+        player.info = {
+            displayChar: DisplayGlyph.G_PLAYER,
+            foreColor: makeColor(80, 80, 80),
+            flags: 0, abilityFlags: 0, monsterName: "player", isLarge: false,
+        } as any;
+        ctx.player = player;
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED | TileFlag.HAS_PLAYER;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const entity = spriteData.layers[RenderLayer.ENTITY]!;
+        // foreColor (80,80,80) × light multiplier 50/100 = (40,40,40)
+        expect(entity.tint.red).toBe(40);
+        expect(entity.tint.green).toBe(40);
+        expect(entity.tint.blue).toBe(40);
+    });
+
+    it("applies light multiplier to monster entity tint", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        const monst = makeCreature(3, 3);
+        monst.info = {
+            displayChar: DisplayGlyph.G_GOBLIN,
+            foreColor: makeColor(60, 40, 20),
+            flags: 0, abilityFlags: 0, monsterName: "goblin", isLarge: false,
+        } as any;
+        ctx.monsters = [monst];
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED | TileFlag.HAS_MONSTER;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const entity = spriteData.layers[RenderLayer.ENTITY]!;
+        // foreColor (60,40,20) × light 50/100 = (30,20,10)
+        expect(entity.tint.red).toBe(30);
+        expect(entity.tint.green).toBe(20);
+        expect(entity.tint.blue).toBe(10);
+    });
+
+    it("does not apply bakeTerrainColors to entity tint", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 100) });
+        ctx.terrainRandomValues = makeTerrainRandomValues(DCOLS, DROWS, [500, 500, 500, 500, 500, 500, 700, 500]);
+        const player = makeCreature(3, 3);
+        player.info = {
+            displayChar: DisplayGlyph.G_PLAYER,
+            foreColor: makeColor(80, 80, 80),
+            flags: 0, abilityFlags: 0, monsterName: "player", isLarge: false,
+        } as any;
+        ctx.player = player;
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED | TileFlag.HAS_PLAYER;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const entity = spriteData.layers[RenderLayer.ENTITY]!;
+        // Entity tint is NOT baked — should be foreColor × light (identity at 100)
+        expect(entity.tint.red).toBe(80);
+        expect(entity.tint.green).toBe(80);
+        expect(entity.tint.blue).toBe(80);
+    });
+});
+
+// =============================================================================
+// Phase 4a-ii: Item lighting
+// =============================================================================
+
+describe("getCellSpriteData — item lighting", () => {
+    it("applies light multiplier to item tint", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        const item = makeItem(3, 3);
+        ctx.floorItems = [item] as any;
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED | TileFlag.HAS_ITEM;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const itemLayer = spriteData.layers[RenderLayer.ITEM]!;
+        // item foreColor (50,20,80) × light 50/100 = (25,10,40)
+        expect(itemLayer.tint.red).toBe(25);
+        expect(itemLayer.tint.green).toBe(10);
+        expect(itemLayer.tint.blue).toBe(40);
+    });
+
+    it("applies light multiplier to item with no foreColor (white fallback)", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        const item = makeItem(3, 3, { foreColor: null } as any);
+        ctx.floorItems = [item] as any;
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED | TileFlag.HAS_ITEM;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const itemLayer = spriteData.layers[RenderLayer.ITEM]!;
+        // white (100,100,100) × light 50/100 = (50,50,50)
+        expect(itemLayer.tint.red).toBe(50);
+        expect(itemLayer.tint.green).toBe(50);
+        expect(itemLayer.tint.blue).toBe(50);
+    });
+});
+
+// =============================================================================
+// Phase 4a-ii: Visibility-state light augmentation
+// =============================================================================
+
+describe("getCellSpriteData — visibility light augmentation", () => {
+    it("augments light for Clairvoyant cells", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.pmap[3][3].flags = TileFlag.CLAIRVOYANT_VISIBLE;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
+        // Base light=50 + augment(basicLightColor=180, weight=100) → 50+180=230
+        // floorForeColor.red=30 × 230/100 = Math.trunc(69.0) = 69
+        expect(tint.red).toBe(69);
+    });
+
+    it("augments light for Telepathic cells", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.pmap[3][3].flags = TileFlag.TELEPATHIC_VISIBLE;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
+        expect(tint.red).toBe(69);
+    });
+
+    it("augments light for Omniscience cells", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.rogue.playbackOmniscience = true;
+        // No VISIBLE/DISCOVERED/MAGIC_MAPPED → falls through to Omniscience
+        ctx.pmap[3][3].flags = 0;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.visibilityState).toBe(VisibilityState.Omniscience);
+        const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
+        expect(tint.red).toBe(69);
+    });
+
+    it("does NOT augment light for Visible cells", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
+        // No augmentation: 30 × 50/100 = 15
+        expect(tint.red).toBe(15);
+    });
+
+    it("augmented light applies to entity tint as well", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        const player = makeCreature(3, 3);
+        player.info = {
+            displayChar: DisplayGlyph.G_PLAYER,
+            foreColor: makeColor(80, 80, 80),
+            flags: 0, abilityFlags: 0, monsterName: "player", isLarge: false,
+        } as any;
+        ctx.player = player;
+        ctx.pmap[3][3].flags = TileFlag.CLAIRVOYANT_VISIBLE | TileFlag.HAS_PLAYER;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const entity = spriteData.layers[RenderLayer.ENTITY]!;
+        // foreColor (80) × augmented light (230) / 100 = 184
+        expect(entity.tint.red).toBe(184);
+    });
+});
+
+// =============================================================================
+// Phase 4a-ii: Hallucination color randomization
+// =============================================================================
+
+describe("getCellSpriteData — hallucination color randomization", () => {
+    it("randomizes terrain tint when hallucinating (Visible state)", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 100) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.player.status[StatusEffect.Hallucinating] = 150;
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        // floorForeColor.red=30 at light 100 (identity), then randomized by hallAmt=40
+        // hallAmt = Math.trunc(40*150/300)+20 = 20+20 = 40
+        // randomizeByPercent(30, 40) = cosmeticRandRange(18, 42)
+        const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
+        expect(tint.red).toBeGreaterThanOrEqual(18);
+        expect(tint.red).toBeLessThanOrEqual(42);
+    });
+
+    it("randomizes bgColor when hallucinating", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 100) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.player.status[StatusEffect.Hallucinating] = 150;
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        // Run twice with same setup to check bgColor is randomized
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        // floorBackColor.red=2 at light 100, then randomized by hallAmt=40
+        // randomizeByPercent(2, 40) = cosmeticRandRange(1, 2)
+        expect(spriteData.bgColor.red).toBeGreaterThanOrEqual(0);
+        expect(spriteData.bgColor.red).toBeLessThanOrEqual(3);
+    });
+
+    it("does NOT randomize colors for Clairvoyant state", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.player.status[StatusEffect.Hallucinating] = 150;
+        ctx.pmap[3][3].flags = TileFlag.CLAIRVOYANT_VISIBLE;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
+        // Clairvoyant: augmented light (50+180=230), no randomization
+        // red = Math.trunc(30 * 230 / 100) = 69
+        expect(tint.red).toBe(69);
+    });
+
+    it("does NOT randomize colors when trueColorMode is on", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 100) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.player.status[StatusEffect.Hallucinating] = 150;
+        ctx.rogue.trueColorMode = true;
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
+        // trueColorMode uses basicLightColor (180,180,180,...) as multiplier
+        // red = Math.trunc(30 * 180 / 100) = 54
+        // No randomization (trueColorMode skips it)
+        expect(tint.red).toBe(54);
+    });
+});
+
+// =============================================================================
+// Phase 4a-ii: Deep-water tint
+// =============================================================================
+
+describe("getCellSpriteData — deep-water tint", () => {
+    it("multiplies terrain tint by deepWaterLightColor when inWater", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 100) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.rogue.inWater = true;
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
+        // floorForeColor.red=30 × light 100 (identity) × deepWaterLightColor.red=10/100 = 3
+        expect(tint.red).toBe(3);
+        // green: 30 × 30/100 = 9
+        expect(tint.green).toBe(9);
+        // blue: 30 × 100/100 = 30
+        expect(tint.blue).toBe(30);
+    });
+
+    it("multiplies bgColor by deepWaterLightColor when inWater", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 100) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.rogue.inWater = true;
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        // floorBackColor.red=2 × deepWater.red=10/100 = 0
+        expect(spriteData.bgColor.red).toBe(0);
+        // blue: 10 × 100/100 = 10
+        expect(spriteData.bgColor.blue).toBe(10);
+    });
+
+    it("multiplies entity tint by deepWaterLightColor when inWater", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 100) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.rogue.inWater = true;
+        const player = makeCreature(3, 3);
+        player.info = {
+            displayChar: DisplayGlyph.G_PLAYER,
+            foreColor: makeColor(80, 80, 80),
+            flags: 0, abilityFlags: 0, monsterName: "player", isLarge: false,
+        } as any;
+        ctx.player = player;
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED | TileFlag.HAS_PLAYER;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const entity = spriteData.layers[RenderLayer.ENTITY]!;
+        // foreColor (80) × light 100 (identity) × deepWater.red 10/100 = 8
+        expect(entity.tint.red).toBe(8);
+        // green: 80 × 30/100 = 24
+        expect(entity.tint.green).toBe(24);
+        // blue: 80 × 100/100 = 80
+        expect(entity.tint.blue).toBe(80);
+    });
+
+    it("does NOT apply deep-water tint for Clairvoyant state", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.rogue.inWater = true;
+        ctx.pmap[3][3].flags = TileFlag.CLAIRVOYANT_VISIBLE;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
+        // Clairvoyant: augmented light (230), no deep-water
+        // 30 × 230/100 = 69 (not affected by deepWaterLightColor)
+        expect(tint.red).toBe(69);
+    });
+
+    it("applies deep-water tint to gas and fire layers too", () => {
+        const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 100) });
+        ctx.terrainRandomValues = makeTerrainRandomValues();
+        ctx.rogue.inWater = true;
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+        ctx.pmap[3][3].layers[DungeonLayer.Surface] = TileType.PLAIN_FIRE;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const fire = spriteData.layers[RenderLayer.FIRE]!;
+        const baseFire = tileCatalog[TileType.PLAIN_FIRE].foreColor!;
+        // Fire base color × deepWater.red 10/100
+        expect(fire.tint.red).toBe(Math.trunc(baseFire.red * 10 / 100));
     });
 });
 

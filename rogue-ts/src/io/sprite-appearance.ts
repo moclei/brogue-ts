@@ -9,8 +9,11 @@
  *  Phase 3a–3b: handles all visibility states (Visible, Remembered,
  *  Clairvoyant, Telepathic, MagicMapped, Omniscience, Shroud), hallucination,
  *  and invisible-monster-in-gas silhouette.
- *  Phase 4a-i: TERRAIN, SURFACE, and bgColor tints are now properly lit
+ *  Phase 4a-i: TERRAIN, SURFACE, and bgColor tints are properly lit
  *  (colorMultiplierFromDungeonLight × bakeTerrainColors) for live-pmap states.
+ *  Phase 4a-ii: ENTITY and ITEM tints lit via lightMultiplierColor. Visibility-
+ *  state augmentation (Clairvoyant/Telepathic/Omniscience). Hallucination color
+ *  randomization and deep-water tint applied before baking (Visible state only).
  *  Remembered/MagicMapped cells still use base tileCatalog colors (no lighting).
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -40,13 +43,16 @@ import {
 import { itemAtLoc } from "../items/item-inventory.js";
 import { cellHasTerrainFlag } from "../state/helpers.js";
 import { randomAnimateMonster, bakeTerrainColors } from "./display.js";
-import { colorMultiplierFromDungeonLight, applyColorMultiplier } from "./color.js";
+import {
+    colorMultiplierFromDungeonLight, applyColorMultiplier,
+    randomizeColor, applyColorAugment,
+} from "./color.js";
 import { cosmeticRandRange, randClump } from "../math/rng.js";
 import {
     getHallucinatedItemCategory, getItemCategoryGlyph,
 } from "../items/item-generation.js";
 import type { ItemRNG } from "../items/item-generation.js";
-import { itemColor, basicLightColor } from "../globals/colors.js";
+import { itemColor, basicLightColor, deepWaterLightColor } from "../globals/colors.js";
 
 // =============================================================================
 // Color field-by-field copy (avoids allocation)
@@ -183,10 +189,16 @@ export function getCellSpriteData(
     // =========================================================================
 
     // Light multiplier for this cell (matching getCellAppearance lines 192-194).
-    // Phase 4a-ii will augment this for clairvoyant/telepathic/omniscience.
-    const lightMultiplierColor = ctx.rogue.trueColorMode
-        ? basicLightColor
+    // Mutable copy: Clairvoyant/Telepathic/Omniscience augment it in place.
+    const lightMultiplierColor: Color = ctx.rogue.trueColorMode
+        ? { ...basicLightColor }
         : colorMultiplierFromDungeonLight(x, y, ctx.tmap);
+
+    if (visState === VisibilityState.Clairvoyant
+        || visState === VisibilityState.Telepathic
+        || visState === VisibilityState.Omniscience) {
+        applyColorAugment(lightMultiplierColor, basicLightColor, 100);
+    }
 
     // ---- TERRAIN layer: winner of Dungeon vs Liquid by drawPriority ----
 
@@ -286,6 +298,7 @@ export function getCellSpriteData(
         const entry = acquireLayerEntry(pool, RenderLayer.ENTITY);
         entry.glyph = ctx.player.info.displayChar;
         copyColorTo(entry.tint, ctx.player.info.foreColor);
+        applyColorMultiplier(entry.tint, lightMultiplierColor);
         spriteData.layers[RenderLayer.ENTITY] = entry;
     } else if (cellFlags & TileFlag.HAS_MONSTER) {
         monst = lookupCreatureAt(x, y, cellFlags, ctx.monsters, ctx.dormantMonsters);
@@ -306,6 +319,7 @@ export function getCellSpriteData(
                 entry.glyph = monst.info.displayChar;
             }
             copyColorTo(entry.tint, monst.info.foreColor);
+            applyColorMultiplier(entry.tint, lightMultiplierColor);
             spriteData.layers[RenderLayer.ENTITY] = entry;
         }
     }
@@ -328,6 +342,7 @@ export function getCellSpriteData(
             const entry = acquireLayerEntry(pool, RenderLayer.ITEM);
             entry.glyph = getItemCategoryGlyph(getHallucinatedItemCategory(rng));
             copyColorTo(entry.tint, itemColor);
+            applyColorMultiplier(entry.tint, lightMultiplierColor);
             spriteData.layers[RenderLayer.ITEM] = entry;
         } else {
             const item = itemAtLoc({ x, y }, ctx.floorItems as Item[]);
@@ -341,6 +356,7 @@ export function getCellSpriteData(
                     entry.tint.green = 100;
                     entry.tint.blue = 100;
                 }
+                applyColorMultiplier(entry.tint, lightMultiplierColor);
                 spriteData.layers[RenderLayer.ITEM] = entry;
             }
         }
@@ -379,10 +395,42 @@ export function getCellSpriteData(
     }
 
     // =========================================================================
+    // Hallucination color randomization (Visible state only)
+    // Matches getCellAppearance default/Visible branch: randomize each
+    // layer's tint by ±hallAmt%. Applied BEFORE baking.
+    // =========================================================================
+
+    if (visState === VisibilityState.Visible
+        && ctx.player.status[StatusEffect.Hallucinating]
+        && !ctx.rogue.trueColorMode) {
+        const hallAmt = Math.trunc(
+            40 * ctx.player.status[StatusEffect.Hallucinating] / 300,
+        ) + 20;
+        for (let i = 0; i < spriteData.layers.length; i++) {
+            const entry = spriteData.layers[i];
+            if (entry) randomizeColor(entry.tint, hallAmt);
+        }
+        randomizeColor(spriteData.bgColor, hallAmt);
+    }
+
+    // =========================================================================
+    // Deep-water tint (Visible state only)
+    // Matches getCellAppearance default/Visible branch: multiply all tints
+    // by deepWaterLightColor when rogue.inWater is true.
+    // =========================================================================
+
+    if (visState === VisibilityState.Visible && ctx.rogue.inWater) {
+        for (let i = 0; i < spriteData.layers.length; i++) {
+            const entry = spriteData.layers[i];
+            if (entry) applyColorMultiplier(entry.tint, deepWaterLightColor);
+        }
+        applyColorMultiplier(spriteData.bgColor, deepWaterLightColor);
+    }
+
+    // =========================================================================
     // Bake terrain colors + colorDances flag propagation
     // Resolves random color components (redRand, greenRand, blueRand, rand)
     // using per-cell terrain random values, matching getCellAppearance line 473.
-    // Phase 4a-ii will insert hallucination/deep-water tinting before this.
     // =========================================================================
 
     const terrainVals = ctx.terrainRandomValues[x]?.[y];

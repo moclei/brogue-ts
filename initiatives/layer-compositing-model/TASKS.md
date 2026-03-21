@@ -189,27 +189,29 @@ terrain, surface, and background. Uses existing color helpers
 Upgrade getCellSpriteData with entity/item lighting, hallucination,
 deep-water tint, and visibility-state light augmentation.
 
-- [ ] Update entity layer tint: creature's display color × lighting
+- [x] Update entity layer tint: creature's display color × lighting
   multiplier. Player uses player display color. No `bakeTerrainColors`
   (entity colors are not terrain-randomized in getCellAppearance).
-- [ ] Update item layer tint: item's display foreColor × lighting.
-- [ ] Gas and fire layers: tileCatalog foreColor without lighting (these
-  are emissive — verify against getCellAppearance that gas foreColor is
-  not light-multiplied).
-- [ ] Hallucination color randomization: when player is hallucinating,
+- [x] Update item layer tint: item's display foreColor × lighting.
+- [x] Gas and fire layers: tileCatalog foreColor without lighting (these
+  are emissive — verified: no `applyColorMultiplier` on fire/gas tints).
+- [x] Hallucination color randomization: when player is hallucinating
+  (Visible state only, matching getCellAppearance default branch),
   apply `randomizeColor` to each layer's tint with weight
-  `40 * halLevel / 300 + 20` (matching getCellAppearance line 468–470).
-  Use `monsterFlagsList` from `CellQueryContext` (not per-cell
-  `monsterCatalog.map`).
-- [ ] Deep-water tint: when `rogue.inWater` is true, multiply each
-  layer's tint by `deepWaterLightColor` (matching getCellAppearance
-  line 473–474).
-- [ ] Visibility-state light augmentation: for clairvoyant, telepathic,
+  `40 * halLevel / 300 + 20`. Uses `monsterFlagsList` from
+  `CellQueryContext`. Applied BEFORE `bakeTerrainColors`.
+- [x] Deep-water tint: when `rogue.inWater` is true (Visible state
+  only, matching getCellAppearance default branch), multiply each
+  layer's tint by `deepWaterLightColor`. Applied BEFORE
+  `bakeTerrainColors`.
+- [x] Visibility-state light augmentation: for clairvoyant, telepathic,
   and omniscience states, apply `applyColorAugment(lm, basicLightColor,
   100)` to the light multiplier before applying to layer tints (matching
-  getCellAppearance lines 419–420, 428–429, 458–459).
-- [ ] Unit tests for entity/item lighting, hallucination color
-  randomization, deep-water tint, visibility augmentation.
+  getCellAppearance lines 397-398, 406-407, 436-437). Uses mutable copy
+  of `lightMultiplierColor`.
+- [x] Unit tests for entity/item lighting, hallucination color
+  randomization, deep-water tint, visibility augmentation. 19 new tests.
+  Full suite: 161 files, 4799 pass, 55 skip, zero regressions.
 
 # --- handoff point ---
 
