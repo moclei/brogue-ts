@@ -87,7 +87,7 @@ export function getCellAppearance(
 ): { glyph: DisplayGlyph; foreColor: Color; backColor: Color; tileType?: TileType } {
     const x = loc.x;
     const y = loc.y;
-    let cellTileType: TileType | undefined;
+    let cellTileType: TileType | undefined = TileType.NOTHING;
     const cellFlags = pmap[x][y].flags;
 
     const playerCanSeeOrSense = (cx: number, cy: number): boolean =>
@@ -134,7 +134,7 @@ export function getCellAppearance(
     ) {
         const rem = pmap[x][y].rememberedAppearance;
         cellChar = rem.character;
-        cellTileType = undefined; // not stored in rememberedAppearance
+        cellTileType = TileType.NOTHING;
         cellForeColor = colorFromComponents(rem.foreColorComponents);
         cellBackColor = colorFromComponents(rem.backColorComponents);
 
@@ -203,7 +203,7 @@ export function getCellAppearance(
         if (cellFlags & TileFlag.HAS_PLAYER) {
             // Player
             cellChar = player.info.displayChar;
-            cellTileType = undefined;
+            cellTileType = TileType.NOTHING;
             cellForeColor = { ...player.info.foreColor };
             needDistinctness = true;
 
@@ -217,7 +217,7 @@ export function getCellAppearance(
             ) || monsterWithDetectedItem
         ) {
             // Detected magic item
-            cellTileType = undefined;
+            cellTileType = TileType.NOTHING;
             const polarity = itemMagicPolarity(theItem!);
             if (theItem!.category & ItemCategory.AMULET) {
                 cellChar = DisplayGlyph.G_AMULET;
@@ -244,7 +244,7 @@ export function getCellAppearance(
             && (!monsterIsHidden(monst, player, mqCtx) || rogue.playbackOmniscience)
         ) {
             // Visible monster
-            cellTileType = undefined;
+            cellTileType = TileType.NOTHING;
             needDistinctness = true;
             if (
                 player.status[StatusEffect.Hallucinating] > 0
@@ -268,7 +268,7 @@ export function getCellAppearance(
 
         } else if (monst !== null && monsterRevealed(monst, player) && !canSeeMonster(monst, mqCtx)) {
             // Revealed (telepathic) but not directly visible
-            cellTileType = undefined;
+            cellTileType = TileType.NOTHING;
             if (player.status[StatusEffect.Hallucinating] && !rogue.playbackOmniscience && !player.status[StatusEffect.Telepathic]) {
                 cellChar = (cosmeticRandRange(0, 1) ? 88 : 120) as DisplayGlyph; // 'X' : 'x'
             } else {
@@ -290,7 +290,7 @@ export function getCellAppearance(
             )
         ) {
             // Visible or discovered non-moving item
-            cellTileType = undefined;
+            cellTileType = TileType.NOTHING;
             needDistinctness = true;
             if (player.status[StatusEffect.Hallucinating] && !rogue.playbackOmniscience) {
                 const rng: ItemRNG = { randRange: cosmeticRandRange, randPercent: (pct: number) => cosmeticRandRange(0, 99) < pct, randClump };

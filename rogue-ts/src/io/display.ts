@@ -200,6 +200,7 @@ export function applyOverlay(
         cell.backColorComponents[0] = clamp(r.backColor.red, 0, 100);
         cell.backColorComponents[1] = clamp(r.backColor.green, 0, 100);
         cell.backColorComponents[2] = clamp(r.backColor.blue, 0, 100);
+        delete cell.tileType;
     }
 }
 
