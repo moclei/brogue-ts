@@ -19,7 +19,8 @@ import type { SpriteRef } from "./glyph-sprite-map.js";
 import { TILE_SIZE } from "./tileset-loader.js";
 import type { TextRenderer } from "./text-renderer.js";
 import type { CellSpriteData, VisibilityOverlay } from "./render-layers.js";
-import { RENDER_LAYER_COUNT, getVisibilityOverlay } from "./render-layers.js";
+import { RenderLayer, RENDER_LAYER_COUNT, getVisibilityOverlay } from "./render-layers.js";
+import { spriteDebug } from "./sprite-debug.js";
 
 /** Brogue 0–100 scale → CSS 0–255 RGB, clamped. */
 function c100to255(v: number): number {
@@ -28,12 +29,13 @@ function c100to255(v: number): number {
 
 const NEUTRAL_TINT_THRESHOLD = 98;
 
-/** True when tint is close enough to neutral that the multiply step is a no-op. */
-function isNeutralTint(tint: Readonly<Color>): boolean {
-  return tint.red >= NEUTRAL_TINT_THRESHOLD
-    && tint.green >= NEUTRAL_TINT_THRESHOLD
-    && tint.blue >= NEUTRAL_TINT_THRESHOLD;
-}
+/** Default cell background for sprite mode — dark near-black instead of game lighting. */
+const SPRITE_BG_COLOR = "rgb(10,10,18)";
+
+/** Sentinel override that skips tinting for the TERRAIN layer by default. */
+const TERRAIN_NO_TINT: import("./sprite-debug.js").LayerOverride = {
+  visible: true, tintOverride: null, alphaOverride: null, blendMode: "none",
+};
 
 function bitmapKey(ref: SpriteRef): string {
   return `${ref.sheetKey}:${ref.tileX}:${ref.tileY}`;
@@ -192,26 +194,52 @@ export class SpriteRenderer implements Renderer {
     const { ctx } = this;
     const { x, y, width, height } = cellRect;
 
-    const bg = spriteData.bgColor;
-    ctx.fillStyle = `rgb(${c100to255(bg.red)},${c100to255(bg.green)},${c100to255(bg.blue)})`;
+    const dbg = spriteDebug.enabled ? spriteDebug : null;
+    const bgOver = dbg?.bgColorOverride;
+    if (bgOver) {
+      ctx.fillStyle = `rgb(${bgOver.r},${bgOver.g},${bgOver.b})`;
+    } else {
+      ctx.fillStyle = SPRITE_BG_COLOR;
+    }
     ctx.fillRect(x, y, width, height);
+    const isInspectTarget = dbg?.inspectTarget
+      && dbg._renderingX === dbg.inspectTarget.x
+      && dbg._renderingY === dbg.inspectTarget.y;
 
     for (let i = 0; i < RENDER_LAYER_COUNT; i++) {
+      if (dbg && !dbg.layers[i].visible) continue;
+
       const entry = spriteData.layers[i];
-      if (!entry) continue;
+      if (!entry) {
+        if (isInspectTarget) dbg!.inspectedLayers[i] = null;
+        continue;
+      }
+
+      if (isInspectTarget) {
+        dbg!.inspectedLayers[i] = {
+          tintR: entry.tint.red, tintG: entry.tint.green, tintB: entry.tint.blue,
+          alpha: entry.alpha,
+        };
+      }
 
       const ref = this.resolveSprite(entry.tileType, entry.glyph);
       if (!ref) continue;
 
-      const hasAlpha = entry.alpha !== undefined && entry.alpha < 1;
-      if (hasAlpha) ctx.globalAlpha = entry.alpha!;
+      const lo = dbg?.layers[i];
+      const effectiveAlpha = lo?.alphaOverride ?? entry.alpha;
+      const hasAlpha = effectiveAlpha !== undefined && effectiveAlpha !== null && effectiveAlpha < 1;
+      if (hasAlpha) ctx.globalAlpha = effectiveAlpha;
 
-      this.drawSpriteTinted(ref, cellRect, entry.tint);
+      const skipTint = i === RenderLayer.TERRAIN && !lo?.tintOverride && !lo?.blendMode;
+      this.drawSpriteTinted(ref, cellRect, entry.tint, skipTint ? TERRAIN_NO_TINT : lo ?? null);
 
       if (hasAlpha) ctx.globalAlpha = 1;
     }
 
-    const overlay = getVisibilityOverlay(
+    if (isInspectTarget && dbg!.onInspect) dbg!.onInspect();
+
+    const skipOverlay = dbg && !dbg.visibilityOverlayEnabled;
+    const overlay = skipOverlay ? null : getVisibilityOverlay(
       spriteData.visibilityState, spriteData.inWater,
     );
     if (overlay) this.applyVisibilityOverlay(cellRect, overlay);
@@ -253,6 +281,7 @@ export class SpriteRenderer implements Renderer {
     spriteRef: SpriteRef,
     cellRect: CellRect,
     tint: Readonly<Color>,
+    debugOverride: import("./sprite-debug.js").LayerOverride | null = null,
   ): void {
     const { ctx } = this;
     const bitmap = this.bitmaps.get(bitmapKey(spriteRef));
@@ -263,7 +292,25 @@ export class SpriteRenderer implements Renderer {
     const sprSx = bitmap ? 0 : spriteRef.tileX * TILE_SIZE;
     const sprSy = bitmap ? 0 : spriteRef.tileY * TILE_SIZE;
 
-    if (isNeutralTint(tint)) {
+    if (debugOverride?.blendMode === "none") {
+      ctx.drawImage(
+        source, sprSx, sprSy, TILE_SIZE, TILE_SIZE,
+        cellRect.x, cellRect.y, cellRect.width, cellRect.height,
+      );
+      return;
+    }
+
+    const tintR = debugOverride?.tintOverride
+      ? (debugOverride.tintOverride.r * 100) / 255 : tint.red;
+    const tintG = debugOverride?.tintOverride
+      ? (debugOverride.tintOverride.g * 100) / 255 : tint.green;
+    const tintB = debugOverride?.tintOverride
+      ? (debugOverride.tintOverride.b * 100) / 255 : tint.blue;
+
+    const effectiveTintNeutral = tintR >= NEUTRAL_TINT_THRESHOLD
+      && tintG >= NEUTRAL_TINT_THRESHOLD && tintB >= NEUTRAL_TINT_THRESHOLD;
+
+    if (effectiveTintNeutral && !debugOverride?.blendMode) {
       ctx.drawImage(
         source, sprSx, sprSy, TILE_SIZE, TILE_SIZE,
         cellRect.x, cellRect.y, cellRect.width, cellRect.height,
@@ -272,6 +319,7 @@ export class SpriteRenderer implements Renderer {
     }
 
     const { tintCtx, tintCanvas } = this;
+    const blendOp = debugOverride?.blendMode ?? "multiply";
 
     tintCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
     tintCtx.drawImage(
@@ -279,11 +327,18 @@ export class SpriteRenderer implements Renderer {
       0, 0, TILE_SIZE, TILE_SIZE,
     );
 
+    const tintAlpha = debugOverride?.tintOverride?.a;
+
     tintCtx.save();
-    tintCtx.globalCompositeOperation = "multiply";
-    tintCtx.fillStyle =
-      `rgb(${c100to255(tint.red)},${c100to255(tint.green)},${c100to255(tint.blue)})`;
+    tintCtx.globalCompositeOperation = blendOp;
+    if (tintAlpha !== undefined && tintAlpha < 1) {
+      tintCtx.globalAlpha = tintAlpha;
+    }
+    tintCtx.fillStyle = `rgb(${c100to255(tintR)},${c100to255(tintG)},${c100to255(tintB)})`;
     tintCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+    if (tintAlpha !== undefined && tintAlpha < 1) {
+      tintCtx.globalAlpha = 1;
+    }
 
     tintCtx.globalCompositeOperation = "destination-in";
     tintCtx.drawImage(

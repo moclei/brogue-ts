@@ -16,6 +16,7 @@ import type { RogueEvent, PauseBehavior } from "../types/types.js";
 import { EventType, GraphicsMode, DisplayGlyph } from "../types/enums.js";
 import type { TileType } from "../types/enums.js";
 import type { CellSpriteData } from "./render-layers.js";
+import { spriteDebug } from "./sprite-debug.js";
 import {
   COLS,
   ROWS,
@@ -185,7 +186,7 @@ export function createBrowserConsole(
   const ctx2d = canvas.getContext("2d")!;
 
   /** Current graphics mode; used by plotChar to choose text vs. tiles. */
-  let currentGraphicsMode: GraphicsMode = GraphicsMode.Text;
+  let currentGraphicsMode: GraphicsMode = GraphicsMode.Tiles;
 
   /** Layer compositing data provider, set via setCellSpriteDataProvider. */
   let getCellSpriteDataFn: CellSpriteDataProvider | null = null;
@@ -504,6 +505,10 @@ export function createBrowserConsole(
         if (getCellSpriteDataFn && tileType !== undefined) {
           const dx = x - (STAT_BAR_WIDTH + 1);
           const dy = y - MESSAGE_LINES;
+          if (spriteDebug.enabled) {
+            spriteDebug._renderingX = dx;
+            spriteDebug._renderingY = dy;
+          }
           const spriteData = getCellSpriteDataFn(dx, dy);
           spriteRenderer.drawCellLayers(cr, spriteData);
         } else {

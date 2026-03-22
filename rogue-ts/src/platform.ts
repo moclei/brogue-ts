@@ -62,7 +62,7 @@ export interface PlatformConsoleWithGraphics extends PlatformConsole {
 let _console: PlatformConsole | null = null;
 
 /** Current graphics mode. Persists so input context and renderer stay in sync. */
-let _graphicsMode: GraphicsMode = GraphicsMode.Text;
+let _graphicsMode: GraphicsMode = GraphicsMode.Tiles;
 
 /** True when the console supports setGraphicsMode (e.g. browser renderer). */
 let _hasGraphics = false;
@@ -92,6 +92,11 @@ let _prevBuffer: ScreenDisplayBuffer = createScreenDisplayBuffer();
 
 /** When true, next commitDraws() redraws every cell (e.g. after graphics mode change). */
 let _forceFullRedraw = false;
+
+/** Schedule a full redraw on the next commitDraws() cycle. */
+export function forceFullRedraw(): void {
+    _forceFullRedraw = true;
+}
 
 /**
  * Event captured by pauseAndCheckForEvent() when an input arrives before the

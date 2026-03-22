@@ -22,15 +22,16 @@ import {
     createBrowserConsole,
     type BrowserRendererOptions,
 } from "./platform/browser-renderer.js";
-import { initPlatform } from "./platform.js";
+import { initPlatform, forceFullRedraw } from "./platform.js";
 import { getGameState } from "./core.js";
 import { buildMenuContext } from "./menus.js";
 import { mainBrogueJunction } from "./menus/main-menu.js";
-import { COLS, ROWS } from "./types/constants.js";
+import { COLS, ROWS, STAT_BAR_WIDTH, MESSAGE_LINES, DCOLS, DROWS } from "./types/constants.js";
 import { loadTilesetImages } from "./platform/tileset-loader.js";
 import { buildGlyphSpriteMap, buildTileTypeSpriteMap } from "./platform/glyph-sprite-map.js";
 import { TextRenderer } from "./platform/text-renderer.js";
 import { SpriteRenderer } from "./platform/sprite-renderer.js";
+import { spriteDebug, toggleDebugPanel } from "./platform/sprite-debug.js";
 
 // =============================================================================
 // Canvas setup
@@ -134,6 +135,42 @@ async function main(): Promise<void> {
 
     // 5. Get the display buffer from core state
     const { displayBuffer } = getGameState();
+
+    // 5b. F2 debug panel — intercept before canvas keydown reaches the game
+    const canvasParent = canvas.parentElement ?? document.body;
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "F2") {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleDebugPanel(canvasParent);
+            forceFullRedraw();
+        }
+    }, true);
+
+    // Click-to-inspect: when the debug panel is open, clicking a dungeon cell
+    // snapshots that cell's per-layer tint values into the panel.
+    canvas.addEventListener("click", (e) => {
+        if (!spriteDebug.enabled || !spriteDebug.onInspect) return;
+        const rect = canvas.getBoundingClientRect();
+        const cellX = Math.floor((e.clientX - rect.left) / (rect.width / COLS));
+        const cellY = Math.floor((e.clientY - rect.top) / (rect.height / ROWS));
+        const dx = cellX - (STAT_BAR_WIDTH + 1);
+        const dy = cellY - MESSAGE_LINES;
+        if (dx >= 0 && dx < DCOLS && dy >= 0 && dy < DROWS) {
+            spriteDebug.inspectTarget = { x: dx, y: dy };
+            spriteDebug.dirty = true;
+        }
+    });
+
+    // Poll the spriteDebug dirty flag to trigger redraws when panel controls change.
+    function checkDebugDirty(): void {
+        if (spriteDebug.dirty) {
+            spriteDebug.dirty = false;
+            forceFullRedraw();
+        }
+        requestAnimationFrame(checkDebugDirty);
+    }
+    requestAnimationFrame(checkDebugDirty);
 
     // eslint-disable-next-line no-console
     console.log(`[rogue-ts] Bootstrap complete. Grid: ${COLS}×${ROWS}`);

@@ -237,26 +237,23 @@ describe("SpriteRenderer", () => {
 
   describe("drawCellLayers", () => {
     describe("background fill", () => {
-      it("fills cell with bgColor converted from 0-100 to 0-255", () => {
+      it("uses the fixed sprite background color (ignores game bgColor)", () => {
         const sd = makeSpriteData({ bgColor: makeColor(50, 25, 75) });
         renderer.drawCellLayers(CELL, sd);
 
-        const expectedR = Math.round((50 * 255) / 100); // 128
-        const expectedG = Math.round((25 * 255) / 100); // 64
-        const expectedB = Math.round((75 * 255) / 100); // 191
-        expect(ctx.fillStyle).toBe(`rgb(${expectedR},${expectedG},${expectedB})`);
+        expect(ctx.fillStyle).toBe("rgb(10,10,18)");
         expect(ctx.fillRect).toHaveBeenCalledWith(CELL.x, CELL.y, CELL.width, CELL.height);
       });
 
-      it("fills with black (0,0,0) for zero bgColor", () => {
+      it("uses the fixed sprite background color even for zero bgColor", () => {
         const sd = makeSpriteData({ bgColor: makeColor(0, 0, 0) });
         renderer.drawCellLayers(CELL, sd);
-        expect(ctx.fillStyle).toBe("rgb(0,0,0)");
+        expect(ctx.fillStyle).toBe("rgb(10,10,18)");
       });
     });
 
     describe("layer compositing", () => {
-      it("draws a single terrain layer sprite", () => {
+      it("draws a single terrain layer sprite without tinting", () => {
         const sd = makeSpriteData();
         sd.layers[RenderLayer.TERRAIN] = makeLayer({
           tileType: TileType.FLOOR,
@@ -264,10 +261,9 @@ describe("SpriteRenderer", () => {
         });
         renderer.drawCellLayers(CELL, sd);
 
-        // bg fill + tint blit to main context
+        // Terrain layer draws raw (no tint) by default
         expect(ctx.drawImage).toHaveBeenCalled();
-        // tint canvas was used (non-neutral tint)
-        expect(fakeTintCtx.clearRect).toHaveBeenCalled();
+        expect(fakeTintCtx.clearRect).not.toHaveBeenCalled();
       });
 
       it("skips undefined layer entries", () => {
@@ -350,11 +346,11 @@ describe("SpriteRenderer", () => {
         expect(fakeTintCtx.clearRect).not.toHaveBeenCalled();
       });
 
-      it("uses tint canvas when tint components are below 98", () => {
+      it("uses tint canvas when tint components are below 98 (non-terrain layer)", () => {
         vi.clearAllMocks();
         const sd = makeSpriteData();
-        sd.layers[RenderLayer.TERRAIN] = makeLayer({
-          tileType: TileType.FLOOR,
+        sd.layers[RenderLayer.SURFACE] = makeLayer({
+          tileType: TileType.WALL,
           tint: makeColor(50, 50, 50),
         });
         renderer.drawCellLayers(CELL, sd);
@@ -369,8 +365,8 @@ describe("SpriteRenderer", () => {
       it("treats tint of (98, 98, 98) as neutral", () => {
         vi.clearAllMocks();
         const sd = makeSpriteData();
-        sd.layers[RenderLayer.TERRAIN] = makeLayer({
-          tileType: TileType.FLOOR,
+        sd.layers[RenderLayer.SURFACE] = makeLayer({
+          tileType: TileType.WALL,
           tint: makeColor(98, 99, 100),
         });
         renderer.drawCellLayers(CELL, sd);
@@ -378,11 +374,11 @@ describe("SpriteRenderer", () => {
         expect(fakeTintCtx.clearRect).not.toHaveBeenCalled();
       });
 
-      it("uses tint canvas when one component is below 98", () => {
+      it("uses tint canvas when one component is below 98 (non-terrain layer)", () => {
         vi.clearAllMocks();
         const sd = makeSpriteData();
-        sd.layers[RenderLayer.TERRAIN] = makeLayer({
-          tileType: TileType.FLOOR,
+        sd.layers[RenderLayer.SURFACE] = makeLayer({
+          tileType: TileType.WALL,
           tint: makeColor(97, 100, 100),
         });
         renderer.drawCellLayers(CELL, sd);

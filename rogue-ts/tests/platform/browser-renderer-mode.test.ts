@@ -150,8 +150,9 @@ describe("createBrowserConsole mode switching", () => {
     vi.clearAllMocks();
   });
 
-  it("dispatches viewport cells to textRenderer in Text mode (default)", () => {
+  it("dispatches viewport cells to textRenderer in Text mode", () => {
     const bc = buildConsole();
+    bc.setGraphicsMode(GraphicsMode.Text);
     bc.plotChar(
       DisplayGlyph.G_FLOOR,
       VP_X, VP_Y,

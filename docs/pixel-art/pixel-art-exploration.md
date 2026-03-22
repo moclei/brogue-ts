@@ -1695,3 +1695,54 @@ sprites can't have inherent colors. Decision deferred to art pipeline.
 | Keep as text | Sprite renderer handles dungeon viewport only | Current approach |
 | Sprite-ify everything | Render text as sprites from a font spritesheet | Deferred |
 | Hybrid bitmap font | Pixel-art-style bitmap font for text areas | Evaluate later |
+
+---
+
+## 9. Developer Tools
+
+### Sprite Layer Debug Panel (F2)
+
+An in-game debug overlay for inspecting and tweaking the 10-layer sprite compositing
+pipeline at runtime. Press **F2** to toggle the panel on/off. The panel floats in the
+top-right corner and does not interfere with gameplay input.
+
+**Per-layer controls** (one row per `RenderLayer`: TERRAIN, SURFACE, ITEM, ENTITY, GAS,
+FIRE, VISIBILITY, STATUS, BOLT, UI):
+
+| Control | What it does |
+|---------|-------------|
+| **Checkbox** | Toggle layer visibility on/off. Hidden layers are skipped entirely in `drawCellLayers`. |
+| **Tint color picker** | Override the game's per-layer tint with a fixed color. Enable the checkbox next to the picker to activate. The override replaces the Brogue lighting/color tint for that layer only. |
+| **Alpha slider** (0.0–1.0) | Override `globalAlpha` for the layer. Useful for making gas/fire semi-transparent to see terrain beneath. |
+| **Blend mode dropdown** | Override the composite operation used for tinting (`multiply` is the default). Options: `source-over`, `screen`, `overlay`, `color-dodge`, `color-burn`. |
+
+**Global controls:**
+
+| Control | What it does |
+|---------|-------------|
+| **Visibility Overlay** checkbox | Toggle the post-compositing visibility overlay (remembered/clairvoyant/telepathic dimming). Disabling reveals raw sprite colors without fog-of-war effects. |
+| **Reset All** button | Restore all overrides to defaults. |
+
+#### Architecture
+
+- **Config:** `rogue-ts/src/platform/sprite-debug.ts` exports the `spriteDebug` singleton
+  (`SpriteDebugConfig`). The object is read by `SpriteRenderer.drawCellLayers()` every
+  frame — zero overhead when `enabled` is false.
+- **Panel DOM:** `toggleDebugPanel(parentEl)` in the same file builds an HTML overlay
+  with native inputs. All controls write directly to the `spriteDebug` singleton and set
+  `dirty = true`.
+- **Redraw trigger:** `bootstrap.ts` polls `spriteDebug.dirty` via `requestAnimationFrame`
+  and calls `forceFullRedraw()` (from `platform.ts`) to schedule a full-screen repaint on
+  the next `commitDraws()` cycle.
+- **Hotkey:** An F2 `keydown` listener on `document` (capture phase) intercepts the key
+  before it reaches the game's event queue.
+
+#### Common debugging scenarios
+
+| Scenario | Steps |
+|----------|-------|
+| **See raw sprites without lighting** | Disable Visibility Overlay; set all tint overrides to white (#ffffff). |
+| **Isolate a single layer** | Uncheck all layers except the one you want to inspect. |
+| **Check if a gas layer is rendering** | Set GAS alpha to 1.0 and tint to a bright color. |
+| **Compare blend modes** | Select different blend modes on TERRAIN or SURFACE to see how they interact with tint colors. |
+| **Verify surface-over-terrain stacking** | Disable all layers except TERRAIN and SURFACE. |
