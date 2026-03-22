@@ -634,6 +634,56 @@ describe("getCellSpriteData — multi-layer", () => {
         expect(spriteData.layers[RenderLayer.GAS]!.tileType).toBe(TileType.CONFUSION_GAS);
         expect(spriteData.layers[RenderLayer.GAS]!.alpha).toBeCloseTo(0.4);
     });
+
+    it("fire over liquid produces TERRAIN (liquid winner) + FIRE", () => {
+        const ctx = makeCtx();
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+        ctx.pmap[3][3].layers[DungeonLayer.Liquid] = TileType.LAVA;
+        ctx.pmap[3][3].layers[DungeonLayer.Surface] = TileType.PLAIN_FIRE;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.layers[RenderLayer.TERRAIN]).toBeDefined();
+        expect(spriteData.layers[RenderLayer.FIRE]).toBeDefined();
+        expect(spriteData.layers[RenderLayer.FIRE]!.tileType).toBe(TileType.PLAIN_FIRE);
+        expect(spriteData.layers[RenderLayer.GAS]).toBeUndefined();
+    });
+
+    it("all layers: creature on foliage over floor with gas", () => {
+        const ctx = makeCtx();
+        const monst = makeCreature(3, 3);
+        monst.info = {
+            displayChar: DisplayGlyph.G_GOBLIN,
+            foreColor: makeColor(60, 40, 20),
+            flags: 0,
+            abilityFlags: 0,
+            monsterName: "goblin",
+            isLarge: false,
+        } as any;
+        ctx.monsters = [monst];
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED | TileFlag.HAS_MONSTER;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+        ctx.pmap[3][3].layers[DungeonLayer.Surface] = TileType.GRASS;
+        ctx.pmap[3][3].layers[DungeonLayer.Gas] = TileType.POISON_GAS;
+        ctx.pmap[3][3].volume = 60;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.layers[RenderLayer.TERRAIN]).toBeDefined();
+        expect(spriteData.layers[RenderLayer.TERRAIN]!.tileType).toBe(TileType.FLOOR);
+        expect(spriteData.layers[RenderLayer.SURFACE]).toBeDefined();
+        expect(spriteData.layers[RenderLayer.SURFACE]!.tileType).toBe(TileType.GRASS);
+        expect(spriteData.layers[RenderLayer.ENTITY]).toBeDefined();
+        expect(spriteData.layers[RenderLayer.ENTITY]!.glyph).toBe(DisplayGlyph.G_GOBLIN);
+        expect(spriteData.layers[RenderLayer.GAS]).toBeDefined();
+        expect(spriteData.layers[RenderLayer.GAS]!.tileType).toBe(TileType.POISON_GAS);
+        expect(spriteData.layers[RenderLayer.GAS]!.alpha).toBeCloseTo(0.6);
+        expect(spriteData.layers[RenderLayer.ITEM]).toBeUndefined();
+        expect(spriteData.layers[RenderLayer.FIRE]).toBeUndefined();
+    });
 });
 
 // =============================================================================

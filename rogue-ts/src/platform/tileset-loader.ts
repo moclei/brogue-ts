@@ -12,6 +12,11 @@ import Door0Url from "../../assets/tilesets/dawnlike/Objects/Door0.png?url";
 import Door1Url from "../../assets/tilesets/dawnlike/Objects/Door1.png?url";
 import Ground0Url from "../../assets/tilesets/dawnlike/Objects/Ground0.png?url";
 import Player0Url from "../../assets/tilesets/dawnlike/Characters/Player0.png?url";
+import TileUrl from "../../assets/tilesets/dawnlike/Objects/Tile.png?url";
+import Pit1Url from "../../assets/tilesets/dawnlike/Objects/Pit1.png?url";
+import Decor0Url from "../../assets/tilesets/dawnlike/Objects/Decor0.png?url";
+import Effect0Url from "../../assets/tilesets/dawnlike/Objects/Effect0.png?url";
+import Trap0Url from "../../assets/tilesets/dawnlike/Objects/Trap0.png?url";
 
 const SHEET_URLS: Record<string, string> = {
     Floor: FloorUrl,
@@ -20,6 +25,11 @@ const SHEET_URLS: Record<string, string> = {
     Door1: Door1Url,
     Ground0: Ground0Url,
     Player0: Player0Url,
+    Tile: TileUrl,
+    Pit1: Pit1Url,
+    Decor0: Decor0Url,
+    Effect0: Effect0Url,
+    Trap0: Trap0Url,
 };
 
 export const TILE_SIZE = 16;

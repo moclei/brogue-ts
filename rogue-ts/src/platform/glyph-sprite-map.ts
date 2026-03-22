@@ -56,12 +56,61 @@ export function buildTileTypeSpriteMap(): Map<TileType, SpriteRef> {
   m.set(TileType.TRAMPLED_FOLIAGE, tile("Ground0", 0, 0));
   m.set(TileType.BLOODFLOWER_STALK, tile("Ground0", 3, 3));
   m.set(TileType.BLOODFLOWER_POD, tile("Ground0", 0, 3));
+  m.set(TileType.FUNGUS_FOREST, tile("Ground0", 0, 4));
+  m.set(TileType.TRAMPLED_FUNGUS_FOREST, tile("Ground0", 4, 0));
+  m.set(TileType.GRAY_FUNGUS, tile("Ground0", 4, 0));
+  m.set(TileType.LUMINESCENT_FUNGUS, tile("Ground0", 5, 0));
+  m.set(TileType.LICHEN, tile("Ground0", 6, 0));
+  m.set(TileType.HAY, tile("Ground0", 7, 0));
+  m.set(TileType.ANCIENT_SPIRIT_VINES, tile("Ground0", 4, 3));
+  m.set(TileType.ANCIENT_SPIRIT_GRASS, tile("Ground0", 1, 1));
+
+  // Surface debris / blood / splatter
+  m.set(TileType.RED_BLOOD, tile("Ground0", 0, 5));
+  m.set(TileType.GREEN_BLOOD, tile("Ground0", 1, 5));
+  m.set(TileType.PURPLE_BLOOD, tile("Ground0", 0, 5));
+  m.set(TileType.ACID_SPLATTER, tile("Ground0", 1, 5));
+  m.set(TileType.VOMIT, tile("Ground0", 4, 5));
+  m.set(TileType.URINE, tile("Ground0", 2, 5));
+  m.set(TileType.UNICORN_POOP, tile("Ground0", 5, 5));
+  m.set(TileType.WORM_BLOOD, tile("Ground0", 0, 5));
+  m.set(TileType.ASH, tile("Ground0", 6, 5));
+  m.set(TileType.BURNED_CARPET, tile("Ground0", 7, 5));
+  m.set(TileType.PUDDLE, tile("Ground0", 2, 6));
+  m.set(TileType.BONES, tile("Ground0", 6, 1));
+  m.set(TileType.RUBBLE, tile("Ground0", 7, 1));
+  m.set(TileType.JUNK, tile("Ground0", 6, 1));
+  m.set(TileType.BROKEN_GLASS, tile("Ground0", 4, 1));
+  m.set(TileType.ECTOPLASM, tile("Ground0", 1, 6));
+  m.set(TileType.EMBERS, tile("Ground0", 5, 5));
+
+  // Web / netting / cobweb
+  m.set(TileType.SPIDERWEB, tile("Decor0", 0, 20));
+  m.set(TileType.NETTING, tile("Decor0", 2, 20));
+
+  // Energy / magical surface effects
+  m.set(TileType.FORCEFIELD, tile("Effect0", 4, 21));
+  m.set(TileType.FORCEFIELD_MELT, tile("Effect0", 3, 21));
+  m.set(TileType.SACRED_GLYPH, tile("Effect0", 4, 23));
+  m.set(TileType.PORTAL_LIGHT, tile("Effect0", 5, 21));
+  m.set(TileType.GUARDIAN_GLOW, tile("Effect0", 7, 22));
+  m.set(TileType.HAVEN_BEDROLL, tile("Decor0", 0, 16));
+
+  // Manacles — chain segments at cell borders (placeholder: cobweb corners)
+  m.set(TileType.MANACLE_TL, tile("Decor0", 0, 20));
+  m.set(TileType.MANACLE_BR, tile("Decor0", 1, 20));
+  m.set(TileType.MANACLE_TR, tile("Decor0", 2, 20));
+  m.set(TileType.MANACLE_BL, tile("Decor0", 3, 20));
+  m.set(TileType.MANACLE_T, tile("Decor0", 0, 20));
+  m.set(TileType.MANACLE_B, tile("Decor0", 1, 20));
+  m.set(TileType.MANACLE_L, tile("Decor0", 2, 20));
+  m.set(TileType.MANACLE_R, tile("Decor0", 3, 20));
 
   // Liquids — one sprite each (normally share G_LIQUID)
   m.set(TileType.DEEP_WATER, tile("Pit1", 1, 17));
   m.set(TileType.SHALLOW_WATER, tile("Pit1", 2, 16));
   m.set(TileType.LAVA, tile("Pit1", 1, 18));
-  m.set(TileType.MUD, tile("Ground0", 8, 0));
+  m.set(TileType.MUD, tile("Ground0", 5, 6));
   m.set(TileType.FLOOD_WATER_DEEP, tile("Pit1", 1, 29));
   m.set(TileType.FLOOD_WATER_SHALLOW, tile("Pit1", 1, 17));
 
@@ -87,10 +136,25 @@ export function buildTileTypeSpriteMap(): Map<TileType, SpriteRef> {
   m.set(TileType.STATUE_INERT, tile("Decor0", 4, 20));
   m.set(TileType.STATUE_DORMANT, tile("Decor0", 4, 20));
 
-  // Effects
+  // Fire — flame sprites from Effect0, differentiated by per-layer tinting
   m.set(TileType.PLAIN_FIRE, tile("Effect0", 0, 21));
+  m.set(TileType.BRIMSTONE_FIRE, tile("Effect0", 0, 21));
+  m.set(TileType.FLAMEDANCER_FIRE, tile("Effect0", 1, 21));
+  m.set(TileType.GAS_FIRE, tile("Effect0", 0, 21));
+  m.set(TileType.GAS_EXPLOSION, tile("Effect0", 0, 23));
+  m.set(TileType.DART_EXPLOSION, tile("Effect0", 1, 23));
+  m.set(TileType.ITEM_FIRE, tile("Effect0", 0, 21));
+  m.set(TileType.CREATURE_FIRE, tile("Effect0", 0, 21));
+
+  // Gas — cloud sprites from Effect0, differentiated by per-layer tinting
+  m.set(TileType.POISON_GAS, tile("Effect0", 0, 24));
   m.set(TileType.CONFUSION_GAS, tile("Effect0", 0, 24));
+  m.set(TileType.ROT_GAS, tile("Effect0", 3, 24));
+  m.set(TileType.STENCH_SMOKE_GAS, tile("Effect0", 0, 24));
   m.set(TileType.PARALYSIS_GAS, tile("Effect0", 0, 24));
+  m.set(TileType.METHANE_GAS, tile("Effect0", 0, 24));
+  m.set(TileType.STEAM, tile("Effect0", 0, 24));
+  m.set(TileType.DARKNESS_CLOUD, tile("Effect0", 3, 24));
   m.set(TileType.HEALING_CLOUD, tile("Effect0", 1, 24));
 
   return m;
@@ -109,7 +173,7 @@ export function buildGlyphSpriteMap(): Map<DisplayGlyph, SpriteRef> {
   m.set(DisplayGlyph.G_WALL, tile("Wall", 0, 20));
   m.set(DisplayGlyph.G_WALL_TOP, tile("Wall", 2, 19));
   m.set(DisplayGlyph.G_GRASS, tile("Floor", 13, 13));
-  m.set(DisplayGlyph.G_BOG, tile("Ground0", 8, 0));
+  m.set(DisplayGlyph.G_BOG, tile("Ground0", 5, 6));
   m.set(DisplayGlyph.G_CHASM, tile("Pit1", 1, 22));
   m.set(DisplayGlyph.G_LIQUID, tile("Pit1", 1, 16));
 

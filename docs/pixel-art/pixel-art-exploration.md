@@ -1175,10 +1175,12 @@ but premature optimization here.
 - CDDA (3.3): connection groups concept, draw-time computation pattern
 - BrogueCE Issue #332 (3.10): validates this direction for BrogueCE specifically
 
-#### Layer compositing: 11 layers, validated
+#### Layer compositing: 10 layers, implemented
 
-**Decision:** Keep the proposed 11-layer stack from Section 4d. Both DCSS (3 stored layers +
-flags + overlays ≈ 7 effective layers) and CDDA (11 explicit draw layers) validate that
+**Decision:** The proposed 11-layer stack was refined to **10 layers** during implementation.
+VISIBILITY is a renderer behavior (post-compositing overlay), not a `LayerEntry`. Lighting
+is per-layer tint rather than a separate layer. Both DCSS (3 stored layers +
+flags + overlays ≈ 7 effective layers) and CDDA (11 explicit draw layers) validated that
 production roguelikes use this order of magnitude.
 
 **Revised layer stack** (incorporating research findings):
@@ -1419,39 +1421,36 @@ Renderer (interface)
 
 ### 4d. Layer Model and Compositing
 
-**The problem:** The current two-layer draw (background tile + foreground tile, or terrain +
-creature) was built ad-hoc for the foreground-tiles initiative. It doesn't account for the
-full range of visual layers the game needs: gas clouds, fire effects, lighting overlays,
-bolt animations, cursor highlights, items on the ground, etc. Adding more layers without
-a model will result in increasingly fragile special-case code.
+> **Status: Implemented** (Initiative 2: Layer Compositing Model, Phases 1–7).
+>
+> The original 11-layer proposal was refined to a **10-layer `RenderLayer` enum**. Layer 8
+> (Lighting) was replaced by per-layer tint colors computed in `getCellSpriteData`, and
+> VISIBILITY is a renderer behavior (post-compositing overlay driven by `visibilityState`),
+> not a `LayerEntry` in the sparse array. See `initiatives/layer-compositing-model/PLAN.md`
+> for the implemented design.
 
-**Layer enumeration (bottom to top):**
+**Implemented layer stack (10 layers):**
 
-| Layer | Examples | Compositing | Notes |
-|-------|----------|-------------|-------|
-| 1. Background terrain | Stone floor, grass, carpet, shallow water surface | Opaque fill (or sprite + bg color fill) | Always present |
-| 2. Terrain feature | Door, stairs, trap, altar, bridge | Alpha over background | Opaque center, may have edge transparency |
-| 3. Surface effect | Foliage, fungus, cobweb, bloodstain, lichen | Alpha over terrain | Transparent overlay; current foreground-tile system |
-| 4. Item | Weapon, potion, scroll on ground | Alpha over terrain/surface | Only when no creature present |
-| 5. Entity | Player, monster | Alpha over terrain/surface | May have underlyingTerrain already |
-| 6. Gas / cloud | Confusion gas, steam, poison, spiderweb | Semi-transparent overlay | Partially obscures entity and terrain |
-| 7. Liquid animation | Water shimmer, lava glow | Animated overlay on layer 1 | May need special blend mode |
-| 8. Lighting | Per-cell tint from light sources, darkness, luminescence | Multiply tint across all layers below | Core to Brogue's visual identity |
-| 9. Status effect | On-fire, entranced, paralyzed, hasted (on entity) | Additive or screen blend on entity only | Per-creature overlay |
-| 10. Bolt / projectile | Staff zap trail, thrown item arc | Alpha with glow | Transient, one frame per turn step |
-| 11. UI overlay | Cursor highlight, movement path preview, explosion flash, targeting | Colored overlay or outline | Highest z-order |
+| # | Layer | Examples | Compositing | Status |
+|---|-------|----------|-------------|--------|
+| 0 | TERRAIN | Floor, wall, liquid, chasm, bridge | Opaque sprite + bg fill | Implemented |
+| 1 | SURFACE | Foliage, fungus, blood, debris, web, netting | Alpha + multiply tint | Implemented |
+| 2 | ITEM | Item on ground (potion, weapon, scroll) | Alpha + multiply tint | Implemented |
+| 3 | ENTITY | Player, monster (hallucination-aware) | Alpha + multiply tint | Implemented |
+| 4 | GAS | Poison gas, steam, confusion, healing cloud | Alpha (volume-based) + tint | Implemented |
+| 5 | FIRE | Plain fire, brimstone, gas fire, explosion, embers | Alpha + multiply tint | Implemented |
+| 6 | VISIBILITY | Remembered/clairvoyant/telepathic overlay | Post-compositing multiply fill | Implemented (renderer behavior) |
+| 7 | STATUS | On-fire, entranced, paralyzed overlays | — | Future (Initiative 5) |
+| 8 | BOLT | Bolt trail, thrown item arc | — | Future (Initiative 7) |
+| 9 | UI | Cursor, path preview, targeting | — | Future |
 
-**Key questions:**
-- Should lighting (layer 8) be a single multiply pass over the composited result of layers
-  1-7, or should each layer be tinted individually? Currently each sprite is tinted
-  individually via the offscreen `tintCanvas` — this may be correct but needs validation
-  for multi-layer cells.
-- Gas/cloud transparency: what alpha value? Does it vary by gas density (`Pcell.volume`)?
-- Bolt rendering currently uses `hiliteCell` which tints the whole cell — should bolts be
-  sprites, colored overlays, or both?
-- How do we handle cells with many simultaneous layers (e.g., foliage on grass, with a
-  monster on top, in confusion gas, lit by a torch)? Performance implications of 4-5
-  `drawImage` calls per cell?
+**Resolved questions:**
+- **Per-layer vs. single-pass lighting:** Per-layer tinting is correct and implemented.
+  Each layer's tint is computed from tileCatalog colors × lighting multiplier ×
+  `bakeTerrainColors`. Emissive layers (gas, fire) skip lighting.
+- **Gas transparency:** Volume-based alpha (`volume / 100`), implemented.
+- **Multi-layer performance:** Skip-tinting fast path, ImageBitmap pre-creation, and
+  OffscreenCanvas mitigate the cost. Typical cells have 1–2 layers.
 
 ---
 
@@ -1488,7 +1487,7 @@ starts.
 | 0c | pixel-art-foreground-tiles | **complete** | 0b | Two-layer draw, transparency fix |
 | R1 | Open source research | **complete** | — | 3 deep-dives + synthesis done |
 | 1 | Renderer refactor | **complete** | 0a-0c | Phases 1–5; TextRenderer, SpriteRenderer, progressive cell sizing |
-| 2 | Layer compositing model | not started | 1 | 11-layer stack validated by R1 |
+| 2 | Layer compositing model | **complete** | 1 | 10-layer stack (VISIBILITY is renderer behavior, not a LayerEntry); full surface/gas/fire coverage |
 | 3 | Autotiling system | not started | 1, 2 | 8-bit blob + connect_groups (decided in R1) |
 | 4 | Creature facing | not started | 1 | 2-directional left/right flip (decided in R1) |
 | 5 | Effect overlays | not started | 2 | — |
@@ -1507,12 +1506,14 @@ tileset loading, and tinting logic into the sprite renderer. Keep shared infrast
 active renderer. This cleans up the prototype code from initiatives 0a-0c and creates the
 extension point for all future rendering work.
 
-### Initiative 2: Layer Compositing Model
+### Initiative 2: Layer Compositing Model (**complete**)
 
-Define the fixed layer stack (background, terrain feature, surface effect, item, entity,
-gas, lighting, status, bolt, UI) and implement a compositing pipeline in `SpriteRenderer`.
-Each cell is drawn as a sequence of layer draws with per-layer blend modes. Replaces the
-ad-hoc foreground/background/underlyingTerrain logic with a general system.
+Implemented a 10-layer compositing pipeline: `getCellSpriteData()` produces per-layer sprite
+data with per-layer tint colors from game state, and `drawCellLayers()` in `SpriteRenderer`
+draws each layer with multiply tinting. Replaced the ad-hoc foreground/background/
+underlyingTerrain logic. Full surface/gas/fire TileType coverage with DawnLike placeholder
+sprites. Hybrid mode removed; clean Text ↔ Tiles toggle. See
+`initiatives/layer-compositing-model/` for full design and implementation notes.
 
 ### Initiative 3: Autotiling System
 
@@ -1595,7 +1596,7 @@ The `initiatives/pixel-art-pipeline/` initiative has a preliminary BRIEF/PLAN/TA
   provided a directly applicable scrolling viewport model (both are C++/SDL with different
   grid assumptions). This remains a significant rendering change and is its own initiative
   (Initiative 6).
-- **Performance with many layers per cell.** Still open. 11 layers × multiply tinting per
+- **Performance with many layers per cell.** Partially addressed. 10 layers × multiply tinting per
   sprite is the worst case. Canvas2D may need offscreen compositing or a WebGL upgrade. The
   research showed that neither DCSS nor CDDA does runtime per-pixel tinting, so we have no
   performance reference for this specific pattern.

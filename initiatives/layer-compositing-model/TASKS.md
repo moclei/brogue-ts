@@ -401,26 +401,54 @@ different sessions.
 Ensure all TileTypes have sprite mappings, verify visual results, update
 documentation.
 
-- [ ] Verify/add sprite mappings for all surface TileTypes (blood, fungus,
+- [x] Verify/add sprite mappings for all surface TileTypes (blood, fungus,
   lichen, webs, debris, cobweb, netting, etc.) in `glyph-sprite-map.ts`.
-- [ ] Verify/add sprite mappings for all gas TileTypes (poison, confusion,
-  rot, stench, paralysis, methane, steam, darkness, healing).
-- [ ] Verify/add sprite mappings for all fire TileTypes (plain fire,
-  brimstone, flamedancer, gas fire, explosion, embers).
-- [ ] Integration test: multi-layer cells render correctly (creature on
-  foliage on floor, gas over terrain, fire over liquid).
-- [ ] Update `docs/pixel-art/pixel-art-exploration.md` Section 6 roadmap
-  table — mark Initiative 2 complete. Update Section 3.S and 4d to
-  reflect 10-layer model (VISIBILITY is a renderer behavior, not a
-  `LayerEntry` in the array).
-- [ ] Update `.context/PROJECT.md` active initiative if needed.
-- [ ] Document save/load implication for `rememberedLayers` — coordinate
-  with `port-v2-persistence` initiative on serialization format. Add note
-  to PLAN.md deferred section if not yet resolved.
-- [ ] Final cleanup pass: remove any dead code, verify 600-line limits.
+  Added 40 new surface TileType mappings using Ground0, Decor0, and Effect0
+  sprite sheets. Covers all types in `isSurfaceTileType` range. Fixed
+  pre-existing out-of-bounds MUD and G_BOG mappings (column 8 on 8-column
+  Ground0 sheet).
+- [x] Verify/add sprite mappings for all gas TileTypes (poison, confusion,
+  rot, stench, paralysis, methane, steam, darkness, healing). All 9 gas
+  TileTypes mapped to Effect0 cloud sprites (row 24). Per-layer tinting
+  differentiates gas types visually.
+- [x] Verify/add sprite mappings for all fire TileTypes (plain fire,
+  brimstone, flamedancer, gas fire, explosion, embers). All 8 fire TileTypes
+  mapped to Effect0 flame/explosion sprites (rows 21-23). Per-layer tinting
+  differentiates fire types.
+- [x] Integration test: multi-layer cells render correctly (creature on
+  foliage on floor, gas over terrain, fire over liquid). 68 new sprite
+  mapping coverage tests in `tests/platform/glyph-sprite-map.test.ts` +
+  2 new multi-layer integration tests in `sprite-appearance.test.ts`
+  (fire over liquid, all-layers scenario with creature + surface + gas).
+  Full suite: 96 files, 2650 pass, 55 skip, zero regressions.
+- [x] Update `docs/pixel-art/pixel-art-exploration.md` Section 6 roadmap
+  table — marked Initiative 2 complete. Updated Section 4d to reflect
+  10-layer model (VISIBILITY is a renderer behavior, not a `LayerEntry`).
+  Updated Initiative 2 description. Updated Section 3.S layer count
+  reference.
+- [x] Update `.context/PROJECT.md` active initiative if needed. No change
+  needed — active initiative is `port-v2-persistence` (main port line);
+  this is a parallel pixel-art effort.
+- [x] Document save/load implication for `rememberedLayers` — added to
+  TASKS.md Deferred section. PLAN.md already documents the implication
+  (lines 455–461). `rememberedLayers` must be serialized in
+  `port-v2-persistence`; until then, loaded saves show no terrain sprites
+  for remembered cells (cosmetic-only, ASCII mode unaffected).
+- [x] Final cleanup pass: remove any dead code, verify 600-line limits.
+  All initiative source files under 600 lines. No dead code from
+  prototype remaining (Hybrid mode, underlyingTerrain, etc. confirmed
+  removed in Phase 6b). Fixed out-of-bounds sprite coordinates for MUD
+  and G_BOG. Added 5 missing tileset sheet imports to `tileset-loader.ts`
+  (Effect0, Decor0, Tile, Pit1, Trap0) — these sheets were referenced by
+  existing sprite mappings but never loaded.
 
 ## Deferred
 
+- `rememberedLayers` serialization — `Pcell.rememberedLayers` must be added
+  to the save/load format in `port-v2-persistence`. Until then, loaded saves
+  will have empty `rememberedLayers` — remembered cells in sprite mode show
+  no terrain after a save/load cycle. This is cosmetic-only (ASCII mode and
+  gameplay are unaffected). See PLAN.md "Save/load implication" section.
 - Flash effects (`creature.flashStrength`, `creature.flashColor`,
   `hiliteCell`) — handled outside `getCellAppearance`, needs its own
   sprite-mode path. Defer to a future initiative.
