@@ -5,7 +5,6 @@
  *  Verifies:
  *   - Text mode dispatches all cells to textRenderer
  *   - Tiles mode dispatches viewport cells to spriteRenderer, sidebar/message to textRenderer
- *   - Hybrid mode dispatches environment glyphs to spriteRenderer, creatures to textRenderer
  *   - Missing spriteRenderer falls back to textRenderer
  *   - setGraphicsMode returns the current mode
  */
@@ -206,34 +205,6 @@ describe("createBrowserConsole mode switching", () => {
     expect(spriteDrawCell).not.toHaveBeenCalled();
   });
 
-  it("dispatches environment glyphs to spriteRenderer in Hybrid mode", () => {
-    const bc = buildConsole();
-    bc.setGraphicsMode(GraphicsMode.Hybrid);
-    bc.plotChar(
-      DisplayGlyph.G_FLOOR,
-      VP_X, VP_Y,
-      FG_R, FG_G, FG_B,
-      BG_R, BG_G, BG_B,
-    );
-
-    expect(spriteDrawCell).toHaveBeenCalledTimes(1);
-    expect(textDrawCell).not.toHaveBeenCalled();
-  });
-
-  it("dispatches creature glyphs to textRenderer in Hybrid mode", () => {
-    const bc = buildConsole();
-    bc.setGraphicsMode(GraphicsMode.Hybrid);
-    bc.plotChar(
-      DisplayGlyph.G_PLAYER,
-      VP_X, VP_Y,
-      FG_R, FG_G, FG_B,
-      BG_R, BG_G, BG_B,
-    );
-
-    expect(textDrawCell).toHaveBeenCalledTimes(1);
-    expect(spriteDrawCell).not.toHaveBeenCalled();
-  });
-
   it("falls back to textRenderer when spriteRenderer is absent", () => {
     const bc = buildConsole({ omitSprite: true });
     bc.setGraphicsMode(GraphicsMode.Tiles);
@@ -251,7 +222,6 @@ describe("createBrowserConsole mode switching", () => {
     const bc = buildConsole();
 
     expect(bc.setGraphicsMode(GraphicsMode.Tiles)).toBe(GraphicsMode.Tiles);
-    expect(bc.setGraphicsMode(GraphicsMode.Hybrid)).toBe(GraphicsMode.Hybrid);
     expect(bc.setGraphicsMode(GraphicsMode.Text)).toBe(GraphicsMode.Text);
   });
 
@@ -315,25 +285,6 @@ describe("createBrowserConsole mode switching", () => {
 
     expect(spriteDrawCell).toHaveBeenCalledTimes(1);
     expect(textDrawCell).not.toHaveBeenCalled();
-  });
-
-  it("uses drawCell (not drawCellLayers) in Hybrid mode even with provider set", () => {
-    const bc = buildConsole();
-    bc.setGraphicsMode(GraphicsMode.Hybrid);
-
-    const { spriteData } = createCellSpriteData();
-    const provider = vi.fn().mockReturnValue(spriteData);
-    bc.setCellSpriteDataProvider(provider);
-
-    bc.plotChar(
-      DisplayGlyph.G_FLOOR,
-      VP_X, VP_Y,
-      FG_R, FG_G, FG_B,
-      BG_R, BG_G, BG_B,
-    );
-
-    expect(spriteDrawCell).toHaveBeenCalledTimes(1);
-    expect(provider).not.toHaveBeenCalled();
   });
 
   it("falls back to text when tileType is undefined (UI overlay) in Tiles mode with provider", () => {

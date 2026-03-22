@@ -360,37 +360,39 @@ Remove prototype code that the layer model replaces. Separate from wiring
 so that the additive (safe) and subtractive (risky) changes are in
 different sessions.
 
-- [ ] Remove `getBackgroundTileType` and `buildForegroundBackgroundMap` from
+- [x] Remove `getBackgroundTileType` and `buildForegroundBackgroundMap` from
   `glyph-sprite-map.ts`. Remove the import in `sprite-renderer.ts`.
-- [ ] Remove `underlyingTerrain` from `CellDisplayBuffer` type in
+- [x] Remove `underlyingTerrain` from `CellDisplayBuffer` type in
   `types/types.ts`.
-- [ ] Remove `underlyingTerrain` parameter from `plotCharWithColor` in
+- [x] Remove `underlyingTerrain` parameter from `plotCharWithColor` in
   `display.ts` and all callers (`refreshDungeonCell`, `getCellAppearance`
   return type).
-- [ ] Remove `underlyingTerrain` from `commitDraws` diff logic in
+- [x] Remove `underlyingTerrain` from `commitDraws` diff logic in
   `platform.ts` and from `plotChar` parameter list in
   `browser-renderer.ts`.
-- [ ] Remove `underlyingTerrain` handling from `SpriteRenderer.drawCell`
+- [x] Remove `underlyingTerrain` handling from `SpriteRenderer.drawCell`
   (the old drawCell fallback path no longer needs it).
-- [ ] Remove `GraphicsMode.Hybrid` from the `GraphicsMode` enum in
+- [x] Remove `GraphicsMode.Hybrid` from the `GraphicsMode` enum in
   `types/enums.ts`.
-- [ ] Remove `isEnvironmentGlyph` import and gating from `plotChar` in
+- [x] Remove `isEnvironmentGlyph` import and gating from `plotChar` in
   `browser-renderer.ts` — `useTiles` becomes `graphicsMode === Tiles &&
   isInDungeonViewport(x, y)`.
-- [ ] Update G-key cycle in `setGraphicsMode` to toggle Text ↔ Tiles
+- [x] Update G-key cycle in `setGraphicsMode` to toggle Text ↔ Tiles
   (remove Hybrid from the rotation).
-- [ ] Remove `isEnvironmentGlyph` function from `glyph-map.ts` if no
+- [x] Remove `isEnvironmentGlyph` function from `glyph-map.ts` — no
   other callers remain.
-- [ ] Remove Hybrid-mode tests from `browser-renderer-mode.test.ts` (the
-  two Hybrid dispatch tests and update the mode cycle assertion). Grep for
-  `GraphicsMode.Hybrid` across `rogue-ts/` to catch any remaining
-  references.
-- [ ] Run full test suite — verify no regressions from removal.
-- [ ] Verify dirty detection still works: `commitDraws` without
-  `underlyingTerrain` in the diff must still trigger redraws for cells
-  that previously changed due to underlyingTerrain differences. Confirm
-  that sprite-mode redraws are triggered by other cell changes (character,
-  fg/bg colors, tileType).
+- [x] Remove Hybrid-mode tests from `browser-renderer-mode.test.ts` (the
+  two Hybrid dispatch tests and the mode cycle assertion updated). Grepped
+  for `GraphicsMode.Hybrid` across `rogue-ts/` — no remaining references.
+- [x] Run full test suite — 161 files, 4844 pass, 55 skip, zero
+  regressions.
+- [x] Dirty detection verified: `commitDraws` without `underlyingTerrain`
+  still triggers redraws via character, fg/bg colors, and tileType diffs.
+  Creature cells clear `tileType` (set to undefined) when a creature
+  occupies the cell, which differs from the terrain tileType in the prev
+  buffer, triggering the redraw. The layer compositing pipeline
+  (`getCellSpriteData`) is called on every changed cell and reads live
+  game state — no sprite-relevant state is lost.
 
 # --- handoff point ---
 

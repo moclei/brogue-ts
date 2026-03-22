@@ -47,7 +47,6 @@ export const nullConsole: BrogueConsole = {
         _foreRed: number, _foreGreen: number, _foreBlue: number,
         _backRed: number, _backGreen: number, _backBlue: number,
         _tileType?: import("../types/enums.js").TileType,
-        _underlyingTerrain?: import("../types/enums.js").TileType,
     ): void {
         // No-op
     },

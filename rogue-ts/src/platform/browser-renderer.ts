@@ -43,7 +43,6 @@ import {
   NUMPAD_9,
   PRINTSCREEN_KEY,
 } from "../types/constants.js";
-import { isEnvironmentGlyph } from "./glyph-map.js";
 import { TextRenderer } from "./text-renderer.js";
 import { SpriteRenderer } from "./sprite-renderer.js";
 import type { CellRect } from "./renderer.js";
@@ -185,7 +184,7 @@ export function createBrowserConsole(
   const { canvas, onGameLoop, textRenderer, spriteRenderer } = options;
   const ctx2d = canvas.getContext("2d")!;
 
-  /** Current graphics mode; used by plotChar to choose text vs. tiles (Phase 2). */
+  /** Current graphics mode; used by plotChar to choose text vs. tiles. */
   let currentGraphicsMode: GraphicsMode = GraphicsMode.Text;
 
   /** Layer compositing data provider, set via setCellSpriteDataProvider. */
@@ -493,19 +492,16 @@ export function createBrowserConsole(
       backGreen: number,
       backBlue: number,
       tileType?: TileType,
-      underlyingTerrain?: TileType,
     ): void {
       const cr = getCellRect(x, y);
 
       const useTiles =
         spriteRenderer &&
-        isInDungeonViewport(x, y) &&
-        (currentGraphicsMode === GraphicsMode.Tiles ||
-          (currentGraphicsMode === GraphicsMode.Hybrid &&
-            isEnvironmentGlyph(inputChar)));
+        currentGraphicsMode === GraphicsMode.Tiles &&
+        isInDungeonViewport(x, y);
 
       if (useTiles) {
-        if (getCellSpriteDataFn && currentGraphicsMode === GraphicsMode.Tiles && tileType !== undefined) {
+        if (getCellSpriteDataFn && tileType !== undefined) {
           const dx = x - (STAT_BAR_WIDTH + 1);
           const dy = y - MESSAGE_LINES;
           const spriteData = getCellSpriteDataFn(dx, dy);
@@ -519,7 +515,7 @@ export function createBrowserConsole(
           const bb = Math.round((backBlue * 255) / 100);
           spriteRenderer.drawCell(
             cr, inputChar, fr, fg, fb, br, bg, bb,
-            tileType, underlyingTerrain,
+            tileType,
           );
         }
       } else {

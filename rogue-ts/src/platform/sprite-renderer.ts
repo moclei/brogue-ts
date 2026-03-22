@@ -16,13 +16,10 @@ import type { Color } from "../types/types.js";
 import type { DisplayGlyph, TileType } from "../types/enums.js";
 import type { Renderer, CellRect } from "./renderer.js";
 import type { SpriteRef } from "./glyph-sprite-map.js";
-import { getBackgroundTileType } from "./glyph-sprite-map.js";
 import { TILE_SIZE } from "./tileset-loader.js";
 import type { TextRenderer } from "./text-renderer.js";
 import type { CellSpriteData, VisibilityOverlay } from "./render-layers.js";
 import { RENDER_LAYER_COUNT, getVisibilityOverlay } from "./render-layers.js";
-
-const DEBUG_LAYERED_DRAW = false;
 
 /** Brogue 0–100 scale → CSS 0–255 RGB, clamped. */
 function c100to255(v: number): number {
@@ -158,7 +155,6 @@ export class SpriteRenderer implements Renderer {
     bgG: number,
     bgB: number,
     tileType?: TileType,
-    underlyingTerrain?: TileType,
   ): void {
     const ref = this.resolveSprite(tileType, glyph);
     const img = ref ? this.tiles.get(ref.sheetKey) : undefined;
@@ -176,32 +172,6 @@ export class SpriteRenderer implements Renderer {
     t.red = (fgR * 100) / 255;
     t.green = (fgG * 100) / 255;
     t.blue = (fgB * 100) / 255;
-
-    let drewExtraLayer = false;
-
-    if (underlyingTerrain !== undefined) {
-      const terrainRef = this.tileTypeSpriteMap.get(underlyingTerrain);
-      if (terrainRef) {
-        this.drawSpriteTinted(terrainRef, cellRect, t);
-        drewExtraLayer = true;
-      }
-    }
-
-    const backgroundTileType =
-      tileType !== undefined ? getBackgroundTileType(tileType) : undefined;
-    if (backgroundTileType !== undefined) {
-      const bgRef = this.tileTypeSpriteMap.get(backgroundTileType);
-      if (bgRef) {
-        this.drawSpriteTinted(bgRef, cellRect, t);
-        drewExtraLayer = true;
-      }
-    }
-
-    if (DEBUG_LAYERED_DRAW && drewExtraLayer) {
-      console.debug("[sprite-renderer] two-layer draw", {
-        x, y, tileType, underlyingTerrain,
-      });
-    }
 
     this.drawSpriteTinted(ref, cellRect, t);
   }

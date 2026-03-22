@@ -251,7 +251,7 @@ export async function actionMenu(ctx: InputContext, x: number, playingBack: bool
         buttonCount++;
 
         if (ctx.hasGraphics) {
-            const gModeChar = " X~"[ctx.graphicsMode] ?? " ";
+            const gModeChar = " X"[ctx.graphicsMode] ?? " ";
             buttons[buttonCount].text = KEYBOARD_LABELS
                 ? `  ${yellowEsc}G: ${whiteEsc}[${gModeChar}] Enable graphics  `
                 : `  [${gModeChar}] Enable graphics  `;

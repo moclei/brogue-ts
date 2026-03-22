@@ -84,11 +84,10 @@ export function getCellAppearance(
     terrainRandomValues: readonly (readonly (readonly number[])[])[],
     displayDetail: readonly (readonly number[])[],
     scentMap: readonly (readonly number[])[],
-): { glyph: DisplayGlyph; foreColor: Color; backColor: Color; tileType?: TileType; underlyingTerrain?: TileType } {
+): { glyph: DisplayGlyph; foreColor: Color; backColor: Color; tileType?: TileType } {
     const x = loc.x;
     const y = loc.y;
     let cellTileType: TileType | undefined;
-    let underlyingTerrain: TileType | undefined;
     const cellFlags = pmap[x][y].flags;
 
     const playerCanSeeOrSense = (cx: number, cy: number): boolean =>
@@ -203,7 +202,6 @@ export function getCellAppearance(
 
         if (cellFlags & TileFlag.HAS_PLAYER) {
             // Player
-            underlyingTerrain = cellTileType;
             cellChar = player.info.displayChar;
             cellTileType = undefined;
             cellForeColor = { ...player.info.foreColor };
@@ -246,7 +244,6 @@ export function getCellAppearance(
             && (!monsterIsHidden(monst, player, mqCtx) || rogue.playbackOmniscience)
         ) {
             // Visible monster
-            underlyingTerrain = cellTileType;
             cellTileType = undefined;
             needDistinctness = true;
             if (
@@ -271,7 +268,6 @@ export function getCellAppearance(
 
         } else if (monst !== null && monsterRevealed(monst, player) && !canSeeMonster(monst, mqCtx)) {
             // Revealed (telepathic) but not directly visible
-            underlyingTerrain = cellTileType;
             cellTileType = undefined;
             if (player.status[StatusEffect.Hallucinating] && !rogue.playbackOmniscience && !player.status[StatusEffect.Telepathic]) {
                 cellChar = (cosmeticRandRange(0, 1) ? 88 : 120) as DisplayGlyph; // 'X' : 'x'
@@ -512,7 +508,7 @@ export function getCellAppearance(
         separateColors(cellForeColor, cellBackColor);
     }
 
-    return { glyph: cellChar, foreColor: cellForeColor, backColor: cellBackColor, tileType: cellTileType, underlyingTerrain };
+    return { glyph: cellChar, foreColor: cellForeColor, backColor: cellBackColor, tileType: cellTileType };
 }
 
 // =============================================================================
@@ -528,11 +524,11 @@ export function getCellAppearance(
  */
 export function refreshDungeonCell(
     loc: Pos,
-    getCellAppearanceFn: (loc: Pos) => { glyph: DisplayGlyph; foreColor: Color; backColor: Color; tileType?: TileType; underlyingTerrain?: TileType },
+    getCellAppearanceFn: (loc: Pos) => { glyph: DisplayGlyph; foreColor: Color; backColor: Color; tileType?: TileType },
     displayBuffer: ScreenDisplayBuffer,
 ): void {
-    const { glyph, foreColor, backColor, tileType, underlyingTerrain } = getCellAppearanceFn(loc);
-    plotCharWithColor(glyph, mapToWindow(loc), foreColor, backColor, displayBuffer, tileType, underlyingTerrain);
+    const { glyph, foreColor, backColor, tileType } = getCellAppearanceFn(loc);
+    plotCharWithColor(glyph, mapToWindow(loc), foreColor, backColor, displayBuffer, tileType);
 }
 
 // =============================================================================

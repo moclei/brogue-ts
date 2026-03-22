@@ -80,7 +80,6 @@ type PlotCharFn = (
     fr: number, fg: number, fb: number,
     br: number, bg: number, bb: number,
     tileType?: TileType,
-    underlyingTerrain?: TileType,
 ) => void;
 let _plotChar: PlotCharFn | null = null;
 
@@ -128,7 +127,7 @@ export function initPlatform(browserConsole: PlatformConsole & {
 }
 
 /**
- * Current graphics mode (Text / Tiles / Hybrid). Used by input context and renderer.
+ * Current graphics mode (Text / Tiles). Used by input context and renderer.
  */
 export function getGraphicsMode(): GraphicsMode {
     return _graphicsMode;
@@ -267,8 +266,7 @@ export function commitDraws(): void {
                 cell.backColorComponents[0] !== prev.backColorComponents[0] ||
                 cell.backColorComponents[1] !== prev.backColorComponents[1] ||
                 cell.backColorComponents[2] !== prev.backColorComponents[2] ||
-                cell.tileType !== prev.tileType ||
-                cell.underlyingTerrain !== prev.underlyingTerrain;
+                cell.tileType !== prev.tileType;
 
             if (changed) {
                 _plotChar(
@@ -276,7 +274,6 @@ export function commitDraws(): void {
                     cell.foreColorComponents[0], cell.foreColorComponents[1], cell.foreColorComponents[2],
                     cell.backColorComponents[0], cell.backColorComponents[1], cell.backColorComponents[2],
                     cell.tileType,
-                    cell.underlyingTerrain,
                 );
 
                 prev.character = cell.character;
@@ -287,7 +284,6 @@ export function commitDraws(): void {
                 prev.backColorComponents[1] = cell.backColorComponents[1];
                 prev.backColorComponents[2] = cell.backColorComponents[2];
                 prev.tileType = cell.tileType;
-                prev.underlyingTerrain = cell.underlyingTerrain;
             }
         }
     }

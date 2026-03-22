@@ -78,7 +78,6 @@ export function clearDisplayBuffer(dbuf: ScreenDisplayBuffer): void {
             c.backColorComponents[2] = 0;
             c.opacity = 0;
             delete c.tileType;
-            delete c.underlyingTerrain;
         }
     }
 }
@@ -102,7 +101,6 @@ export function copyDisplayBuffer(toBuf: ScreenDisplayBuffer, fromBuf: Readonly<
             dst.backColorComponents[2] = src.backColorComponents[2];
             dst.opacity = src.opacity;
             dst.tileType = src.tileType;
-            dst.underlyingTerrain = src.underlyingTerrain;
         }
     }
 }
@@ -208,8 +206,7 @@ export function applyOverlay(
 /**
  * Plot a character with fore/back color into a ScreenDisplayBuffer at (x, y).
  * Bakes random color components using the RNG.
- * Optional tileType is stored for tile/hybrid renderer sprite lookup.
- * Optional underlyingTerrain is stored for creature cells (terrain under mob).
+ * Optional tileType is stored for tile renderer sprite lookup.
  *
  * C: `plotCharToBuffer` in IO.c
  */
@@ -221,7 +218,6 @@ export function plotCharToBuffer(
     backColor: Readonly<Color>,
     dbuf: ScreenDisplayBuffer,
     tileType?: TileType,
-    underlyingTerrain?: TileType,
 ): void {
     if (!locIsInWindow({ windowX: x, windowY: y })) return;
 
@@ -235,8 +231,6 @@ export function plotCharToBuffer(
     cell.character = inputChar;
     if (tileType !== undefined) cell.tileType = tileType;
     else delete cell.tileType;
-    if (underlyingTerrain !== undefined) cell.underlyingTerrain = underlyingTerrain;
-    else delete cell.underlyingTerrain;
 }
 
 // =============================================================================
@@ -365,8 +359,7 @@ export function terrainColorsDancing(foreColor: Readonly<Color>, backColor: Read
 /**
  * Bake random color components and write a character + colors into the
  * main display buffer cell at window position (x, y).
- * Optional tileType is stored for tile/hybrid renderer sprite lookup.
- * Optional underlyingTerrain is stored for creature cells (terrain under mob).
+ * Optional tileType is stored for tile renderer sprite lookup.
  *
  * C: `plotCharWithColor` in IO.c
  */
@@ -377,7 +370,6 @@ export function plotCharWithColor(
     cellBackColor: Readonly<Color>,
     displayBuffer: ScreenDisplayBuffer,
     tileType?: TileType,
-    underlyingTerrain?: TileType,
 ): boolean {
     if (!locIsInWindow(loc)) return false;
 
@@ -425,8 +417,6 @@ export function plotCharWithColor(
     target.backColorComponents[2] = backBlue;
     if (tileType !== undefined) target.tileType = tileType;
     else delete target.tileType;
-    if (underlyingTerrain !== undefined) target.underlyingTerrain = underlyingTerrain;
-    else delete target.underlyingTerrain;
 
     return true;
 }
@@ -481,7 +471,6 @@ export function blackOutScreen(displayBuffer: ScreenDisplayBuffer): void {
             cell.backColorComponents[1] = 0;
             cell.backColorComponents[2] = 0;
             delete cell.tileType;
-            delete cell.underlyingTerrain;
         }
     }
 }

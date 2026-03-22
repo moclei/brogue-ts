@@ -1,14 +1,10 @@
 /*
- *  glyph-sprite-map.ts — DisplayGlyph → DawnLike sprite region for tile rendering
- *  Pixel-art smoke test — Initiative: initiatives/pixel-art-smoke-test
- *  Foreground tile layers — Initiative: initiatives/pixel-art-foreground-tiles
+ *  glyph-sprite-map.ts — DisplayGlyph/TileType → DawnLike sprite region for tile rendering
+ *  brogue-ts
  *
- *  Why DisplayGlyph, not TileType?
- *  - TileType = game logic (DEEP_WATER, SHALLOW_WATER, FLOOR, etc.): what the cell *is*.
- *  - DisplayGlyph = what gets *drawn*: the small set of symbols in each display buffer cell.
- *  - The tile catalog (tile-catalog.ts) maps TileType → displayChar (DisplayGlyph). Many
- *    TileTypes share one DisplayGlyph (e.g. DEEP_WATER and lava both use G_LIQUID; colors
- *    differ). So we only map DisplayGlyphs to sprites here.
+ *  Two map types:
+ *  - DisplayGlyph → SpriteRef: fallback for glyphs without a TileType-specific sprite.
+ *  - TileType → SpriteRef: one-to-one terrain/feature sprites (preferred by the renderer).
  *
  *  Each entry is a 16×16 tile index (tileX, tileY) within a sheet. Unmapped
  *  glyphs are drawn as text in the viewport (see browser-renderer).
@@ -21,37 +17,9 @@
  *  - tile("Floor", 0, 1) → one tile down (column 0, row 1).
  *  To pick a sprite: open the PNG, count 16px columns and rows from the top-left;
  *  use that (column, row) as (tileX, tileY).
- *
- *  Foreground tile layers: some TileTypes (e.g. FOLIAGE) are drawn as overlays with
- *  transparency. For those we map "foreground TileType → background TileType"; the
- *  renderer draws the background tile's sprite first, then the foreground sprite.
  */
 
 import { DisplayGlyph, TileType } from "../types/enums.js";
-
-// -----------------------------------------------------------------------------
-// Foreground → background TileType map (transparent overlay sprites)
-// -----------------------------------------------------------------------------
-
-/** Build the foreground TileType → background TileType map. Foreground tiles (e.g. foliage)
- *  are drawn on top of a background tile's sprite so transparent pixels show ground. */
-export function buildForegroundBackgroundMap(): Map<TileType, TileType> {
-  const m = new Map<TileType, TileType>();
-  m.set(TileType.FOLIAGE, TileType.FLOOR);
-  m.set(TileType.DEAD_FOLIAGE, TileType.FLOOR);
-  m.set(TileType.TRAMPLED_FOLIAGE, TileType.FLOOR);
-  return m;
-}
-
-const foregroundBackgroundMap = buildForegroundBackgroundMap();
-
-/** Returns the background TileType to draw under a foreground overlay, or undefined if
- *  this TileType is not a foreground overlay (single-sprite behavior). */
-export function getBackgroundTileType(
-  foreground: TileType,
-): TileType | undefined {
-  return foregroundBackgroundMap.get(foreground);
-}
 
 export interface SpriteRef {
   sheetKey: string;

@@ -3,7 +3,7 @@
  *  brogue-ts
  *
  *  Ported from: src/platform/platformdependent.c (lines 44–222)
- *  Functions: glyphToUnicode, isEnvironmentGlyph
+ *  Functions: glyphToUnicode
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -193,94 +193,3 @@ export function glyphToUnicode(glyph: DisplayGlyph): number {
     }
 }
 
-// =============================================================================
-// isEnvironmentGlyph — classify glyphs as environment vs. item/creature
-// =============================================================================
-
-/** Set of item glyphs. */
-const ITEM_GLYPHS: ReadonlySet<DisplayGlyph> = new Set([
-    DisplayGlyph.G_AMULET,
-    DisplayGlyph.G_ARMOR,
-    DisplayGlyph.G_BEDROLL,
-    DisplayGlyph.G_CHARM,
-    DisplayGlyph.G_DEWAR,
-    DisplayGlyph.G_EGG,
-    DisplayGlyph.G_FOOD,
-    DisplayGlyph.G_GEM,
-    DisplayGlyph.G_BLOODWORT_POD,
-    DisplayGlyph.G_GOLD,
-    DisplayGlyph.G_KEY,
-    DisplayGlyph.G_POTION,
-    DisplayGlyph.G_RING,
-    DisplayGlyph.G_SCROLL,
-    DisplayGlyph.G_STAFF,
-    DisplayGlyph.G_WAND,
-    DisplayGlyph.G_WEAPON,
-    DisplayGlyph.G_LEFT_TRIANGLE,
-]);
-
-/** Set of creature glyphs. */
-const CREATURE_GLYPHS: ReadonlySet<DisplayGlyph> = new Set([
-    DisplayGlyph.G_ANCIENT_SPIRIT,
-    DisplayGlyph.G_BAT,
-    DisplayGlyph.G_BLOAT,
-    DisplayGlyph.G_BOG_MONSTER,
-    DisplayGlyph.G_CENTAUR,
-    DisplayGlyph.G_CENTIPEDE,
-    DisplayGlyph.G_DAR_BATTLEMAGE,
-    DisplayGlyph.G_DAR_BLADEMASTER,
-    DisplayGlyph.G_DAR_PRIESTESS,
-    DisplayGlyph.G_DEMON,
-    DisplayGlyph.G_DRAGON,
-    DisplayGlyph.G_EEL,
-    DisplayGlyph.G_FLAMEDANCER,
-    DisplayGlyph.G_FURY,
-    DisplayGlyph.G_GOBLIN,
-    DisplayGlyph.G_GOBLIN_CHIEFTAN,
-    DisplayGlyph.G_GOBLIN_MAGIC,
-    DisplayGlyph.G_GOLEM,
-    DisplayGlyph.G_GUARDIAN,
-    DisplayGlyph.G_IFRIT,
-    DisplayGlyph.G_IMP,
-    DisplayGlyph.G_JACKAL,
-    DisplayGlyph.G_JELLY,
-    DisplayGlyph.G_KOBOLD,
-    DisplayGlyph.G_KRAKEN,
-    DisplayGlyph.G_LICH,
-    DisplayGlyph.G_MONKEY,
-    DisplayGlyph.G_MOUND,
-    DisplayGlyph.G_NAGA,
-    DisplayGlyph.G_OGRE,
-    DisplayGlyph.G_OGRE_MAGIC,
-    DisplayGlyph.G_PHANTOM,
-    DisplayGlyph.G_PHOENIX,
-    DisplayGlyph.G_PIXIE,
-    DisplayGlyph.G_PLAYER,
-    DisplayGlyph.G_RAT,
-    DisplayGlyph.G_REVENANT,
-    DisplayGlyph.G_SALAMANDER,
-    DisplayGlyph.G_SPIDER,
-    DisplayGlyph.G_TENTACLE_HORROR,
-    DisplayGlyph.G_TOAD,
-    DisplayGlyph.G_TROLL,
-    DisplayGlyph.G_UNDERWORM,
-    DisplayGlyph.G_UNICORN,
-    DisplayGlyph.G_VAMPIRE,
-    DisplayGlyph.G_WARDEN,
-    DisplayGlyph.G_WINGED_GUARDIAN,
-    DisplayGlyph.G_WISP,
-    DisplayGlyph.G_WRAITH,
-    DisplayGlyph.G_ZOMBIE,
-]);
-
-/**
- * Port of C `isEnvironmentGlyph()`.
- *
- * Returns `true` if the glyph represents part of the environment (floor,
- * wall, door, etc.), `false` if it represents an item or creature.
- */
-export function isEnvironmentGlyph(glyph: DisplayGlyph): boolean {
-    if (ITEM_GLYPHS.has(glyph)) return false;
-    if (CREATURE_GLYPHS.has(glyph)) return false;
-    return true;
-}

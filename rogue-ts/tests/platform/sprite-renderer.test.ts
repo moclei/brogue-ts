@@ -231,41 +231,6 @@ describe("SpriteRenderer", () => {
     });
   });
 
-  // ---- drawCell two-layer (underlyingTerrain) ----
-
-  describe("drawCell with underlyingTerrain", () => {
-    it("draws terrain layer then creature layer (two drawImage calls)", () => {
-      renderer.drawCell(
-        CELL, DisplayGlyph.G_FLOOR, 255, 255, 255, 0, 0, 0,
-        TileType.WALL, // creature tileType
-        TileType.FLOOR, // terrain underneath
-      );
-
-      // Two blits to the main context: terrain sprite + creature sprite
-      expect(ctx.drawImage).toHaveBeenCalledTimes(2);
-    });
-  });
-
-  // ---- drawCell foreground overlay (getBackgroundTileType) ----
-
-  describe("drawCell with foreground overlay tile", () => {
-    it("draws background tile then foreground tile for overlay types", () => {
-      tileTypeSpriteMap.set(TileType.FOLIAGE, {
-        sheetKey: "Floor",
-        tileX: 0,
-        tileY: 0,
-      });
-
-      renderer.drawCell(
-        CELL, DisplayGlyph.G_GRASS, 100, 200, 50, 0, 0, 0,
-        TileType.FOLIAGE,
-      );
-
-      // Two blits: background (FLOOR, via getBackgroundTileType) + foreground (FOLIAGE)
-      expect(ctx.drawImage).toHaveBeenCalledTimes(2);
-    });
-  });
-
   // ===========================================================================
   // drawCellLayers — layer compositing pipeline
   // ===========================================================================
