@@ -34,7 +34,7 @@ import {
 import type { CellQueryContext } from "./cell-queries.js";
 import {
     RenderLayer, acquireLayerEntry, resetCellSpriteData,
-    isFireTileType, isGasTileType, isSurfaceTileType,
+    isFireTileType, isGasTileType, isSurfaceTileType, isShallowLiquid,
 } from "../platform/render-layers.js";
 import type { CellSpriteData, LayerEntryPool } from "../platform/render-layers.js";
 import {
@@ -101,40 +101,35 @@ function populateRememberedLayers(
     const remLayers = cell.rememberedLayers;
     if (!remLayers || remLayers.length === 0) return spriteData;
 
-    let terrainTile = 0;
-    let bestDrawPriority = 10000;
-    let bgBackColor: Color | undefined;
-    let bestBCPriority = 10000;
-
-    for (const layer of [DungeonLayer.Dungeon, DungeonLayer.Liquid]) {
-        const t = remLayers[layer];
-        if (!t) continue;
-        const te = ctx.tileCatalog[t];
-        if (te.drawPriority < bestDrawPriority) {
-            terrainTile = t;
-            bestDrawPriority = te.drawPriority;
-        }
-        if (te.drawPriority < bestBCPriority && te.backColor) {
-            bgBackColor = te.backColor;
-            bestBCPriority = te.drawPriority;
-        }
-    }
-
-    if (terrainTile) {
+    // Dungeon → TERRAIN
+    const dungeonTile = remLayers[DungeonLayer.Dungeon];
+    if (dungeonTile) {
         const entry = acquireLayerEntry(pool, RenderLayer.TERRAIN);
-        entry.tileType = terrainTile;
-        const te = ctx.tileCatalog[terrainTile];
+        entry.tileType = dungeonTile;
+        const te = ctx.tileCatalog[dungeonTile];
         if (te.foreColor) copyColorTo(entry.tint, te.foreColor);
         spriteData.layers[RenderLayer.TERRAIN] = entry;
+        if (te.backColor) copyColorTo(spriteData.bgColor, te.backColor);
     }
 
-    if (bgBackColor) {
-        copyColorTo(spriteData.bgColor, bgBackColor);
+    // Liquid → SURFACE with alpha (same split as live pmap path)
+    const liquidTile = remLayers[DungeonLayer.Liquid];
+    if (liquidTile) {
+        const lte = ctx.tileCatalog[liquidTile];
+        const entry = acquireLayerEntry(pool, RenderLayer.SURFACE);
+        entry.tileType = liquidTile;
+        if (lte.foreColor) copyColorTo(entry.tint, lte.foreColor);
+        entry.alpha = isShallowLiquid(liquidTile) ? 0.55 : 1;
+        spriteData.layers[RenderLayer.SURFACE] = entry;
+        if (!dungeonTile && lte.backColor) {
+            copyColorTo(spriteData.bgColor, lte.backColor);
+        }
     }
 
     if (visState === VisibilityState.Remembered) {
         const surfaceTile = remLayers[DungeonLayer.Surface];
-        if (surfaceTile && isSurfaceTileType(surfaceTile)) {
+        if (surfaceTile && isSurfaceTileType(surfaceTile)
+            && !spriteData.layers[RenderLayer.SURFACE]) {
             const entry = acquireLayerEntry(pool, RenderLayer.SURFACE);
             entry.tileType = surfaceTile;
             const te = ctx.tileCatalog[surfaceTile];
@@ -202,45 +197,53 @@ export function getCellSpriteData(
         applyColorAugment(lightMultiplierColor, basicLightColor, 100);
     }
 
-    // ---- TERRAIN layer: winner of Dungeon vs Liquid by drawPriority ----
-
-    let terrainTile = 0;  // TileType.NOTHING
-    let bestDrawPriority = 10000;
-    let bgBackColor: Color | undefined;
-    let bestBCPriority = 10000;
-
-    for (const layer of [DungeonLayer.Dungeon, DungeonLayer.Liquid]) {
-        const t = cell.layers[layer];
-        if (!t) continue;
-        const te = ctx.tileCatalog[t];
-        if (te.drawPriority < bestDrawPriority) {
-            terrainTile = t;
-            bestDrawPriority = te.drawPriority;
-        }
-        if (te.drawPriority < bestBCPriority && te.backColor) {
-            bgBackColor = te.backColor;
-            bestBCPriority = te.drawPriority;
-        }
+    // ---- Emit lighting overlay on VISIBILITY layer ----
+    // Instead of multiplying lightMultiplierColor into each layer's tint
+    // (which mangles pixel art sprites), carry the lighting as a post-sprite
+    // overlay drawn with multiply composite. White (100,100,100) = no change,
+    // darker values = ambient darkening, colored values = tinted light.
+    {
+        const visEntry = acquireLayerEntry(pool, RenderLayer.VISIBILITY);
+        copyColorTo(visEntry.tint, lightMultiplierColor);
+        spriteData.layers[RenderLayer.VISIBILITY] = visEntry;
     }
 
-    if (terrainTile) {
+    // ---- TERRAIN layer (DungeonLayer.Dungeon) ----
+
+    const dungeonTile = cell.layers[DungeonLayer.Dungeon];
+    if (dungeonTile) {
         const entry = acquireLayerEntry(pool, RenderLayer.TERRAIN);
-        entry.tileType = terrainTile;
-        const te = ctx.tileCatalog[terrainTile];
-        if (te.foreColor) {
-            copyColorTo(entry.tint, te.foreColor);
-            applyColorMultiplier(entry.tint, lightMultiplierColor);
-        }
+        entry.tileType = dungeonTile;
+        const te = ctx.tileCatalog[dungeonTile];
+        if (te.foreColor) copyColorTo(entry.tint, te.foreColor);
         spriteData.layers[RenderLayer.TERRAIN] = entry;
+        if (te.backColor) copyColorTo(spriteData.bgColor, te.backColor);
     }
 
-    if (bgBackColor) {
-        copyColorTo(spriteData.bgColor, bgBackColor);
-        applyColorMultiplier(spriteData.bgColor, lightMultiplierColor);
+    // ---- LIQUID → SURFACE layer (semi-transparent water over floor) ----
+
+    const liquidTile = cell.layers[DungeonLayer.Liquid];
+    if (liquidTile) {
+        const lte = ctx.tileCatalog[liquidTile];
+        const surfaceTileFromMap = cell.layers[DungeonLayer.Surface];
+        const surfaceWins = surfaceTileFromMap
+            && ctx.tileCatalog[surfaceTileFromMap]
+            && ctx.tileCatalog[surfaceTileFromMap].drawPriority < lte.drawPriority;
+        if (!surfaceWins) {
+            const entry = acquireLayerEntry(pool, RenderLayer.SURFACE);
+            entry.tileType = liquidTile;
+            if (lte.foreColor) copyColorTo(entry.tint, lte.foreColor);
+            entry.alpha = isShallowLiquid(liquidTile) ? 0.55 : 1;
+            spriteData.layers[RenderLayer.SURFACE] = entry;
+        }
+        if (!dungeonTile && lte.backColor) {
+            copyColorTo(spriteData.bgColor, lte.backColor);
+        }
     }
 
     // =========================================================================
-    // SURFACE layer — fire TileTypes split to FIRE RenderLayer
+    // SURFACE layer — fire TileTypes split to FIRE RenderLayer.
+    // If liquid already claimed SURFACE, only fire routing applies here.
     // =========================================================================
 
     const surfaceTile = cell.layers[DungeonLayer.Surface];
@@ -251,14 +254,11 @@ export function getCellSpriteData(
             const te = ctx.tileCatalog[surfaceTile];
             if (te.foreColor) copyColorTo(entry.tint, te.foreColor);
             spriteData.layers[RenderLayer.FIRE] = entry;
-        } else {
+        } else if (!spriteData.layers[RenderLayer.SURFACE]) {
             const entry = acquireLayerEntry(pool, RenderLayer.SURFACE);
             entry.tileType = surfaceTile;
             const te = ctx.tileCatalog[surfaceTile];
-            if (te.foreColor) {
-                copyColorTo(entry.tint, te.foreColor);
-                applyColorMultiplier(entry.tint, lightMultiplierColor);
-            }
+            if (te.foreColor) copyColorTo(entry.tint, te.foreColor);
             spriteData.layers[RenderLayer.SURFACE] = entry;
         }
     }
@@ -300,7 +300,6 @@ export function getCellSpriteData(
         const entry = acquireLayerEntry(pool, RenderLayer.ENTITY);
         entry.glyph = ctx.player.info.displayChar;
         copyColorTo(entry.tint, ctx.player.info.foreColor);
-        applyColorMultiplier(entry.tint, lightMultiplierColor);
         spriteData.layers[RenderLayer.ENTITY] = entry;
     } else if (cellFlags & TileFlag.HAS_MONSTER) {
         monst = lookupCreatureAt(x, y, cellFlags, ctx.monsters, ctx.dormantMonsters);
@@ -321,7 +320,6 @@ export function getCellSpriteData(
                 entry.glyph = monst.info.displayChar;
             }
             copyColorTo(entry.tint, monst.info.foreColor);
-            applyColorMultiplier(entry.tint, lightMultiplierColor);
             spriteData.layers[RenderLayer.ENTITY] = entry;
         }
     }
@@ -344,7 +342,6 @@ export function getCellSpriteData(
             const entry = acquireLayerEntry(pool, RenderLayer.ITEM);
             entry.glyph = getItemCategoryGlyph(getHallucinatedItemCategory(rng));
             copyColorTo(entry.tint, itemColor);
-            applyColorMultiplier(entry.tint, lightMultiplierColor);
             spriteData.layers[RenderLayer.ITEM] = entry;
         } else {
             const item = itemAtLoc({ x, y }, ctx.floorItems as Item[]);
@@ -358,7 +355,6 @@ export function getCellSpriteData(
                     entry.tint.green = 100;
                     entry.tint.blue = 100;
                 }
-                applyColorMultiplier(entry.tint, lightMultiplierColor);
                 spriteData.layers[RenderLayer.ITEM] = entry;
             }
         }

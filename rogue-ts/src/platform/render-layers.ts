@@ -282,3 +282,21 @@ export function isTerrainTileType(t: TileType): boolean {
     if (t <= TT.NOTHING || t >= TT.NUMBER_TILETYPES) return false;
     return !isSurfaceTileType(t) && !isFireTileType(t) && !isGasTileType(t);
 }
+
+/**
+ * Shallow liquid TileTypes — liquids that should be drawn semi-transparent
+ * on the SURFACE layer so the floor tile beneath is visible. Deep water,
+ * lava, and other opaque liquids return false.
+ */
+export function isShallowLiquid(t: TileType): boolean {
+    switch (t) {
+        case TT.SHALLOW_WATER:
+        case TT.FLOOD_WATER_SHALLOW:
+        case TT.ICE_SHALLOW:
+        case TT.ICE_SHALLOW_MELT:
+        case TT.MUD:
+            return true;
+        default:
+            return false;
+    }
+}
