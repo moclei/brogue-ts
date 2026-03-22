@@ -270,17 +270,18 @@ describe("getCellSpriteData — TERRAIN drawPriority", () => {
         expect(spriteData.layers[RenderLayer.TERRAIN]!.tileType).toBe(TileType.GRANITE);
     });
 
-    it("uses Liquid tile when it has better drawPriority", () => {
+    it("puts Dungeon on TERRAIN and Liquid on SURFACE", () => {
         const ctx = makeCtx();
         ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
-        // FLOOR drawPriority=95, DEEP_WATER drawPriority=40
         ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
         ctx.pmap[3][3].layers[DungeonLayer.Liquid] = TileType.DEEP_WATER;
 
         const { spriteData, pool } = createCellSpriteData();
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
-        expect(spriteData.layers[RenderLayer.TERRAIN]!.tileType).toBe(TileType.DEEP_WATER);
+        expect(spriteData.layers[RenderLayer.TERRAIN]!.tileType).toBe(TileType.FLOOR);
+        expect(spriteData.layers[RenderLayer.SURFACE]!.tileType).toBe(TileType.DEEP_WATER);
+        expect(spriteData.layers[RenderLayer.SURFACE]!.alpha).toBe(1);
     });
 });
 
@@ -767,7 +768,7 @@ describe("getCellSpriteData — Remembered cells", () => {
         expect(spriteData.layers[RenderLayer.FIRE]).toBeUndefined();
     });
 
-    it("picks terrain by drawPriority from remembered Dungeon vs Liquid", () => {
+    it("puts remembered Dungeon on TERRAIN and Liquid on SURFACE", () => {
         const ctx = makeCtx();
         ctx.pmap[3][3].flags = TileFlag.DISCOVERED;
         ctx.pmap[3][3].rememberedLayers = [TileType.FLOOR, TileType.DEEP_WATER, TileType.NOTHING, TileType.NOTHING];
@@ -775,7 +776,9 @@ describe("getCellSpriteData — Remembered cells", () => {
         const { spriteData, pool } = createCellSpriteData();
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
-        expect(spriteData.layers[RenderLayer.TERRAIN]!.tileType).toBe(TileType.DEEP_WATER);
+        expect(spriteData.layers[RenderLayer.TERRAIN]!.tileType).toBe(TileType.FLOOR);
+        expect(spriteData.layers[RenderLayer.SURFACE]!.tileType).toBe(TileType.DEEP_WATER);
+        expect(spriteData.layers[RenderLayer.SURFACE]!.alpha).toBe(1);
     });
 });
 
@@ -1091,7 +1094,7 @@ function makeTerrainRandomValues(width = DCOLS, height = DROWS, vals = [0, 0, 0,
 }
 
 describe("getCellSpriteData — TERRAIN lighting", () => {
-    it("applies light multiplier to terrain foreColor", () => {
+    it("terrain tint has raw foreColor; lighting on VISIBILITY layer", () => {
         const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
         ctx.terrainRandomValues = makeTerrainRandomValues();
         ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
@@ -1101,12 +1104,16 @@ describe("getCellSpriteData — TERRAIN lighting", () => {
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
         const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
-        // floorForeColor = (30, 30, 30, 0, 0, 0, 35, false)
-        // light multiplier at [50,50,50] → all components = 50
-        // red = Math.trunc(30 * 50 / 100) = 15
-        expect(tint.red).toBe(15);
-        expect(tint.green).toBe(15);
-        expect(tint.blue).toBe(15);
+        // floorForeColor = (30, 30, 30, 0, 0, 0, 35, false) — no light multiply
+        // After bake with vals=[0,...]: rand resolved but base unchanged
+        expect(tint.red).toBe(30);
+        expect(tint.green).toBe(30);
+        expect(tint.blue).toBe(30);
+
+        const vis = spriteData.layers[RenderLayer.VISIBILITY]!;
+        expect(vis.tint.red).toBe(50);
+        expect(vis.tint.green).toBe(50);
+        expect(vis.tint.blue).toBe(50);
     });
 
     it("bakeTerrainColors zeroes Rand fields after baking", () => {
@@ -1163,7 +1170,7 @@ describe("getCellSpriteData — TERRAIN lighting", () => {
 });
 
 describe("getCellSpriteData — bgColor lighting", () => {
-    it("applies light multiplier to terrain backColor", () => {
+    it("bgColor has raw backColor; lighting on VISIBILITY layer", () => {
         const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
         ctx.terrainRandomValues = makeTerrainRandomValues();
         ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
@@ -1172,12 +1179,11 @@ describe("getCellSpriteData — bgColor lighting", () => {
         const { spriteData, pool } = createCellSpriteData();
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
-        // floorBackColor = (2, 2, 10, 2, 2, 0, 0, false)
-        // After light × 50/100: red = Math.trunc(2*50/100) = 1
-        // After bake with vals=[0,...]: red = 1 + 0 + 0 = 1
-        expect(spriteData.bgColor.red).toBe(1);
-        expect(spriteData.bgColor.green).toBe(1);
-        expect(spriteData.bgColor.blue).toBe(5);
+        // floorBackColor = (2, 2, 10, 2, 2, 0, 0, false) — no light multiply
+        // After bake with vals=[0,...]: Rand resolved, base unchanged
+        expect(spriteData.bgColor.red).toBe(2);
+        expect(spriteData.bgColor.green).toBe(2);
+        expect(spriteData.bgColor.blue).toBe(10);
     });
 
     it("bakeTerrainColors zeroes bgColor Rand fields", () => {
@@ -1198,7 +1204,7 @@ describe("getCellSpriteData — bgColor lighting", () => {
 });
 
 describe("getCellSpriteData — SURFACE lighting", () => {
-    it("applies light multiplier to surface foreColor", () => {
+    it("surface tint has raw foreColor; lighting on VISIBILITY layer", () => {
         const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
         ctx.terrainRandomValues = makeTerrainRandomValues();
         ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
@@ -1209,12 +1215,11 @@ describe("getCellSpriteData — SURFACE lighting", () => {
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
         const tint = spriteData.layers[RenderLayer.SURFACE]!.tint;
-        // grassColor = (15, 40, 15, 15, 50, 15, 10, false)
-        // After light × 50/100: red = Math.trunc(15*50/100) = 7, green = 20, blue = 7
-        // After bake with vals=[0,...]: no change to base RGB, Rand zeroed
-        expect(tint.red).toBe(7);
-        expect(tint.green).toBe(20);
-        expect(tint.blue).toBe(7);
+        // grassColor = (15, 40, 15, 15, 50, 15, 10, false) — no light multiply
+        // After bake with vals=[0,...]: Rand zeroed, base unchanged
+        expect(tint.red).toBe(15);
+        expect(tint.green).toBe(40);
+        expect(tint.blue).toBe(15);
         expect(tint.redRand).toBe(0);
         expect(tint.greenRand).toBe(0);
         expect(tint.rand).toBe(0);
@@ -1369,13 +1374,13 @@ describe("getCellSpriteData — entity lighting", () => {
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
         const entity = spriteData.layers[RenderLayer.ENTITY]!;
-        // foreColor (80,80,80) × light multiplier 50/100 = (40,40,40)
-        expect(entity.tint.red).toBe(40);
-        expect(entity.tint.green).toBe(40);
-        expect(entity.tint.blue).toBe(40);
+        // foreColor (80,80,80) — no light multiply; lighting on VISIBILITY
+        expect(entity.tint.red).toBe(80);
+        expect(entity.tint.green).toBe(80);
+        expect(entity.tint.blue).toBe(80);
     });
 
-    it("applies light multiplier to monster entity tint", () => {
+    it("monster entity tint has raw foreColor", () => {
         const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
         ctx.terrainRandomValues = makeTerrainRandomValues();
         const monst = makeCreature(3, 3);
@@ -1392,10 +1397,10 @@ describe("getCellSpriteData — entity lighting", () => {
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
         const entity = spriteData.layers[RenderLayer.ENTITY]!;
-        // foreColor (60,40,20) × light 50/100 = (30,20,10)
-        expect(entity.tint.red).toBe(30);
-        expect(entity.tint.green).toBe(20);
-        expect(entity.tint.blue).toBe(10);
+        // foreColor (60,40,20) — no light multiply
+        expect(entity.tint.red).toBe(60);
+        expect(entity.tint.green).toBe(40);
+        expect(entity.tint.blue).toBe(20);
     });
 
     it("does not apply bakeTerrainColors to entity tint", () => {
@@ -1427,7 +1432,7 @@ describe("getCellSpriteData — entity lighting", () => {
 // =============================================================================
 
 describe("getCellSpriteData — item lighting", () => {
-    it("applies light multiplier to item tint", () => {
+    it("item tint has raw foreColor; lighting on VISIBILITY layer", () => {
         const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
         ctx.terrainRandomValues = makeTerrainRandomValues();
         const item = makeItem(3, 3);
@@ -1439,13 +1444,16 @@ describe("getCellSpriteData — item lighting", () => {
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
         const itemLayer = spriteData.layers[RenderLayer.ITEM]!;
-        // item foreColor (50,20,80) × light 50/100 = (25,10,40)
-        expect(itemLayer.tint.red).toBe(25);
-        expect(itemLayer.tint.green).toBe(10);
-        expect(itemLayer.tint.blue).toBe(40);
+        // item foreColor (50,20,80) — no light multiply
+        expect(itemLayer.tint.red).toBe(50);
+        expect(itemLayer.tint.green).toBe(20);
+        expect(itemLayer.tint.blue).toBe(80);
+
+        const vis = spriteData.layers[RenderLayer.VISIBILITY]!;
+        expect(vis.tint.red).toBe(50);
     });
 
-    it("applies light multiplier to item with no foreColor (white fallback)", () => {
+    it("item with no foreColor uses white fallback (no light multiply)", () => {
         const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
         ctx.terrainRandomValues = makeTerrainRandomValues();
         const item = makeItem(3, 3, { foreColor: null } as any);
@@ -1457,10 +1465,10 @@ describe("getCellSpriteData — item lighting", () => {
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
         const itemLayer = spriteData.layers[RenderLayer.ITEM]!;
-        // white (100,100,100) × light 50/100 = (50,50,50)
-        expect(itemLayer.tint.red).toBe(50);
-        expect(itemLayer.tint.green).toBe(50);
-        expect(itemLayer.tint.blue).toBe(50);
+        // white (100,100,100) — no light multiply
+        expect(itemLayer.tint.red).toBe(100);
+        expect(itemLayer.tint.green).toBe(100);
+        expect(itemLayer.tint.blue).toBe(100);
     });
 });
 
@@ -1469,7 +1477,7 @@ describe("getCellSpriteData — item lighting", () => {
 // =============================================================================
 
 describe("getCellSpriteData — visibility light augmentation", () => {
-    it("augments light for Clairvoyant cells", () => {
+    it("augments light on VISIBILITY layer for Clairvoyant cells", () => {
         const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
         ctx.terrainRandomValues = makeTerrainRandomValues();
         ctx.pmap[3][3].flags = TileFlag.CLAIRVOYANT_VISIBLE;
@@ -1478,13 +1486,14 @@ describe("getCellSpriteData — visibility light augmentation", () => {
         const { spriteData, pool } = createCellSpriteData();
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
-        const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
-        // Base light=50 + augment(basicLightColor=180, weight=100) → 50+180=230
-        // floorForeColor.red=30 × 230/100 = Math.trunc(69.0) = 69
-        expect(tint.red).toBe(69);
+        // Terrain tint is raw foreColor (no light multiply)
+        expect(spriteData.layers[RenderLayer.TERRAIN]!.tint.red).toBe(30);
+        // VISIBILITY layer carries augmented light: 50+180=230
+        const vis = spriteData.layers[RenderLayer.VISIBILITY]!;
+        expect(vis.tint.red).toBe(230);
     });
 
-    it("augments light for Telepathic cells", () => {
+    it("augments light on VISIBILITY layer for Telepathic cells", () => {
         const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
         ctx.terrainRandomValues = makeTerrainRandomValues();
         ctx.pmap[3][3].flags = TileFlag.TELEPATHIC_VISIBLE;
@@ -1493,15 +1502,14 @@ describe("getCellSpriteData — visibility light augmentation", () => {
         const { spriteData, pool } = createCellSpriteData();
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
-        const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
-        expect(tint.red).toBe(69);
+        const vis = spriteData.layers[RenderLayer.VISIBILITY]!;
+        expect(vis.tint.red).toBe(230);
     });
 
-    it("augments light for Omniscience cells", () => {
+    it("augments light on VISIBILITY layer for Omniscience cells", () => {
         const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
         ctx.terrainRandomValues = makeTerrainRandomValues();
         ctx.rogue.playbackOmniscience = true;
-        // No VISIBLE/DISCOVERED/MAGIC_MAPPED → falls through to Omniscience
         ctx.pmap[3][3].flags = 0;
         ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
 
@@ -1509,8 +1517,8 @@ describe("getCellSpriteData — visibility light augmentation", () => {
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
         expect(spriteData.visibilityState).toBe(VisibilityState.Omniscience);
-        const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
-        expect(tint.red).toBe(69);
+        const vis = spriteData.layers[RenderLayer.VISIBILITY]!;
+        expect(vis.tint.red).toBe(230);
     });
 
     it("does NOT augment light for Visible cells", () => {
@@ -1522,12 +1530,14 @@ describe("getCellSpriteData — visibility light augmentation", () => {
         const { spriteData, pool } = createCellSpriteData();
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
-        const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
-        // No augmentation: 30 × 50/100 = 15
-        expect(tint.red).toBe(15);
+        // VISIBILITY layer carries un-augmented light (50)
+        const vis = spriteData.layers[RenderLayer.VISIBILITY]!;
+        expect(vis.tint.red).toBe(50);
+        // Terrain tint is raw foreColor
+        expect(spriteData.layers[RenderLayer.TERRAIN]!.tint.red).toBe(30);
     });
 
-    it("augmented light applies to entity tint as well", () => {
+    it("augmented light is on VISIBILITY layer, not entity tint", () => {
         const ctx = makeCtx({ tmap: makeTmap(DCOLS, DROWS, 50) });
         ctx.terrainRandomValues = makeTerrainRandomValues();
         const player = makeCreature(3, 3);
@@ -1543,9 +1553,12 @@ describe("getCellSpriteData — visibility light augmentation", () => {
         const { spriteData, pool } = createCellSpriteData();
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
+        // Entity tint is raw foreColor (no light multiply)
         const entity = spriteData.layers[RenderLayer.ENTITY]!;
-        // foreColor (80) × augmented light (230) / 100 = 184
-        expect(entity.tint.red).toBe(184);
+        expect(entity.tint.red).toBe(80);
+        // VISIBILITY layer carries augmented light
+        const vis = spriteData.layers[RenderLayer.VISIBILITY]!;
+        expect(vis.tint.red).toBe(230);
     });
 });
 
@@ -1600,9 +1613,8 @@ describe("getCellSpriteData — hallucination color randomization", () => {
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
         const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
-        // Clairvoyant: augmented light (50+180=230), no randomization
-        // red = Math.trunc(30 * 230 / 100) = 69
-        expect(tint.red).toBe(69);
+        // Clairvoyant: no randomization; tint is raw foreColor (30)
+        expect(tint.red).toBe(30);
     });
 
     it("does NOT randomize colors when trueColorMode is on", () => {
@@ -1617,10 +1629,8 @@ describe("getCellSpriteData — hallucination color randomization", () => {
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
         const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
-        // trueColorMode uses basicLightColor (180,180,180,...) as multiplier
-        // red = Math.trunc(30 * 180 / 100) = 54
-        // No randomization (trueColorMode skips it)
-        expect(tint.red).toBe(54);
+        // trueColorMode: no randomization; tint is raw foreColor (30)
+        expect(tint.red).toBe(30);
     });
 });
 
@@ -1701,9 +1711,8 @@ describe("getCellSpriteData — deep-water tint", () => {
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
         const tint = spriteData.layers[RenderLayer.TERRAIN]!.tint;
-        // Clairvoyant: augmented light (230), no deep-water
-        // 30 × 230/100 = 69 (not affected by deepWaterLightColor)
-        expect(tint.red).toBe(69);
+        // Clairvoyant: no deep-water tint; raw foreColor (30)
+        expect(tint.red).toBe(30);
     });
 
     it("applies deep-water tint to gas and fire layers too", () => {

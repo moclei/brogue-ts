@@ -222,6 +222,14 @@ export class SpriteRenderer implements Renderer {
         };
       }
 
+      // VISIBILITY layer: lighting overlay drawn as multiply composite fill,
+      // not as a sprite. The tint carries lightMultiplierColor from
+      // getCellSpriteData; white (100,100,100) = no darkening.
+      if (i === RenderLayer.VISIBILITY) {
+        this.applyLightingOverlay(cellRect, entry.tint);
+        continue;
+      }
+
       const ref = this.resolveSprite(entry.tileType, entry.glyph);
       if (!ref) continue;
 
@@ -243,6 +251,28 @@ export class SpriteRenderer implements Renderer {
       spriteData.visibilityState, spriteData.inWater,
     );
     if (overlay) this.applyVisibilityOverlay(cellRect, overlay);
+  }
+
+  // ===========================================================================
+  // applyLightingOverlay — per-cell multiply fill from lightMultiplierColor
+  // ===========================================================================
+
+  private applyLightingOverlay(
+    cellRect: CellRect,
+    tint: Readonly<Color>,
+  ): void {
+    const r = c100to255(tint.red);
+    const g = c100to255(tint.green);
+    const b = c100to255(tint.blue);
+    if (r >= 255 && g >= 255 && b >= 255) return;
+
+    const { ctx } = this;
+    const { x, y, width, height } = cellRect;
+    ctx.save();
+    ctx.globalCompositeOperation = "multiply";
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    ctx.fillRect(x, y, width, height);
+    ctx.restore();
   }
 
   // ===========================================================================
