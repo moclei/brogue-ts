@@ -31,21 +31,22 @@ import {
 // =============================================================================
 
 describe("RenderLayer", () => {
-    it("has 10 values from TERRAIN=0 to UI=9", () => {
+    it("has 11 values from TERRAIN=0 to UI=10", () => {
         expect(RenderLayer.TERRAIN).toBe(0);
-        expect(RenderLayer.SURFACE).toBe(1);
-        expect(RenderLayer.ITEM).toBe(2);
-        expect(RenderLayer.ENTITY).toBe(3);
-        expect(RenderLayer.GAS).toBe(4);
-        expect(RenderLayer.FIRE).toBe(5);
-        expect(RenderLayer.VISIBILITY).toBe(6);
-        expect(RenderLayer.STATUS).toBe(7);
-        expect(RenderLayer.BOLT).toBe(8);
-        expect(RenderLayer.UI).toBe(9);
+        expect(RenderLayer.LIQUID).toBe(1);
+        expect(RenderLayer.SURFACE).toBe(2);
+        expect(RenderLayer.ITEM).toBe(3);
+        expect(RenderLayer.ENTITY).toBe(4);
+        expect(RenderLayer.GAS).toBe(5);
+        expect(RenderLayer.FIRE).toBe(6);
+        expect(RenderLayer.VISIBILITY).toBe(7);
+        expect(RenderLayer.STATUS).toBe(8);
+        expect(RenderLayer.BOLT).toBe(9);
+        expect(RenderLayer.UI).toBe(10);
     });
 
-    it("RENDER_LAYER_COUNT is 10", () => {
-        expect(RENDER_LAYER_COUNT).toBe(10);
+    it("RENDER_LAYER_COUNT is 11", () => {
+        expect(RENDER_LAYER_COUNT).toBe(11);
     });
 });
 

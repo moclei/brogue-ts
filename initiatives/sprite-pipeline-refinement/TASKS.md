@@ -29,41 +29,50 @@
 
 ## Phase 2: LIQUID Layer
 
-- [ ] In `render-layers.ts`:
+- [x] In `render-layers.ts`:
   - Add `LIQUID = 1` to `RenderLayer` enum
   - Shift SURFACE to 2, ITEM to 3, ENTITY to 4, GAS to 5, FIRE to 6,
     VISIBILITY to 7, STATUS to 8, BOLT to 9, UI to 10
   - Bump `RENDER_LAYER_COUNT` from 10 to 11
-  - Update `LAYER_NAMES` if it exists in this file (check — it may be in
-    `sprite-debug.ts`)
-- [ ] In `sprite-debug.ts`:
+  - `LAYER_NAMES` is in `sprite-debug.ts` (not this file)
+  - Updated `isShallowLiquid` JSDoc to reference LIQUID layer
+- [x] In `sprite-debug.ts`:
   - Add "LIQUID" to `LAYER_NAMES` at index 1
-  - Verify all panel UI works with 11 layers
-- [ ] In `sprite-appearance.ts`:
+  - Panel UI auto-scales via `RENDER_LAYER_COUNT` — works with 11 layers
+- [x] In `sprite-appearance.ts`:
   - Route `DungeonLayer.Liquid` tiles to `RenderLayer.LIQUID` instead of
-    `RenderLayer.SURFACE`
-  - Remove the `drawPriority` contest logic (liquids and decorations no
-    longer compete for the same layer)
-  - Move `isShallowLiquid` alpha (0.55) to the LIQUID layer entry
-  - Move autotile `computeAdjacencyMask` for liquid tiles to the LIQUID
+    `RenderLayer.SURFACE` (both live pmap and remembered paths)
+  - Remove the `drawPriority` contest logic — surface decorations always
+    go to SURFACE, no guard needed
+  - `isShallowLiquid` alpha (0.55) now on the LIQUID layer entry
+  - Autotile `computeAdjacencyMask` for liquid tiles now on the LIQUID
     layer entry
-- [ ] In `sprite-renderer.ts`:
-  - Verify the generic layer loop handles 11 layers (it should — it uses
-    `RENDER_LAYER_COUNT`)
-  - Update the `skipTint` range if needed (now `i !== RenderLayer.VISIBILITY`
-    where VISIBILITY is 7, not 6)
-- [ ] Update all test files with hardcoded layer indices:
-  - Search for `RenderLayer.` references and numeric layer indices
-  - Update assertions for the new numbering
-- [ ] Update `docs/pixel-art/sprite-layer-pipeline.md`:
-  - Add Layer 1: LIQUID section
-  - Renumber Layer 2: SURFACE through Layer 7: VISIBILITY
-  - Remove the "Future: LIQUID Layer" section (now implemented)
-  - Update the Summary table
-- [ ] Browser smoke test: find a cell with both shallow water and foliage
+  - Added `bakeTerrainColors` call for LIQUID layer
+  - Added LIQUID to `colorDances` flag propagation
+- [x] In `sprite-renderer.ts`:
+  - Generic layer loop already uses `RENDER_LAYER_COUNT` — handles 11 layers
+  - `skipTint` uses `i !== RenderLayer.VISIBILITY` — auto-adjusted to 7
+  - Updated header comment: "layers 0–6" (was "layers 0–5")
+- [x] Update all test files with hardcoded layer indices:
+  - `render-layers.test.ts`: Updated enum value assertions (LIQUID=1, all
+    shifted), RENDER_LAYER_COUNT=11
+  - `sprite-appearance.test.ts`: Changed liquid routing from SURFACE to
+    LIQUID in 5 tests; added liquid+surface coexistence test; added LIQUID
+    undefined checks in empty-layer tests
+  - `sprite-renderer.test.ts`: All references are symbolic — no changes needed
+- [x] Update `docs/pixel-art/sprite-layer-pipeline.md`:
+  - Added Layer 1: LIQUID section with tile types, parameters, autotile info
+  - Renumbered Layer 2: SURFACE through Layer 7: VISIBILITY
+  - Removed the "Future: LIQUID Layer" section (now implemented)
+  - Updated Summary table, overview diagram, Shared ASCII Infrastructure
+  - Updated Layers 8–10: Not Yet Implemented section
+- [x] Browser smoke test: find a cell with both shallow water and foliage
   (or place one via debug). Confirm both render — water underneath, foliage
-  on top.
-- [ ] Run full test suite — all tests pass
+  on top. Verified: LIQUID layer renders beneath SURFACE, F2 panel shows
+  11 layers, animated tint values visible on TERRAIN/LIQUID from
+  colorDances + bakeTerrainColors (computed but not rendered — tinting
+  disabled). VISIBILITY override path noted for Phase 3.
+- [x] Run full test suite — all tests pass (2706 pass, 55 skip, 0 fail)
 
 ## Phase 3: Debug Panel Expansion
 

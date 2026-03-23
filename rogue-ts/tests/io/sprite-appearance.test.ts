@@ -225,13 +225,14 @@ describe("getCellSpriteData — empty visible floor", () => {
         expect(colorsMatch(spriteData.bgColor, expectedBg)).toBe(true);
     });
 
-    it("has no SURFACE, ITEM, ENTITY, GAS, or FIRE layers", () => {
+    it("has no LIQUID, SURFACE, ITEM, ENTITY, GAS, or FIRE layers", () => {
         const ctx = makeCtx();
         ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
 
         const { spriteData, pool } = createCellSpriteData();
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
+        expect(spriteData.layers[RenderLayer.LIQUID]).toBeUndefined();
         expect(spriteData.layers[RenderLayer.SURFACE]).toBeUndefined();
         expect(spriteData.layers[RenderLayer.ITEM]).toBeUndefined();
         expect(spriteData.layers[RenderLayer.ENTITY]).toBeUndefined();
@@ -270,7 +271,7 @@ describe("getCellSpriteData — TERRAIN drawPriority", () => {
         expect(spriteData.layers[RenderLayer.TERRAIN]!.tileType).toBe(TileType.GRANITE);
     });
 
-    it("puts Dungeon on TERRAIN and Liquid on SURFACE", () => {
+    it("puts Dungeon on TERRAIN and Liquid on LIQUID", () => {
         const ctx = makeCtx();
         ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
         ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
@@ -280,8 +281,8 @@ describe("getCellSpriteData — TERRAIN drawPriority", () => {
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
         expect(spriteData.layers[RenderLayer.TERRAIN]!.tileType).toBe(TileType.FLOOR);
-        expect(spriteData.layers[RenderLayer.SURFACE]!.tileType).toBe(TileType.DEEP_WATER);
-        expect(spriteData.layers[RenderLayer.SURFACE]!.alpha).toBe(1);
+        expect(spriteData.layers[RenderLayer.LIQUID]!.tileType).toBe(TileType.DEEP_WATER);
+        expect(spriteData.layers[RenderLayer.LIQUID]!.alpha).toBe(1);
     });
 });
 
@@ -636,7 +637,7 @@ describe("getCellSpriteData — multi-layer", () => {
         expect(spriteData.layers[RenderLayer.GAS]!.alpha).toBeCloseTo(0.4);
     });
 
-    it("fire over liquid produces TERRAIN (liquid winner) + FIRE", () => {
+    it("fire over liquid produces TERRAIN + LIQUID + FIRE", () => {
         const ctx = makeCtx();
         ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
         ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
@@ -647,9 +648,32 @@ describe("getCellSpriteData — multi-layer", () => {
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
         expect(spriteData.layers[RenderLayer.TERRAIN]).toBeDefined();
+        expect(spriteData.layers[RenderLayer.LIQUID]).toBeDefined();
+        expect(spriteData.layers[RenderLayer.LIQUID]!.tileType).toBe(TileType.LAVA);
         expect(spriteData.layers[RenderLayer.FIRE]).toBeDefined();
         expect(spriteData.layers[RenderLayer.FIRE]!.tileType).toBe(TileType.PLAIN_FIRE);
         expect(spriteData.layers[RenderLayer.GAS]).toBeUndefined();
+    });
+
+    it("liquid + surface decoration coexist on separate layers", () => {
+        const ctx = makeCtx();
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+        ctx.pmap[3][3].layers[DungeonLayer.Liquid] = TileType.SHALLOW_WATER;
+        ctx.pmap[3][3].layers[DungeonLayer.Surface] = TileType.GRASS;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.layers[RenderLayer.TERRAIN]).toBeDefined();
+        expect(spriteData.layers[RenderLayer.TERRAIN]!.tileType).toBe(TileType.FLOOR);
+
+        expect(spriteData.layers[RenderLayer.LIQUID]).toBeDefined();
+        expect(spriteData.layers[RenderLayer.LIQUID]!.tileType).toBe(TileType.SHALLOW_WATER);
+        expect(spriteData.layers[RenderLayer.LIQUID]!.alpha).toBe(0.55);
+
+        expect(spriteData.layers[RenderLayer.SURFACE]).toBeDefined();
+        expect(spriteData.layers[RenderLayer.SURFACE]!.tileType).toBe(TileType.GRASS);
     });
 
     it("all layers: creature on foliage over floor with gas", () => {
@@ -675,6 +699,7 @@ describe("getCellSpriteData — multi-layer", () => {
 
         expect(spriteData.layers[RenderLayer.TERRAIN]).toBeDefined();
         expect(spriteData.layers[RenderLayer.TERRAIN]!.tileType).toBe(TileType.FLOOR);
+        expect(spriteData.layers[RenderLayer.LIQUID]).toBeUndefined();
         expect(spriteData.layers[RenderLayer.SURFACE]).toBeDefined();
         expect(spriteData.layers[RenderLayer.SURFACE]!.tileType).toBe(TileType.GRASS);
         expect(spriteData.layers[RenderLayer.ENTITY]).toBeDefined();
@@ -728,7 +753,7 @@ describe("getCellSpriteData — Remembered cells", () => {
         expect(colorsMatch(spriteData.bgColor, expectedBg)).toBe(true);
     });
 
-    it("has no entity, item, gas, or fire layers", () => {
+    it("has no liquid, entity, item, gas, or fire layers", () => {
         const ctx = makeCtx();
         ctx.pmap[3][3].flags = TileFlag.DISCOVERED;
         ctx.pmap[3][3].rememberedLayers = [TileType.FLOOR, TileType.NOTHING, TileType.NOTHING, TileType.GRASS];
@@ -736,6 +761,7 @@ describe("getCellSpriteData — Remembered cells", () => {
         const { spriteData, pool } = createCellSpriteData();
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
+        expect(spriteData.layers[RenderLayer.LIQUID]).toBeUndefined();
         expect(spriteData.layers[RenderLayer.ENTITY]).toBeUndefined();
         expect(spriteData.layers[RenderLayer.ITEM]).toBeUndefined();
         expect(spriteData.layers[RenderLayer.GAS]).toBeUndefined();
@@ -768,7 +794,7 @@ describe("getCellSpriteData — Remembered cells", () => {
         expect(spriteData.layers[RenderLayer.FIRE]).toBeUndefined();
     });
 
-    it("puts remembered Dungeon on TERRAIN and Liquid on SURFACE", () => {
+    it("puts remembered Dungeon on TERRAIN and Liquid on LIQUID", () => {
         const ctx = makeCtx();
         ctx.pmap[3][3].flags = TileFlag.DISCOVERED;
         ctx.pmap[3][3].rememberedLayers = [TileType.FLOOR, TileType.DEEP_WATER, TileType.NOTHING, TileType.NOTHING];
@@ -777,8 +803,8 @@ describe("getCellSpriteData — Remembered cells", () => {
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
         expect(spriteData.layers[RenderLayer.TERRAIN]!.tileType).toBe(TileType.FLOOR);
-        expect(spriteData.layers[RenderLayer.SURFACE]!.tileType).toBe(TileType.DEEP_WATER);
-        expect(spriteData.layers[RenderLayer.SURFACE]!.alpha).toBe(1);
+        expect(spriteData.layers[RenderLayer.LIQUID]!.tileType).toBe(TileType.DEEP_WATER);
+        expect(spriteData.layers[RenderLayer.LIQUID]!.alpha).toBe(1);
     });
 });
 
@@ -1887,7 +1913,7 @@ describe("getCellSpriteData — autotile bitmask (live pmap)", () => {
         expect(terrain.adjacencyMask).toBe(68);
     });
 
-    it("sets adjacencyMask on SURFACE for water cell with water neighbors", () => {
+    it("sets adjacencyMask on LIQUID for water cell with water neighbors", () => {
         const ctx = makeCtx();
         ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
         ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
@@ -1899,10 +1925,10 @@ describe("getCellSpriteData — autotile bitmask (live pmap)", () => {
         const { spriteData, pool } = createCellSpriteData();
         getCellSpriteData(3, 3, ctx, spriteData, pool);
 
-        const surface = spriteData.layers[RenderLayer.SURFACE]!;
-        expect(surface.adjacencyMask).toBeDefined();
+        const liquid = spriteData.layers[RenderLayer.LIQUID]!;
+        expect(liquid.adjacencyMask).toBeDefined();
         // N (bit 0) + S (bit 4) = 1 + 16 = 17
-        expect(surface.adjacencyMask).toBe(17);
+        expect(liquid.adjacencyMask).toBe(17);
     });
 
     it("does NOT set adjacencyMask for non-connectable terrain", () => {

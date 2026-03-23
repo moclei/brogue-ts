@@ -28,22 +28,23 @@ import { VisibilityState } from "../io/cell-queries.js";
 
 /**
  * Draw-order index for the sprite compositing pipeline.
- * Layers 0–6 are implemented; 7–9 are placeholders for future initiatives.
+ * Layers 0–7 are implemented; 8–10 are placeholders for future initiatives.
  */
 export enum RenderLayer {
     TERRAIN    = 0,
-    SURFACE    = 1,
-    ITEM       = 2,
-    ENTITY     = 3,
-    GAS        = 4,
-    FIRE       = 5,
-    VISIBILITY = 6,
-    STATUS     = 7,
-    BOLT       = 8,
-    UI         = 9,
+    LIQUID     = 1,
+    SURFACE    = 2,
+    ITEM       = 3,
+    ENTITY     = 4,
+    GAS        = 5,
+    FIRE       = 6,
+    VISIBILITY = 7,
+    STATUS     = 8,
+    BOLT       = 9,
+    UI         = 10,
 }
 
-export const RENDER_LAYER_COUNT = 10;
+export const RENDER_LAYER_COUNT = 11;
 
 // =============================================================================
 // LayerEntry
@@ -287,7 +288,7 @@ export function isTerrainTileType(t: TileType): boolean {
 
 /**
  * Shallow liquid TileTypes — liquids that should be drawn semi-transparent
- * on the SURFACE layer so the floor tile beneath is visible. Deep water,
+ * on the LIQUID layer so the floor tile beneath is visible. Deep water,
  * lava, and other opaque liquids return false.
  */
 export function isShallowLiquid(t: TileType): boolean {

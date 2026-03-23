@@ -4,7 +4,7 @@
  *
  *  Phase 5: layer compositing pipeline via drawCellLayers(). Consumes
  *  CellSpriteData from getCellSpriteData and draws per-layer sprites.
- *  Multiply tinting is disabled on layers 0–5 (sprites draw with original
+ *  Multiply tinting is disabled on layers 0–6 (sprites draw with original
  *  PNG colors); VISIBILITY layer retains multiply fill for lighting.
  *  Legacy drawCell() kept as transition fallback.
  *

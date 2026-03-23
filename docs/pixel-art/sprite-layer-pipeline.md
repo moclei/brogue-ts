@@ -19,12 +19,13 @@ background. The renderer paints them bottom to top:
 ```
  ┌─────────────────────────────┐
  │  Fog-of-war overlay         │  ← tints remembered / magic-mapped cells
- │  Layer 6: VISIBILITY        │  ← multiply fill from dungeon light color
- │  Layer 5: FIRE              │  ← fire on the cell
- │  Layer 4: GAS               │  ← poison gas, steam, etc.
- │  Layer 3: ENTITY            │  ← player or monster
- │  Layer 2: ITEM              │  ← weapon, potion, scroll on the ground
- │  Layer 1: SURFACE           │  ← liquid (water, lava) or decoration (grass)
+ │  Layer 7: VISIBILITY        │  ← multiply fill from dungeon light color
+ │  Layer 6: FIRE              │  ← fire on the cell
+ │  Layer 5: GAS               │  ← poison gas, steam, etc.
+ │  Layer 4: ENTITY            │  ← player or monster
+ │  Layer 3: ITEM              │  ← weapon, potion, scroll on the ground
+ │  Layer 2: SURFACE           │  ← decoration (grass, blood, webs)
+ │  Layer 1: LIQUID            │  ← water, lava, mud, ice
  │  Layer 0: TERRAIN           │  ← wall, floor, door, stairs, chasm
  │  ── background fill ──      │  ← solid dark: rgb(10, 10, 18)
  └─────────────────────────────┘
@@ -39,13 +40,14 @@ background → TERRAIN → VISIBILITY.
 |-----------|-------|-------------|------|-------|-------|
 | 1st | Background fill | — | — | — | Solid `rgb(10,10,18)` |
 | 2nd | 0: TERRAIN | TileType (+ autotile variants) | **Disabled** | 1.0 | Original PNG colors |
-| 3rd | 1: SURFACE | TileType | **Disabled** | 0.55 shallow, else 1.0 | Liquid vs decoration contest |
-| 4th | 2: ITEM | DisplayGlyph | **Disabled** | 1.0 | Only if no ENTITY |
-| 5th | 3: ENTITY | DisplayGlyph | **Disabled** | 1.0 | Player or monster |
-| 6th | 4: GAS | TileType | **Disabled** | volume / 100 | Volume-based transparency |
-| 7th | 5: FIRE | TileType | **Disabled** | 1.0 | From surface or gas ignition |
-| 8th | 6: VISIBILITY | — (color fill) | Multiply composite | 1.0 | Dungeon lighting |
-| 9th | Fog overlay | — (color fill) | Multiply or source-over | Varies | Remembered/clairvoyant tints |
+| 3rd | 1: LIQUID | TileType (+ autotile variants) | **Disabled** | 0.55 shallow, else 1.0 | Water, lava, mud, ice |
+| 4th | 2: SURFACE | TileType | **Disabled** | 1.0 | Decorations (grass, blood, webs) |
+| 5th | 3: ITEM | DisplayGlyph | **Disabled** | 1.0 | Only if no ENTITY |
+| 6th | 4: ENTITY | DisplayGlyph | **Disabled** | 1.0 | Player or monster |
+| 7th | 5: GAS | TileType | **Disabled** | volume / 100 | Volume-based transparency |
+| 8th | 6: FIRE | TileType | **Disabled** | 1.0 | From surface or gas ignition |
+| 9th | 7: VISIBILITY | — (color fill) | Multiply composite | 1.0 | Dungeon lighting |
+| 10th | Fog overlay | — (color fill) | Multiply or source-over | Varies | Remembered/clairvoyant tints |
 
 > Tint data from `foreColor`/`backColor` is still computed (for F2 debug
 > inspection and `colorDances` detection) but not rendered. Per-layer tinting
@@ -63,13 +65,13 @@ pixel-art sprites.
 
 | Shared Element | Source | How Sprites Use It | Status |
 |---|---|---|---|
-| `tileCatalog[tile].foreColor` | `globals/colors.ts` → `tile-catalog.ts` | Computed into tint data but **not rendered** (tinting disabled on layers 0–5) | Harmless — data computed for debug/`colorDances` only |
+| `tileCatalog[tile].foreColor` | `globals/colors.ts` → `tile-catalog.ts` | Computed into tint data but **not rendered** (tinting disabled on layers 0–6) | Harmless — data computed for debug/`colorDances` only |
 | `tileCatalog[tile].backColor` | Same | Computed into GAS tint but **not rendered**; feeds `bgColor` for `bakeTerrainColors` | Same — computed but never drawn |
 | `bakeTerrainColors()` | `io/display.ts` | Resolves random color components; propagates `colorDances` flag. Tint output **not rendered**. | Retained for `colorDances` detection |
 | `monsterCatalog[m].foreColor` | `globals/monster-catalog.ts` | Computed into ENTITY tint but **not rendered** | Harmless |
 | `item.foreColor` | Item objects | Computed into ITEM tint but **not rendered** | Harmless |
 | `lightMultiplierColor` | `colorMultiplierFromDungeonLight()` | VISIBILITY layer lighting overlay — **actively rendered** | **Intentionally shared** — this one is fine |
-| `drawPriority` | `tileCatalog` | Decides liquid vs surface winner when both occupy SURFACE layer | Will be unnecessary if LIQUID gets its own layer |
+| `drawPriority` | `tileCatalog` | No longer used by sprite pipeline (liquid has its own LIQUID layer) | Obsolete for sprites; still present in tile catalog for ASCII |
 | `colorDances` | `Color.colorDances` flag | Triggers per-frame re-render for shimmer effect | **Intentionally shared** — this one is fine |
 
 **What is the tile catalog?** An array of 217 entries (`tileCatalog` in
@@ -226,16 +228,12 @@ NOTHING
 
 ---
 
-## Layer 1: SURFACE
+## Layer 1: LIQUID
 
-Two categories share this single layer: **liquids** and **surface decorations**.
-When both exist on the same cell, the one with the lower `drawPriority` value
-(from the tile catalog) wins. In practice, decorations like foliage usually win
-over liquids, while deep water/lava usually beats things like cobwebs.
-
-> **Design note:** Sharing one layer means shallow water + foliage can never
-> coexist on the same cell. A dedicated LIQUID layer between TERRAIN and
-> SURFACE would fix this — see [Future: LIQUID Layer](#future-liquid-layer).
+All liquid tiles — water, lava, ice, mud. Drawn between TERRAIN and SURFACE
+so that liquid and surface decorations (foliage, blood, webs) can coexist on
+the same cell. Shallow liquids draw semi-transparent (alpha 0.55) so the
+floor tile underneath is visible.
 
 ### Sprite Source
 
@@ -243,7 +241,7 @@ Looked up by `TileType` from `tileTypeSpriteMap`. Autotiling applies to liquid
 tiles in connection groups (WATER, LAVA, ICE, MUD) when a variant spritesheet
 is loaded.
 
-### Tile Types — Liquids
+### Tile Types
 
 Placed by the game on `DungeonLayer.Liquid`.
 
@@ -262,7 +260,28 @@ ICE_DEEP, ICE_DEEP_MELT, ICE_SHALLOW, ICE_SHALLOW_MELT
 **Mud:**
 MUD, MACHINE_MUD_DORMANT
 
-### Tile Types — Surface Decorations
+### Parameters
+
+| Parameter | Current Value | Configurable? | Notes |
+|-----------|--------------|---------------|-------|
+| Tint | **Disabled** (original PNG colors) | Yes — F2 panel tint override re-enables | Tint data still computed for debug inspection |
+| Alpha | 0.55 for shallow liquids, 1.0 otherwise | Yes — F2 panel alpha slider | Shallow: SHALLOW_WATER, FLOOD_WATER_SHALLOW, ICE_SHALLOW, ICE_SHALLOW_MELT, MUD |
+| Blend mode | `"none"` (no tinting) | Yes — F2 panel blend mode dropdown | |
+| Autotile variant | 0–46 (from adjacency bitmask) | Visible via F2 "Show Variant Indices" toggle | Only for tiles in a connection group with a loaded spritesheet |
+
+---
+
+## Layer 2: SURFACE
+
+Surface decorations — vegetation, blood, debris, webs, magical effects.
+Drawn above LIQUID, so decorations render on top of any liquid on the same
+cell.
+
+### Sprite Source
+
+Looked up by `TileType` from `tileTypeSpriteMap`.
+
+### Tile Types
 
 Placed by the game on `DungeonLayer.Surface`. Must pass `isSurfaceTileType()`.
 
@@ -299,13 +318,12 @@ HAVEN_BEDROLL, ANCIENT_SPIRIT_VINES, ANCIENT_SPIRIT_GRASS
 | Parameter | Current Value | Configurable? | Notes |
 |-----------|--------------|---------------|-------|
 | Tint | **Disabled** (original PNG colors) | Yes — F2 panel tint override re-enables | Tint data still computed for debug inspection |
-| Alpha | 0.55 for shallow liquids, 1.0 otherwise | Yes — F2 panel alpha slider | Shallow: SHALLOW_WATER, FLOOD_WATER_SHALLOW, ICE_SHALLOW, ICE_SHALLOW_MELT, MUD |
+| Alpha | 1.0 | Yes — F2 panel alpha slider | |
 | Blend mode | `"none"` (no tinting) | Yes — F2 panel blend mode dropdown | |
-| drawPriority contest | Lower priority wins | No | Determines liquid vs decoration winner; moot if LIQUID layer is added |
 
 ---
 
-## Layer 2: ITEM
+## Layer 3: ITEM
 
 An item lying on the ground. Only drawn if no creature (ENTITY) occupies the
 cell — creatures visually cover items.
@@ -340,7 +358,7 @@ TileTypes.
 
 ---
 
-## Layer 3: ENTITY
+## Layer 4: ENTITY
 
 The player character or a visible monster.
 
@@ -384,7 +402,7 @@ G_VAMPIRE, G_WARDEN, G_WINGED_GUARDIAN, G_WISP, G_WRAITH, G_ZOMBIE
 
 ---
 
-## Layer 4: GAS
+## Layer 5: GAS
 
 Poison gas, steam, confusion gas, and similar cloud effects.
 
@@ -407,7 +425,7 @@ METHANE_GAS, STEAM, DARKNESS_CLOUD, HEALING_CLOUD
 
 ---
 
-## Layer 5: FIRE
+## Layer 6: FIRE
 
 Fire effects. Can originate from either `DungeonLayer.Surface` (burning terrain)
 or `DungeonLayer.Gas` (ignited gas). Both route to this render layer.
@@ -431,7 +449,7 @@ DART_EXPLOSION, ITEM_FIRE, CREATURE_FIRE
 
 ---
 
-## Layer 6: VISIBILITY (Lighting)
+## Layer 7: VISIBILITY (Lighting)
 
 **Not a sprite.** This layer is a full-cell color fill using Canvas2D
 `multiply` compositing. It simulates dungeon lighting — darkening and tinting
@@ -447,8 +465,8 @@ multiply fill over the entire cell:
 - **Darker values:** Cell is in shadow. `(50, 50, 50)` halves all colors.
 - **Colored values:** Tinted light. `(100, 50, 50)` shifts the cell reddish.
 
-The multiplier is always the same for all layers on a cell — TERRAIN, SURFACE,
-ITEM, ENTITY, GAS, FIRE all get darkened/tinted uniformly.
+The multiplier is always the same for all layers on a cell — TERRAIN, LIQUID,
+SURFACE, ITEM, ENTITY, GAS, FIRE all get darkened/tinted uniformly.
 
 **Not drawn for remembered cells.** Remembered and magic-mapped cells skip this
 layer entirely — they use only the fog-of-war overlay.
@@ -464,7 +482,7 @@ layer entirely — they use only the fog-of-war overlay.
 
 ## Post-Layer: Fog-of-War Overlay
 
-After all 7 layers, a final overlay may be applied based on the cell's
+After all 8 layers, a final overlay may be applied based on the cell's
 visibility state. This is NOT a RenderLayer — it runs after the layer loop.
 
 | Visibility State | Effect | Color (Brogue 0–100 scale) | Notes |
@@ -486,28 +504,13 @@ visibility state. This is NOT a RenderLayer — it runs after the layer loop.
 
 ---
 
-## Layers 7–9: Not Yet Implemented
+## Layers 8–10: Not Yet Implemented
 
 | Layer | Name | Future Use |
 |-------|------|-----------|
-| 7 | STATUS | On-fire, paralyzed, entranced overlays on creatures |
-| 8 | BOLT | Bolt/projectile trail animations |
-| 9 | UI | Targeting cursors, selection highlights |
-
----
-
-## Future: LIQUID Layer
-
-Currently, liquids and surface decorations share Layer 1 (SURFACE). This
-prevents combinations like shallow water + foliage on the same cell. Adding a
-dedicated LIQUID layer between TERRAIN and SURFACE would:
-
-- Allow liquid + decoration coexistence
-- Eliminate the `drawPriority` contest between liquids and decorations
-- Enable independent alpha/tinting for liquids vs decorations
-- Support liquid-specific effects (reflections, ripples)
-
-See the initiative tracking for implementation status.
+| 8 | STATUS | On-fire, paralyzed, entranced overlays on creatures |
+| 9 | BOLT | Bolt/projectile trail animations |
+| 10 | UI | Targeting cursors, selection highlights |
 
 ---
 

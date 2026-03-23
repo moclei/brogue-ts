@@ -120,7 +120,7 @@ export function resetSpriteDebug(): void {
 // =============================================================================
 
 const LAYER_NAMES: string[] = [
-  "TERRAIN", "SURFACE", "ITEM", "ENTITY", "GAS",
+  "TERRAIN", "LIQUID", "SURFACE", "ITEM", "ENTITY", "GAS",
   "FIRE", "VISIBILITY", "STATUS", "BOLT", "UI",
 ];
 
