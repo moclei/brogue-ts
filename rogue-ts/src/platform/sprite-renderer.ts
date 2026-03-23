@@ -4,8 +4,11 @@
  *
  *  Phase 5: layer compositing pipeline via drawCellLayers(). Consumes
  *  CellSpriteData from getCellSpriteData and draws per-layer sprites.
- *  Multiply tinting is disabled on layers 0–6 (sprites draw with original
- *  PNG colors); VISIBILITY layer retains multiply fill for lighting.
+ *  TERRAIN uses multiply tinting at 0.8 alpha; LIQUID at 1.0 alpha.
+ *  Other sprite layers (SURFACE through FIRE) skip tinting. VISIBILITY
+ *  layer retains multiply fill for lighting.
+ *  Phase 3 deep-dive: per-layer Canvas2D filter, shadow, transform, and
+ *  image-smoothing overrides applied via the F2 debug panel.
  *  Legacy drawCell() kept as transition fallback.
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -32,12 +35,18 @@ function c100to255(v: number): number {
 
 const NEUTRAL_TINT_THRESHOLD = 98;
 
+/** Per-layer tint alpha: controls multiply fill strength. 1.0 = full multiply. */
+const TERRAIN_TINT_ALPHA = 0.8;
+
 /** Default cell background for sprite mode — dark near-black instead of game lighting. */
 const SPRITE_BG_COLOR = "rgb(10,10,18)";
 
 /** Sentinel override that skips multiply tinting (blend mode "none"). */
 const NO_TINT: import("./sprite-debug.js").LayerOverride = {
   visible: true, tintOverride: null, alphaOverride: null, blendMode: "none",
+  filterOverride: null, shadowBlur: null, shadowColor: null,
+  shadowOffsetX: null, shadowOffsetY: null, imageSmoothingOverride: null,
+  flipH: false, rotation: 0, scale: 1,
 };
 
 function bitmapKey(ref: SpriteRef): string {
@@ -245,7 +254,7 @@ export class SpriteRenderer implements Renderer {
       // not as a sprite. The tint carries lightMultiplierColor from
       // getCellSpriteData; white (100,100,100) = no darkening.
       if (i === RenderLayer.VISIBILITY) {
-        this.applyLightingOverlay(cellRect, entry.tint);
+        this.applyLightingOverlay(cellRect, entry.tint, dbg?.layers[i] ?? null);
         continue;
       }
 
@@ -263,8 +272,14 @@ export class SpriteRenderer implements Renderer {
       const hasAlpha = effectiveAlpha !== undefined && effectiveAlpha !== null && effectiveAlpha < 1;
       if (hasAlpha) ctx.globalAlpha = effectiveAlpha;
 
-      const skipTint = i !== RenderLayer.VISIBILITY && !lo?.tintOverride && !lo?.blendMode;
-      this.drawSpriteTinted(ref, cellRect, entry.tint, skipTint ? NO_TINT : lo ?? null);
+      const layerHasTint = i === RenderLayer.TERRAIN || i === RenderLayer.LIQUID;
+      const skipTint = !layerHasTint
+        && i !== RenderLayer.VISIBILITY && !lo?.tintOverride && !lo?.blendMode;
+      const tintAlpha = i === RenderLayer.TERRAIN ? TERRAIN_TINT_ALPHA : 1.0;
+      this.drawSpriteTinted(
+        ref, cellRect, entry.tint,
+        skipTint ? NO_TINT : lo ?? null, tintAlpha,
+      );
 
       if (hasAlpha) ctx.globalAlpha = 1;
     }
@@ -295,6 +310,7 @@ export class SpriteRenderer implements Renderer {
   private applyLightingOverlay(
     cellRect: CellRect,
     tint: Readonly<Color>,
+    debugOverride: import("./sprite-debug.js").LayerOverride | null = null,
   ): void {
     const r = c100to255(tint.red);
     const g = c100to255(tint.green);
@@ -305,6 +321,7 @@ export class SpriteRenderer implements Renderer {
     const { x, y, width, height } = cellRect;
     ctx.save();
     ctx.globalCompositeOperation = "multiply";
+    this.applyDeepDiveProps(debugOverride, cellRect);
     ctx.fillStyle = `rgb(${r},${g},${b})`;
     ctx.fillRect(x, y, width, height);
     ctx.restore();
@@ -358,16 +375,16 @@ export class SpriteRenderer implements Renderer {
   /**
    * Draw a sprite with multiply tint. Tint is on Brogue 0–100 scale.
    *
-   * Fast path: when tint components are ≈ 100, skip the offscreen canvas
-   * multiply and blit the sprite directly (saves 4 of 5 canvas ops).
-   *
-   * Full path: copy sprite → multiply fill → destination-in → blit.
+   * Fast path: when blend mode is "none" or tint ≈ neutral, blit directly
+   * (skips 4 of 5 canvas ops). Full path: offscreen multiply + destination-in.
+   * Deep-dive overrides (filter, shadow, transform) wrap the final blit.
    */
   private drawSpriteTinted(
     spriteRef: SpriteRef,
     cellRect: CellRect,
     tint: Readonly<Color>,
     debugOverride: import("./sprite-debug.js").LayerOverride | null = null,
+    baseTintAlpha: number = 1.0,
   ): void {
     const { ctx } = this;
     const bitmap = this.bitmaps.get(bitmapKey(spriteRef));
@@ -378,64 +395,105 @@ export class SpriteRenderer implements Renderer {
     const sprSx = bitmap ? 0 : spriteRef.tileX * TILE_SIZE;
     const sprSy = bitmap ? 0 : spriteRef.tileY * TILE_SIZE;
 
-    if (debugOverride?.blendMode === "none") {
-      ctx.drawImage(
-        source, sprSx, sprSy, TILE_SIZE, TILE_SIZE,
-        cellRect.x, cellRect.y, cellRect.width, cellRect.height,
-      );
-      return;
+    let drawSource: CanvasImageSource = source;
+    let drawSx = sprSx, drawSy = sprSy;
+
+    if (debugOverride?.blendMode !== "none") {
+      const tintR = debugOverride?.tintOverride
+        ? (debugOverride.tintOverride.r * 100) / 255 : tint.red;
+      const tintG = debugOverride?.tintOverride
+        ? (debugOverride.tintOverride.g * 100) / 255 : tint.green;
+      const tintB = debugOverride?.tintOverride
+        ? (debugOverride.tintOverride.b * 100) / 255 : tint.blue;
+
+      const neutral = tintR >= NEUTRAL_TINT_THRESHOLD
+        && tintG >= NEUTRAL_TINT_THRESHOLD && tintB >= NEUTRAL_TINT_THRESHOLD;
+
+      if (!neutral || debugOverride?.blendMode) {
+        const { tintCtx, tintCanvas } = this;
+        const blendOp = debugOverride?.blendMode ?? "multiply";
+
+        tintCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
+        tintCtx.drawImage(
+          source, sprSx, sprSy, TILE_SIZE, TILE_SIZE,
+          0, 0, TILE_SIZE, TILE_SIZE,
+        );
+
+        const tintAlpha = debugOverride?.tintOverride?.a ?? baseTintAlpha;
+        tintCtx.save();
+        tintCtx.globalCompositeOperation = blendOp;
+        if (tintAlpha < 1) tintCtx.globalAlpha = tintAlpha;
+        tintCtx.fillStyle = `rgb(${c100to255(tintR)},${c100to255(tintG)},${c100to255(tintB)})`;
+        tintCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+        if (tintAlpha < 1) tintCtx.globalAlpha = 1;
+
+        tintCtx.globalCompositeOperation = "destination-in";
+        tintCtx.drawImage(
+          source, sprSx, sprSy, TILE_SIZE, TILE_SIZE,
+          0, 0, TILE_SIZE, TILE_SIZE,
+        );
+        tintCtx.restore();
+
+        drawSource = tintCanvas;
+        drawSx = 0;
+        drawSy = 0;
+      }
     }
 
-    const tintR = debugOverride?.tintOverride
-      ? (debugOverride.tintOverride.r * 100) / 255 : tint.red;
-    const tintG = debugOverride?.tintOverride
-      ? (debugOverride.tintOverride.g * 100) / 255 : tint.green;
-    const tintB = debugOverride?.tintOverride
-      ? (debugOverride.tintOverride.b * 100) / 255 : tint.blue;
-
-    const effectiveTintNeutral = tintR >= NEUTRAL_TINT_THRESHOLD
-      && tintG >= NEUTRAL_TINT_THRESHOLD && tintB >= NEUTRAL_TINT_THRESHOLD;
-
-    if (effectiveTintNeutral && !debugOverride?.blendMode) {
-      ctx.drawImage(
-        source, sprSx, sprSy, TILE_SIZE, TILE_SIZE,
-        cellRect.x, cellRect.y, cellRect.width, cellRect.height,
-      );
-      return;
-    }
-
-    const { tintCtx, tintCanvas } = this;
-    const blendOp = debugOverride?.blendMode ?? "multiply";
-
-    tintCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
-    tintCtx.drawImage(
-      source, sprSx, sprSy, TILE_SIZE, TILE_SIZE,
-      0, 0, TILE_SIZE, TILE_SIZE,
-    );
-
-    const tintAlpha = debugOverride?.tintOverride?.a;
-
-    tintCtx.save();
-    tintCtx.globalCompositeOperation = blendOp;
-    if (tintAlpha !== undefined && tintAlpha < 1) {
-      tintCtx.globalAlpha = tintAlpha;
-    }
-    tintCtx.fillStyle = `rgb(${c100to255(tintR)},${c100to255(tintG)},${c100to255(tintB)})`;
-    tintCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
-    if (tintAlpha !== undefined && tintAlpha < 1) {
-      tintCtx.globalAlpha = 1;
-    }
-
-    tintCtx.globalCompositeOperation = "destination-in";
-    tintCtx.drawImage(
-      source, sprSx, sprSy, TILE_SIZE, TILE_SIZE,
-      0, 0, TILE_SIZE, TILE_SIZE,
-    );
-    tintCtx.restore();
-
+    const dd = this.applyDeepDiveOverrides(debugOverride, cellRect);
     ctx.drawImage(
-      tintCanvas, 0, 0, TILE_SIZE, TILE_SIZE,
+      drawSource, drawSx, drawSy, TILE_SIZE, TILE_SIZE,
       cellRect.x, cellRect.y, cellRect.width, cellRect.height,
     );
+    if (dd) ctx.restore();
+  }
+
+  // ===========================================================================
+  // Deep-dive override helpers (Phase 3)
+  // ===========================================================================
+
+  /**
+   * Set Canvas2D filter, shadow, smoothing, and transform properties on ctx.
+   * Does NOT call save/restore — caller is responsible.
+   */
+  private applyDeepDiveProps(
+    lo: import("./sprite-debug.js").LayerOverride | null,
+    cellRect: CellRect,
+  ): void {
+    if (!lo) return;
+    const { ctx } = this;
+    if (lo.filterOverride !== null) ctx.filter = lo.filterOverride;
+    if (lo.shadowBlur !== null) ctx.shadowBlur = lo.shadowBlur;
+    if (lo.shadowColor !== null) ctx.shadowColor = lo.shadowColor;
+    if (lo.shadowOffsetX !== null) ctx.shadowOffsetX = lo.shadowOffsetX;
+    if (lo.shadowOffsetY !== null) ctx.shadowOffsetY = lo.shadowOffsetY;
+    if (lo.imageSmoothingOverride !== null) {
+      ctx.imageSmoothingEnabled = lo.imageSmoothingOverride;
+    }
+    if (lo.flipH || lo.rotation !== 0 || lo.scale !== 1) {
+      const cx = cellRect.x + cellRect.width / 2;
+      const cy = cellRect.y + cellRect.height / 2;
+      ctx.translate(cx, cy);
+      if (lo.flipH) ctx.scale(-1, 1);
+      if (lo.rotation !== 0) ctx.rotate(lo.rotation * Math.PI / 180);
+      if (lo.scale !== 1) ctx.scale(lo.scale, lo.scale);
+      ctx.translate(-cx, -cy);
+    }
+  }
+
+  /** Save context and apply deep-dive overrides. Returns true if ctx.restore() is needed. */
+  private applyDeepDiveOverrides(
+    lo: import("./sprite-debug.js").LayerOverride | null,
+    cellRect: CellRect,
+  ): boolean {
+    if (!lo) return false;
+    const has = lo.filterOverride !== null
+      || lo.shadowBlur !== null || lo.shadowColor !== null
+      || lo.imageSmoothingOverride !== null
+      || lo.flipH || lo.rotation !== 0 || lo.scale !== 1;
+    if (!has) return false;
+    this.ctx.save();
+    this.applyDeepDiveProps(lo, cellRect);
+    return true;
   }
 }

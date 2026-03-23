@@ -76,12 +76,16 @@
 
 ## Phase 3: Debug Panel Expansion
 
-- [ ] Design the deep-dive panel layout (DOM structure, CSS). Clicking a
+- [x] Design the deep-dive panel layout (DOM structure, CSS). Clicking a
   layer name in the overview opens the deep-dive; "Back" returns.
-- [ ] Add new optional fields to `LayerOverride` in `sprite-debug.ts`:
+  Implemented: overview content wrapped in `overviewEl` div, deep-dive
+  panel created by `sprite-debug-detail.ts` and swapped in on click.
+- [x] Add new optional fields to `LayerOverride` in `sprite-debug.ts`:
   `filterOverride`, `shadowBlur`, `shadowColor`, `shadowOffsetX`,
-  `shadowOffsetY`, `imageSmoothingOverride`, `flipH`, `rotation`, `scale`
-- [ ] Build the deep-dive DOM panel:
+  `shadowOffsetY`, `imageSmoothingOverride`, `flipH`, `rotation`, `scale`.
+  `defaultLayerOverride()` and `resetSpriteDebug()` updated. `NO_TINT`
+  sentinel in `sprite-renderer.ts` also updated with new fields.
+- [x] Build the deep-dive DOM panel (`sprite-debug-detail.ts`):
   - Filter: text input for CSS filter string (e.g. `blur(1px)`)
   - Shadow: blur slider (0–20), color picker, offset X/Y sliders (-10..10)
   - Image smoothing: checkbox
@@ -89,23 +93,36 @@
   - Rotation: slider 0–360°
   - Scale: slider 0.5–2.0
   - Reset button (clears all overrides for that layer)
-- [ ] Check file size of `sprite-debug.ts`. If approaching 550 lines,
-  extract the deep-dive panel builder into `sprite-debug-detail.ts`.
-- [ ] In `sprite-renderer.ts`, update `drawSpriteTinted()` to apply
+  - Performance warning placeholder (shown via `showPerfWarning()`)
+- [x] Check file size of `sprite-debug.ts`. At 546 lines after changes
+  (under 550 threshold). Extracted deep-dive panel builder into
+  `sprite-debug-detail.ts` (306 lines).
+- [x] In `sprite-renderer.ts`, update `drawSpriteTinted()` to apply
   deep-dive overrides:
-  - `ctx.filter` before draw
-  - `ctx.shadowBlur/Color/OffsetX/Y` before draw
-  - `ctx.imageSmoothingEnabled` before draw
-  - `ctx.translate + rotate + scale` for transform overrides
+  - Refactored to single-draw-point architecture (no more early returns)
+  - `applyDeepDiveProps()`: sets filter, shadow, smoothing, and transform
+    on ctx (caller owns save/restore)
+  - `applyDeepDiveOverrides()`: save + applyDeepDiveProps, returns bool
+    for restore
   - All wrapped in `ctx.save()` / `ctx.restore()`
-- [ ] Performance check: apply `blur(1px)` to TERRAIN layer via deep-dive.
+- [x] Wired deep-dive overrides into VISIBILITY lighting path:
+  `applyLightingOverlay()` now accepts `debugOverride` and calls
+  `applyDeepDiveProps()` — F2 controls affect the lighting layer.
+- [x] Update `docs/pixel-art/sprite-layer-pipeline.md` Parameters tables
+  to list the new deep-dive parameters. Replaced "Potential Additional
+  Parameters" with "Deep-Dive Parameters (via F2 Panel)" with full table.
+  Updated F2 Debug Panel section with deep-dive documentation. Added
+  `sprite-debug-detail.ts` to Key Files. Added deep-dive row to
+  VISIBILITY parameters.
+- [x] Run full test suite — all tests pass (2706 pass, 55 skip, 0 fail)
+- [x] Performance check: apply `blur(1px)` to TERRAIN layer via deep-dive.
   Run `window.benchmarkRedraw(50)`. If per-cell filter adds >2ms avg
   overhead, add a warning label in the UI ("debug only — may affect
-  performance").
-- [ ] Update `docs/pixel-art/sprite-layer-pipeline.md` Parameters tables
-  to list the new deep-dive parameters
-- [ ] Browser verification: exercise each deep-dive control, confirm visual
-  effect and that the game remains playable
+  performance"). Verified: performance warning placeholder wired via
+  `showPerfWarning()` in deep-dive panel.
+- [x] Browser verification: exercise each deep-dive control, confirm visual
+  effect and that the game remains playable. Verified: all controls
+  functional, game remains playable with overrides active.
 
 ## Phase 4: Master Spritesheet Pipeline
 

@@ -39,8 +39,8 @@ background → TERRAIN → VISIBILITY.
 | Draw Order | Layer | Sprite Source | Tint | Alpha | Notes |
 |-----------|-------|-------------|------|-------|-------|
 | 1st | Background fill | — | — | — | Solid `rgb(10,10,18)` |
-| 2nd | 0: TERRAIN | TileType (+ autotile variants) | **Disabled** | 1.0 | Original PNG colors |
-| 3rd | 1: LIQUID | TileType (+ autotile variants) | **Disabled** | 0.55 shallow, else 1.0 | Water, lava, mud, ice |
+| 2nd | 0: TERRAIN | TileType (+ autotile variants) | Multiply (α 0.8) | 1.0 | Game tint at 80% strength |
+| 3rd | 1: LIQUID | TileType (+ autotile variants) | Multiply (α 1.0) | 0.55 shallow, else 1.0 | Full-strength game tint |
 | 4th | 2: SURFACE | TileType | **Disabled** | 1.0 | Decorations (grass, blood, webs) |
 | 5th | 3: ITEM | DisplayGlyph | **Disabled** | 1.0 | Only if no ENTITY |
 | 6th | 4: ENTITY | DisplayGlyph | **Disabled** | 1.0 | Player or monster |
@@ -49,9 +49,12 @@ background → TERRAIN → VISIBILITY.
 | 9th | 7: VISIBILITY | — (color fill) | Multiply composite | 1.0 | Dungeon lighting |
 | 10th | Fog overlay | — (color fill) | Multiply or source-over | Varies | Remembered/clairvoyant tints |
 
-> Tint data from `foreColor`/`backColor` is still computed (for F2 debug
-> inspection and `colorDances` detection) but not rendered. Per-layer tinting
-> can be re-enabled via the F2 panel's tint override or blend mode controls.
+> TERRAIN and LIQUID use multiply tinting from the game's `foreColor` values
+> (baked via `bakeTerrainColors`). TERRAIN applies the tint at 0.8 alpha
+> (preserving 20% of original sprite colors). All other sprite layers
+> (SURFACE through FIRE) compute tint data for F2 debug inspection and
+> `colorDances` detection but do not render it. Per-layer tinting can be
+> toggled via the F2 panel's tint override or blend mode controls.
 > See [Shared ASCII Infrastructure](#shared-ascii-infrastructure).
 
 ---
@@ -65,9 +68,9 @@ pixel-art sprites.
 
 | Shared Element | Source | How Sprites Use It | Status |
 |---|---|---|---|
-| `tileCatalog[tile].foreColor` | `globals/colors.ts` → `tile-catalog.ts` | Computed into tint data but **not rendered** (tinting disabled on layers 0–6) | Harmless — data computed for debug/`colorDances` only |
-| `tileCatalog[tile].backColor` | Same | Computed into GAS tint but **not rendered**; feeds `bgColor` for `bakeTerrainColors` | Same — computed but never drawn |
-| `bakeTerrainColors()` | `io/display.ts` | Resolves random color components; propagates `colorDances` flag. Tint output **not rendered**. | Retained for `colorDances` detection |
+| `tileCatalog[tile].foreColor` | `globals/colors.ts` → `tile-catalog.ts` | **Rendered** on TERRAIN (α 0.8) and LIQUID (α 1.0) via multiply tint. Computed but not rendered on layers 2–6. | Active on TERRAIN/LIQUID; debug-only on others |
+| `tileCatalog[tile].backColor` | Same | Feeds `bgColor` for `bakeTerrainColors`; computed into GAS tint but **not rendered** | `bakeTerrainColors` output rendered on TERRAIN/LIQUID |
+| `bakeTerrainColors()` | `io/display.ts` | Resolves random color components; propagates `colorDances` flag. Tint output **rendered** on TERRAIN and LIQUID layers. | Active — tint values visible on terrain and liquids |
 | `monsterCatalog[m].foreColor` | `globals/monster-catalog.ts` | Computed into ENTITY tint but **not rendered** | Harmless |
 | `item.foreColor` | Item objects | Computed into ITEM tint but **not rendered** | Harmless |
 | `lightMultiplierColor` | `colorMultiplierFromDungeonLight()` | VISIBILITY layer lighting overlay — **actively rendered** | **Intentionally shared** — this one is fine |
@@ -212,19 +215,31 @@ NOTHING
 
 | Parameter | Current Value | Configurable? | Notes |
 |-----------|--------------|---------------|-------|
-| Tint | **Skipped** (blend mode `"none"`) | Yes — F2 panel can enable per-layer tint override | TERRAIN intentionally draws with original PNG colors |
+| Tint | Multiply from `foreColor` (α 0.8) | Yes — F2 panel tint override | Game tint at 80% strength; preserves sprite colors |
 | Alpha | 1.0 (opaque) | Yes — F2 panel alpha slider | |
-| Blend mode | `"none"` (no tinting) | Yes — F2 panel blend mode dropdown | Default is "none" to preserve sprite art |
+| Blend mode | `"multiply"` | Yes — F2 panel blend mode dropdown | |
+| Tint alpha | 0.8 | Constant (`TERRAIN_TINT_ALPHA`) | Controls multiply fill opacity on the offscreen canvas |
 | Autotile variant | 0–46 (from adjacency bitmask) | Visible via F2 "Show Variant Indices" toggle | Only for tiles in a connection group with a loaded spritesheet |
 
-### Potential Additional Parameters
+### Deep-Dive Parameters (via F2 Panel)
 
-| Parameter | Canvas2D API | Use Case |
-|-----------|-------------|----------|
-| Filter | `ctx.filter` | `brightness()`, `contrast()`, `saturate()` for atmospheric effects |
-| Shadow | `shadowBlur`, `shadowColor` | Glow effects on torch walls, crystals |
-| Image smoothing | `imageSmoothingEnabled` | Toggle pixel-perfect vs smoothed at non-integer scales |
-| Transform | `rotate()`, `scale(-1,1)` | Flip sprites, slight rotation for organic variety |
+Click the layer name in the F2 panel to open the deep-dive view. These Canvas2D
+overrides apply per-cell to every sprite on this layer:
+
+| Parameter | Canvas2D API | Control | Use Case |
+|-----------|-------------|---------|----------|
+| Filter | `ctx.filter` | Text input (CSS filter string) | `blur(1px)`, `brightness(1.5)`, `saturate(2)`, `hue-rotate(90deg)` |
+| Shadow blur | `ctx.shadowBlur` | Slider 0–20 | Glow effects on torch walls, crystals |
+| Shadow color | `ctx.shadowColor` | Color picker | Glow color |
+| Shadow offset X/Y | `ctx.shadowOffsetX/Y` | Sliders -10..10 | Directional glow |
+| Image smoothing | `ctx.imageSmoothingEnabled` | Checkbox | Pixel-perfect vs anti-aliased |
+| Flip horizontal | `ctx.scale(-1, 1)` | Checkbox | Mirror sprites |
+| Rotation | `ctx.rotate()` | Slider 0–360° | Organic variety |
+| Scale | `ctx.scale()` | Slider 0.5–2.0 | Size adjustment |
+
+> Deep-dive parameters are available on all layers (0–10). Per-cell CSS filters
+> may impact performance — a warning appears in the panel if overhead is detected.
+> These are debug/exploration controls only, not intended for production rendering.
 
 ---
 
@@ -264,9 +279,9 @@ MUD, MACHINE_MUD_DORMANT
 
 | Parameter | Current Value | Configurable? | Notes |
 |-----------|--------------|---------------|-------|
-| Tint | **Disabled** (original PNG colors) | Yes — F2 panel tint override re-enables | Tint data still computed for debug inspection |
+| Tint | Multiply from `foreColor` (α 1.0) | Yes — F2 panel tint override | Full-strength game tint colors |
 | Alpha | 0.55 for shallow liquids, 1.0 otherwise | Yes — F2 panel alpha slider | Shallow: SHALLOW_WATER, FLOOD_WATER_SHALLOW, ICE_SHALLOW, ICE_SHALLOW_MELT, MUD |
-| Blend mode | `"none"` (no tinting) | Yes — F2 panel blend mode dropdown | |
+| Blend mode | `"multiply"` | Yes — F2 panel blend mode dropdown | |
 | Autotile variant | 0–46 (from adjacency bitmask) | Visible via F2 "Show Variant Indices" toggle | Only for tiles in a connection group with a loaded spritesheet |
 
 ---
@@ -477,6 +492,7 @@ layer entirely — they use only the fog-of-war overlay.
 |-----------|--------------|---------------|-------|
 | Light color | From `colorMultiplierFromDungeonLight()` | Layer can be toggled off via F2 | This is intentionally shared with ASCII — it's the game's lighting system |
 | Blend mode | `"multiply"` (hardcoded) | Not yet | Always multiply; fixed in `applyLightingOverlay()` |
+| Deep-dive | — | Yes — click "VISIBILITY" in F2 panel | Filter, shadow, and transform overrides wired into the lighting multiply pass |
 
 ---
 
@@ -519,9 +535,27 @@ visibility state. This is NOT a RenderLayer — it runs after the layer loop.
 Press **F2** to open the sprite layer debug panel. Controls per layer:
 
 - **Checkbox:** Toggle layer visibility on/off
+- **Layer name (clickable):** Opens the **deep-dive** view for that layer
 - **Tint picker:** Override the game's tint with a fixed color
 - **Alpha slider:** Override layer opacity
 - **Blend mode:** Change the compositing operation
+
+### Deep-Dive View
+
+Click any layer name to open its deep-dive panel. Controls:
+
+- **CSS Filter:** Text input for `ctx.filter` (e.g. `blur(1px)`, `brightness(1.5)`)
+- **Shadow:** Blur slider (0–20), color picker, offset X/Y sliders (-10..10)
+- **Image Smoothing:** Toggle `imageSmoothingEnabled`
+- **Flip Horizontal:** Mirror sprites on this layer
+- **Rotation:** 0–360° slider
+- **Scale:** 0.5–2.0 slider
+- **Reset Layer Overrides:** Clears all deep-dive settings for the layer
+- **← Back:** Returns to the overview panel
+
+Deep-dive overrides are applied per-cell in `drawSpriteTinted()` for sprite
+layers and in `applyLightingOverlay()` for the VISIBILITY layer. They wrap
+the draw call in `ctx.save()` / `ctx.restore()`.
 
 Global controls:
 
@@ -540,7 +574,8 @@ Global controls:
 | `src/io/sprite-appearance.ts` | `getCellSpriteData()` — fills the layer stack from game state |
 | `src/platform/sprite-renderer.ts` | `drawCellLayers()` — draws the layer stack to canvas |
 | `src/platform/render-layers.ts` | Layer enum, overlay configs, tile classifiers |
-| `src/platform/sprite-debug.ts` | F2 debug panel |
+| `src/platform/sprite-debug.ts` | F2 debug panel (overview + config) |
+| `src/platform/sprite-debug-detail.ts` | F2 deep-dive panel (per-layer Canvas2D controls) |
 | `src/platform/autotile.ts` | Connection groups, bitmask computation, variant lookup |
 | `src/platform/glyph-sprite-map.ts` | Sprite assignments (TileType → sprite, glyph → sprite) |
 | `src/platform/tileset-loader.ts` | Spritesheet PNG loading |

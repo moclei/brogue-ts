@@ -254,7 +254,7 @@ describe("SpriteRenderer", () => {
     });
 
     describe("layer compositing", () => {
-      it("draws a single terrain layer sprite without tinting", () => {
+      it("draws a terrain layer sprite with multiply tinting at 0.8 alpha", () => {
         const sd = makeSpriteData();
         sd.layers[RenderLayer.TERRAIN] = makeLayer({
           tileType: TileType.FLOOR,
@@ -262,9 +262,10 @@ describe("SpriteRenderer", () => {
         });
         renderer.drawCellLayers(CELL, sd);
 
-        // Terrain layer draws raw (no tint) by default
         expect(ctx.drawImage).toHaveBeenCalled();
-        expect(fakeTintCtx.clearRect).not.toHaveBeenCalled();
+        expect(fakeTintCtx.clearRect).toHaveBeenCalled();
+        expect(fakeTintCtx.save).toHaveBeenCalled();
+        expect(fakeTintCtx.restore).toHaveBeenCalled();
       });
 
       it("skips undefined layer entries", () => {
@@ -347,7 +348,22 @@ describe("SpriteRenderer", () => {
         expect(fakeTintCtx.clearRect).not.toHaveBeenCalled();
       });
 
-      it("skips tint canvas on non-terrain layers (tinting disabled on layers 0–5)", () => {
+      it("uses multiply tinting on LIQUID layer at full alpha", () => {
+        vi.clearAllMocks();
+        tileTypeSpriteMap.set(TileType.DEEP_WATER, REF_FLOOR);
+        const sd = makeSpriteData();
+        sd.layers[RenderLayer.LIQUID] = makeLayer({
+          tileType: TileType.DEEP_WATER,
+          tint: makeColor(30, 50, 80),
+        });
+        renderer.drawCellLayers(CELL, sd);
+
+        expect(ctx.drawImage).toHaveBeenCalled();
+        expect(fakeTintCtx.clearRect).toHaveBeenCalled();
+        expect(fakeTintCtx.save).toHaveBeenCalled();
+      });
+
+      it("skips tint canvas on SURFACE and other non-tinted layers", () => {
         vi.clearAllMocks();
         const sd = makeSpriteData();
         sd.layers[RenderLayer.SURFACE] = makeLayer({
@@ -372,7 +388,7 @@ describe("SpriteRenderer", () => {
         expect(fakeTintCtx.clearRect).not.toHaveBeenCalled();
       });
 
-      it("skips tint canvas on non-terrain layers even with sub-98 tint component", () => {
+      it("skips tint canvas on non-tinted layers even with sub-98 tint component", () => {
         vi.clearAllMocks();
         const sd = makeSpriteData();
         sd.layers[RenderLayer.SURFACE] = makeLayer({

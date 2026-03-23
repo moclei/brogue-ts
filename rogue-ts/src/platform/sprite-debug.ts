@@ -18,6 +18,7 @@
 
 import { RENDER_LAYER_COUNT } from "./render-layers.js";
 import { BITMASK_TO_VARIANT } from "./autotile.js";
+import { createDeepDivePanel } from "./sprite-debug-detail.js";
 
 // =============================================================================
 // Debug config
@@ -42,6 +43,17 @@ export interface LayerOverride {
   tintOverride: { r: number; g: number; b: number; a: number } | null;
   alphaOverride: number | null;
   blendMode: BlendMode | null;
+
+  /** Canvas2D deep-dive overrides (Phase 3). All null = no effect. */
+  filterOverride: string | null;
+  shadowBlur: number | null;
+  shadowColor: string | null;
+  shadowOffsetX: number | null;
+  shadowOffsetY: number | null;
+  imageSmoothingOverride: boolean | null;
+  flipH: boolean;
+  rotation: number;
+  scale: number;
 }
 
 /** Snapshot of one layer's actual tint/alpha as seen by the renderer. */
@@ -54,7 +66,12 @@ export interface InspectedLayerData {
 }
 
 function defaultLayerOverride(): LayerOverride {
-  return { visible: true, tintOverride: null, alphaOverride: null, blendMode: null };
+  return {
+    visible: true, tintOverride: null, alphaOverride: null, blendMode: null,
+    filterOverride: null, shadowBlur: null, shadowColor: null,
+    shadowOffsetX: null, shadowOffsetY: null, imageSmoothingOverride: null,
+    flipH: false, rotation: 0, scale: 1,
+  };
 }
 
 export interface SpriteDebugConfig {
@@ -106,6 +123,15 @@ export function resetSpriteDebug(): void {
     lo.tintOverride = null;
     lo.alphaOverride = null;
     lo.blendMode = null;
+    lo.filterOverride = null;
+    lo.shadowBlur = null;
+    lo.shadowColor = null;
+    lo.shadowOffsetX = null;
+    lo.shadowOffsetY = null;
+    lo.imageSmoothingOverride = null;
+    lo.flipH = false;
+    lo.rotation = 0;
+    lo.scale = 1;
     spriteDebug.inspectedLayers[i] = null;
   }
   spriteDebug.visibilityOverlayEnabled = true;
@@ -119,14 +145,34 @@ export function resetSpriteDebug(): void {
 // Helpers
 // =============================================================================
 
-const LAYER_NAMES: string[] = [
+export const LAYER_NAMES: string[] = [
   "TERRAIN", "LIQUID", "SURFACE", "ITEM", "ENTITY", "GAS",
   "FIRE", "VISIBILITY", "STATUS", "BOLT", "UI",
 ];
 
 let panelEl: HTMLElement | null = null;
+let overviewEl: HTMLElement | null = null;
+let detailEl: HTMLElement | null = null;
 
 function markDirty(): void { spriteDebug.dirty = true; }
+
+function showDeepDive(layerIndex: number): void {
+  if (!overviewEl || !panelEl) return;
+  overviewEl.style.display = "none";
+  if (detailEl) detailEl.remove();
+  detailEl = createDeepDivePanel(
+    layerIndex, LAYER_NAMES[layerIndex],
+    spriteDebug.layers[layerIndex],
+    showOverview,
+    markDirty,
+  );
+  panelEl.appendChild(detailEl);
+}
+
+function showOverview(): void {
+  if (detailEl) { detailEl.remove(); detailEl = null; }
+  if (overviewEl) overviewEl.style.display = "block";
+}
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const n = parseInt(hex.replace("#", ""), 16);
@@ -164,7 +210,10 @@ function createLayerRow(container: HTMLElement, index: number): void {
 
   const label = document.createElement("span");
   label.textContent = LAYER_NAMES[index];
-  label.style.cssText = "width:72px;font-family:monospace;color:#ccc;";
+  label.style.cssText =
+    "width:72px;font-family:monospace;color:#6cf;cursor:pointer;text-decoration:underline;";
+  label.title = "Click to open deep-dive controls";
+  label.addEventListener("click", () => showDeepDive(index));
   row.appendChild(label);
 
   // Actual-tint swatch (read-only, populated on cell click)
@@ -377,16 +426,19 @@ export function toggleDebugPanel(parentEl: HTMLElement): boolean {
   header.appendChild(closeBtn);
   panelEl.appendChild(header);
 
+  // Overview container (hidden when deep-dive is open)
+  overviewEl = document.createElement("div");
+
   // Inspected cell info bar
   inspectLabel = document.createElement("div");
   inspectLabel.textContent = "Click a cell to inspect";
   inspectLabel.style.cssText =
     "font-size:10px;color:#888;margin-bottom:6px;font-style:italic;";
-  panelEl.appendChild(inspectLabel);
+  overviewEl.appendChild(inspectLabel);
 
-  // Layer rows
+  // Layer rows (name is clickable → deep-dive)
   for (let i = 0; i < RENDER_LAYER_COUNT; i++) {
-    createLayerRow(panelEl, i);
+    createLayerRow(overviewEl, i);
   }
 
   // Autotile info section (populated on cell inspect)
@@ -394,12 +446,12 @@ export function toggleDebugPanel(parentEl: HTMLElement): boolean {
   autotileInfoEl.style.cssText =
     "display:none;margin-top:6px;padding:6px 8px;background:rgba(0,0,0,0.3);" +
     "border:1px solid #333;border-radius:4px;font-size:10px;font-family:monospace;color:#ccc;";
-  panelEl.appendChild(autotileInfoEl);
+  overviewEl.appendChild(autotileInfoEl);
 
   // Separator
   const sep = document.createElement("div");
   sep.style.cssText = "border-top:1px solid #333;margin:8px 0;";
-  panelEl.appendChild(sep);
+  overviewEl.appendChild(sep);
 
   // Visibility overlay toggle
   const visRow = document.createElement("div");
@@ -417,7 +469,7 @@ export function toggleDebugPanel(parentEl: HTMLElement): boolean {
   visLabel.style.cssText = "color:#ccc;";
   visRow.appendChild(visCb);
   visRow.appendChild(visLabel);
-  panelEl.appendChild(visRow);
+  overviewEl.appendChild(visRow);
 
   // Variant index overlay toggle
   const varRow = document.createElement("div");
@@ -435,7 +487,7 @@ export function toggleDebugPanel(parentEl: HTMLElement): boolean {
   varLabel.style.cssText = "color:#ccc;";
   varRow.appendChild(varCb);
   varRow.appendChild(varLabel);
-  panelEl.appendChild(varRow);
+  overviewEl.appendChild(varRow);
 
   // Background color override
   const bgRow = document.createElement("div");
@@ -464,7 +516,7 @@ export function toggleDebugPanel(parentEl: HTMLElement): boolean {
   bgRow.appendChild(bgCb);
   bgRow.appendChild(bgPicker);
   bgRow.appendChild(bgLabel);
-  panelEl.appendChild(bgRow);
+  overviewEl.appendChild(bgRow);
 
   // Reset button
   const resetBtn = document.createElement("button");
@@ -475,14 +527,16 @@ export function toggleDebugPanel(parentEl: HTMLElement): boolean {
     "cursor:pointer;";
   resetBtn.addEventListener("click", () => {
     resetSpriteDebug();
-    if (panelEl) { panelEl.remove(); panelEl = null; toggleDebugPanel(parentEl); }
+    if (panelEl) { panelEl.remove(); panelEl = null; overviewEl = null; detailEl = null; toggleDebugPanel(parentEl); }
   });
-  panelEl.appendChild(resetBtn);
+  overviewEl.appendChild(resetBtn);
 
   const hint = document.createElement("div");
-  hint.textContent = "F2 to toggle · click cell to inspect";
+  hint.textContent = "F2 to toggle · click layer name for deep-dive · click cell to inspect";
   hint.style.cssText = "text-align:center;color:#555;font-size:9px;margin-top:6px;";
-  panelEl.appendChild(hint);
+  overviewEl.appendChild(hint);
+
+  panelEl.appendChild(overviewEl);
 
   spriteDebug.onInspect = updateInspectDisplay;
 
