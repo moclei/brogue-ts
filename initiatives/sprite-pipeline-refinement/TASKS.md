@@ -126,31 +126,37 @@
 
 ## Phase 4: Master Spritesheet Pipeline
 
-- [ ] Define the master spritesheet grid layout:
-  - Assign a fixed grid position to every TileType (0–216) and DisplayGlyph
-    (128–258)
-  - Document the layout in a manifest schema
-- [ ] Update the sprite-assigner tool:
-  - Add "master sheet" mode: when assigning a sprite, copy the 16×16 region
-    into the master sheet at the assigned grid position
-  - Add "Export" button that saves the packed PNG and JSON manifest
-  - Handle empty slots gracefully (transparent cell in the PNG, absent key
-    in the manifest)
-- [ ] Create the initial master spritesheet from current sprite assignments:
-  - Run the sprite-assigner in export mode to generate the first
-    `master-spritesheet.png` and `sprite-manifest.json`
-  - Place them in `rogue-ts/assets/tilesets/`
-- [ ] Update `tileset-loader.ts`:
-  - Import single `master-spritesheet.png` instead of individual sheets
-  - Keep autotile sheets as separate imports (they are per-connection-group)
-  - Remove unused individual sheet imports
-- [ ] Update `glyph-sprite-map.ts`:
-  - Read `sprite-manifest.json` at build time (Vite JSON import)
-  - Replace hardcoded coordinate mappings in `buildSpriteMap()` and
-    `buildTileTypeSpriteMap()` with manifest-driven loops
+- [x] Define the master spritesheet grid layout:
+  - 24×15 grid (360 slots) of 16×16 tiles → 384×240px PNG
+  - Rows 0–8: TileType slots 0–214 (215 entries, 1 empty cell)
+  - Rows 9–14: DisplayGlyph slots 128–258 (131 entries, 13 empty cells)
+  - Manifest schema: `sprite-manifest.json` with `tileSize`, `gridWidth`,
+    `gridHeight`, `tiles` (name → {x,y}), `glyphs` (name → {x,y})
+- [x] Update the sprite-assigner tool:
+  - Added "Export Master Sheet" button to header
+  - Composes all assigned sprites into a canvas at their grid positions
+  - Downloads master-spritesheet.png and sprite-manifest.json
+  - Empty slots are transparent in the PNG, absent from the manifest
+- [x] Create the initial master spritesheet from current sprite assignments:
+  - Built `tools/generate-master-spritesheet.mjs` (uses sharp) for
+    headless generation from source sheets
+  - Generated `master-spritesheet.png` (384×240, 212 sprites) and
+    `sprite-manifest.json` (184 tiles, 28 glyphs)
+  - Placed in `rogue-ts/assets/tilesets/`
+- [x] Update `tileset-loader.ts`:
+  - Imports single `master-spritesheet.png` + `WallAutotile` sheet
+  - Reduced from ~40 imports to 2
+  - Uses `MASTER_SHEET_KEY` constant from `glyph-sprite-map.ts`
+- [x] Update `glyph-sprite-map.ts`:
+  - Reads `sprite-manifest.json` via Vite JSON import
+  - `buildTileTypeSpriteMap()` and `buildGlyphSpriteMap()` are simple
+    loops over manifest entries (~120 lines, down from ~340)
   - `buildAutotileVariantMap()` unchanged (still references autotile sheets)
-- [ ] Update `sprite-renderer.ts` `precreateBitmaps()`: iterate the single
-  master sheet instead of multiple sheets
-- [ ] Run full test suite — all tests pass
+  - Exported `MASTER_SHEET_KEY = "master"` constant
+- [x] `sprite-renderer.ts` `precreateBitmaps()`: no changes needed — generic
+  iteration over sprite maps works with the master sheet coordinates
+- [x] Run full test suite — all tests pass (2707 pass, 55 skip, 0 fail)
 - [ ] Browser smoke test: all sprites render correctly from the master sheet
-- [ ] Update `docs/pixel-art/sprite-layer-pipeline.md` Key Files section
+- [x] Update `docs/pixel-art/sprite-layer-pipeline.md` Key Files section:
+  added master-spritesheet.png, sprite-manifest.json,
+  generate-master-spritesheet.mjs, sprite-assigner to Key Files table

@@ -132,6 +132,7 @@ main { display: grid; grid-template-columns: 200px 1fr 340px; height: calc(100vh
   <span id="stats"></span>
   <button onclick="doExport()">Export Code</button>
   <button onclick="doExportJSON()">Export JSON</button>
+  <button class="primary" onclick="doExportMasterSheet()">Export Master Sheet</button>
   <button onclick="doImportJSON()">Import JSON</button>
   <button onclick="doReset()">Reset</button>
 </header>
@@ -796,6 +797,92 @@ function updateStats() {
   const dg = Object.keys(assignments.glyph).length;
   document.getElementById('stats').textContent =
     `${tt}/${TILE_TYPES.length - 2} TileType, ${dg}/${DISPLAY_GLYPHS.length} DisplayGlyph assigned`;
+}
+
+// ===========================================================================
+// MASTER SHEET EXPORT
+// ===========================================================================
+
+const GRID_W = 24;
+const GRID_H = 15;
+const GLYPH_GRID_OFFSET = 216; // 24 * 9
+const GLYPH_ENUM_START = 128;  // DisplayGlyph.G_UP_ARROW
+
+function tileTypeGridPos(enumIndex) {
+  return { x: enumIndex % GRID_W, y: Math.floor(enumIndex / GRID_W) };
+}
+
+function glyphGridPos(glyphIndex) {
+  const slot = GLYPH_GRID_OFFSET + glyphIndex;
+  return { x: slot % GRID_W, y: Math.floor(slot / GRID_W) };
+}
+
+async function doExportMasterSheet() {
+  const sheetW = GRID_W * TILE_SIZE;
+  const sheetH = GRID_H * TILE_SIZE;
+  const canvas = document.createElement('canvas');
+  canvas.width = sheetW;
+  canvas.height = sheetH;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+
+  const manifestObj = { tileSize: TILE_SIZE, gridWidth: GRID_W, gridHeight: GRID_H, tiles: {}, glyphs: {} };
+  let count = 0;
+
+  for (let i = 0; i < TILE_TYPES.length; i++) {
+    const name = TILE_TYPES[i];
+    if (name === 'NOTHING') continue;
+    const ref = assignments.tiletype[name];
+    if (!ref) continue;
+    const pos = tileTypeGridPos(i);
+    manifestObj.tiles[name] = { x: pos.x, y: pos.y };
+    const img = await loadImage(ref.sheet);
+    if (!img) continue;
+    ctx.drawImage(img, ref.x * TILE_SIZE, ref.y * TILE_SIZE, TILE_SIZE, TILE_SIZE,
+      pos.x * TILE_SIZE, pos.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    count++;
+  }
+
+  for (let i = 0; i < DISPLAY_GLYPHS.length; i++) {
+    const name = DISPLAY_GLYPHS[i];
+    const ref = assignments.glyph[name];
+    if (!ref) continue;
+    const pos = glyphGridPos(i);
+    manifestObj.glyphs[name] = { x: pos.x, y: pos.y };
+    const img = await loadImage(ref.sheet);
+    if (!img) continue;
+    ctx.drawImage(img, ref.x * TILE_SIZE, ref.y * TILE_SIZE, TILE_SIZE, TILE_SIZE,
+      pos.x * TILE_SIZE, pos.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    count++;
+  }
+
+  const pngBlob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+  const pngUrl = URL.createObjectURL(pngBlob);
+  const manifestJson = JSON.stringify(manifestObj, null, 2);
+
+  const body = `
+    <p>${count} sprites packed into ${sheetW}×${sheetH} master sheet (${GRID_W}×${GRID_H} grid).</p>
+    <p><a href="${pngUrl}" download="master-spritesheet.png" style="color:var(--accent)">
+      ⬇ Download master-spritesheet.png</a></p>
+    <p><a href="#" onclick="downloadManifest(event)" style="color:var(--accent)">
+      ⬇ Download sprite-manifest.json</a></p>
+    <p style="color:var(--text-dim);font-size:11px;margin-top:8px">
+      Place both files in <code>rogue-ts/assets/tilesets/</code></p>
+    <details style="margin-top:12px"><summary style="cursor:pointer;color:var(--text-dim)">Preview manifest JSON</summary>
+    <pre style="margin-top:6px">${escapeHtml(manifestJson)}</pre></details>`;
+  showModal('Export — Master Sheet', body, manifestJson);
+  window._lastManifestJson = manifestJson;
+}
+
+function downloadManifest(e) {
+  e.preventDefault();
+  const json = window._lastManifestJson;
+  if (!json) return;
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'sprite-manifest.json'; a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ===========================================================================

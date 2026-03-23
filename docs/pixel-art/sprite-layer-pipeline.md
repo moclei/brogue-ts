@@ -577,7 +577,11 @@ Global controls:
 | `src/platform/sprite-debug.ts` | F2 debug panel (overview + config) |
 | `src/platform/sprite-debug-detail.ts` | F2 deep-dive panel (per-layer Canvas2D controls) |
 | `src/platform/autotile.ts` | Connection groups, bitmask computation, variant lookup |
-| `src/platform/glyph-sprite-map.ts` | Sprite assignments (TileType → sprite, glyph → sprite) |
-| `src/platform/tileset-loader.ts` | Spritesheet PNG loading |
+| `src/platform/glyph-sprite-map.ts` | Manifest-driven sprite assignments (reads `sprite-manifest.json`) |
+| `src/platform/tileset-loader.ts` | Loads master spritesheet + autotile sheets |
+| `assets/tilesets/master-spritesheet.png` | Packed 384×240 spritesheet (24×15 grid of 16×16 tiles) |
+| `assets/tilesets/sprite-manifest.json` | TileType/DisplayGlyph → grid coordinates in master sheet |
+| `tools/generate-master-spritesheet.mjs` | Build script: generates master sheet + manifest from source sheets |
+| `tools/sprite-assigner/index.html` | Browser tool for assigning sprites; exports master sheet |
 | `src/globals/tile-catalog.ts` | Master tile catalog (appearance, behavior, text per TileType) |
 | `src/globals/colors.ts` | Color definitions used by tile catalog |
