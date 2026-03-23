@@ -53,6 +53,10 @@ import {
 } from "../items/item-generation.js";
 import type { ItemRNG } from "../items/item-generation.js";
 import { itemColor, basicLightColor, deepWaterLightColor } from "../globals/colors.js";
+import {
+    getConnectionGroupInfo, computeAdjacencyMask,
+} from "../platform/autotile.js";
+import { coordinatesAreInMap } from "../globals/tables.js";
 
 // =============================================================================
 // Color field-by-field copy (avoids allocation)
@@ -81,6 +85,38 @@ const bakeDummyColor: Color = {
 };
 
 // =============================================================================
+// Autotile neighbor accessor for remembered/magic-mapped cells
+// =============================================================================
+
+/**
+ * Return the effective TileType at (nx, ny) on the given DungeonLayer, choosing
+ * the data source by the neighbor cell's visibility state: live `layers` for
+ * visible neighbors, `rememberedLayers` for remembered/magic-mapped neighbors,
+ * `undefined` for shroud/OOB (resolved per `oobConnects` by the caller).
+ */
+function rememberedNeighborTile(
+    ctx: CellQueryContext,
+    nx: number,
+    ny: number,
+    dungeonLayer: DungeonLayer,
+): number | undefined {
+    if (!coordinatesAreInMap(nx, ny)) return undefined;
+    const nCell = ctx.pmap[nx][ny];
+    switch (classifyVisibility(nCell.flags, ctx.rogue.playbackOmniscience)) {
+        case VisibilityState.Visible:
+        case VisibilityState.Clairvoyant:
+        case VisibilityState.Telepathic:
+        case VisibilityState.Omniscience:
+            return nCell.layers[dungeonLayer];
+        case VisibilityState.Remembered:
+        case VisibilityState.MagicMapped:
+            return nCell.rememberedLayers[dungeonLayer];
+        default:
+            return undefined;
+    }
+}
+
+// =============================================================================
 // Remembered / MagicMapped path
 // =============================================================================
 
@@ -92,6 +128,8 @@ const bakeDummyColor: Color = {
  * (no lighting).
  */
 function populateRememberedLayers(
+    x: number,
+    y: number,
     ctx: CellQueryContext,
     cell: { rememberedLayers: readonly number[] },
     spriteData: CellSpriteData,
@@ -110,6 +148,14 @@ function populateRememberedLayers(
         if (te.foreColor) copyColorTo(entry.tint, te.foreColor);
         spriteData.layers[RenderLayer.TERRAIN] = entry;
         if (te.backColor) copyColorTo(spriteData.bgColor, te.backColor);
+
+        const groupInfo = getConnectionGroupInfo(dungeonTile);
+        if (groupInfo) {
+            entry.adjacencyMask = computeAdjacencyMask(
+                x, y, groupInfo.members, groupInfo.oobConnects,
+                (nx, ny) => rememberedNeighborTile(ctx, nx, ny, groupInfo.dungeonLayer),
+            );
+        }
     }
 
     // Liquid → SURFACE with alpha (same split as live pmap path)
@@ -123,6 +169,14 @@ function populateRememberedLayers(
         spriteData.layers[RenderLayer.SURFACE] = entry;
         if (!dungeonTile && lte.backColor) {
             copyColorTo(spriteData.bgColor, lte.backColor);
+        }
+
+        const lGroupInfo = getConnectionGroupInfo(liquidTile);
+        if (lGroupInfo) {
+            entry.adjacencyMask = computeAdjacencyMask(
+                x, y, lGroupInfo.members, lGroupInfo.oobConnects,
+                (nx, ny) => rememberedNeighborTile(ctx, nx, ny, lGroupInfo.dungeonLayer),
+            );
         }
     }
 
@@ -178,7 +232,7 @@ export function getCellSpriteData(
     // =========================================================================
 
     if (visState === VisibilityState.Remembered || visState === VisibilityState.MagicMapped) {
-        return populateRememberedLayers(ctx, cell, spriteData, pool, visState);
+        return populateRememberedLayers(x, y, ctx, cell, spriteData, pool, visState);
     }
 
     // =========================================================================
@@ -218,6 +272,16 @@ export function getCellSpriteData(
         if (te.foreColor) copyColorTo(entry.tint, te.foreColor);
         spriteData.layers[RenderLayer.TERRAIN] = entry;
         if (te.backColor) copyColorTo(spriteData.bgColor, te.backColor);
+
+        const tGroupInfo = getConnectionGroupInfo(dungeonTile);
+        if (tGroupInfo) {
+            entry.adjacencyMask = computeAdjacencyMask(
+                x, y, tGroupInfo.members, tGroupInfo.oobConnects,
+                (nx, ny) => coordinatesAreInMap(nx, ny)
+                    ? ctx.pmap[nx][ny].layers[tGroupInfo.dungeonLayer]
+                    : undefined,
+            );
+        }
     }
 
     // ---- LIQUID → SURFACE layer (semi-transparent water over floor) ----
@@ -235,6 +299,18 @@ export function getCellSpriteData(
             if (lte.foreColor) copyColorTo(entry.tint, lte.foreColor);
             entry.alpha = isShallowLiquid(liquidTile) ? 0.55 : 1;
             spriteData.layers[RenderLayer.SURFACE] = entry;
+
+            // Autotile bitmask — Initiative 9: when liquids promote to LIQUID
+            // RenderLayer, this computation moves with the LayerEntry.
+            const lGroupInfo = getConnectionGroupInfo(liquidTile);
+            if (lGroupInfo) {
+                entry.adjacencyMask = computeAdjacencyMask(
+                    x, y, lGroupInfo.members, lGroupInfo.oobConnects,
+                    (nx, ny) => coordinatesAreInMap(nx, ny)
+                        ? ctx.pmap[nx][ny].layers[lGroupInfo.dungeonLayer]
+                        : undefined,
+                );
+            }
         }
         if (!dungeonTile && lte.backColor) {
             copyColorTo(spriteData.bgColor, lte.backColor);

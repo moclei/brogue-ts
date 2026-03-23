@@ -78,7 +78,7 @@ Integrate bitmask computation into `getCellSpriteData` for both live-pmap
 and remembered/magic-mapped cells. Integration tests for the full data
 path.
 
-- [ ] Integrate bitmask computation into `getCellSpriteData` in
+- [x] Integrate bitmask computation into `getCellSpriteData` in
   `rogue-ts/src/io/sprite-appearance.ts`:
   - **Live-pmap path (Visible/Clairvoyant/Telepathic/Omniscience):**
     After populating the TERRAIN `LayerEntry`, look up `dungeonTile` via
@@ -90,7 +90,7 @@ path.
   - Add a comment noting Initiative 9 migration: when liquids promote
     to LIQUID layer, this bitmask computation moves with the LayerEntry.
 
-- [ ] Integrate bitmask computation into `populateRememberedLayers` in
+- [x] Integrate bitmask computation into `populateRememberedLayers` in
   `rogue-ts/src/io/sprite-appearance.ts`:
   - After populating TERRAIN and SURFACE entries from `rememberedLayers`,
     compute the bitmask using a remembered-aware accessor that checks
@@ -102,7 +102,7 @@ path.
   - Explicit test case: remembered cell next to shroud neighbor should
     use `oobConnects` (WALL → connecting, FLOOR → not connecting).
 
-- [ ] Integration tests in `rogue-ts/tests/io/sprite-appearance.test.ts`:
+- [x] Integration tests in `rogue-ts/tests/io/sprite-appearance.test.ts`:
   - `getCellSpriteData` sets `adjacencyMask` on TERRAIN entry for a wall
     cell with wall neighbors
   - `getCellSpriteData` sets `adjacencyMask` on SURFACE entry for a water

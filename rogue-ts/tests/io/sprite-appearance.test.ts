@@ -1864,3 +1864,148 @@ describe("getCellSpriteData — pool reuse", () => {
         expect(spriteData.layers[RenderLayer.GAS]).toBeUndefined();
     });
 });
+
+// =============================================================================
+// Autotile bitmask integration (Phase 1b)
+// =============================================================================
+
+describe("getCellSpriteData — autotile bitmask (live pmap)", () => {
+    it("sets adjacencyMask on TERRAIN for wall cell with wall neighbors", () => {
+        const ctx = makeCtx();
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.GRANITE;
+        // E and W neighbors: also GRANITE
+        ctx.pmap[4][3].layers[DungeonLayer.Dungeon] = TileType.GRANITE;
+        ctx.pmap[2][3].layers[DungeonLayer.Dungeon] = TileType.GRANITE;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const terrain = spriteData.layers[RenderLayer.TERRAIN]!;
+        expect(terrain.adjacencyMask).toBeDefined();
+        // E (bit 2) + W (bit 6) = 4 + 64 = 68
+        expect(terrain.adjacencyMask).toBe(68);
+    });
+
+    it("sets adjacencyMask on SURFACE for water cell with water neighbors", () => {
+        const ctx = makeCtx();
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+        ctx.pmap[3][3].layers[DungeonLayer.Liquid] = TileType.DEEP_WATER;
+        // N and S neighbors: DEEP_WATER on Liquid layer
+        ctx.pmap[3][2].layers[DungeonLayer.Liquid] = TileType.DEEP_WATER;
+        ctx.pmap[3][4].layers[DungeonLayer.Liquid] = TileType.DEEP_WATER;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const surface = spriteData.layers[RenderLayer.SURFACE]!;
+        expect(surface.adjacencyMask).toBeDefined();
+        // N (bit 0) + S (bit 4) = 1 + 16 = 17
+        expect(surface.adjacencyMask).toBe(17);
+    });
+
+    it("does NOT set adjacencyMask for non-connectable terrain", () => {
+        const ctx = makeCtx();
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.DOWN_STAIRS;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const terrain = spriteData.layers[RenderLayer.TERRAIN]!;
+        expect(terrain.adjacencyMask).toBeUndefined();
+    });
+
+    it("non-liquid SURFACE (grass) does NOT get adjacencyMask", () => {
+        const ctx = makeCtx();
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+        ctx.pmap[3][3].layers[DungeonLayer.Surface] = TileType.GRASS;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const surface = spriteData.layers[RenderLayer.SURFACE]!;
+        expect(surface.tileType).toBe(TileType.GRASS);
+        expect(surface.adjacencyMask).toBeUndefined();
+    });
+
+    it("TileType.NOTHING on Dungeon → no TERRAIN entry, no bitmask", () => {
+        const ctx = makeCtx();
+        ctx.pmap[3][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[3][3].layers[DungeonLayer.Dungeon] = TileType.NOTHING;
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.layers[RenderLayer.TERRAIN]).toBeUndefined();
+    });
+});
+
+describe("getCellSpriteData — autotile bitmask (remembered cells)", () => {
+    it("sets adjacencyMask on remembered TERRAIN using effective neighbor data", () => {
+        const ctx = makeCtx();
+        // Center: remembered GRANITE
+        ctx.pmap[3][3].flags = TileFlag.DISCOVERED;
+        ctx.pmap[3][3].rememberedLayers = [TileType.GRANITE, TileType.NOTHING, TileType.NOTHING, TileType.NOTHING];
+        // E neighbor: also remembered GRANITE
+        ctx.pmap[4][3].flags = TileFlag.DISCOVERED;
+        ctx.pmap[4][3].rememberedLayers = [TileType.GRANITE, TileType.NOTHING, TileType.NOTHING, TileType.NOTHING];
+        // W neighbor: also remembered GRANITE
+        ctx.pmap[2][3].flags = TileFlag.DISCOVERED;
+        ctx.pmap[2][3].rememberedLayers = [TileType.GRANITE, TileType.NOTHING, TileType.NOTHING, TileType.NOTHING];
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        expect(spriteData.visibilityState).toBe(VisibilityState.Remembered);
+        const terrain = spriteData.layers[RenderLayer.TERRAIN]!;
+        expect(terrain.adjacencyMask).toBeDefined();
+        // E,W → remembered GRANITE → connect. All other neighbors → shroud →
+        // oobConnects=true for WALL group → all bits set. mask = 255.
+        expect(terrain.adjacencyMask).toBe(255);
+    });
+
+    it("bitmask differs when neighbor visibility differs (visible vs remembered)", () => {
+        const ctx = makeCtx();
+        // Center: remembered GRANITE
+        ctx.pmap[3][3].flags = TileFlag.DISCOVERED;
+        ctx.pmap[3][3].rememberedLayers = [TileType.GRANITE, TileType.NOTHING, TileType.NOTHING, TileType.NOTHING];
+        // W neighbor: VISIBLE, live Dungeon = GRANITE → connects
+        ctx.pmap[2][3].flags = TileFlag.VISIBLE | TileFlag.DISCOVERED;
+        ctx.pmap[2][3].layers[DungeonLayer.Dungeon] = TileType.GRANITE;
+        // E neighbor: Remembered, remembered Dungeon = FLOOR → does NOT connect
+        ctx.pmap[4][3].flags = TileFlag.DISCOVERED;
+        ctx.pmap[4][3].rememberedLayers = [TileType.FLOOR, TileType.NOTHING, TileType.NOTHING, TileType.NOTHING];
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const terrain = spriteData.layers[RenderLayer.TERRAIN]!;
+        expect(terrain.adjacencyMask).toBeDefined();
+        // W (bit 6): visible GRANITE → connects. E (bit 2): remembered FLOOR →
+        // not in WALL group → clear. Others: shroud → oobConnects=true → set.
+        // mask = 255 - 4 = 251
+        expect(terrain.adjacencyMask).toBe(251);
+    });
+
+    it("remembered wall next to shroud uses oobConnects (WALL → connecting)", () => {
+        const ctx = makeCtx();
+        // Center: remembered GRANITE
+        ctx.pmap[3][3].flags = TileFlag.DISCOVERED;
+        ctx.pmap[3][3].rememberedLayers = [TileType.GRANITE, TileType.NOTHING, TileType.NOTHING, TileType.NOTHING];
+        // N neighbor: remembered FLOOR (not in WALL group) → bit 0 clear
+        ctx.pmap[3][2].flags = TileFlag.DISCOVERED;
+        ctx.pmap[3][2].rememberedLayers = [TileType.FLOOR, TileType.NOTHING, TileType.NOTHING, TileType.NOTHING];
+        // All other neighbors: shroud (default flags=0) → oobConnects=true → set
+
+        const { spriteData, pool } = createCellSpriteData();
+        getCellSpriteData(3, 3, ctx, spriteData, pool);
+
+        const terrain = spriteData.layers[RenderLayer.TERRAIN]!;
+        // N (bit 0): remembered FLOOR → clear. All others: shroud → oobConnects=true.
+        // mask = 255 - 1 = 254
+        expect(terrain.adjacencyMask).toBe(254);
+    });
+});
