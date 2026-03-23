@@ -230,17 +230,66 @@ export function buildTileTypeSpriteMap(): Map<TileType, SpriteRef> {
 }
 
 /**
+ * Build a 47-element variant array from an 8×6 spritesheet grid.
+ * Grid is indexed left-to-right, top-to-bottom by variant index.
+ */
+function autotileVariants(sheetKey: string): SpriteRef[] {
+  const variants: SpriteRef[] = [];
+  for (let v = 0; v < AUTOTILE_VARIANT_COUNT; v++) {
+    variants.push({ sheetKey, tileX: v % 8, tileY: Math.floor(v / 8) });
+  }
+  return variants;
+}
+
+/**
+ * Autotile spritesheets keyed by connection group name. When a sheet
+ * exists for a group, wall-like TileTypes in that group use its 47
+ * variants. Types in AUTOTILE_SKIP keep their own sprite — they
+ * participate in the connection group (so neighbors see them as
+ * connected) but render with their distinct sprite, not the autotile
+ * sheet.
+ */
+const AUTOTILE_SHEETS: Record<string, string> = {
+  WALL: "WallAutotile",
+};
+
+const AUTOTILE_SKIP = new Set<TileType>([
+  TileType.DOOR,
+  TileType.OPEN_DOOR,
+  TileType.LOCKED_DOOR,
+  TileType.PORTCULLIS_CLOSED,
+  TileType.PORTCULLIS_DORMANT,
+  TileType.WOODEN_BARRICADE,
+  TileType.MUD_DOORWAY,
+  TileType.TURRET_DORMANT,
+  TileType.OPEN_IRON_DOOR_INERT,
+]);
+
+/**
  * Build the autotile variant map: for each connectable TileType that has a
- * tileTypeSpriteMap entry, create a 47-element placeholder array where every
- * slot points to the same SpriteRef as the existing single sprite. When real
- * 47-variant spritesheets are added, each array gets distinct per-variant refs.
+ * tileTypeSpriteMap entry, create a 47-element array. If an autotile
+ * spritesheet exists for the type's connection group, use distinct
+ * per-variant refs from the sheet. Types in AUTOTILE_SKIP get placeholder
+ * fills so they keep their own sprite. Remaining types without a sheet
+ * also get placeholder fills.
  */
 export function buildAutotileVariantMap(
   tileTypeSpriteMap: Map<TileType, SpriteRef>,
 ): Map<TileType, SpriteRef[]> {
   const map = new Map<TileType, SpriteRef[]>();
+  const sheetCache = new Map<string, SpriteRef[]>();
   for (const [tileType, spriteRef] of tileTypeSpriteMap) {
-    if (getConnectionGroupInfo(tileType)) {
+    const groupInfo = getConnectionGroupInfo(tileType);
+    if (!groupInfo) continue;
+    const sheetKey = AUTOTILE_SHEETS[groupInfo.group];
+    if (sheetKey && !AUTOTILE_SKIP.has(tileType)) {
+      let variants = sheetCache.get(sheetKey);
+      if (!variants) {
+        variants = autotileVariants(sheetKey);
+        sheetCache.set(sheetKey, variants);
+      }
+      map.set(tileType, variants);
+    } else {
       map.set(tileType, new Array<SpriteRef>(AUTOTILE_VARIANT_COUNT).fill(spriteRef));
     }
   }

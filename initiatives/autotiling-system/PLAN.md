@@ -395,14 +395,21 @@ constant changes (which should never happen after initial commit).
 
 For art production (Initiative 8), each connectable TileType needs a
 47-variant spritesheet. The specification:
-- Layout: 47 sprites in a single row, or an 8×6 grid (48 slots, last
-  unused), indexed left-to-right top-to-bottom by variant index.
-- Sprite size: same as base tile size (currently 16×16).
-- Variant ordering: matches `VARIANT_CANONICAL_MASKS` — the sprite at
-  position N is the variant for canonical mask N.
-- This specification is defined during this initiative so artists can
-  begin work immediately. The art pipeline tooling (slicing, packing) is
-  deferred to Initiative 8.
+- **Layout:** 8×6 grid (48 cells, last cell unused). Each cell is one
+  variant sprite. Indexed left-to-right, top-to-bottom by variant index
+  (0–46). Cell 47 (row 5, col 7) is unused/blank.
+- **Sprite size:** Same as base tile size (currently 16×16 pixels).
+  Total sheet size: 128×96 pixels at 16×16.
+- **Variant ordering:** Matches `VARIANT_CANONICAL_MASKS` — the sprite
+  at grid position N is the variant for canonical mask N. See
+  `docs/pixel-art/autotile-variant-reference.md` for the complete
+  mapping of each variant index to its 3×3 neighbor connectivity diagram.
+- **File naming:** `<tiletype>-autotile.png` (e.g., `wall-autotile.png`,
+  `water-autotile.png`). One file per connectable TileType.
+- **Priority order:** WALL (most visual impact), WATER, LAVA, CHASM.
+  FLOOR, ICE, MUD are lower priority.
+- **Art pipeline tooling** (slicing, packing, integration into
+  `buildAutotileVariantMap`) is deferred to Initiative 8.
 
 ### File size considerations
 
@@ -415,6 +422,38 @@ Two files approach the 600-line limit:
   (bitmask, variant index, connection group, neighbor visualization)
   adds ~60–80 lines. If it exceeds 550, extract the panel DOM builder
   to `sprite-debug-panel.ts`.
+
+## Performance Results
+
+### Methodology
+
+A `window.benchmarkRedraw(n)` function (added in `bootstrap.ts`) times
+`n` forced full-viewport redraws via `forceFullRedraw() + commitDraws()`
+and reports average, p50, and p95 timings. To isolate autotile overhead,
+run the benchmark with autotiling enabled (default), then comment out
+the `computeAdjacencyMask` calls in `sprite-appearance.ts` and re-run.
+
+### Analytical budget
+
+Per the design: 8 neighbor lookups × 2291 viewport cells = ~18,400
+array accesses per full redraw. Each lookup is one `pmap` array index +
+one `Uint8Array` membership check. The 256→47 reduction is a single
+`Uint8Array` index per cell. The variant sprite lookup is one `Map.get()`
++ one array index per cell.
+
+Combined: ~20,000 cheap operations (array index, Map lookup) per full
+redraw. At modern JS engine speeds (~100M ops/sec for typed array
+accesses), the theoretical overhead is ~0.2ms. Well within the 1ms
+budget.
+
+### Observed results
+
+*(To be filled in during browser verification.)*
+
+Run `window.benchmarkRedraw(100)` in the browser console with the game
+running in sprite mode, in a dungeon with walls visible. Record the
+avg/p50/p95. Then comment out the two `computeAdjacencyMask` call sites
+in `sprite-appearance.ts`, rebuild, and re-run to get the baseline.
 
 ## Open Questions
 

@@ -347,7 +347,7 @@ describe("SpriteRenderer", () => {
         expect(fakeTintCtx.clearRect).not.toHaveBeenCalled();
       });
 
-      it("uses tint canvas when tint components are below 98 (non-terrain layer)", () => {
+      it("skips tint canvas on non-terrain layers (tinting disabled on layers 0–5)", () => {
         vi.clearAllMocks();
         const sd = makeSpriteData();
         sd.layers[RenderLayer.SURFACE] = makeLayer({
@@ -356,10 +356,7 @@ describe("SpriteRenderer", () => {
         });
         renderer.drawCellLayers(CELL, sd);
 
-        // Full path: tint canvas used, then blit
-        expect(fakeTintCtx.clearRect).toHaveBeenCalled();
-        expect(fakeTintCtx.save).toHaveBeenCalled();
-        expect(fakeTintCtx.restore).toHaveBeenCalled();
+        expect(fakeTintCtx.clearRect).not.toHaveBeenCalled();
         expect(ctx.drawImage).toHaveBeenCalled();
       });
 
@@ -375,7 +372,7 @@ describe("SpriteRenderer", () => {
         expect(fakeTintCtx.clearRect).not.toHaveBeenCalled();
       });
 
-      it("uses tint canvas when one component is below 98 (non-terrain layer)", () => {
+      it("skips tint canvas on non-terrain layers even with sub-98 tint component", () => {
         vi.clearAllMocks();
         const sd = makeSpriteData();
         sd.layers[RenderLayer.SURFACE] = makeLayer({
@@ -384,7 +381,7 @@ describe("SpriteRenderer", () => {
         });
         renderer.drawCellLayers(CELL, sd);
 
-        expect(fakeTintCtx.clearRect).toHaveBeenCalled();
+        expect(fakeTintCtx.clearRect).not.toHaveBeenCalled();
       });
     });
 

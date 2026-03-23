@@ -17,6 +17,7 @@
  */
 
 import { RENDER_LAYER_COUNT } from "./render-layers.js";
+import { BITMASK_TO_VARIANT } from "./autotile.js";
 
 // =============================================================================
 // Debug config
@@ -47,6 +48,9 @@ export interface LayerOverride {
 export interface InspectedLayerData {
   tintR: number; tintG: number; tintB: number;
   alpha: number | undefined;
+  adjacencyMask?: number;
+  variantIndex?: number;
+  connectionGroup?: string;
 }
 
 function defaultLayerOverride(): LayerOverride {
@@ -73,6 +77,9 @@ export interface SpriteDebugConfig {
 
   /** Called by the renderer after snapshotting a matching cell. */
   onInspect: (() => void) | null;
+
+  /** When true, the renderer draws the autotile variant index on each cell. */
+  showVariantIndices: boolean;
 }
 
 function createDefaultConfig(): SpriteDebugConfig {
@@ -86,7 +93,7 @@ function createDefaultConfig(): SpriteDebugConfig {
     enabled: false, layers, visibilityOverlayEnabled: true,
     bgColorOverride: null, dirty: false,
     _renderingX: -1, _renderingY: -1,
-    inspectTarget: null, inspectedLayers, onInspect: null,
+    inspectTarget: null, inspectedLayers, onInspect: null, showVariantIndices: false,
   };
 }
 
@@ -104,6 +111,7 @@ export function resetSpriteDebug(): void {
   spriteDebug.visibilityOverlayEnabled = true;
   spriteDebug.bgColorOverride = null;
   spriteDebug.inspectTarget = null;
+  spriteDebug.showVariantIndices = false;
   spriteDebug.dirty = true;
 }
 
@@ -261,6 +269,50 @@ function createLayerRow(container: HTMLElement, index: number): void {
 
 /** Inspected-cell coordinate display element (updated by onInspect callback). */
 let inspectLabel: HTMLElement | null = null;
+/** Container for autotile info (bitmask, variant, group, 3x3 grid). */
+let autotileInfoEl: HTMLElement | null = null;
+
+/** Render a 3×3 mini-grid showing which neighbors are connected. */
+function renderNeighborGrid(mask: number): string {
+  const on = (bit: number) => (mask & (1 << bit)) !== 0;
+  const c = (bit: number) => on(bit) ? "█" : "·";
+  return `${c(7)} ${c(0)} ${c(1)}\n${c(6)}  X  ${c(2)}\n${c(5)} ${c(4)} ${c(3)}`;
+}
+
+function updateAutotileInfo(): void {
+  if (!autotileInfoEl) return;
+  let found = false;
+  for (let i = 0; i < RENDER_LAYER_COUNT; i++) {
+    const data = spriteDebug.inspectedLayers[i];
+    if (data?.adjacencyMask !== undefined) {
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    autotileInfoEl.style.display = "none";
+    return;
+  }
+  autotileInfoEl.style.display = "block";
+  let html = "";
+  for (let i = 0; i < RENDER_LAYER_COUNT; i++) {
+    const data = spriteDebug.inspectedLayers[i];
+    if (!data || data.adjacencyMask === undefined) continue;
+    const mask = data.adjacencyMask;
+    const variant = data.variantIndex ?? BITMASK_TO_VARIANT[mask];
+    const group = data.connectionGroup ?? "—";
+    const binary = mask.toString(2).padStart(8, "0");
+    html += `<div style="margin-bottom:4px;">`;
+    html += `<span style="color:#6cf;">${LAYER_NAMES[i]}</span> `;
+    html += `<span style="color:#fa0;">group:</span> ${group}`;
+    html += `<br><span style="color:#fa0;">mask:</span> <span style="font-family:monospace;">${binary}</span>`;
+    html += ` <span style="color:#888;">(${mask})</span>`;
+    html += ` <span style="color:#fa0;">var:</span> ${variant}`;
+    html += `<pre style="margin:2px 0 0;line-height:1.2;color:#aaa;">${renderNeighborGrid(mask)}</pre>`;
+    html += `</div>`;
+  }
+  autotileInfoEl.innerHTML = html;
+}
 
 function updateInspectDisplay(): void {
   const t = spriteDebug.inspectTarget;
@@ -283,6 +335,7 @@ function updateInspectDisplay(): void {
       sw.title = "— (empty layer)";
     }
   }
+  updateAutotileInfo();
 }
 
 export function toggleDebugPanel(parentEl: HTMLElement): boolean {
@@ -336,6 +389,13 @@ export function toggleDebugPanel(parentEl: HTMLElement): boolean {
     createLayerRow(panelEl, i);
   }
 
+  // Autotile info section (populated on cell inspect)
+  autotileInfoEl = document.createElement("div");
+  autotileInfoEl.style.cssText =
+    "display:none;margin-top:6px;padding:6px 8px;background:rgba(0,0,0,0.3);" +
+    "border:1px solid #333;border-radius:4px;font-size:10px;font-family:monospace;color:#ccc;";
+  panelEl.appendChild(autotileInfoEl);
+
   // Separator
   const sep = document.createElement("div");
   sep.style.cssText = "border-top:1px solid #333;margin:8px 0;";
@@ -358,6 +418,24 @@ export function toggleDebugPanel(parentEl: HTMLElement): boolean {
   visRow.appendChild(visCb);
   visRow.appendChild(visLabel);
   panelEl.appendChild(visRow);
+
+  // Variant index overlay toggle
+  const varRow = document.createElement("div");
+  varRow.style.cssText = "display:flex;align-items:center;gap:6px;font-size:11px;margin-top:4px;";
+  const varCb = document.createElement("input");
+  varCb.type = "checkbox";
+  varCb.checked = spriteDebug.showVariantIndices;
+  varCb.style.cssText = "margin:0;cursor:pointer;";
+  varCb.addEventListener("change", () => {
+    spriteDebug.showVariantIndices = varCb.checked;
+    markDirty();
+  });
+  const varLabel = document.createElement("span");
+  varLabel.textContent = "Show Variant Indices";
+  varLabel.style.cssText = "color:#ccc;";
+  varRow.appendChild(varCb);
+  varRow.appendChild(varLabel);
+  panelEl.appendChild(varRow);
 
   // Background color override
   const bgRow = document.createElement("div");

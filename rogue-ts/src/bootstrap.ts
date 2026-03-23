@@ -22,7 +22,7 @@ import {
     createBrowserConsole,
     type BrowserRendererOptions,
 } from "./platform/browser-renderer.js";
-import { initPlatform, forceFullRedraw } from "./platform.js";
+import { initPlatform, forceFullRedraw, commitDraws } from "./platform.js";
 import { getGameState } from "./core.js";
 import { buildMenuContext } from "./menus.js";
 import { mainBrogueJunction } from "./menus/main-menu.js";
@@ -172,6 +172,27 @@ async function main(): Promise<void> {
         requestAnimationFrame(checkDebugDirty);
     }
     requestAnimationFrame(checkDebugDirty);
+
+    // Benchmark: expose a function for timing full viewport redraws from dev console.
+    // Usage: window.benchmarkRedraw(100) — runs 100 forced redraws and logs average ms.
+    (window as unknown as Record<string, unknown>).benchmarkRedraw = (iterations = 50) => {
+        const times: number[] = [];
+        for (let n = 0; n < iterations; n++) {
+            forceFullRedraw();
+            const t0 = performance.now();
+            commitDraws();
+            times.push(performance.now() - t0);
+        }
+        times.sort((a, b) => a - b);
+        const avg = times.reduce((s, t) => s + t, 0) / times.length;
+        const p50 = times[Math.floor(times.length * 0.5)];
+        const p95 = times[Math.floor(times.length * 0.95)];
+        // eslint-disable-next-line no-console
+        console.log(
+            `[benchmark] ${iterations} redraws: avg=${avg.toFixed(2)}ms p50=${p50.toFixed(2)}ms p95=${p95.toFixed(2)}ms`,
+        );
+        return { avg, p50, p95, times };
+    };
 
     // eslint-disable-next-line no-console
     console.log(`[rogue-ts] Bootstrap complete. Grid: ${COLS}×${ROWS}`);

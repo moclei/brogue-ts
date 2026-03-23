@@ -45,6 +45,7 @@ import DemonicDungeonHauntedUrl from "../../assets/tilesets/DemonicDungeon/haunt
 import DemonicDungeonInteriorUrl from "../../assets/tilesets/DemonicDungeon/interior/No-Background/Full.png?url";
 import RavenIconsDarkUrl from "../../assets/tilesets/raven/icons_dark.png?url";
 import RavenPotionsUrl from "../../assets/tilesets/raven/potions.png?url";
+import WallAutotileUrl from "../../assets/tilesets/autotile/wall-autotile.png?url";
 
 const SHEET_URLS: Record<string, string> = {
   Floor: FloorUrl,
@@ -76,6 +77,7 @@ const SHEET_URLS: Record<string, string> = {
   DD_Interior: DemonicDungeonInteriorUrl,
   Raven_Icons: RavenIconsDarkUrl,
   Raven_Potions: RavenPotionsUrl,
+  WallAutotile: WallAutotileUrl,
   Rodent0: Rodent0Url,
   Humanoid1: Humanoid1Url,
   Undead1: Undead1Url,

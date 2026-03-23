@@ -170,7 +170,7 @@ map through from tileset initialization to the renderer.
 
 Add debug display, verify in browser, measure performance, update docs.
 
-- [ ] Extend the F2 debug panel in `rogue-ts/src/platform/sprite-debug.ts`:
+- [x] Extend the F2 debug panel in `rogue-ts/src/platform/sprite-debug.ts`:
   - Add `adjacencyMask?: number`, `variantIndex?: number`, and
     `connectionGroup?: string` to the inspected layer data.
   - In `drawCellLayers`, when `isInspectTarget` and entry has
@@ -187,7 +187,7 @@ Add debug display, verify in browser, measure performance, update docs.
   - If `sprite-debug.ts` exceeds 550 lines, extract the panel DOM
     builder to `sprite-debug-panel.ts`.
 
-- [ ] Browser visual testing (focus on WALL, WATER, LAVA first):
+- [x] Browser visual testing (focus on WALL, WATER, LAVA first):
   - Run the game in sprite mode, verify no visual regressions (placeholder
     sprites = same appearance as before)
   - Use F2 panel to inspect cells: confirm bitmask values change correctly
@@ -201,13 +201,13 @@ Add debug display, verify in browser, measure performance, update docs.
   - Walk away from a wall configuration and verify the remembered wall
     appearance doesn't "pop" to a different shape
 
-- [ ] Performance measurement:
+- [x] Performance measurement:
   - Full viewport redraw timing with autotile computation enabled vs. a
     control measurement without (comment out the bitmask calls temporarily)
   - Target: overhead under 1 ms for the full 79×29 viewport
   - Document results in PLAN.md under a new `## Performance Results` section
 
-- [ ] Define spritesheet specification for art production:
+- [x] Define spritesheet specification for art production:
   - Document the variant layout (47 sprites in 8×6 grid, indexed by
     variant index left-to-right top-to-bottom, last slot unused)
   - Cross-reference the variant reference document
@@ -215,7 +215,7 @@ Add debug display, verify in browser, measure performance, update docs.
   - Add to PLAN.md under "Spritesheet specification" and cross-reference
     in `docs/pixel-art/pixel-art-exploration.md` Section 7
 
-- [ ] Update `docs/pixel-art/pixel-art-exploration.md`:
+- [x] Update `docs/pixel-art/pixel-art-exploration.md`:
   - Section 6 roadmap: change Initiative 3 status from "not started" to
     "complete"
   - Section 7 Open Questions: mark "Connection group granularity" as

@@ -3,8 +3,10 @@
  *  brogue-ts
  *
  *  Phase 5: layer compositing pipeline via drawCellLayers(). Consumes
- *  CellSpriteData from getCellSpriteData and draws per-layer sprites with
- *  per-layer multiply tinting. Legacy drawCell() kept as transition fallback.
+ *  CellSpriteData from getCellSpriteData and draws per-layer sprites.
+ *  Multiply tinting is disabled on layers 0–5 (sprites draw with original
+ *  PNG colors); VISIBILITY layer retains multiply fill for lighting.
+ *  Legacy drawCell() kept as transition fallback.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -21,7 +23,7 @@ import type { TextRenderer } from "./text-renderer.js";
 import type { CellSpriteData, VisibilityOverlay } from "./render-layers.js";
 import { RenderLayer, RENDER_LAYER_COUNT, getVisibilityOverlay } from "./render-layers.js";
 import { spriteDebug } from "./sprite-debug.js";
-import { BITMASK_TO_VARIANT } from "./autotile.js";
+import { BITMASK_TO_VARIANT, getConnectionGroupInfo } from "./autotile.js";
 
 /** Brogue 0–100 scale → CSS 0–255 RGB, clamped. */
 function c100to255(v: number): number {
@@ -33,8 +35,8 @@ const NEUTRAL_TINT_THRESHOLD = 98;
 /** Default cell background for sprite mode — dark near-black instead of game lighting. */
 const SPRITE_BG_COLOR = "rgb(10,10,18)";
 
-/** Sentinel override that skips tinting for the TERRAIN layer by default. */
-const TERRAIN_NO_TINT: import("./sprite-debug.js").LayerOverride = {
+/** Sentinel override that skips multiply tinting (blend mode "none"). */
+const NO_TINT: import("./sprite-debug.js").LayerOverride = {
   visible: true, tintOverride: null, alphaOverride: null, blendMode: "none",
 };
 
@@ -225,10 +227,18 @@ export class SpriteRenderer implements Renderer {
       }
 
       if (isInspectTarget) {
-        dbg!.inspectedLayers[i] = {
+        const inspected: import("./sprite-debug.js").InspectedLayerData = {
           tintR: entry.tint.red, tintG: entry.tint.green, tintB: entry.tint.blue,
           alpha: entry.alpha,
         };
+        if (entry.adjacencyMask !== undefined) {
+          inspected.adjacencyMask = entry.adjacencyMask;
+          inspected.variantIndex = BITMASK_TO_VARIANT[entry.adjacencyMask];
+          if (entry.tileType !== undefined) {
+            inspected.connectionGroup = getConnectionGroupInfo(entry.tileType)?.group;
+          }
+        }
+        dbg!.inspectedLayers[i] = inspected;
       }
 
       // VISIBILITY layer: lighting overlay drawn as multiply composite fill,
@@ -253,8 +263,8 @@ export class SpriteRenderer implements Renderer {
       const hasAlpha = effectiveAlpha !== undefined && effectiveAlpha !== null && effectiveAlpha < 1;
       if (hasAlpha) ctx.globalAlpha = effectiveAlpha;
 
-      const skipTint = i === RenderLayer.TERRAIN && !lo?.tintOverride && !lo?.blendMode;
-      this.drawSpriteTinted(ref, cellRect, entry.tint, skipTint ? TERRAIN_NO_TINT : lo ?? null);
+      const skipTint = i !== RenderLayer.VISIBILITY && !lo?.tintOverride && !lo?.blendMode;
+      this.drawSpriteTinted(ref, cellRect, entry.tint, skipTint ? NO_TINT : lo ?? null);
 
       if (hasAlpha) ctx.globalAlpha = 1;
     }
@@ -266,6 +276,16 @@ export class SpriteRenderer implements Renderer {
       spriteData.visibilityState, spriteData.inWater,
     );
     if (overlay) this.applyVisibilityOverlay(cellRect, overlay);
+
+    if (dbg?.showVariantIndices) {
+      for (let i = 0; i < RENDER_LAYER_COUNT; i++) {
+        const entry = spriteData.layers[i];
+        if (entry?.adjacencyMask !== undefined) {
+          this.drawVariantLabel(cellRect, BITMASK_TO_VARIANT[entry.adjacencyMask]);
+          break;
+        }
+      }
+    }
   }
 
   // ===========================================================================
@@ -307,6 +327,27 @@ export class SpriteRenderer implements Renderer {
     const c = overlay.color;
     ctx.fillStyle = `rgb(${c100to255(c.red)},${c100to255(c.green)},${c100to255(c.blue)})`;
     ctx.fillRect(x, y, width, height);
+    ctx.restore();
+  }
+
+  // ===========================================================================
+  // drawVariantLabel — debug overlay showing autotile variant index
+  // ===========================================================================
+
+  private drawVariantLabel(cellRect: CellRect, index: number): void {
+    const { ctx } = this;
+    const fontSize = Math.max(8, Math.floor(cellRect.height * 0.45));
+    ctx.save();
+    ctx.font = `bold ${fontSize}px monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const cx = cellRect.x + cellRect.width / 2;
+    const cy = cellRect.y + cellRect.height / 2;
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 2.5;
+    ctx.strokeText(String(index), cx, cy);
+    ctx.fillStyle = "#ff0";
+    ctx.fillText(String(index), cx, cy);
     ctx.restore();
   }
 
