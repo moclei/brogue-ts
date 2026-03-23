@@ -20,6 +20,7 @@
  */
 
 import { DisplayGlyph, TileType } from "../types/enums.js";
+import { getConnectionGroupInfo, AUTOTILE_VARIANT_COUNT } from "./autotile.js";
 
 export interface SpriteRef {
   sheetKey: string;
@@ -226,6 +227,24 @@ export function buildTileTypeSpriteMap(): Map<TileType, SpriteRef> {
   m.set(TileType.MUD_DOORWAY, tile("TheRoguelike", 55, 22));
 
   return m;
+}
+
+/**
+ * Build the autotile variant map: for each connectable TileType that has a
+ * tileTypeSpriteMap entry, create a 47-element placeholder array where every
+ * slot points to the same SpriteRef as the existing single sprite. When real
+ * 47-variant spritesheets are added, each array gets distinct per-variant refs.
+ */
+export function buildAutotileVariantMap(
+  tileTypeSpriteMap: Map<TileType, SpriteRef>,
+): Map<TileType, SpriteRef[]> {
+  const map = new Map<TileType, SpriteRef[]>();
+  for (const [tileType, spriteRef] of tileTypeSpriteMap) {
+    if (getConnectionGroupInfo(tileType)) {
+      map.set(tileType, new Array<SpriteRef>(AUTOTILE_VARIANT_COUNT).fill(spriteRef));
+    }
+  }
+  return map;
 }
 
 /**

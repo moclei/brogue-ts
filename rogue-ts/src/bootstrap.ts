@@ -28,7 +28,7 @@ import { buildMenuContext } from "./menus.js";
 import { mainBrogueJunction } from "./menus/main-menu.js";
 import { COLS, ROWS, STAT_BAR_WIDTH, MESSAGE_LINES, DCOLS, DROWS } from "./types/constants.js";
 import { loadTilesetImages } from "./platform/tileset-loader.js";
-import { buildGlyphSpriteMap, buildTileTypeSpriteMap } from "./platform/glyph-sprite-map.js";
+import { buildGlyphSpriteMap, buildTileTypeSpriteMap, buildAutotileVariantMap } from "./platform/glyph-sprite-map.js";
 import { TextRenderer } from "./platform/text-renderer.js";
 import { SpriteRenderer } from "./platform/sprite-renderer.js";
 import { spriteDebug, toggleDebugPanel } from "./platform/sprite-debug.js";
@@ -105,6 +105,7 @@ async function main(): Promise<void> {
     }
     const spriteMap = buildGlyphSpriteMap();
     const tileTypeSpriteMap = buildTileTypeSpriteMap();
+    const autotileVariantMap = buildAutotileVariantMap(tileTypeSpriteMap);
 
     // 2. Set up canvas, renderers, and the browser console event bridge
     const canvasEl = document.getElementById("brogue-canvas");
@@ -116,7 +117,7 @@ async function main(): Promise<void> {
     const initialFontSize = Math.max(8, cellSize - 2);
     const textRenderer = new TextRenderer(ctx2d, "monospace", initialFontSize);
     const spriteRenderer = tiles
-        ? new SpriteRenderer(ctx2d, tiles, spriteMap, tileTypeSpriteMap, textRenderer)
+        ? new SpriteRenderer(ctx2d, tiles, spriteMap, tileTypeSpriteMap, textRenderer, autotileVariantMap)
         : undefined;
 
     const browserConsole = initBrowserConsole({

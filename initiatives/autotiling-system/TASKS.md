@@ -124,7 +124,7 @@ path.
 Extend the renderer to resolve autotile variant sprites. Wire the variant
 map through from tileset initialization to the renderer.
 
-- [ ] Add `buildAutotileVariantMap()` to
+- [x] Add `buildAutotileVariantMap()` to
   `rogue-ts/src/platform/glyph-sprite-map.ts`:
   - Returns `Map<TileType, SpriteRef[]>` where each array has 47 entries.
   - For each connectable TileType that has an entry in `tileTypeSpriteMap`,
@@ -134,7 +134,7 @@ map through from tileset initialization to the renderer.
   - TileTypes without a tileTypeSpriteMap entry get no autotile variants
     (they already fall through to glyph-based lookup).
 
-- [ ] Extend `SpriteRenderer` in
+- [x] Extend `SpriteRenderer` in
   `rogue-ts/src/platform/sprite-renderer.ts`:
   - Accept `autotileVariantMap: Map<TileType, SpriteRef[]>` in the
     constructor. Store as a private field.
@@ -149,18 +149,20 @@ map through from tileset initialization to the renderer.
     `precreateBitmaps()` (iterate `autotileVariantMap` values alongside
     existing maps).
 
-- [ ] Wire `autotileVariantMap` through the initialization path in
-  `rogue-ts/src/platform/browser-renderer.ts`:
-  - Call `buildAutotileVariantMap()` at tileset init time (alongside
-    existing `buildTileTypeSpriteMap` and `buildGlyphSpriteMap` calls).
+- [x] Wire `autotileVariantMap` through the initialization path in
+  `rogue-ts/src/bootstrap.ts` (actual construction site for
+  SpriteRenderer, alongside existing `buildGlyphSpriteMap` and
+  `buildTileTypeSpriteMap` calls):
+  - Call `buildAutotileVariantMap(tileTypeSpriteMap)` at tileset init time.
   - Pass the resulting map to the `SpriteRenderer` constructor.
 
-- [ ] Unit tests in `rogue-ts/tests/platform/sprite-renderer.test.ts`:
+- [x] Unit tests in `rogue-ts/tests/platform/sprite-renderer.test.ts`:
   - Variant resolution: when `adjacencyMask` is set and variant map has
     the TileType, the correct variant sprite is used
   - Fallback: when `adjacencyMask` is set but no variant map entry, falls
     through to regular `resolveSprite`
   - No adjacencyMask: existing behavior unchanged
+  - 5 new tests added (40 total in file), 2705 tests passing across suite
 
 # --- handoff point ---
 

@@ -18,6 +18,7 @@ import type { SpriteRef } from "../../src/platform/glyph-sprite-map.js";
 import type { Color } from "../../src/types/types.js";
 import type { CellSpriteData, LayerEntry } from "../../src/platform/render-layers.js";
 import { RenderLayer, RENDER_LAYER_COUNT, VisibilityState } from "../../src/platform/render-layers.js";
+import { AUTOTILE_VARIANT_COUNT, BITMASK_TO_VARIANT } from "../../src/platform/autotile.js";
 
 // ---------------------------------------------------------------------------
 // Mock canvas context — tracks calls but doesn't render
@@ -495,6 +496,110 @@ describe("SpriteRenderer", () => {
         );
         expect(ctx.drawImage).toHaveBeenCalled();
         expect(textRenderer.drawCell).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("autotile variant resolution", () => {
+      const REF_VARIANT: SpriteRef = { sheetKey: "Wall", tileX: 5, tileY: 5 };
+
+      function makeVariantRenderer(): SpriteRenderer {
+        const variantMap = new Map<TileType, SpriteRef[]>();
+        variantMap.set(
+          TileType.WALL,
+          new Array<SpriteRef>(AUTOTILE_VARIANT_COUNT).fill(REF_VARIANT),
+        );
+        return new SpriteRenderer(
+          ctx, tiles, spriteMap, tileTypeSpriteMap, textRenderer, variantMap,
+        );
+      }
+
+      it("uses variant sprite when adjacencyMask is set and variant map has TileType", () => {
+        const vr = makeVariantRenderer();
+        const resolveSpy = vi.spyOn(vr, "resolveSprite");
+
+        const sd = makeSpriteData();
+        sd.layers[RenderLayer.TERRAIN] = {
+          tileType: TileType.WALL,
+          tint: makeColor(100, 100, 100),
+          adjacencyMask: 255,
+        };
+        vr.drawCellLayers(CELL, sd);
+
+        expect(resolveSpy).not.toHaveBeenCalled();
+        expect(ctx.drawImage).toHaveBeenCalled();
+      });
+
+      it("selects the correct variant index from the bitmask", () => {
+        const perVariantRefs = Array.from(
+          { length: AUTOTILE_VARIANT_COUNT },
+          (_, i) => ({ sheetKey: "Wall", tileX: i, tileY: 0 }),
+        );
+        const variantMap = new Map<TileType, SpriteRef[]>();
+        variantMap.set(TileType.WALL, perVariantRefs);
+        const vr = new SpriteRenderer(
+          ctx, tiles, spriteMap, tileTypeSpriteMap, textRenderer, variantMap,
+        );
+
+        const mask = 0b00010101; // N + E + S → some specific variant
+        const expectedIndex = BITMASK_TO_VARIANT[mask];
+
+        const resolveSpy = vi.spyOn(vr, "resolveSprite");
+        const sd = makeSpriteData();
+        sd.layers[RenderLayer.TERRAIN] = {
+          tileType: TileType.WALL,
+          tint: makeColor(100, 100, 100),
+          adjacencyMask: mask,
+        };
+        vr.drawCellLayers(CELL, sd);
+
+        expect(resolveSpy).not.toHaveBeenCalled();
+        // The drawImage call uses the variant ref's tileX as the column
+        const drawCall = (ctx.drawImage as ReturnType<typeof vi.fn>).mock.calls[0];
+        expect(drawCall).toBeDefined();
+      });
+
+      it("falls through to resolveSprite when variant map lacks TileType", () => {
+        const vr = makeVariantRenderer();
+        const resolveSpy = vi.spyOn(vr, "resolveSprite");
+
+        const sd = makeSpriteData();
+        sd.layers[RenderLayer.TERRAIN] = {
+          tileType: TileType.FLOOR,
+          tint: makeColor(100, 100, 100),
+          adjacencyMask: 255,
+        };
+        vr.drawCellLayers(CELL, sd);
+
+        expect(resolveSpy).toHaveBeenCalled();
+      });
+
+      it("falls through to resolveSprite when adjacencyMask is undefined", () => {
+        const vr = makeVariantRenderer();
+        const resolveSpy = vi.spyOn(vr, "resolveSprite");
+
+        const sd = makeSpriteData();
+        sd.layers[RenderLayer.TERRAIN] = {
+          tileType: TileType.WALL,
+          tint: makeColor(100, 100, 100),
+        };
+        vr.drawCellLayers(CELL, sd);
+
+        expect(resolveSpy).toHaveBeenCalled();
+      });
+
+      it("works without autotileVariantMap (existing behavior)", () => {
+        const resolveSpy = vi.spyOn(renderer, "resolveSprite");
+
+        const sd = makeSpriteData();
+        sd.layers[RenderLayer.TERRAIN] = {
+          tileType: TileType.WALL,
+          tint: makeColor(100, 100, 100),
+          adjacencyMask: 255,
+        };
+        renderer.drawCellLayers(CELL, sd);
+
+        expect(resolveSpy).toHaveBeenCalled();
+        expect(ctx.drawImage).toHaveBeenCalled();
       });
     });
   });

@@ -21,6 +21,7 @@ import type { TextRenderer } from "./text-renderer.js";
 import type { CellSpriteData, VisibilityOverlay } from "./render-layers.js";
 import { RenderLayer, RENDER_LAYER_COUNT, getVisibilityOverlay } from "./render-layers.js";
 import { spriteDebug } from "./sprite-debug.js";
+import { BITMASK_TO_VARIANT } from "./autotile.js";
 
 /** Brogue 0–100 scale → CSS 0–255 RGB, clamped. */
 function c100to255(v: number): number {
@@ -54,6 +55,7 @@ export class SpriteRenderer implements Renderer {
   private readonly spriteMap: Map<DisplayGlyph, SpriteRef>;
   private readonly tileTypeSpriteMap: Map<TileType, SpriteRef>;
   private readonly textRenderer: TextRenderer;
+  private readonly autotileVariantMap?: Map<TileType, SpriteRef[]>;
 
   private readonly tintCanvas: OffscreenCanvas;
   private readonly tintCtx: OffscreenCanvasRenderingContext2D;
@@ -74,12 +76,14 @@ export class SpriteRenderer implements Renderer {
     spriteMap: Map<DisplayGlyph, SpriteRef>,
     tileTypeSpriteMap: Map<TileType, SpriteRef>,
     textRenderer: TextRenderer,
+    autotileVariantMap?: Map<TileType, SpriteRef[]>,
   ) {
     this.ctx = ctx;
     this.tiles = tiles;
     this.spriteMap = spriteMap;
     this.tileTypeSpriteMap = tileTypeSpriteMap;
     this.textRenderer = textRenderer;
+    this.autotileVariantMap = autotileVariantMap;
 
     this.tintCanvas = new OffscreenCanvas(TILE_SIZE, TILE_SIZE);
     this.tintCtx = this.tintCanvas.getContext("2d")!;
@@ -117,6 +121,11 @@ export class SpriteRenderer implements Renderer {
 
     for (const ref of this.tileTypeSpriteMap.values()) schedule(ref);
     for (const ref of this.spriteMap.values()) schedule(ref);
+    if (this.autotileVariantMap) {
+      for (const variants of this.autotileVariantMap.values()) {
+        for (const ref of variants) schedule(ref);
+      }
+    }
     await Promise.all(tasks);
   }
 
@@ -230,7 +239,13 @@ export class SpriteRenderer implements Renderer {
         continue;
       }
 
-      const ref = this.resolveSprite(entry.tileType, entry.glyph);
+      let ref: SpriteRef | undefined;
+      if (entry.adjacencyMask !== undefined && entry.tileType !== undefined
+          && this.autotileVariantMap) {
+        const variantIndex = BITMASK_TO_VARIANT[entry.adjacencyMask];
+        ref = this.autotileVariantMap.get(entry.tileType)?.[variantIndex];
+      }
+      if (!ref) ref = this.resolveSprite(entry.tileType, entry.glyph);
       if (!ref) continue;
 
       const lo = dbg?.layers[i];
