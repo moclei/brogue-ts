@@ -61,6 +61,7 @@ export interface LayerEntry {
     glyph?: DisplayGlyph;
     tint: Color;
     alpha?: number;
+    adjacencyMask?: number;
 }
 
 // =============================================================================
@@ -96,7 +97,7 @@ function makeColor(): Color {
 }
 
 function makeLayerEntry(): LayerEntry {
-    return { tileType: undefined, glyph: undefined, tint: makeColor(), alpha: undefined };
+    return { tileType: undefined, glyph: undefined, tint: makeColor(), alpha: undefined, adjacencyMask: undefined };
 }
 
 function resetLayerEntry(e: LayerEntry): void {
@@ -106,6 +107,7 @@ function resetLayerEntry(e: LayerEntry): void {
     e.tint.redRand = 0; e.tint.greenRand = 0; e.tint.blueRand = 0;
     e.tint.rand = 0; e.tint.colorDances = false;
     e.alpha = undefined;
+    e.adjacencyMask = undefined;
 }
 
 /**
