@@ -4,8 +4,9 @@
 
 Four phases, each independently committable:
 
-1. **Foundation** — Vite + React app with feature parity to the current
-   HTML tool. Same UI, same functionality, proper project structure.
+1. **Foundation** *(complete)* — Vite + React app with feature parity to
+   the current HTML tool. Same UI, same functionality, proper project
+   structure.
 2. **Backend + file writes** — Vite server middleware for reading/writing
    sprite assets directly to `rogue-ts/assets/tilesets/`.
 3. **Autotile sheet authoring** — third assignment mode for autotile
@@ -196,10 +197,8 @@ file watcher handles everything once the files are written to disk.
 
 ## Open Questions
 
-- **React vs Preact vs vanilla:** React is the default choice for
-  familiarity. Preact would halve the bundle size but this is a dev tool,
-  so bundle size doesn't matter. Vanilla + lit-html would avoid a
-  framework entirely. Leaning React for ecosystem and component reuse.
+- **React vs Preact vs vanilla:** *Resolved: React.* It's a dev tool,
+  bundle size doesn't matter, and React ecosystem provides the best DX.
 - **Shared WebSocket vs file watcher for live updates:** File watcher
   (approach A) is simpler and doesn't require cross-server coordination.
   But it requires game-side HMR handlers which touch more files. Decision
@@ -208,3 +207,35 @@ file watcher handles everything once the files are written to disk.
   connectivity pattern each of the 47 variants represents? This would help
   artists understand what they're assigning. Could render bitmask diagrams
   as small SVGs or canvas drawings next to each slot.
+
+---
+
+## Session Notes — Phase 1
+
+### Decisions made
+
+- **Asset serving:** Added a Vite server middleware plugin in
+  `vite.config.ts` that proxies tileset images via `/tilesets/` and serves
+  the tileset manifest from the old tool directory. This avoids needing
+  Vite `server.fs.allow` or symlinks. Phase 2's backend middleware will
+  extend this pattern.
+- **State architecture:** App-level UI state (selected tile, zoom, active
+  sheet, image cache) uses React `useState` with a context provider.
+  Assignment state (TileType/Glyph mappings) uses a separate
+  `useReducer` + context. The two are decoupled deliberately — assignment
+  state persists to localStorage, UI state is ephemeral.
+- **Component split:** EnumEntry is its own component (with its own canvas
+  for the thumbnail) to keep EnumPanel under the line limit and to enable
+  per-entry memoization if performance becomes an issue.
+
+### What's ready for Phase 2
+
+The Phase 1 app has full feature parity with the original HTML tool:
+- Sheet browsing, grid rendering with zoom/hover/selection
+- TileType and DisplayGlyph assignment with thumbnails
+- Export Code, Export JSON, Import JSON, Export Master Sheet (as downloads)
+- Reset, Escape to clear selection, toast notifications
+- localStorage persistence of assignments
+
+Phase 2 adds the backend: Vite server middleware for direct disk writes,
+replacing the download-and-copy workflow.

@@ -2,49 +2,48 @@
 
 ## Phase 1: Foundation
 
-- [ ] Set up Vite + React project in `tools/sprite-assigner-v2/`:
+- [x] Set up Vite + React project in `tools/sprite-assigner-v2/`:
   `package.json`, `vite.config.ts`, `tsconfig.json`, `index.html`,
   `src/main.tsx`. Install react, react-dom, vite, @vitejs/plugin-react,
   typescript. Verify `npm run dev` starts and serves a blank page.
-- [ ] Create data modules:
+- [x] Create data modules:
   - `src/data/tile-types.ts` — TILE_TYPES, DISPLAY_GLYPHS, GLYPH_CHARS
     arrays (extracted from current index.html)
   - `src/data/initial-assignments.ts` — INITIAL_TILETYPE, INITIAL_GLYPH
     seed data
   - `src/data/sheet-manifest.ts` — tileset manifest type + loader
     (replaces fetch of `tileset-manifest.json`)
-- [ ] Create assignment state module (`src/state/assignments.ts`):
+- [x] Create assignment state module (`src/state/assignments.ts`):
   - React context + useReducer for TileType/Glyph assignment maps
   - Actions: assign, unassign, reset, importJSON, loadFromManifest
   - localStorage persistence (read on init, write on every change)
   - Stats computation (assigned/total counts)
-- [ ] Build SheetPanel component (left sidebar):
+- [x] Build SheetPanel component (left sidebar):
   - Reads tileset manifest, renders collapsible groups with sheet buttons
   - Clicking a sheet loads its image and updates the grid
-- [ ] Build GridPanel + GridCanvas components (center):
+- [x] Build GridPanel + GridCanvas components (center):
   - Canvas rendering of the current sheet at zoom level
   - Grid lines, assignment markers, hover highlight, selection highlight
   - Zoom controls (1x–8x)
   - Mouse click → select tile, mousemove → hover
-- [ ] Build SelectionBar component (bottom of grid panel):
+- [x] Build SelectionBar component (bottom of grid panel):
   - Shows selected tile preview (48×48 canvas), coordinates, used-by list
   - Clear button (Escape key binding)
-- [ ] Build EnumPanel component (right sidebar):
+- [x] Build EnumPanel component (right sidebar):
   - Tab switching: TileType | DisplayGlyph
   - Filter input + status dropdown (all/assigned/unassigned)
   - Scrollable list of enum entries with sprite thumbnails
   - Click entry → assign selected tile; click thumbnail → jump to sprite
   - Unassign button per entry
-- [ ] Build ExportModal component:
+- [x] Build ExportModal component:
   - Export Code (TypeScript), Export JSON, Import JSON
   - Master sheet export (PNG + manifest download links)
   - Copy-to-clipboard support
-- [ ] Wire App.tsx: three-panel CSS grid layout, keyboard handler (Escape),
+- [x] Wire App.tsx: three-panel CSS grid layout, keyboard handler (Escape),
   toast notifications. Verify full feature parity with current HTML tool.
-- [ ] Add npm script for easy startup (e.g. `npm run assigner` in root
-  package.json or `npm run dev` in the tool directory)
-- [ ] Commit Phase 1 with descriptive message
-- [ ] Update TASKS.md and PLAN.md to reflect current state; generate
+- [x] Add npm script for easy startup (`npm run dev` in the tool directory)
+- [x] Commit Phase 1 with descriptive message
+- [x] Update TASKS.md and PLAN.md to reflect current state; generate
   hand-off prompt for a new session to continue with Phase 2
 
 # --- handoff point ---
