@@ -169,6 +169,19 @@ export function useAssignmentHelpers() {
 export function AssignmentProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, null, loadFromStorage);
 
+  // On mount, try to load assignments from the backend (disk).
+  // Falls back to the already-loaded localStorage state if unavailable.
+  useEffect(() => {
+    fetch("/api/assignments")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data && (data as Assignments).tiletype) {
+          dispatch({ type: "loadFromManifest", data: data as Assignments });
+        }
+      })
+      .catch(() => { /* backend unavailable — keep localStorage state */ });
+  }, []);
+
   useEffect(() => {
     saveToStorage(state);
   }, [state]);

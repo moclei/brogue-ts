@@ -1,26 +1,19 @@
 import { useState, useCallback } from "react";
-import {
-  TILE_TYPES,
-  DISPLAY_GLYPHS,
-  TILE_SIZE,
-  MASTER_GRID_W,
-  MASTER_GRID_H,
-  GLYPH_GRID_OFFSET,
-} from "../data/tile-types.ts";
+import { TILE_TYPES, DISPLAY_GLYPHS } from "../data/tile-types.ts";
 import { useAssignments, useAssignmentHelpers, type Assignments } from "../state/assignments.ts";
 import { useApp } from "../state/app-state.ts";
 
-type ModalView = "code" | "json" | "import" | "mastersheet" | null;
+type ModalView = "code" | "json" | "import" | null;
 
 export function ExportModal() {
   const [view, setView] = useState<ModalView>(null);
   const [content, setContent] = useState("");
   const [copyLabel, setCopyLabel] = useState("Copy");
   const [importText, setImportText] = useState("");
-  const [masterSheetHtml, setMasterSheetHtml] = useState("");
+  const [saving, setSaving] = useState(false);
   const assignments = useAssignments();
   const { importJSON, reset } = useAssignmentHelpers();
-  const { loadImage, showToast } = useApp();
+  const { showToast } = useApp();
 
   const handleCopy = useCallback(async () => {
     await navigator.clipboard.writeText(content);
@@ -99,84 +92,26 @@ export function ExportModal() {
     showToast("Reset to defaults");
   }, [reset, showToast]);
 
-  const openMasterSheet = useCallback(async () => {
-    const sheetW = MASTER_GRID_W * TILE_SIZE;
-    const sheetH = MASTER_GRID_H * TILE_SIZE;
-    const canvas = document.createElement("canvas");
-    canvas.width = sheetW;
-    canvas.height = sheetH;
-    const ctx = canvas.getContext("2d")!;
-    ctx.imageSmoothingEnabled = false;
-
-    type GridEntry = { x: number; y: number };
-    const manifestObj = {
-      tileSize: TILE_SIZE,
-      gridWidth: MASTER_GRID_W,
-      gridHeight: MASTER_GRID_H,
-      tiles: {} as Record<string, GridEntry>,
-      glyphs: {} as Record<string, GridEntry>,
-    };
-
-    let count = 0;
-
-    for (let i = 0; i < TILE_TYPES.length; i++) {
-      const name = TILE_TYPES[i]!;
-      if (name === "NOTHING") continue;
-      const ref = assignments.tiletype[name];
-      if (!ref) continue;
-      const pos = { x: i % MASTER_GRID_W, y: Math.floor(i / MASTER_GRID_W) };
-      manifestObj.tiles[name] = pos;
-      const img = await loadImage(ref.sheet);
-      if (!img) continue;
-      ctx.drawImage(
-        img,
-        ref.x * TILE_SIZE, ref.y * TILE_SIZE, TILE_SIZE, TILE_SIZE,
-        pos.x * TILE_SIZE, pos.y * TILE_SIZE, TILE_SIZE, TILE_SIZE,
-      );
-      count++;
+  const handleSave = useCallback(async () => {
+    setSaving(true);
+    try {
+      const resp = await fetch("/api/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(assignments),
+      });
+      const result = await resp.json() as { ok: boolean; tileCount?: number; glyphCount?: number; error?: string };
+      if (result.ok) {
+        showToast(`Saved master-spritesheet.png + sprite-manifest.json (${result.tileCount} tiles, ${result.glyphCount} glyphs)`);
+      } else {
+        showToast(`Save failed: ${result.error ?? "unknown error"}`);
+      }
+    } catch (err) {
+      showToast(`Save failed: ${String(err)}`);
+    } finally {
+      setSaving(false);
     }
-
-    for (let i = 0; i < DISPLAY_GLYPHS.length; i++) {
-      const name = DISPLAY_GLYPHS[i]!;
-      const ref = assignments.glyph[name];
-      if (!ref) continue;
-      const slot = GLYPH_GRID_OFFSET + i;
-      const pos = { x: slot % MASTER_GRID_W, y: Math.floor(slot / MASTER_GRID_W) };
-      manifestObj.glyphs[name] = pos;
-      const img = await loadImage(ref.sheet);
-      if (!img) continue;
-      ctx.drawImage(
-        img,
-        ref.x * TILE_SIZE, ref.y * TILE_SIZE, TILE_SIZE, TILE_SIZE,
-        pos.x * TILE_SIZE, pos.y * TILE_SIZE, TILE_SIZE, TILE_SIZE,
-      );
-      count++;
-    }
-
-    const pngBlob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/png"));
-    const pngUrl = pngBlob ? URL.createObjectURL(pngBlob) : "#";
-    const manifestJson = JSON.stringify(manifestObj, null, 2);
-    setContent(manifestJson);
-    setCopyLabel("Copy");
-
-    setMasterSheetHtml(
-      `<p>${count} sprites packed into ${sheetW}\u00D7${sheetH} master sheet ` +
-      `(${MASTER_GRID_W}\u00D7${MASTER_GRID_H} grid).</p>` +
-      `<p><a href="${pngUrl}" download="master-spritesheet.png" class="download-link">\u2B07 Download master-spritesheet.png</a></p>` +
-      `<p class="dim-note">Place both files in <code>rogue-ts/assets/tilesets/</code></p>`,
-    );
-    setView("mastersheet");
-  }, [assignments, loadImage]);
-
-  const downloadManifest = useCallback(() => {
-    const blob = new Blob([content], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "sprite-manifest.json";
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [content]);
+  }, [assignments, showToast]);
 
   const closeModal = useCallback((e?: React.MouseEvent) => {
     if (e && e.target !== e.currentTarget) return;
@@ -186,16 +121,15 @@ export function ExportModal() {
   const title =
     view === "code" ? "Export \u2014 TypeScript Code"
       : view === "json" ? "Export \u2014 JSON"
-        : view === "import" ? "Import JSON"
-          : "Export \u2014 Master Sheet";
+        : "Import JSON";
 
   return (
     <>
+      <button className="primary" onClick={handleSave} disabled={saving}>
+        {saving ? "Saving\u2026" : "Save to Disk"}
+      </button>
       <button onClick={openCode}>Export Code</button>
       <button onClick={openJSON}>Export JSON</button>
-      <button className="primary" onClick={openMasterSheet}>
-        Export Master Sheet
-      </button>
       <button onClick={openImport}>Import JSON</button>
       <button onClick={handleReset}>Reset</button>
 
@@ -223,13 +157,6 @@ export function ExportModal() {
                   <br />
                   <button className="primary" onClick={executeImport} style={{ marginTop: 8 }}>
                     Import
-                  </button>
-                </>
-              ) : view === "mastersheet" ? (
-                <>
-                  <div dangerouslySetInnerHTML={{ __html: masterSheetHtml }} />
-                  <button className="download-link" onClick={downloadManifest}>
-                    &#11015; Download sprite-manifest.json
                   </button>
                 </>
               ) : (

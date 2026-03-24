@@ -50,23 +50,25 @@
 
 ## Phase 2: Backend + File Writes
 
-- [ ] Add Vite server middleware plugin (`src/server/api.ts`):
+- [x] Add Vite server middleware plugin (`src/server/api.ts`):
   - `GET /api/manifest` — reads `sprite-manifest.json` from
     `rogue-ts/assets/tilesets/`
   - `GET /api/sheets/:key` — proxies source sheet PNGs
   - `POST /api/save` — receives assignments, generates master sheet +
     manifest, writes to disk
-- [ ] Move master sheet generation logic from
+- [x] Move master sheet generation logic from
   `tools/generate-master-spritesheet.mjs` into a server-side module
   (`src/server/generate.ts`). Reuse sharp for image compositing.
-- [ ] Update UI: replace "Export Master Sheet" with "Save to Disk" button.
+- [x] Update UI: replace "Export Master Sheet" with "Save to Disk" button.
   Calls `POST /api/save`, shows success/error toast. Keep Export Code and
   Export JSON as secondary actions.
-- [ ] On startup, attempt to load assignments from `GET /api/manifest`.
+- [x] On startup, attempt to load assignments from `GET /api/assignments`.
   Fall back to localStorage if backend unavailable (allows standalone use).
-- [ ] Verify end-to-end: assign a sprite → Save to Disk → confirm
-  `master-spritesheet.png` and `sprite-manifest.json` updated on disk →
-  game dev server picks up the change on next reload.
+- [x] Verify end-to-end: assign a sprite → Save to Disk → confirm
+  `master-spritesheet.png`, `sprite-manifest.json`, and `assignments.json`
+  updated on disk. Also writes `assignments.json` for startup reload.
+  GET /api/assignments returns saved data. Startup loads from disk when
+  available, falls back to localStorage.
 - [ ] Commit Phase 2 with descriptive message
 - [ ] Update TASKS.md and PLAN.md to reflect current state; generate
   hand-off prompt for a new session to continue with Phase 3

@@ -8,6 +8,7 @@ import { generateMasterSheet, type SavePayload } from "./generate.ts";
  *
  * Routes:
  *   GET  /api/manifest       — current sprite-manifest.json from disk
+ *   GET  /api/assignments    — current assignments.json (source refs) from disk
  *   GET  /api/sheets/:key    — source sheet PNG by key name
  *   POST /api/save           — generate master sheet + manifest, write to disk
  *
@@ -56,6 +57,19 @@ export function spriteAssignerApi(repoRoot: string): Plugin {
           return;
         }
 
+        if (req.url === "/api/assignments" && req.method === "GET") {
+          const file = path.join(tilesetsDir, "assignments.json");
+          if (fs.existsSync(file)) {
+            res.setHeader("Content-Type", "application/json");
+            fs.createReadStream(file).pipe(res);
+          } else {
+            res.statusCode = 404;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ ok: false, error: "assignments.json not found" }));
+          }
+          return;
+        }
+
         if (req.url.startsWith("/api/sheets/") && req.method === "GET") {
           const key = decodeURIComponent(req.url.slice("/api/sheets/".length));
           const filePath = sheetPaths.get(key);
@@ -77,6 +91,10 @@ export function spriteAssignerApi(repoRoot: string): Plugin {
             (async () => {
               const payload = JSON.parse(body) as SavePayload;
               const result = await generateMasterSheet(payload, sheetPaths, tilesetsDir);
+              fs.writeFileSync(
+                path.join(tilesetsDir, "assignments.json"),
+                JSON.stringify(payload, null, 2) + "\n",
+              );
               res.setHeader("Content-Type", "application/json");
               res.end(JSON.stringify({ ok: true, ...result }));
             })().catch((err: unknown) => {
