@@ -17,9 +17,32 @@ export interface TilesetManifest {
 }
 
 export async function loadTilesetManifest(): Promise<TilesetManifest> {
-  const resp = await fetch("/tileset-manifest.json");
-  if (!resp.ok) throw new Error(`Failed to load tileset-manifest.json: ${resp.status}`);
+  const resp = await fetch("/api/tileset-manifest");
+  if (!resp.ok) throw new Error(`Failed to load tileset manifest: ${resp.status}`);
   return resp.json() as Promise<TilesetManifest>;
+}
+
+export async function saveTilesetManifest(manifest: TilesetManifest): Promise<void> {
+  const resp = await fetch("/api/tileset-manifest", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(manifest),
+  });
+  if (!resp.ok) throw new Error(`Failed to save tileset manifest: ${resp.status}`);
+}
+
+export async function uploadSheet(
+  file: File,
+  meta: { groupId: string; key: string; category: string; subpath: string },
+): Promise<void> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("meta", JSON.stringify(meta));
+  const resp = await fetch("/api/upload-sheet", { method: "POST", body: form });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ error: "Upload failed" }));
+    throw new Error((err as { error: string }).error);
+  }
 }
 
 /**

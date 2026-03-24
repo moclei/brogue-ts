@@ -1,0 +1,544 @@
+{
+  "tileSize": 16,
+  "basePath": "../../rogue-ts/assets/tilesets",
+  "tilesets": [
+    {
+      "id": "dawnlike",
+      "name": "DawnLike",
+      "sheets": [
+        {
+          "key": "Floor",
+          "path": "dawnlike/Objects/Floor.png",
+          "category": "terrain"
+        },
+        {
+          "key": "Wall",
+          "path": "dawnlike/Objects/Wall.png",
+          "category": "terrain"
+        },
+        {
+          "key": "Ground0",
+          "path": "dawnlike/Objects/Ground0.png",
+          "category": "terrain"
+        },
+        {
+          "key": "Ground1",
+          "path": "dawnlike/Objects/Ground1.png",
+          "category": "terrain"
+        },
+        {
+          "key": "Tile",
+          "path": "dawnlike/Objects/Tile.png",
+          "category": "terrain"
+        },
+        {
+          "key": "Pit0",
+          "path": "dawnlike/Objects/Pit0.png",
+          "category": "terrain"
+        },
+        {
+          "key": "Pit1",
+          "path": "dawnlike/Objects/Pit1.png",
+          "category": "terrain"
+        },
+        {
+          "key": "Hill0",
+          "path": "dawnlike/Objects/Hill0.png",
+          "category": "terrain"
+        },
+        {
+          "key": "Hill1",
+          "path": "dawnlike/Objects/Hill1.png",
+          "category": "terrain"
+        },
+        {
+          "key": "Fence",
+          "path": "dawnlike/Objects/Fence.png",
+          "category": "terrain"
+        },
+        {
+          "key": "Door0",
+          "path": "dawnlike/Objects/Door0.png",
+          "category": "feature"
+        },
+        {
+          "key": "Door1",
+          "path": "dawnlike/Objects/Door1.png",
+          "category": "feature"
+        },
+        {
+          "key": "Decor0",
+          "path": "dawnlike/Objects/Decor0.png",
+          "category": "feature"
+        },
+        {
+          "key": "Decor1",
+          "path": "dawnlike/Objects/Decor1.png",
+          "category": "feature"
+        },
+        {
+          "key": "Trap0",
+          "path": "dawnlike/Objects/Trap0.png",
+          "category": "feature"
+        },
+        {
+          "key": "Trap1",
+          "path": "dawnlike/Objects/Trap1.png",
+          "category": "feature"
+        },
+        {
+          "key": "Tree0",
+          "path": "dawnlike/Objects/Tree0.png",
+          "category": "feature"
+        },
+        {
+          "key": "Tree1",
+          "path": "dawnlike/Objects/Tree1.png",
+          "category": "feature"
+        },
+        {
+          "key": "Effect0",
+          "path": "dawnlike/Objects/Effect0.png",
+          "category": "effect"
+        },
+        {
+          "key": "Effect1",
+          "path": "dawnlike/Objects/Effect1.png",
+          "category": "effect"
+        },
+        {
+          "key": "Ore0",
+          "path": "dawnlike/Objects/Ore0.png",
+          "category": "feature"
+        },
+        {
+          "key": "Ore1",
+          "path": "dawnlike/Objects/Ore1.png",
+          "category": "feature"
+        },
+        {
+          "key": "Map0",
+          "path": "dawnlike/Objects/Map0.png",
+          "category": "feature"
+        },
+        {
+          "key": "Map1",
+          "path": "dawnlike/Objects/Map1.png",
+          "category": "feature"
+        },
+        {
+          "key": "Player0",
+          "path": "dawnlike/Characters/Player0.png",
+          "category": "creature"
+        },
+        {
+          "key": "Player1",
+          "path": "dawnlike/Characters/Player1.png",
+          "category": "creature"
+        },
+        {
+          "key": "Humanoid0",
+          "path": "dawnlike/Characters/Humanoid0.png",
+          "category": "creature"
+        },
+        {
+          "key": "Humanoid1",
+          "path": "dawnlike/Characters/Humanoid1.png",
+          "category": "creature"
+        },
+        {
+          "key": "Demon0",
+          "path": "dawnlike/Characters/Demon0.png",
+          "category": "creature"
+        },
+        {
+          "key": "Demon1",
+          "path": "dawnlike/Characters/Demon1.png",
+          "category": "creature"
+        },
+        {
+          "key": "Undead0",
+          "path": "dawnlike/Characters/Undead0.png",
+          "category": "creature"
+        },
+        {
+          "key": "Undead1",
+          "path": "dawnlike/Characters/Undead1.png",
+          "category": "creature"
+        },
+        {
+          "key": "Reptile0",
+          "path": "dawnlike/Characters/Reptile0.png",
+          "category": "creature"
+        },
+        {
+          "key": "Reptile1",
+          "path": "dawnlike/Characters/Reptile1.png",
+          "category": "creature"
+        },
+        {
+          "key": "Rodent0",
+          "path": "dawnlike/Characters/Rodent0.png",
+          "category": "creature"
+        },
+        {
+          "key": "Rodent1",
+          "path": "dawnlike/Characters/Rodent1.png",
+          "category": "creature"
+        },
+        {
+          "key": "Pest0",
+          "path": "dawnlike/Characters/Pest0.png",
+          "category": "creature"
+        },
+        {
+          "key": "Pest1",
+          "path": "dawnlike/Characters/Pest1.png",
+          "category": "creature"
+        },
+        {
+          "key": "Aquatic0",
+          "path": "dawnlike/Characters/Aquatic0.png",
+          "category": "creature"
+        },
+        {
+          "key": "Aquatic1",
+          "path": "dawnlike/Characters/Aquatic1.png",
+          "category": "creature"
+        },
+        {
+          "key": "Avian0",
+          "path": "dawnlike/Characters/Avian0.png",
+          "category": "creature"
+        },
+        {
+          "key": "Avian1",
+          "path": "dawnlike/Characters/Avian1.png",
+          "category": "creature"
+        },
+        {
+          "key": "Cat0",
+          "path": "dawnlike/Characters/Cat0.png",
+          "category": "creature"
+        },
+        {
+          "key": "Cat1",
+          "path": "dawnlike/Characters/Cat1.png",
+          "category": "creature"
+        },
+        {
+          "key": "Dog0",
+          "path": "dawnlike/Characters/Dog0.png",
+          "category": "creature"
+        },
+        {
+          "key": "Dog1",
+          "path": "dawnlike/Characters/Dog1.png",
+          "category": "creature"
+        },
+        {
+          "key": "Elemental0",
+          "path": "dawnlike/Characters/Elemental0.png",
+          "category": "creature"
+        },
+        {
+          "key": "Elemental1",
+          "path": "dawnlike/Characters/Elemental1.png",
+          "category": "creature"
+        },
+        {
+          "key": "Plant0",
+          "path": "dawnlike/Characters/Plant0.png",
+          "category": "creature"
+        },
+        {
+          "key": "Plant1",
+          "path": "dawnlike/Characters/Plant1.png",
+          "category": "creature"
+        },
+        {
+          "key": "Slime0",
+          "path": "dawnlike/Characters/Slime0.png",
+          "category": "creature"
+        },
+        {
+          "key": "Slime1",
+          "path": "dawnlike/Characters/Slime1.png",
+          "category": "creature"
+        },
+        {
+          "key": "Misc0",
+          "path": "dawnlike/Characters/Misc0.png",
+          "category": "creature"
+        },
+        {
+          "key": "Misc1",
+          "path": "dawnlike/Characters/Misc1.png",
+          "category": "creature"
+        },
+        {
+          "key": "Quadraped0",
+          "path": "dawnlike/Characters/Quadraped0.png",
+          "category": "creature"
+        },
+        {
+          "key": "Quadraped1",
+          "path": "dawnlike/Characters/Quadraped1.png",
+          "category": "creature"
+        },
+        {
+          "key": "Potion",
+          "path": "dawnlike/Items/Potion.png",
+          "category": "item"
+        },
+        {
+          "key": "Scroll",
+          "path": "dawnlike/Items/Scroll.png",
+          "category": "item"
+        },
+        {
+          "key": "Ring",
+          "path": "dawnlike/Items/Ring.png",
+          "category": "item"
+        },
+        {
+          "key": "Wand",
+          "path": "dawnlike/Items/Wand.png",
+          "category": "item"
+        },
+        {
+          "key": "Amulet",
+          "path": "dawnlike/Items/Amulet.png",
+          "category": "item"
+        },
+        {
+          "key": "Armor",
+          "path": "dawnlike/Items/Armor.png",
+          "category": "item"
+        },
+        {
+          "key": "Shield",
+          "path": "dawnlike/Items/Shield.png",
+          "category": "item"
+        },
+        {
+          "key": "ShortWep",
+          "path": "dawnlike/Items/ShortWep.png",
+          "category": "item"
+        },
+        {
+          "key": "MedWep",
+          "path": "dawnlike/Items/MedWep.png",
+          "category": "item"
+        },
+        {
+          "key": "LongWep",
+          "path": "dawnlike/Items/LongWep.png",
+          "category": "item"
+        },
+        {
+          "key": "Food",
+          "path": "dawnlike/Items/Food.png",
+          "category": "item"
+        },
+        { "key": "Key", "path": "dawnlike/Items/Key.png", "category": "item" },
+        {
+          "key": "Money",
+          "path": "dawnlike/Items/Money.png",
+          "category": "item"
+        },
+        {
+          "key": "Ammo",
+          "path": "dawnlike/Items/Ammo.png",
+          "category": "item"
+        },
+        {
+          "key": "Book",
+          "path": "dawnlike/Items/Book.png",
+          "category": "item"
+        },
+        {
+          "key": "Boot",
+          "path": "dawnlike/Items/Boot.png",
+          "category": "item"
+        },
+        {
+          "key": "Glove",
+          "path": "dawnlike/Items/Glove.png",
+          "category": "item"
+        },
+        { "key": "Hat", "path": "dawnlike/Items/Hat.png", "category": "item" },
+        {
+          "key": "Light",
+          "path": "dawnlike/Items/Light.png",
+          "category": "item"
+        },
+        {
+          "key": "Rock",
+          "path": "dawnlike/Items/Rock.png",
+          "category": "item"
+        },
+        {
+          "key": "Tool",
+          "path": "dawnlike/Items/Tool.png",
+          "category": "item"
+        },
+        {
+          "key": "Flesh",
+          "path": "dawnlike/Items/Flesh.png",
+          "category": "item"
+        },
+        {
+          "key": "Music",
+          "path": "dawnlike/Items/Music.png",
+          "category": "item"
+        },
+        {
+          "key": "Chest0",
+          "path": "dawnlike/Items/Chest0.png",
+          "category": "item"
+        },
+        {
+          "key": "Chest1",
+          "path": "dawnlike/Items/Chest1.png",
+          "category": "item"
+        },
+        { "key": "GUI0", "path": "dawnlike/GUI/GUI0.png", "category": "ui" },
+        { "key": "GUI1", "path": "dawnlike/GUI/GUI1.png", "category": "ui" }
+      ]
+    },
+    {
+      "id": "demonic-dungeon",
+      "name": "Demonic Dungeon",
+      "sheets": [
+        {
+          "key": "DD_Full",
+          "path": "DemonicDungeon/No-Background/Full.png",
+          "category": "all"
+        },
+        {
+          "key": "DD_Dungeon",
+          "path": "DemonicDungeon/No-Background/Dungeon.png",
+          "category": "terrain"
+        },
+        {
+          "key": "DD_Cave",
+          "path": "DemonicDungeon/No-Background/Cave.png",
+          "category": "terrain"
+        },
+        {
+          "key": "DD_Monsters",
+          "path": "DemonicDungeon/No-Background/Monsters.png",
+          "category": "creature"
+        },
+        {
+          "key": "DD_Heroes",
+          "path": "DemonicDungeon/No-Background/Heroes.png",
+          "category": "creature"
+        },
+        {
+          "key": "DD_Items",
+          "path": "DemonicDungeon/No-Background/Items.png",
+          "category": "item"
+        },
+        {
+          "key": "DD_Generics",
+          "path": "DemonicDungeon/No-Background/Generics.png",
+          "category": "feature"
+        },
+        {
+          "key": "DD_Particles",
+          "path": "DemonicDungeon/No-Background/Particles.png",
+          "category": "effect"
+        },
+        {
+          "key": "DD_Water",
+          "path": "DemonicDungeon/No-Background/Water.png",
+          "category": "terrain"
+        },
+        {
+          "key": "DD_Background",
+          "path": "DemonicDungeon/No-Background/Background.png",
+          "category": "terrain"
+        },
+        {
+          "key": "DD_Arid",
+          "path": "DemonicDungeon/arid/No-Background/Full.png",
+          "category": "all"
+        },
+        {
+          "key": "DD_Frozen",
+          "path": "DemonicDungeon/frozen/No-Background/Full.png",
+          "category": "all"
+        },
+        {
+          "key": "DD_Haunted",
+          "path": "DemonicDungeon/haunted/No-Background/Full.png",
+          "category": "all"
+        },
+        {
+          "key": "DD_Interior",
+          "path": "DemonicDungeon/interior/No-Background/Full.png",
+          "category": "all"
+        }
+      ]
+    },
+    {
+      "id": "the-roguelike",
+      "name": "The Roguelike",
+      "sheets": [
+        {
+          "key": "TheRoguelike",
+          "path": "the-roguelike/the-roguelike.png",
+          "category": "all"
+        },
+        {
+          "key": "TheRoguelikeSolid",
+          "path": "the-roguelike/the-roguelike-solid.png",
+          "category": "all"
+        },
+        {
+          "key": "TheRoguelikeRemake",
+          "path": "the-roguelike/the-roguelike-re-alpha.png",
+          "category": "all"
+        },
+        {
+          "key": "TheRoguelikeNatural",
+          "path": "the-roguelike/the-roguelike-natural.png",
+          "category": "all"
+        },
+        {
+          "key": "TheRoguelikeNaturalTileset",
+          "path": "the-roguelike/the-roguelike-natural-tileset.png",
+          "category": "all"
+        },
+        {
+          "key": "TheRoguelikeNaturalPropsIcons",
+          "path": "the-roguelike/the-roguelike-natural-props-icons.png",
+          "category": "all"
+        },
+        {
+          "key": "TheRoguelike",
+          "path": "the-roguelike/the-roguelike.png",
+          "category": "all"
+        }
+      ]
+    },
+    {
+      "id": "raven",
+      "name": "Raven",
+      "sheets": [
+        {
+          "key": "Raven_Icons",
+          "path": "raven/icons_dark.png",
+          "category": "all"
+        },
+        {
+          "key": "Raven_Potions",
+          "path": "raven/potions.png",
+          "category": "item"
+        }
+      ]
+    }
+  ]
+}
