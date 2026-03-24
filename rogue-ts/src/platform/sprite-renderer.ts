@@ -2,13 +2,11 @@
  *  sprite-renderer.ts — SpriteRenderer: tile-based cell drawing with tinting
  *  brogue-ts
  *
- *  Phase 5: layer compositing pipeline via drawCellLayers(). Consumes
- *  CellSpriteData from getCellSpriteData and draws per-layer sprites.
- *  TERRAIN uses multiply tinting at 0.8 alpha; LIQUID at 1.0 alpha.
- *  Other sprite layers (SURFACE through FIRE) skip tinting. VISIBILITY
- *  layer retains multiply fill for lighting.
- *  Phase 3 deep-dive: per-layer Canvas2D filter, shadow, transform, and
- *  image-smoothing overrides applied via the F2 debug panel.
+ *  Layer compositing pipeline via drawCellLayers(). Consumes CellSpriteData
+ *  from getCellSpriteData and draws per-layer sprites with configurable
+ *  blend modes and tint strength via LAYER_DEFAULTS. The F2 debug panel
+ *  overrides these defaults at runtime. VISIBILITY layer is handled
+ *  separately as a composite fill (not a sprite draw).
  *  Legacy drawCell() kept as transition fallback.
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -24,8 +22,13 @@ import type { SpriteRef } from "./glyph-sprite-map.js";
 import { TILE_SIZE } from "./tileset-loader.js";
 import type { TextRenderer } from "./text-renderer.js";
 import type { CellSpriteData, VisibilityOverlay } from "./render-layers.js";
-import { RenderLayer, RENDER_LAYER_COUNT, getVisibilityOverlay } from "./render-layers.js";
+import {
+  RenderLayer,
+  RENDER_LAYER_COUNT,
+  getVisibilityOverlay,
+} from "./render-layers.js";
 import { spriteDebug } from "./sprite-debug.js";
+import type { BlendMode } from "./sprite-debug.js";
 import { BITMASK_TO_VARIANT, getConnectionGroupInfo } from "./autotile.js";
 
 /** Brogue 0–100 scale → CSS 0–255 RGB, clamped. */
@@ -35,18 +38,45 @@ function c100to255(v: number): number {
 
 const NEUTRAL_TINT_THRESHOLD = 98;
 
-/** Per-layer tint alpha: controls multiply fill strength. 1.0 = full multiply. */
-const TERRAIN_TINT_ALPHA = 0.8;
-
 /** Default cell background for sprite mode — dark near-black instead of game lighting. */
 const SPRITE_BG_COLOR = "rgb(10,10,18)";
 
-/** Sentinel override that skips multiply tinting (blend mode "none"). */
-const NO_TINT: import("./sprite-debug.js").LayerOverride = {
-  visible: true, tintOverride: null, alphaOverride: null, blendMode: "none",
-  filterOverride: null, shadowBlur: null, shadowColor: null,
-  shadowOffsetX: null, shadowOffsetY: null, imageSmoothingOverride: null,
-  flipH: false, rotation: 0, scale: 1,
+// ===========================================================================
+// Per-layer rendering defaults
+// ===========================================================================
+
+/**
+ * Permanent per-layer blend and tint settings. Edit this table to change
+ * how layers are rendered. The F2 debug panel overrides these at runtime.
+ *
+ * - `blendMode: "none"` — draw the sprite with no tinting (fast path)
+ * - `blendMode: "multiply"` — standard multiply tint from game lighting
+ * - Other blend modes: "screen", "overlay", "color-dodge", "color-burn"
+ * - `tintAlpha` — 0.0–1.0, strength of the blend fill (1.0 = full)
+ */
+interface LayerConfig {
+  blendMode: BlendMode;
+  tintAlpha: number;
+}
+
+const LAYER_DEFAULTS: readonly LayerConfig[] = [
+  /* TERRAIN    */ { blendMode: "multiply", tintAlpha: 0.8 },
+  /* LIQUID     */ { blendMode: "multiply", tintAlpha: 1.0 },
+  /* SURFACE    */ { blendMode: "multiply", tintAlpha: 0.2 },
+  /* ITEM       */ { blendMode: "none", tintAlpha: 1.0 },
+  /* ENTITY     */ { blendMode: "none", tintAlpha: 1.0 },
+  /* GAS        */ { blendMode: "none", tintAlpha: 1.0 },
+  /* FIRE       */ { blendMode: "none", tintAlpha: 1.0 },
+  /* VISIBILITY */ { blendMode: "multiply", tintAlpha: 1.0 },
+  /* STATUS     */ { blendMode: "none", tintAlpha: 1.0 },
+  /* BOLT       */ { blendMode: "none", tintAlpha: 1.0 },
+  /* UI         */ { blendMode: "none", tintAlpha: 1.0 },
+];
+
+/** Config for the legacy drawCell path (no layer model). */
+const LEGACY_LAYER_CONFIG: LayerConfig = {
+  blendMode: "multiply",
+  tintAlpha: 1.0,
 };
 
 function bitmapKey(ref: SpriteRef): string {
@@ -76,9 +106,14 @@ export class SpriteRenderer implements Renderer {
 
   /** Reusable Color for drawCell → drawSpriteTinted conversion (0-100 scale). */
   private readonly tmpTint: Color = {
-    red: 0, green: 0, blue: 0,
-    redRand: 0, greenRand: 0, blueRand: 0,
-    rand: 0, colorDances: false,
+    red: 0,
+    green: 0,
+    blue: 0,
+    redRand: 0,
+    greenRand: 0,
+    blueRand: 0,
+    rand: 0,
+    colorDances: false,
   };
 
   constructor(
@@ -124,9 +159,13 @@ export class SpriteRenderer implements Renderer {
       tasks.push(
         createImageBitmap(
           img,
-          ref.tileX * TILE_SIZE, ref.tileY * TILE_SIZE,
-          TILE_SIZE, TILE_SIZE,
-        ).then(bmp => { this.bitmaps.set(key, bmp); }),
+          ref.tileX * TILE_SIZE,
+          ref.tileY * TILE_SIZE,
+          TILE_SIZE,
+          TILE_SIZE,
+        ).then((bmp) => {
+          this.bitmaps.set(key, bmp);
+        }),
       );
     };
 
@@ -217,7 +256,7 @@ export class SpriteRenderer implements Renderer {
     t.green = (fgG * 100) / 255;
     t.blue = (fgB * 100) / 255;
 
-    this.drawSpriteTinted(ref, cellRect, t);
+    this.drawSpriteTinted(ref, cellRect, t, LEGACY_LAYER_CONFIG);
   }
 
   // ===========================================================================
@@ -244,9 +283,10 @@ export class SpriteRenderer implements Renderer {
       ctx.fillStyle = SPRITE_BG_COLOR;
     }
     ctx.fillRect(x, y, width, height);
-    const isInspectTarget = dbg?.inspectTarget
-      && dbg._renderingX === dbg.inspectTarget.x
-      && dbg._renderingY === dbg.inspectTarget.y;
+    const isInspectTarget =
+      dbg?.inspectTarget &&
+      dbg._renderingX === dbg.inspectTarget.x &&
+      dbg._renderingY === dbg.inspectTarget.y;
 
     for (let i = 0; i < RENDER_LAYER_COUNT; i++) {
       if (dbg && !dbg.layers[i].visible) continue;
@@ -259,14 +299,18 @@ export class SpriteRenderer implements Renderer {
 
       if (isInspectTarget) {
         const inspected: import("./sprite-debug.js").InspectedLayerData = {
-          tintR: entry.tint.red, tintG: entry.tint.green, tintB: entry.tint.blue,
+          tintR: entry.tint.red,
+          tintG: entry.tint.green,
+          tintB: entry.tint.blue,
           alpha: entry.alpha,
         };
         if (entry.adjacencyMask !== undefined) {
           inspected.adjacencyMask = entry.adjacencyMask;
           inspected.variantIndex = BITMASK_TO_VARIANT[entry.adjacencyMask];
           if (entry.tileType !== undefined) {
-            inspected.connectionGroup = getConnectionGroupInfo(entry.tileType)?.group;
+            inspected.connectionGroup = getConnectionGroupInfo(
+              entry.tileType,
+            )?.group;
           }
         }
         dbg!.inspectedLayers[i] = inspected;
@@ -281,27 +325,26 @@ export class SpriteRenderer implements Renderer {
       }
 
       let ref: SpriteRef | undefined;
-      if (entry.adjacencyMask !== undefined && entry.tileType !== undefined
-          && this.autotileVariantMap) {
+      if (
+        entry.adjacencyMask !== undefined &&
+        entry.tileType !== undefined &&
+        this.autotileVariantMap
+      ) {
         const variantIndex = BITMASK_TO_VARIANT[entry.adjacencyMask];
         ref = this.autotileVariantMap.get(entry.tileType)?.[variantIndex];
       }
       if (!ref) ref = this.resolveSprite(entry.tileType, entry.glyph);
       if (!ref) continue;
 
-      const lo = dbg?.layers[i];
+      const lo = dbg?.layers[i] ?? null;
       const effectiveAlpha = lo?.alphaOverride ?? entry.alpha;
-      const hasAlpha = effectiveAlpha !== undefined && effectiveAlpha !== null && effectiveAlpha < 1;
+      const hasAlpha =
+        effectiveAlpha !== undefined &&
+        effectiveAlpha !== null &&
+        effectiveAlpha < 1;
       if (hasAlpha) ctx.globalAlpha = effectiveAlpha;
 
-      const layerHasTint = i === RenderLayer.TERRAIN || i === RenderLayer.LIQUID;
-      const skipTint = !layerHasTint
-        && i !== RenderLayer.VISIBILITY && !lo?.tintOverride && !lo?.blendMode;
-      const tintAlpha = i === RenderLayer.TERRAIN ? TERRAIN_TINT_ALPHA : 1.0;
-      this.drawSpriteTinted(
-        ref, cellRect, entry.tint,
-        skipTint ? NO_TINT : lo ?? null, tintAlpha,
-      );
+      this.drawSpriteTinted(ref, cellRect, entry.tint, LAYER_DEFAULTS[i], lo);
 
       if (hasAlpha) ctx.globalAlpha = 1;
     }
@@ -309,16 +352,19 @@ export class SpriteRenderer implements Renderer {
     if (isInspectTarget && dbg!.onInspect) dbg!.onInspect();
 
     const skipOverlay = dbg && !dbg.visibilityOverlayEnabled;
-    const overlay = skipOverlay ? null : getVisibilityOverlay(
-      spriteData.visibilityState, spriteData.inWater,
-    );
+    const overlay = skipOverlay
+      ? null
+      : getVisibilityOverlay(spriteData.visibilityState, spriteData.inWater);
     if (overlay) this.applyVisibilityOverlay(cellRect, overlay);
 
     if (dbg?.showVariantIndices) {
       for (let i = 0; i < RENDER_LAYER_COUNT; i++) {
         const entry = spriteData.layers[i];
         if (entry?.adjacencyMask !== undefined) {
-          this.drawVariantLabel(cellRect, BITMASK_TO_VARIANT[entry.adjacencyMask]);
+          this.drawVariantLabel(
+            cellRect,
+            BITMASK_TO_VARIANT[entry.adjacencyMask],
+          );
           break;
         }
       }
@@ -395,18 +441,20 @@ export class SpriteRenderer implements Renderer {
   // ===========================================================================
 
   /**
-   * Draw a sprite with multiply tint. Tint is on Brogue 0–100 scale.
+   * Draw a sprite with tint. Tint color is on Brogue 0–100 scale.
    *
-   * Fast path: when blend mode is "none" or tint ≈ neutral, blit directly
-   * (skips 4 of 5 canvas ops). Full path: offscreen multiply + destination-in.
-   * Deep-dive overrides (filter, shadow, transform) wrap the final blit.
+   * `config` provides the permanent blend mode and tint alpha from
+   * LAYER_DEFAULTS. `debugOverride` (from the F2 panel) wins when set.
+   *
+   * Fast path: when effective blend mode is "none" or tint ≈ neutral,
+   * blit directly (skips offscreen canvas ops).
    */
   private drawSpriteTinted(
     spriteRef: SpriteRef,
     cellRect: CellRect,
     tint: Readonly<Color>,
+    config: LayerConfig,
     debugOverride: import("./sprite-debug.js").LayerOverride | null = null,
-    baseTintAlpha: number = 1.0,
   ): void {
     const { ctx } = this;
     const bitmap = this.bitmaps.get(bitmapKey(spriteRef));
@@ -418,32 +466,46 @@ export class SpriteRenderer implements Renderer {
     const sprSy = bitmap ? 0 : spriteRef.tileY * TILE_SIZE;
 
     let drawSource: CanvasImageSource = source;
-    let drawSx = sprSx, drawSy = sprSy;
+    let drawSx = sprSx,
+      drawSy = sprSy;
 
-    if (debugOverride?.blendMode !== "none") {
+    const blendMode = debugOverride?.blendMode ?? config.blendMode;
+
+    if (blendMode !== "none") {
       const tintR = debugOverride?.tintOverride
-        ? (debugOverride.tintOverride.r * 100) / 255 : tint.red;
+        ? (debugOverride.tintOverride.r * 100) / 255
+        : tint.red;
       const tintG = debugOverride?.tintOverride
-        ? (debugOverride.tintOverride.g * 100) / 255 : tint.green;
+        ? (debugOverride.tintOverride.g * 100) / 255
+        : tint.green;
       const tintB = debugOverride?.tintOverride
-        ? (debugOverride.tintOverride.b * 100) / 255 : tint.blue;
+        ? (debugOverride.tintOverride.b * 100) / 255
+        : tint.blue;
 
-      const neutral = tintR >= NEUTRAL_TINT_THRESHOLD
-        && tintG >= NEUTRAL_TINT_THRESHOLD && tintB >= NEUTRAL_TINT_THRESHOLD;
+      const neutral =
+        tintR >= NEUTRAL_TINT_THRESHOLD &&
+        tintG >= NEUTRAL_TINT_THRESHOLD &&
+        tintB >= NEUTRAL_TINT_THRESHOLD;
 
       if (!neutral || debugOverride?.blendMode) {
         const { tintCtx, tintCanvas } = this;
-        const blendOp = debugOverride?.blendMode ?? "multiply";
 
         tintCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
         tintCtx.drawImage(
-          source, sprSx, sprSy, TILE_SIZE, TILE_SIZE,
-          0, 0, TILE_SIZE, TILE_SIZE,
+          source,
+          sprSx,
+          sprSy,
+          TILE_SIZE,
+          TILE_SIZE,
+          0,
+          0,
+          TILE_SIZE,
+          TILE_SIZE,
         );
 
-        const tintAlpha = debugOverride?.tintOverride?.a ?? baseTintAlpha;
+        const tintAlpha = debugOverride?.tintOverride?.a ?? config.tintAlpha;
         tintCtx.save();
-        tintCtx.globalCompositeOperation = blendOp;
+        tintCtx.globalCompositeOperation = blendMode;
         if (tintAlpha < 1) tintCtx.globalAlpha = tintAlpha;
         tintCtx.fillStyle = `rgb(${c100to255(tintR)},${c100to255(tintG)},${c100to255(tintB)})`;
         tintCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
@@ -451,8 +513,15 @@ export class SpriteRenderer implements Renderer {
 
         tintCtx.globalCompositeOperation = "destination-in";
         tintCtx.drawImage(
-          source, sprSx, sprSy, TILE_SIZE, TILE_SIZE,
-          0, 0, TILE_SIZE, TILE_SIZE,
+          source,
+          sprSx,
+          sprSy,
+          TILE_SIZE,
+          TILE_SIZE,
+          0,
+          0,
+          TILE_SIZE,
+          TILE_SIZE,
         );
         tintCtx.restore();
 
@@ -464,8 +533,15 @@ export class SpriteRenderer implements Renderer {
 
     const dd = this.applyDeepDiveOverrides(debugOverride, cellRect);
     ctx.drawImage(
-      drawSource, drawSx, drawSy, TILE_SIZE, TILE_SIZE,
-      cellRect.x, cellRect.y, cellRect.width, cellRect.height,
+      drawSource,
+      drawSx,
+      drawSy,
+      TILE_SIZE,
+      TILE_SIZE,
+      cellRect.x,
+      cellRect.y,
+      cellRect.width,
+      cellRect.height,
     );
     if (dd) ctx.restore();
   }
@@ -497,7 +573,7 @@ export class SpriteRenderer implements Renderer {
       const cy = cellRect.y + cellRect.height / 2;
       ctx.translate(cx, cy);
       if (lo.flipH) ctx.scale(-1, 1);
-      if (lo.rotation !== 0) ctx.rotate(lo.rotation * Math.PI / 180);
+      if (lo.rotation !== 0) ctx.rotate((lo.rotation * Math.PI) / 180);
       if (lo.scale !== 1) ctx.scale(lo.scale, lo.scale);
       ctx.translate(-cx, -cy);
     }
@@ -509,10 +585,14 @@ export class SpriteRenderer implements Renderer {
     cellRect: CellRect,
   ): boolean {
     if (!lo) return false;
-    const has = lo.filterOverride !== null
-      || lo.shadowBlur !== null || lo.shadowColor !== null
-      || lo.imageSmoothingOverride !== null
-      || lo.flipH || lo.rotation !== 0 || lo.scale !== 1;
+    const has =
+      lo.filterOverride !== null ||
+      lo.shadowBlur !== null ||
+      lo.shadowColor !== null ||
+      lo.imageSmoothingOverride !== null ||
+      lo.flipH ||
+      lo.rotation !== 0 ||
+      lo.scale !== 1;
     if (!has) return false;
     this.ctx.save();
     this.applyDeepDiveProps(lo, cellRect);

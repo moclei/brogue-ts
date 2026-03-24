@@ -207,7 +207,7 @@ export function spriteAssignerApi(repoRoot: string): Plugin {
         }
 
         if (req.url.startsWith("/tilesets/")) {
-          const relPath = req.url.slice("/tilesets/".length);
+          const relPath = decodeURIComponent(req.url.slice("/tilesets/".length));
           const file = path.join(tilesetsDir, relPath);
           if (fs.existsSync(file)) {
             res.setHeader("Content-Type", "image/png");

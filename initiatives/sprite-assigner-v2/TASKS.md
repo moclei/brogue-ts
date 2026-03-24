@@ -122,5 +122,6 @@
 - [x] Fallback: if HMR wiring proves too complex, implement WebSocket
   approach (assigner signals game page to `location.reload()`)
   (Not needed — approach (A) Vite HMR implemented cleanly)
-- [ ] Commit Phase 4 with descriptive message
+- [x] Commit Phase 4 with descriptive message
+  Commit d958a1f on feat/autotiling-system, PR #85
 - [x] Update TASKS.md and PLAN.md to reflect initiative completion

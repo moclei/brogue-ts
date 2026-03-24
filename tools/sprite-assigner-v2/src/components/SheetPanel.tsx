@@ -19,8 +19,8 @@ export function SheetPanel() {
   }
 
   function updateManifest(updated: TilesetManifest) {
-    setState(s => ({ ...s, manifest: updated }));
-    saveTilesetManifest(updated).catch(err => {
+    setState((s) => ({ ...s, manifest: updated }));
+    saveTilesetManifest(updated).catch((err) => {
       console.error("Failed to save manifest:", err);
       showToast("Failed to save manifest");
     });
@@ -29,12 +29,12 @@ export function SheetPanel() {
   function handleSheetAdded() {
     setAddSheetGroup(null);
     fetch("/api/tileset-manifest")
-      .then(r => r.json() as Promise<TilesetManifest>)
-      .then(m => {
-        setState(s => ({ ...s, manifest: m }));
+      .then((r) => r.json() as Promise<TilesetManifest>)
+      .then((m) => {
+        setState((s) => ({ ...s, manifest: m }));
         showToast("Sheet added");
       })
-      .catch(err => console.error("Failed to reload manifest:", err));
+      .catch((err) => console.error("Failed to reload manifest:", err));
   }
 
   function handleGroupCreated(updated: TilesetManifest) {
@@ -47,9 +47,9 @@ export function SheetPanel() {
     if (!manifest) return;
     updateManifest({
       ...manifest,
-      tilesets: manifest.tilesets.map(g =>
+      tilesets: manifest.tilesets.map((g) =>
         g.id === groupId
-          ? { ...g, sheets: g.sheets.filter(s => s.key !== key) }
+          ? { ...g, sheets: g.sheets.filter((s) => s.key !== key) }
           : g,
       ),
     });
@@ -58,13 +58,18 @@ export function SheetPanel() {
 
   function removeGroup(groupId: string) {
     if (!manifest) return;
-    const group = manifest.tilesets.find(g => g.id === groupId);
+    const group = manifest.tilesets.find((g) => g.id === groupId);
     if (group && group.sheets.length > 0) {
-      if (!confirm(`Delete "${group.name}" and its ${group.sheets.length} sheet(s)?`)) return;
+      if (
+        !confirm(
+          `Delete "${group.name}" and its ${group.sheets.length} sheet(s)?`,
+        )
+      )
+        return;
     }
     updateManifest({
       ...manifest,
-      tilesets: manifest.tilesets.filter(g => g.id !== groupId),
+      tilesets: manifest.tilesets.filter((g) => g.id !== groupId),
     });
     showToast(`Removed group ${group?.name ?? groupId}`);
   }
@@ -72,20 +77,30 @@ export function SheetPanel() {
   return (
     <aside className="sheet-panel">
       {manifest.tilesets.map((ts) => (
-        <details key={ts.id} className="tileset-group" open>
+        <details key={ts.id} className="tileset-group">
           <summary>
             <span className="group-name">{ts.name}</span>
             <span className="group-count">{ts.sheets.length}</span>
             <button
               className="mgr-icon-btn mgr-add-sheet"
               title={`Add sheet to ${ts.name}`}
-              onClick={(e) => { e.preventDefault(); setAddSheetGroup(ts); }}
-            >+</button>
+              onClick={(e) => {
+                e.preventDefault();
+                setAddSheetGroup(ts);
+              }}
+            >
+              +
+            </button>
             <button
               className="mgr-icon-btn mgr-remove-group"
               title={`Remove ${ts.name}`}
-              onClick={(e) => { e.preventDefault(); removeGroup(ts.id); }}
-            >×</button>
+              onClick={(e) => {
+                e.preventDefault();
+                removeGroup(ts.id);
+              }}
+            >
+              ×
+            </button>
           </summary>
           {ts.sheets.map((sh) => (
             <div key={sh.key} className="sheet-row">
@@ -100,7 +115,9 @@ export function SheetPanel() {
                 className="mgr-icon-btn mgr-remove-sheet"
                 title={`Remove ${sh.key}`}
                 onClick={() => removeSheet(ts.id, sh.key)}
-              >×</button>
+              >
+                ×
+              </button>
             </div>
           ))}
         </details>

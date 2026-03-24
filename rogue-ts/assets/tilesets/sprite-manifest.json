@@ -3,16 +3,8 @@
   "gridWidth": 24,
   "gridHeight": 15,
   "tiles": {
-    "GRANITE": {
-      "x": 1,
-      "y": 0
-    },
     "FLOOR": {
       "x": 2,
-      "y": 0
-    },
-    "FLOOR_FLOODABLE": {
-      "x": 3,
       "y": 0
     },
     "CARPET": {
@@ -35,16 +27,8 @@
       "x": 8,
       "y": 0
     },
-    "SECRET_DOOR": {
-      "x": 9,
-      "y": 0
-    },
     "LOCKED_DOOR": {
       "x": 10,
-      "y": 0
-    },
-    "OPEN_IRON_DOOR_INERT": {
-      "x": 11,
       "y": 0
     },
     "DOWN_STAIRS": {
@@ -59,65 +43,13 @@
       "x": 14,
       "y": 0
     },
-    "DUNGEON_PORTAL": {
-      "x": 15,
-      "y": 0
-    },
     "TORCH_WALL": {
       "x": 16,
-      "y": 0
-    },
-    "CRYSTAL_WALL": {
-      "x": 17,
-      "y": 0
-    },
-    "PORTCULLIS_CLOSED": {
-      "x": 18,
-      "y": 0
-    },
-    "PORTCULLIS_DORMANT": {
-      "x": 19,
       "y": 0
     },
     "WOODEN_BARRICADE": {
       "x": 20,
       "y": 0
-    },
-    "PILOT_LIGHT_DORMANT": {
-      "x": 21,
-      "y": 0
-    },
-    "PILOT_LIGHT": {
-      "x": 22,
-      "y": 0
-    },
-    "HAUNTED_TORCH_DORMANT": {
-      "x": 23,
-      "y": 0
-    },
-    "HAUNTED_TORCH_TRANSITIONING": {
-      "x": 0,
-      "y": 1
-    },
-    "HAUNTED_TORCH": {
-      "x": 1,
-      "y": 1
-    },
-    "WALL_LEVER_HIDDEN": {
-      "x": 2,
-      "y": 1
-    },
-    "WALL_LEVER": {
-      "x": 3,
-      "y": 1
-    },
-    "WALL_LEVER_PULLED": {
-      "x": 4,
-      "y": 1
-    },
-    "WALL_LEVER_HIDDEN_DORMANT": {
-      "x": 5,
-      "y": 1
     },
     "STATUE_INERT": {
       "x": 6,
@@ -127,40 +59,8 @@
       "x": 7,
       "y": 1
     },
-    "STATUE_CRACKING": {
-      "x": 8,
-      "y": 1
-    },
-    "STATUE_INSTACRACK": {
-      "x": 9,
-      "y": 1
-    },
     "PORTAL": {
       "x": 10,
-      "y": 1
-    },
-    "TURRET_DORMANT": {
-      "x": 11,
-      "y": 1
-    },
-    "WALL_MONSTER_DORMANT": {
-      "x": 12,
-      "y": 1
-    },
-    "DARK_FLOOR_DORMANT": {
-      "x": 13,
-      "y": 1
-    },
-    "DARK_FLOOR_DARKENING": {
-      "x": 14,
-      "y": 1
-    },
-    "DARK_FLOOR": {
-      "x": 15,
-      "y": 1
-    },
-    "MACHINE_TRIGGER_FLOOR": {
-      "x": 16,
       "y": 1
     },
     "ALTAR_INERT": {
@@ -177,18 +77,6 @@
     },
     "ALTAR_CAGE_CLOSED": {
       "x": 20,
-      "y": 1
-    },
-    "ALTAR_SWITCH": {
-      "x": 21,
-      "y": 1
-    },
-    "ALTAR_SWITCH_RETRACTING": {
-      "x": 22,
-      "y": 1
-    },
-    "ALTAR_CAGE_RETRACTABLE": {
-      "x": 23,
       "y": 1
     },
     "PEDESTAL": {
@@ -215,90 +103,6 @@
       "x": 6,
       "y": 2
     },
-    "TRAP_DOOR": {
-      "x": 8,
-      "y": 2
-    },
-    "GAS_TRAP_PARALYSIS": {
-      "x": 10,
-      "y": 2
-    },
-    "MACHINE_PARALYSIS_VENT": {
-      "x": 12,
-      "y": 2
-    },
-    "GAS_TRAP_CONFUSION": {
-      "x": 14,
-      "y": 2
-    },
-    "FLAMETHROWER": {
-      "x": 16,
-      "y": 2
-    },
-    "FLOOD_TRAP": {
-      "x": 18,
-      "y": 2
-    },
-    "NET_TRAP": {
-      "x": 20,
-      "y": 2
-    },
-    "ALARM_TRAP": {
-      "x": 22,
-      "y": 2
-    },
-    "MACHINE_POISON_GAS_VENT_DORMANT": {
-      "x": 0,
-      "y": 3
-    },
-    "MACHINE_POISON_GAS_VENT": {
-      "x": 1,
-      "y": 3
-    },
-    "MACHINE_METHANE_VENT_DORMANT": {
-      "x": 3,
-      "y": 3
-    },
-    "MACHINE_METHANE_VENT": {
-      "x": 4,
-      "y": 3
-    },
-    "STEAM_VENT": {
-      "x": 5,
-      "y": 3
-    },
-    "MACHINE_PRESSURE_PLATE": {
-      "x": 6,
-      "y": 3
-    },
-    "MACHINE_PRESSURE_PLATE_USED": {
-      "x": 7,
-      "y": 3
-    },
-    "MACHINE_GLYPH": {
-      "x": 8,
-      "y": 3
-    },
-    "MACHINE_GLYPH_INACTIVE": {
-      "x": 9,
-      "y": 3
-    },
-    "DEWAR_CAUSTIC_GAS": {
-      "x": 10,
-      "y": 3
-    },
-    "DEWAR_CONFUSION_GAS": {
-      "x": 11,
-      "y": 3
-    },
-    "DEWAR_PARALYSIS_GAS": {
-      "x": 12,
-      "y": 3
-    },
-    "DEWAR_METHANE_GAS": {
-      "x": 13,
-      "y": 3
-    },
     "DEEP_WATER": {
       "x": 14,
       "y": 3
@@ -315,92 +119,16 @@
       "x": 17,
       "y": 3
     },
-    "CHASM_EDGE": {
-      "x": 18,
-      "y": 3
-    },
-    "MACHINE_COLLAPSE_EDGE_DORMANT": {
-      "x": 19,
-      "y": 3
-    },
-    "MACHINE_COLLAPSE_EDGE_SPREADING": {
-      "x": 20,
-      "y": 3
-    },
     "LAVA": {
       "x": 21,
       "y": 3
-    },
-    "LAVA_RETRACTABLE": {
-      "x": 22,
-      "y": 3
-    },
-    "LAVA_RETRACTING": {
-      "x": 23,
-      "y": 3
-    },
-    "ACTIVE_BRIMSTONE": {
-      "x": 2,
-      "y": 4
-    },
-    "INERT_BRIMSTONE": {
-      "x": 3,
-      "y": 4
-    },
-    "OBSIDIAN": {
-      "x": 4,
-      "y": 4
     },
     "BRIDGE": {
       "x": 5,
       "y": 4
     },
-    "BRIDGE_FALLING": {
-      "x": 6,
-      "y": 4
-    },
-    "BRIDGE_EDGE": {
-      "x": 7,
-      "y": 4
-    },
     "STONE_BRIDGE": {
       "x": 8,
-      "y": 4
-    },
-    "MACHINE_FLOOD_WATER_DORMANT": {
-      "x": 9,
-      "y": 4
-    },
-    "MACHINE_FLOOD_WATER_SPREADING": {
-      "x": 10,
-      "y": 4
-    },
-    "MACHINE_MUD_DORMANT": {
-      "x": 11,
-      "y": 4
-    },
-    "ICE_DEEP": {
-      "x": 12,
-      "y": 4
-    },
-    "ICE_DEEP_MELT": {
-      "x": 13,
-      "y": 4
-    },
-    "ICE_SHALLOW": {
-      "x": 14,
-      "y": 4
-    },
-    "ICE_SHALLOW_MELT": {
-      "x": 15,
-      "y": 4
-    },
-    "HOLE": {
-      "x": 16,
-      "y": 4
-    },
-    "HOLE_GLOW": {
-      "x": 17,
       "y": 4
     },
     "FLOOD_WATER_DEEP": {
@@ -663,18 +391,6 @@
       "x": 11,
       "y": 7
     },
-    "DEEP_WATER_ALGAE_WELL": {
-      "x": 12,
-      "y": 7
-    },
-    "DEEP_WATER_ALGAE_1": {
-      "x": 13,
-      "y": 7
-    },
-    "DEEP_WATER_ALGAE_2": {
-      "x": 14,
-      "y": 7
-    },
     "ANCIENT_SPIRIT_VINES": {
       "x": 15,
       "y": 7
@@ -682,95 +398,87 @@
     "ANCIENT_SPIRIT_GRASS": {
       "x": 16,
       "y": 7
-    },
-    "AMULET_SWITCH": {
-      "x": 17,
-      "y": 7
-    },
-    "COMMUTATION_ALTAR": {
-      "x": 18,
-      "y": 7
-    },
-    "COMMUTATION_ALTAR_INERT": {
-      "x": 19,
-      "y": 7
-    },
-    "PIPE_GLOWING": {
-      "x": 20,
-      "y": 7
-    },
-    "PIPE_INERT": {
-      "x": 21,
-      "y": 7
-    },
-    "RESURRECTION_ALTAR": {
-      "x": 22,
-      "y": 7
-    },
-    "RESURRECTION_ALTAR_INERT": {
-      "x": 23,
-      "y": 7
-    },
-    "SACRIFICE_ALTAR": {
-      "x": 2,
-      "y": 8
-    },
-    "SACRIFICE_LAVA": {
-      "x": 3,
-      "y": 8
-    },
-    "SACRIFICE_CAGE_DORMANT": {
-      "x": 4,
-      "y": 8
-    },
-    "DEMONIC_STATUE": {
-      "x": 5,
-      "y": 8
-    },
-    "MUD_FLOOR": {
-      "x": 20,
-      "y": 8
-    },
-    "MUD_WALL": {
-      "x": 21,
-      "y": 8
-    },
-    "MUD_DOORWAY": {
-      "x": 22,
-      "y": 8
     }
   },
   "glyphs": {
-    "G_GRASS": {
-      "x": 3,
+    "G_POTION": {
+      "x": 2,
       "y": 9
     },
-    "G_WALL": {
-      "x": 4,
+    "G_GOLD": {
+      "x": 7,
       "y": 9
     },
-    "G_OPEN_DOOR": {
-      "x": 6,
+    "G_KEY": {
+      "x": 10,
       "y": 9
     },
-    "G_CLOSED_DOOR": {
-      "x": 8,
-      "y": 9
-    },
-    "G_BOG": {
-      "x": 11,
-      "y": 9
-    },
-    "G_UP_STAIRS": {
-      "x": 21,
-      "y": 9
-    },
-    "G_DOWN_STAIRS": {
-      "x": 23,
+    "G_FOOD": {
+      "x": 20,
       "y": 9
     },
     "G_PLAYER": {
       "x": 0,
+      "y": 10
+    },
+    "G_CENTAUR": {
+      "x": 2,
+      "y": 10
+    },
+    "G_DRAGON": {
+      "x": 3,
+      "y": 10
+    },
+    "G_FLAMEDANCER": {
+      "x": 4,
+      "y": 10
+    },
+    "G_GOLEM": {
+      "x": 5,
+      "y": 10
+    },
+    "G_TENTACLE_HORROR": {
+      "x": 6,
+      "y": 10
+    },
+    "G_JELLY": {
+      "x": 8,
+      "y": 10
+    },
+    "G_KRAKEN": {
+      "x": 9,
+      "y": 10
+    },
+    "G_LICH": {
+      "x": 10,
+      "y": 10
+    },
+    "G_NAGA": {
+      "x": 11,
+      "y": 10
+    },
+    "G_OGRE": {
+      "x": 12,
+      "y": 10
+    },
+    "G_PHANTOM": {
+      "x": 13,
+      "y": 10
+    },
+    "G_SALAMANDER": {
+      "x": 15,
+      "y": 10
+    },
+    "G_TROLL": {
+      "x": 16,
+      "y": 10
+    },
+    "G_UNDERWORM": {
+      "x": 17,
+      "y": 10
+    },
+    "G_VAMPIRE": {
+      "x": 18,
       "y": 10
     },
     "G_ARMOR": {
@@ -780,6 +488,22 @@
     "G_STAFF": {
       "x": 22,
       "y": 10
+    },
+    "G_BLOAT": {
+      "x": 1,
+      "y": 11
+    },
+    "G_CENTIPEDE": {
+      "x": 2,
+      "y": 11
+    },
+    "G_DAR_BLADEMASTER": {
+      "x": 3,
+      "y": 11
+    },
+    "G_EEL": {
+      "x": 4,
+      "y": 11
     },
     "G_GOBLIN": {
       "x": 6,
@@ -801,16 +525,16 @@
       "x": 12,
       "y": 11
     },
-    "G_LIQUID": {
-      "x": 19,
+    "G_SPIDER": {
+      "x": 13,
       "y": 11
     },
-    "G_FLOOR": {
-      "x": 20,
+    "G_TOAD": {
+      "x": 14,
       "y": 11
     },
-    "G_CHASM": {
-      "x": 21,
+    "G_BAT": {
+      "x": 15,
       "y": 11
     },
     "G_SCROLL": {
@@ -825,32 +549,24 @@
       "x": 4,
       "y": 12
     },
-    "G_DOORWAY": {
-      "x": 9,
-      "y": 12
-    },
     "G_CHARM": {
       "x": 10,
       "y": 12
     },
-    "G_WALL_TOP": {
-      "x": 11,
-      "y": 12
-    },
-    "G_FLOOR_ALT": {
-      "x": 2,
+    "G_GEM": {
+      "x": 4,
       "y": 13
     },
     "G_WAND": {
       "x": 5,
       "y": 13
     },
-    "G_CLOSED_IRON_DOOR": {
-      "x": 8,
+    "G_TORCH": {
+      "x": 10,
       "y": 13
     },
-    "G_OPEN_IRON_DOOR": {
-      "x": 9,
+    "G_CRYSTAL": {
+      "x": 11,
       "y": 13
     }
   }

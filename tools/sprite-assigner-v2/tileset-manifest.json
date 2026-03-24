@@ -341,7 +341,11 @@
           "path": "dawnlike/Items/Food.png",
           "category": "item"
         },
-        { "key": "Key", "path": "dawnlike/Items/Key.png", "category": "item" },
+        {
+          "key": "Key",
+          "path": "dawnlike/Items/Key.png",
+          "category": "item"
+        },
         {
           "key": "Money",
           "path": "dawnlike/Items/Money.png",
@@ -367,7 +371,11 @@
           "path": "dawnlike/Items/Glove.png",
           "category": "item"
         },
-        { "key": "Hat", "path": "dawnlike/Items/Hat.png", "category": "item" },
+        {
+          "key": "Hat",
+          "path": "dawnlike/Items/Hat.png",
+          "category": "item"
+        },
         {
           "key": "Light",
           "path": "dawnlike/Items/Light.png",
@@ -403,8 +411,16 @@
           "path": "dawnlike/Items/Chest1.png",
           "category": "item"
         },
-        { "key": "GUI0", "path": "dawnlike/GUI/GUI0.png", "category": "ui" },
-        { "key": "GUI1", "path": "dawnlike/GUI/GUI1.png", "category": "ui" }
+        {
+          "key": "GUI0",
+          "path": "dawnlike/GUI/GUI0.png",
+          "category": "ui"
+        },
+        {
+          "key": "GUI1",
+          "path": "dawnlike/GUI/GUI1.png",
+          "category": "ui"
+        }
       ]
     },
     {
@@ -488,11 +504,6 @@
       "name": "The Roguelike",
       "sheets": [
         {
-          "key": "TheRoguelike",
-          "path": "the-roguelike/the-roguelike.png",
-          "category": "all"
-        },
-        {
           "key": "TheRoguelikeSolid",
           "path": "the-roguelike/the-roguelike-solid.png",
           "category": "all"
@@ -518,7 +529,7 @@
           "category": "all"
         },
         {
-          "key": "TheRoguelike",
+          "key": "the-roguelike",
           "path": "the-roguelike/the-roguelike.png",
           "category": "all"
         }
@@ -537,6 +548,121 @@
           "key": "Raven_Potions",
           "path": "raven/potions.png",
           "category": "item"
+        }
+      ]
+    },
+    {
+      "id": "rf-catacombs",
+      "name": "rf-catacombs",
+      "sheets": [
+        {
+          "key": "mainlevbuild",
+          "path": "rf-catacombs/mainlevbuild.png",
+          "category": "terrain"
+        },
+        {
+          "key": "decorative",
+          "path": "rf-catacombs/decorative.png",
+          "category": "item"
+        }
+      ]
+    },
+    {
+      "id": "pixel-dungeon",
+      "name": "Pixel Dungeon",
+      "sheets": [
+        {
+          "key": "Dungeon_Tileset_at",
+          "path": "pixel-dungeon/Dungeon_Tileset_v2.png",
+          "category": "terrain"
+        },
+        {
+          "key": "Dungeon_Character",
+          "path": "pixel-dungeon/Dungeon_Character.png",
+          "category": "creature"
+        },
+        {
+          "key": "Dungeon_Enemy_v2",
+          "path": "pixel-dungeon/Dungeon_Enemy_v2.png",
+          "category": "creature"
+        },
+        {
+          "key": "Dungeon_item_props_v2",
+          "path": "pixel-dungeon/Dungeon_item_props_v2.png",
+          "category": "item"
+        }
+      ]
+    },
+    {
+      "id": "water-plus",
+      "name": "Water Plus",
+      "sheets": [
+        {
+          "key": "water_plus",
+          "path": "water-plus/water_plus.png",
+          "category": "terrain"
+        }
+      ]
+    },
+    {
+      "id": "startertiles",
+      "name": "StarterTiles",
+      "sheets": [
+        {
+          "key": "Swampset",
+          "path": "startertiles/Swampset.png",
+          "category": "terrain"
+        },
+        {
+          "key": "OutdoorHouseSet",
+          "path": "startertiles/OutdoorHouseSet.png",
+          "category": "terrain"
+        },
+        {
+          "key": "IceSet",
+          "path": "startertiles/IceSet.png",
+          "category": "terrain"
+        },
+        {
+          "key": "FireSet",
+          "path": "startertiles/FireSet.png",
+          "category": "terrain"
+        },
+        {
+          "key": "DarkCastle",
+          "path": "startertiles/DarkCastle.png",
+          "category": "terrain"
+        },
+        {
+          "key": "BasicGreen",
+          "path": "startertiles/BasicGreen.png",
+          "category": "terrain"
+        }
+      ]
+    },
+    {
+      "id": "muddy-cave",
+      "name": "Muddy Cave",
+      "sheets": [
+        {
+          "key": "muddy cave v1",
+          "path": "muddy-cave/muddy cave v1.png",
+          "category": "terrain"
+        },
+        {
+          "key": "muddy cave v2",
+          "path": "muddy-cave/muddy cave v2.png",
+          "category": "terrain"
+        },
+        {
+          "key": "muddy cave v3",
+          "path": "muddy-cave/muddy cave v3.png",
+          "category": "terrain"
+        },
+        {
+          "key": "muddy cave v4",
+          "path": "muddy-cave/muddy cave v4.png",
+          "category": "terrain"
         }
       ]
     }
