@@ -14,18 +14,16 @@ function tilesetHmrPlugin(): Plugin {
 
     return {
         name: "tileset-hmr",
-        configureServer(server) {
-            server.watcher.on("change", (file) => {
-                if (!file.startsWith(tilesetsDir)) return;
-                const rel = path.relative(tilesetsDir, file);
-                if (rel.endsWith(".png") || rel.endsWith(".json")) {
-                    server.ws.send({
-                        type: "custom",
-                        event: "tileset-update",
-                        data: { file: rel },
-                    });
-                }
+        handleHotUpdate({ file, server }) {
+            if (!file.startsWith(tilesetsDir)) return;
+            const rel = path.relative(tilesetsDir, file);
+            if (!rel.endsWith(".png") && !rel.endsWith(".json")) return;
+            server.ws.send({
+                type: "custom",
+                event: "tileset-update",
+                data: { file: rel },
             });
+            return [];
         },
     };
 }
