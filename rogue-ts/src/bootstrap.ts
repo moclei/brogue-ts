@@ -42,15 +42,21 @@ import { spriteDebug, toggleDebugPanel } from "./platform/sprite-debug.js";
 // Canvas setup
 // =============================================================================
 
+const MIN_CELL_SIZE = 12;
+
 /**
  * Find the canvas element and size it for the current viewport and DPR.
  * Returns { cellSize, dpr } so the renderer can set the correct font size.
+ *
+ * Enforces MIN_CELL_SIZE so the game never becomes unreadably small.
+ * When the viewport is too narrow, the canvas exceeds the viewport and
+ * the page becomes scrollable (see overflow: auto on <body>).
  */
 function sizeCanvas(canvas: HTMLCanvasElement): { cellSize: number; dpr: number } {
     const dpr = window.devicePixelRatio || 1;
     const cellWidth = Math.floor(window.innerWidth / COLS);
     const cellHeight = Math.floor(window.innerHeight / ROWS);
-    const cellSize = Math.min(cellWidth, cellHeight);
+    const cellSize = Math.max(MIN_CELL_SIZE, Math.min(cellWidth, cellHeight));
 
     const cssWidth = cellSize * COLS;
     const cssHeight = cellSize * ROWS;
