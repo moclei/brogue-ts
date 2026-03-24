@@ -1,7 +1,9 @@
 # Game Camera & Viewport Exploration
 
-> **Status:** Research complete — ready for initiative creation  
-> **Date:** 2026-03-23
+> **Status:** Research complete — initiatives created  
+> **Date:** 2026-03-23  
+> **Initiatives:** `initiatives/ui-extraction/` (prerequisite) →
+> `initiatives/dungeon-camera/`
 
 ---
 
