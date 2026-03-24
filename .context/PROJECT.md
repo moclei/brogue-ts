@@ -68,12 +68,30 @@ src/brogue/          C source — ground truth for game behavior
 src/platform/        C platform backends (SDL2, curses, web, null)
 ts/                  First port attempt — preserved for reference, do not modify
 rogue-ts/            Second port attempt — active work
+tools/               Dev tools — sprite assigner, sheet generators (see tools/CONTEXT.md)
 initiatives/         Active initiative docs (BRIEF / PLAN / TASKS)
 initiatives/archive/ Old initiatives from first attempt
 docs/                Reference: PORT_V2.md, FIRST_PORT_ANALYSIS.md
 .context/            PROJECT.md (this file), WORKFLOW.md
 codeql/              CodeQL databases + query library (see codeql/CONTEXT.md); databases/ gitignored
 ```
+
+## Context Hierarchy
+
+This file is the root context document — it provides orientation and references
+to deeper context. Key subdirectories have their own `CONTEXT.md` files that
+cover domain-specific details. Load them on demand, not by default.
+
+| Path | Scope |
+|---|---|
+| `.context/PROJECT.md` | This file — project overview, layout, conventions |
+| `tools/CONTEXT.md` | Listing of all dev tools (sprite assigner, generators, build scripts) |
+| `tools/sprite-assigner-v2/CONTEXT.md` | Full architecture and feature docs for the sprite assigner |
+| `codeql/CONTEXT.md` | CodeQL databases, query reference, MCP integration |
+
+When working in a subdirectory, read its `CONTEXT.md` first. When adding a new
+tool or subsystem, add a `CONTEXT.md` if it would save a future reader from
+having to piece together understanding from source files alone.
 
 ---
 
