@@ -2,32 +2,46 @@
 
 ## What is this?
 
-CodeQL is a static analysis tool that builds queryable databases from source code.
-This project uses it so AI agents can answer "who calls X?" or "where is X defined?"
-without reading large files. Two databases are maintained: one for the C game logic,
+CodeQL builds queryable databases from source code. Instead of grepping and reading
+large files to trace call chains, you query the database: "who calls X?", "what does
+X call?", "where is struct field Y accessed?". Queries run in 10–30 seconds and return
+structured file + line results. Two databases are maintained: one for the C game logic,
 one for the TypeScript port.
+
+**When to use CodeQL:**
+- Tracing callers / callees across multiple files
+- Finding all accesses to a struct field or property
+- Finding all functions that operate on a specific type
+- Listing all functions in a file to get an overview
+- Any question that would require reading 3+ files to answer with grep
+
+**When NOT to use CodeQL:**
+- Reading a single known file → use Read
+- Searching for a string pattern → use Grep
+- Finding a file by name → use Glob
+- Quick one-off lookups → use Grep with `// C: FunctionName()` comments
 
 ## Folder structure
 
 ```
 codeql/
-├── CONTEXT.md          # This file
-├── databases/          # gitignored — re-extract if missing (see below)
-│   ├── brogue-c/       # C database — extracted once, never refreshed
-│   └── rogue-ts/       # TS database — refresh after significant refactors
+├── CONTEXT.md              # This file
+├── QUERY_REFERENCE.md      # QL syntax cheat sheet (read before writing inline queries)
+├── run-query.sh            # Shell wrapper for inline queries (see below)
+├── mcp-server.js           # Stdio MCP server (auto-started by Cursor/Claude Code)
+├── databases/              # gitignored — re-extract if missing
+│   ├── brogue-c/           # C database — extracted once, static source
+│   └── rogue-ts/           # TS database — refresh after significant refactors
 └── queries/
-    ├── c/              # C queries (brogue-queries-c pack, depends on codeql/cpp-all)
-    │   └── qlpack.yml
-    └── ts/             # TS queries (brogue-queries-ts pack, depends on codeql/javascript-all)
-        └── qlpack.yml
+    ├── c/                  # Committed C query files
+    └── ts/                 # Committed TypeScript query files
 ```
 
 ## Databases
 
-### C database (`codeql/databases/brogue-c`)
+### C database (`brogue-c`)
 
-Built from `src/brogue/` using the null platform backend (no SDL2 or ncurses required).
-Extraction command (run from repo root):
+Built from `src/brogue/`. The C source is static — extract once.
 
 ```bash
 codeql database create codeql/databases/brogue-c \
@@ -37,12 +51,9 @@ codeql database create codeql/databases/brogue-c \
   --overwrite
 ```
 
-The C source is static — this only needs to be done once (or after a C source update).
+### TypeScript database (`rogue-ts`)
 
-### TypeScript database (`codeql/databases/rogue-ts`)
-
-Built from `rogue-ts/` using static extraction (no build needed — TypeScript is analyzed directly).
-Extraction command (run from repo root):
+Built from `rogue-ts/`. Refresh after significant refactors (takes ~30–60s).
 
 ```bash
 codeql database create codeql/databases/rogue-ts \
@@ -51,57 +62,18 @@ codeql database create codeql/databases/rogue-ts \
   --overwrite
 ```
 
-Refresh this database after significant refactors or after adding new source files. Takes ~30–60 seconds.
-The C database does **not** need refreshing — C source is static.
+## How to run queries
 
-Verified: `buildCombatAttackContext` found at `combat.ts:192`. ✓
+### Method 1: MCP tools (preferred in Cursor and Claude Code)
 
-## Query packs
+The MCP server is configured in both `.cursor/mcp.json` (Cursor) and `.mcp.json`
+(Claude Code). It exposes three tools:
 
-Each subdirectory under `queries/` is a QL pack. Before running queries, install
-pack dependencies (one-time, installs to `~/.codeql/packages`):
-
-```bash
-codeql pack install codeql/queries/c/
-codeql pack install codeql/queries/ts/
-```
-
-## Running queries
-
-```bash
-codeql query run \
-  --database=codeql/databases/brogue-c \
-  codeql/queries/c/<query-name>.ql
-```
-
-## MCP server
-
-The project includes a minimal stdio MCP server (`codeql/mcp-server.js`) configured
-in `.mcp.json` at the repo root. Claude Code auto-starts it as a child process — no
-manual server launch needed.
-
-### Configuration (`.mcp.json`)
-
-```json
-{
-  "mcpServers": {
-    "codeql": {
-      "command": "node",
-      "args": ["codeql/mcp-server.js"]
-    }
-  }
-}
-```
-
-### Tools exposed
-
-| Tool | Description |
-|------|-------------|
-| `codeql_list_databases` | List available databases in `codeql/databases/` |
-| `codeql_run_query_file` | Run a committed `.ql` file by path (relative to repo root) |
-| `codeql_run_query_text` | Run inline QL text against a database |
-
-### Running inline queries
+| Tool | Use |
+|------|-----|
+| `codeql_list_databases` | Confirm which databases exist |
+| `codeql_run_query_file` | Run a committed `.ql` file by path |
+| `codeql_run_query_text` | Run inline QL text (most powerful — compose queries on the fly) |
 
 For `codeql_run_query_text`, provide a complete QL file including the import:
 
@@ -109,57 +81,191 @@ For `codeql_run_query_text`, provide a complete QL file including the import:
 import cpp
 
 from Function f
-where f.getName() = "attack"
-select f.getName(), f.getFile().getBaseName(), f.getLocation().getStartLine()
+where f.getName() = "attack" and f.hasDefinition()
+select f.getFile().getRelativePath(), f.getLocation().getStartLine(), f.getName()
 ```
 
-For TypeScript queries use `import javascript` instead of `import cpp`.
+For TypeScript queries, use `import javascript` instead of `import cpp`.
 
-**Important:** QL syntax is `from … where … select` (not `select … from …`). See `codeql/QUERY_REFERENCE.md` for syntax rules, predicate tables, and worked examples before writing any query.
+### Method 2: Shell wrapper (fallback)
 
-### Troubleshooting
-
-- If the `codeql` binary is not found, ensure it is in PATH: `which codeql`
-- If databases are missing, re-extract using commands in the **Databases** section above
-- The server writes temporary query files to `os.tmpdir()` and cleans them up
-- To restart: Claude Code restarts the server automatically on next tool use
-
-### Why a custom wrapper instead of JordyZomer/codeql-mcp
-
-JordyZomer's server uses SSE transport (deprecated in Claude Code) and requires
-a separate manual server start + Python/uv environment. The custom wrapper is
-a single committed file, auto-started as stdio, and has zero external dependencies.
-
-## Cross-language tracing (C → TypeScript)
-
-To find the TypeScript equivalent of a C function, grep `rogue-ts/src/` for the C function
-name as a comment. Convention in this project: ports include a `// C: FunctionName()`
-reference comment. This is faster than CodeQL for one-off lookups:
+If MCP is unavailable, use `codeql/run-query.sh` from the repo root:
 
 ```bash
-grep -r "// C: attack" rogue-ts/src/
+codeql/run-query.sh brogue-c 'import cpp
+from Function f
+where f.getName() = "allocGrid" and f.hasDefinition()
+select f.getFile().getRelativePath(), f.getLocation().getStartLine(), f.getName()'
 ```
 
-## When NOT to use CodeQL
+This handles temp files, qlpack creation, and BQRS decoding in one command.
 
-CodeQL is best for traversal questions (callers, callees, data flow). Skip it for:
+### Method 3: Direct CLI (for committed query files)
 
-- Reading a single known file — use Read directly
-- Searching for a string pattern — use Grep
-- Finding a file by name — use Glob
+```bash
+codeql query run \
+  --database=codeql/databases/brogue-c \
+  codeql/queries/c/find-callers.ql
+```
 
-Use CodeQL when you would otherwise need to read multiple large files to trace a call chain.
+Note: direct CLI outputs to a `.bqrs` file which needs a separate decode step.
+The MCP server and shell wrapper handle this automatically.
+
+## Committed query files
+
+### C queries (`codeql/queries/c/`)
+
+| File | Purpose | Default target |
+|------|---------|---------------|
+| `find-definition.ql` | Find where a C function is defined | `attack` |
+| `find-callers.ql` | Find all call sites of a C function | `attack` |
+| `find-callees.ql` | Find all functions called by a C function | `attack` |
+| `find-functions-in-file.ql` | List all functions defined in a file | `%Grid.c` |
+| `find-global-access.ql` | Find all functions accessing a global variable | `pmap` |
+| `find-field-access.ql` | Find all accesses to a struct field | `layers` |
+| `find-functions-with-param-type.ql` | Find functions taking a parameter of a type | `creature` |
+
+### TypeScript queries (`codeql/queries/ts/`)
+
+| File | Purpose | Default target |
+|------|---------|---------------|
+| `find-definition.ql` | Find where a TS function is defined | `buildCombatAttackContext` |
+| `find-callers.ql` | Find all call sites of a TS function | `buildCombatAttackContext` |
+| `find-callees.ql` | Find all functions called by a TS function | `buildCombatAttackContext` |
+| `find-functions-in-file.ql` | List all functions defined in a file | `%grid.ts` |
+| `find-property-access.ql` | Find all accesses to a property name | `layers` |
+| `find-type-references.ql` | Find all references to a type/interface | `Creature` |
+| `find-ts-stubs.ql` | Find stub arrow functions (port completeness) | all src/ |
+
+**Important:** The committed query files have hardcoded default targets (like `attack`
+or `%Grid.c`). For ad-hoc queries, use `codeql_run_query_text` or the shell wrapper
+with inline QL — this lets you target any function, field, or file without editing
+query files.
 
 ## Agent investigation protocol
 
-Before reading any file during bug investigation:
+Use this decision tree when investigating code:
 
-1. **Find definition** — run `find-definition.ql` (or `codeql_run_query_text`) to confirm
-   which file and line the function lives in. Do not assume from the file name.
-2. **Get callers** — run `find-callers.ql` to see all call sites. This scopes the blast
-   radius before reading anything.
-3. **Get callees** — run `find-callees.ql` to understand what the function depends on.
-4. **Read targeted** — read only the specific functions identified above, not entire files.
+```
+Need to understand a system or trace a bug?
+│
+├── Research doc exists in .context/research/?
+│   └── YES → Read it. Done. Skip CodeQL/grep entirely.
+│
+├── Need to know what functions a file contains?
+│   └── Use find-functions-in-file (CodeQL or inline)
+│
+├── Need to trace who calls a function?
+│   └── Use find-callers (CodeQL)
+│
+├── Need to trace what a function depends on?
+│   └── Use find-callees (CodeQL)
+│
+├── Need to find all code touching a data structure field?
+│   └── Use find-field-access / find-property-access (CodeQL)
+│
+├── Need to find all code using a global (pmap, tmap, etc.)?
+│   └── Use find-global-access (CodeQL)
+│
+├── Need to find a string pattern or comment?
+│   └── Use Grep
+│
+├── Need to find a file by name?
+│   └── Use Glob
+│
+└── Need to read specific code you've already located?
+    └── Use Read with line ranges
+```
 
-This sequence replaces the habit of opening `IO.c` or `lifecycle.ts` top-to-bottom.
-The queries run in 200–800 ms and return structured file + line results.
+The goal: **identify exact file + line targets via CodeQL, then read only those
+lines**. Never read an entire 5000-line file hoping to find the relevant function.
+
+## Inline query cookbook
+
+These are copy-paste-and-modify patterns for `codeql_run_query_text` or the shell
+wrapper. Read `QUERY_REFERENCE.md` for full syntax rules.
+
+### Find all functions that read/write a global
+
+```ql
+import cpp
+from VariableAccess va, GlobalVariable gv
+where gv.getName() = "pmap"
+  and va.getTarget() = gv
+select va.getEnclosingFunction().getName() as func,
+       va.getFile().getRelativePath() as file,
+       va.getLocation().getStartLine() as line
+order by file, line
+```
+
+### Find all accesses to a struct field
+
+```ql
+import cpp
+from FieldAccess fa
+where fa.getTarget().getName() = "layers"
+select fa.getEnclosingFunction().getName() as func,
+       fa.getFile().getRelativePath() as file,
+       fa.getLocation().getStartLine() as line,
+       fa.getTarget().getDeclaringType().getName() as structName
+order by file, line
+```
+
+### Find all functions taking a creature* parameter
+
+```ql
+import cpp
+from Function f, Parameter p
+where f.hasDefinition()
+  and p = f.getAParameter()
+  and p.getType().getUnspecifiedType().(PointerType).getBaseType().getName() = "creature"
+select f.getName() as func,
+       f.getFile().getRelativePath() as file,
+       f.getLocation().getStartLine() as line,
+       p.getName() as param
+order by file, line
+```
+
+### Find all TS property accesses
+
+```ql
+import javascript
+from DotExpr dot
+where dot.getPropertyName() = "layers"
+  and dot.getFile().getRelativePath().matches("src/%")
+select dot.getEnclosingFunction().getName() as func,
+       dot.getFile().getRelativePath() as file,
+       dot.getLocation().getStartLine() as line
+order by file, line
+```
+
+### Find all TS type/interface references
+
+```ql
+import javascript
+from TypeAccess ta
+where ta.getTypeName().(LocalTypeName).getName() = "Creature"
+  and ta.getFile().getRelativePath().matches("src/%")
+select ta.getFile().getRelativePath() as file,
+       ta.getLocation().getStartLine() as line
+order by file, line
+```
+
+## Cross-language tracing (C → TypeScript)
+
+To find the TypeScript equivalent of a C function, grep for the C function name
+as a reference comment. Convention: ports include `// C: FunctionName()`.
+
+```bash
+rg "// C: attack" rogue-ts/src/
+```
+
+This is faster than CodeQL for one-off cross-language lookups.
+
+## Troubleshooting
+
+- **`codeql` not found:** ensure it is in PATH: `which codeql`
+- **Databases missing:** re-extract using commands in the Databases section
+- **MCP server not loading in Cursor:** restart Cursor after adding `.cursor/mcp.json`
+- **Query returns no results:** check `import cpp` vs `import javascript` — wrong import silently returns empty
+- **Pack install slow on first run:** pack dependencies cache to `~/.codeql/packages` after first install
