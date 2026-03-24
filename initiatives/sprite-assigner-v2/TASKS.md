@@ -69,9 +69,9 @@
   updated on disk. Also writes `assignments.json` for startup reload.
   GET /api/assignments returns saved data. Startup loads from disk when
   available, falls back to localStorage.
-- [ ] Commit Phase 2 with descriptive message
-- [ ] Update TASKS.md and PLAN.md to reflect current state; generate
-  hand-off prompt for a new session to continue with Phase 3
+- [x] Commit Phase 2 with descriptive message
+  Two commits: 6d6ab24 (middleware + generation) and 593193f (UI + startup)
+- [x] Update TASKS.md and PLAN.md to reflect current state
 
 # --- handoff point ---
 

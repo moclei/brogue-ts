@@ -239,3 +239,39 @@ The Phase 1 app has full feature parity with the original HTML tool:
 
 Phase 2 adds the backend: Vite server middleware for direct disk writes,
 replacing the download-and-copy workflow.
+
+---
+
+## Session Notes — Phase 2
+
+### Decisions made
+
+- **Server module split:** Generation logic ported from
+  `tools/generate-master-spritesheet.mjs` into `src/server/generate.ts`
+  (server-side, uses sharp). API routes in `src/server/api.ts` as a Vite
+  plugin. The inline plugin from Phase 1's vite.config.ts was replaced —
+  all middleware (legacy proxy routes + new API routes) now lives in api.ts.
+- **assignments.json:** POST /api/save writes three files: the master PNG,
+  sprite-manifest.json, AND assignments.json (the raw source-ref data).
+  This enables GET /api/assignments for startup loading. The manifest only
+  has grid positions (output), not source refs (input), so a separate file
+  is needed to reconstruct the assignment state.
+- **Startup loading:** AssignmentProvider fetches `/api/assignments` on
+  mount. If the backend returns data, it overwrites the localStorage state
+  via the existing `loadFromManifest` action. If the backend is unavailable
+  (404, network error), localStorage state is kept. This allows standalone
+  use without a backend.
+- **sharp as devDependency:** Added directly to sprite-assigner-v2's
+  package.json rather than the createRequire hack used in the mjs script.
+
+### What's ready for Phase 3
+
+Phase 2 is complete. The tool now:
+- Serves API endpoints on the Vite dev server (no separate backend)
+- "Save to Disk" writes master-spritesheet.png + sprite-manifest.json +
+  assignments.json directly to rogue-ts/assets/tilesets/
+- Loads assignments from disk on startup (falls back to localStorage)
+- Export Code, Export JSON, Import JSON still available as secondary actions
+
+Phase 3 adds autotile sheet authoring: a third assignment mode for the
+47-variant autotile sheets per connection group.
