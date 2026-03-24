@@ -100,9 +100,19 @@ export function ExportModal() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(assignments),
       });
-      const result = await resp.json() as { ok: boolean; tileCount?: number; glyphCount?: number; error?: string };
+      const result = await resp.json() as {
+        ok: boolean;
+        tileCount?: number;
+        glyphCount?: number;
+        autotileSheets?: string[];
+        error?: string;
+      };
       if (result.ok) {
-        showToast(`Saved master-spritesheet.png + sprite-manifest.json (${result.tileCount} tiles, ${result.glyphCount} glyphs)`);
+        const parts = [`${result.tileCount} tiles`, `${result.glyphCount} glyphs`];
+        if (result.autotileSheets && result.autotileSheets.length > 0) {
+          parts.push(`${result.autotileSheets.length} autotile sheet(s)`);
+        }
+        showToast(`Saved: ${parts.join(", ")}`);
       } else {
         showToast(`Save failed: ${result.error ?? "unknown error"}`);
       }

@@ -26,7 +26,7 @@ export interface AppState {
   imageCache: ImageCache;
   currentSheetKey: string | null;
   selectedTile: SelectedTile | null;
-  activeTab: "tiletype" | "glyph";
+  activeTab: "tiletype" | "glyph" | "autotile";
   zoom: number;
   toastMessage: string | null;
 }
@@ -50,7 +50,7 @@ export interface AppActions {
   setState: Dispatch<SetStateAction<AppState>>;
   setCurrentSheet: (key: string) => void;
   setSelectedTile: (tile: SelectedTile | null) => void;
-  setActiveTab: (tab: "tiletype" | "glyph") => void;
+  setActiveTab: (tab: "tiletype" | "glyph" | "autotile") => void;
   setZoom: (zoom: number) => void;
   showToast: (msg: string) => void;
   loadImage: (key: string) => Promise<HTMLImageElement | null>;

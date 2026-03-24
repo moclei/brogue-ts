@@ -3,6 +3,7 @@ import { TILE_TYPES, DISPLAY_GLYPHS, GLYPH_CHARS } from "../data/tile-types.ts";
 import { useAssignments, useAssignmentHelpers, type AssignmentTab } from "../state/assignments.ts";
 import { useApp } from "../state/app-state.ts";
 import { EnumEntry } from "./EnumEntry.tsx";
+import { AutotilePanel } from "./AutotilePanel.tsx";
 
 type FilterStatus = "all" | "assigned" | "unassigned";
 
@@ -24,6 +25,7 @@ export function EnumPanel() {
   const isGlyph = activeTab === "glyph";
 
   const filteredNames = useMemo(() => {
+    if (activeTab === "autotile") return [];
     const lc = filter.toLowerCase();
     return names.filter((name) => {
       if (name === "NOTHING") return false;
@@ -33,7 +35,20 @@ export function EnumPanel() {
       if (statusFilter === "unassigned" && ref) return false;
       return true;
     });
-  }, [names, filter, statusFilter, assignMap]);
+  }, [activeTab, names, filter, statusFilter, assignMap]);
+
+  if (activeTab === "autotile") {
+    return (
+      <aside className="enum-panel">
+        <div className="enum-tabs">
+          <button onClick={() => setActiveTab("tiletype")}>TileType</button>
+          <button onClick={() => setActiveTab("glyph")}>Glyph</button>
+          <button className="active" onClick={() => setActiveTab("autotile")}>Autotile</button>
+        </div>
+        <AutotilePanel />
+      </aside>
+    );
+  }
 
   const handleAssign = (name: string) => {
     if (!selectedTile) return;
@@ -42,7 +57,7 @@ export function EnumPanel() {
       x: selectedTile.x,
       y: selectedTile.y,
     });
-    showToast(`Assigned ${name} \u2192 ${selectedTile.sheet} (${selectedTile.x}, ${selectedTile.y})`);
+    showToast(`Assigned ${name} → ${selectedTile.sheet} (${selectedTile.x}, ${selectedTile.y})`);
   };
 
   const handleUnassign = (name: string) => {
@@ -66,8 +81,9 @@ export function EnumPanel() {
           className={activeTab === "glyph" ? "active" : ""}
           onClick={() => setActiveTab("glyph")}
         >
-          DisplayGlyph
+          Glyph
         </button>
+        <button onClick={() => setActiveTab("autotile")}>Autotile</button>
       </div>
       <div className="enum-filter">
         <input

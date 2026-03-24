@@ -20,14 +20,18 @@ export interface SpriteRef {
   y: number;
 }
 
+export type AutotileVariants = (SpriteRef | null)[];
+
 export interface SavePayload {
   tiletype: Record<string, SpriteRef>;
   glyph: Record<string, SpriteRef>;
+  autotile: Record<string, AutotileVariants>;
 }
 
 export interface GenerateResult {
   tileCount: number;
   glyphCount: number;
+  autotileSheets: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -173,5 +177,78 @@ export async function generateMasterSheet(
     JSON.stringify(manifest, null, 2) + "\n",
   );
 
-  return { tileCount, glyphCount };
+  // Autotile sheets
+  const autotileSheets = await generateAutotileSheets(
+    payload.autotile ?? {},
+    getSheet,
+    outputDir,
+  );
+
+  return { tileCount, glyphCount, autotileSheets };
+}
+
+// ---------------------------------------------------------------------------
+// Autotile sheet generation
+// ---------------------------------------------------------------------------
+
+const AUTOTILE_GRID_COLS = 8;
+const AUTOTILE_GRID_ROWS = 6;
+const AUTOTILE_SHEET_W = AUTOTILE_GRID_COLS * TILE_SIZE;
+const AUTOTILE_SHEET_H = AUTOTILE_GRID_ROWS * TILE_SIZE;
+
+async function generateAutotileSheets(
+  autotile: Record<string, AutotileVariants>,
+  getSheet: (key: string) => Promise<SheetData | null>,
+  outputDir: string,
+): Promise<string[]> {
+  const autotileDir = path.join(outputDir, "autotile");
+  const generated: string[] = [];
+
+  for (const [group, variants] of Object.entries(autotile)) {
+    const assignedCount = variants.filter((v) => v !== null).length;
+    if (assignedCount === 0) continue;
+
+    const composites: Composite[] = [];
+    for (let i = 0; i < variants.length; i++) {
+      const ref = variants[i];
+      if (!ref) continue;
+
+      const sheet = await getSheet(ref.sheet);
+      if (!sheet) continue;
+
+      const col = i % AUTOTILE_GRID_COLS;
+      const row = Math.floor(i / AUTOTILE_GRID_COLS);
+      composites.push({
+        input: extractTile(sheet, ref.x, ref.y),
+        raw: { width: TILE_SIZE, height: TILE_SIZE, channels: 4 },
+        left: col * TILE_SIZE,
+        top: row * TILE_SIZE,
+      });
+    }
+
+    if (composites.length === 0) continue;
+
+    if (!fs.existsSync(autotileDir)) {
+      fs.mkdirSync(autotileDir, { recursive: true });
+    }
+
+    const filename = `${group.toLowerCase()}-autotile.png`;
+    const base = sharp({
+      create: {
+        width: AUTOTILE_SHEET_W,
+        height: AUTOTILE_SHEET_H,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      },
+    });
+
+    await base
+      .composite(composites)
+      .png()
+      .toFile(path.join(autotileDir, filename));
+
+    generated.push(filename);
+  }
+
+  return generated;
 }

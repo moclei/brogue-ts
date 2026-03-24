@@ -77,24 +77,29 @@
 
 ## Phase 3: Autotile Sheet Authoring
 
-- [ ] Extend assignment state with autotile data:
-  - Per-group variant assignments: `Map<string, (SourceRef | null)[]>`
+- [x] Extend assignment state with autotile data:
+  - Per-group variant assignments: `Record<string, (SpriteRef | null)[]>`
   - Actions: assignVariant, unassignVariant, resetGroup
   - Persist alongside TileType/Glyph assignments in localStorage
-- [ ] Add Autotile tab to EnumPanel:
-  - Connection group dropdown (WALL, future groups)
+  - Stats computation extended with autotileGroups + autotileVariantsAssigned
+- [x] Add Autotile tab to EnumPanel:
+  - Connection group dropdown (WALL, WATER, LAVA, CHASM, FLOOR, ICE, MUD)
   - Visual 8×6 grid showing variant slots 0–46 with sprite thumbnails
   - Click a slot → assign currently selected source tile
-  - Unassign button per slot
-- [ ] Add variant reference overlay: small connectivity diagram per slot
-  showing which edges/corners are connected for that variant index
-- [ ] Extend `POST /api/save` to generate autotile sheets:
+  - Right-click to unassign, Reset button per group
+- [x] Add variant reference overlay: mini 3×3 connectivity diagram drawn
+  directly in empty variant slots (blue=self, green=connected, gray=not)
+  showing which edges/corners are connected for each variant index
+- [x] Extend `POST /api/save` to generate autotile sheets:
   - Compose 8×6 spritesheet per group from variant assignments
   - Write to `rogue-ts/assets/tilesets/autotile/<group>-autotile.png`
-- [ ] Verify: assign 47 wall variants → Save → confirm
-  `wall-autotile.png` updated → game renders correct autotile variants
-- [ ] Commit Phase 3 with descriptive message
-- [ ] Update TASKS.md and PLAN.md to reflect current state; generate
+  - Returns list of generated sheet filenames in save response
+- [x] Verify: assign wall variants → Save → confirm `wall-autotile.png`
+  written with correct dimensions (128×96), transparency for unassigned
+  slots, and correct sprite data for assigned slots
+- [x] Commit Phase 3 with descriptive message
+  Commit b3a030f on feat/autotiling-system
+- [x] Update TASKS.md and PLAN.md to reflect current state; generate
   hand-off prompt for a new session to continue with Phase 4
 
 # --- handoff point ---

@@ -13,6 +13,7 @@ import {
   getInitialTileTypeAssignments,
   getInitialGlyphAssignments,
 } from "../data/initial-assignments.ts";
+import { AUTOTILE_VARIANT_COUNT, type ConnectionGroup } from "../data/autotile-groups.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -24,18 +25,23 @@ export interface SpriteRef {
   y: number;
 }
 
+export type AutotileVariants = (SpriteRef | null)[];
+
 export interface Assignments {
   tiletype: Record<string, SpriteRef>;
   glyph: Record<string, SpriteRef>;
+  autotile: Record<string, AutotileVariants>;
 }
 
-export type AssignmentTab = "tiletype" | "glyph";
+export type AssignmentTab = "tiletype" | "glyph" | "autotile";
 
 export interface AssignmentStats {
   tileTypeAssigned: number;
   tileTypeTotal: number;
   glyphAssigned: number;
   glyphTotal: number;
+  autotileGroups: number;
+  autotileVariantsAssigned: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -47,19 +53,28 @@ type Action =
   | { type: "unassign"; tab: AssignmentTab; name: string }
   | { type: "reset" }
   | { type: "importJSON"; data: Assignments }
-  | { type: "loadFromManifest"; data: Assignments };
+  | { type: "loadFromManifest"; data: Assignments }
+  | { type: "assignVariant"; group: ConnectionGroup; index: number; ref: SpriteRef }
+  | { type: "unassignVariant"; group: ConnectionGroup; index: number }
+  | { type: "resetGroup"; group: ConnectionGroup };
 
 // ---------------------------------------------------------------------------
 // Reducer
 // ---------------------------------------------------------------------------
 
+function ensureVariants(state: Assignments, group: string): AutotileVariants {
+  return state.autotile[group] ?? new Array(AUTOTILE_VARIANT_COUNT).fill(null);
+}
+
 function reducer(state: Assignments, action: Action): Assignments {
   switch (action.type) {
     case "assign": {
+      if (action.tab === "autotile") return state;
       const map = { ...state[action.tab], [action.name]: action.ref };
       return { ...state, [action.tab]: map };
     }
     case "unassign": {
+      if (action.tab === "autotile") return state;
       const map = { ...state[action.tab] };
       delete map[action.name];
       return { ...state, [action.tab]: map };
@@ -68,13 +83,30 @@ function reducer(state: Assignments, action: Action): Assignments {
       return {
         tiletype: getInitialTileTypeAssignments(),
         glyph: getInitialGlyphAssignments(),
+        autotile: {},
       };
     case "importJSON":
     case "loadFromManifest":
       return {
         tiletype: action.data.tiletype ?? {},
         glyph: action.data.glyph ?? {},
+        autotile: action.data.autotile ?? {},
       };
+    case "assignVariant": {
+      const variants = [...ensureVariants(state, action.group)];
+      variants[action.index] = action.ref;
+      return { ...state, autotile: { ...state.autotile, [action.group]: variants } };
+    }
+    case "unassignVariant": {
+      const variants = [...ensureVariants(state, action.group)];
+      variants[action.index] = null;
+      return { ...state, autotile: { ...state.autotile, [action.group]: variants } };
+    }
+    case "resetGroup": {
+      const autotile = { ...state.autotile };
+      delete autotile[action.group];
+      return { ...state, autotile };
+    }
   }
 }
 
@@ -89,12 +121,15 @@ function loadFromStorage(): Assignments {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const data = JSON.parse(saved) as Assignments;
-      if (data.tiletype && data.glyph) return data;
+      if (data.tiletype && data.glyph) {
+        return { ...data, autotile: data.autotile ?? {} };
+      }
     }
   } catch { /* fall through */ }
   return {
     tiletype: getInitialTileTypeAssignments(),
     glyph: getInitialGlyphAssignments(),
+    autotile: {},
   };
 }
 
@@ -110,11 +145,20 @@ const SKIP_TILE_TYPES = new Set(["NOTHING", "NUMBER_TILETYPES"]);
 
 export function computeStats(state: Assignments): AssignmentStats {
   const ttTotal = TILE_TYPES.filter((n) => !SKIP_TILE_TYPES.has(n)).length;
+  let autotileGroups = 0;
+  let autotileVariantsAssigned = 0;
+  for (const variants of Object.values(state.autotile)) {
+    const assigned = variants.filter((v) => v !== null).length;
+    if (assigned > 0) autotileGroups++;
+    autotileVariantsAssigned += assigned;
+  }
   return {
     tileTypeAssigned: Object.keys(state.tiletype).length,
     tileTypeTotal: ttTotal,
     glyphAssigned: Object.keys(state.glyph).length,
     glyphTotal: DISPLAY_GLYPHS.length,
+    autotileGroups,
+    autotileVariantsAssigned,
   };
 }
 
@@ -159,7 +203,25 @@ export function useAssignmentHelpers() {
     [dispatch],
   );
 
-  return { assign, unassign, reset, importJSON };
+  const assignVariant = useCallback(
+    (group: ConnectionGroup, index: number, ref: SpriteRef) =>
+      dispatch({ type: "assignVariant", group, index, ref }),
+    [dispatch],
+  );
+
+  const unassignVariant = useCallback(
+    (group: ConnectionGroup, index: number) =>
+      dispatch({ type: "unassignVariant", group, index }),
+    [dispatch],
+  );
+
+  const resetGroup = useCallback(
+    (group: ConnectionGroup) =>
+      dispatch({ type: "resetGroup", group }),
+    [dispatch],
+  );
+
+  return { assign, unassign, reset, importJSON, assignVariant, unassignVariant, resetGroup };
 }
 
 // ---------------------------------------------------------------------------

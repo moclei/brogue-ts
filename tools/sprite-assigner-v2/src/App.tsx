@@ -92,7 +92,7 @@ function AppInner() {
     }
   }, [state.currentSheetKey, loadImage]);
 
-  const setActiveTab = useCallback((tab: "tiletype" | "glyph") => {
+  const setActiveTab = useCallback((tab: "tiletype" | "glyph" | "autotile") => {
     setState((s) => ({ ...s, activeTab: tab }));
   }, []);
 
@@ -137,7 +137,8 @@ function AppInner() {
         <div className="spacer" />
         <span className="stats">
           {stats.tileTypeAssigned}/{stats.tileTypeTotal} TileType,{" "}
-          {stats.glyphAssigned}/{stats.glyphTotal} DisplayGlyph assigned
+          {stats.glyphAssigned}/{stats.glyphTotal} Glyph,{" "}
+          {stats.autotileVariantsAssigned} autotile variants ({stats.autotileGroups} groups)
         </span>
         <ExportModal />
       </header>

@@ -275,3 +275,48 @@ Phase 2 is complete. The tool now:
 
 Phase 3 adds autotile sheet authoring: a third assignment mode for the
 47-variant autotile sheets per connection group.
+
+---
+
+## Session Notes — Phase 3
+
+### Decisions made
+
+- **Autotile data model:** Added `autotile: Record<string, AutotileVariants>`
+  to `Assignments`, where `AutotileVariants = (SpriteRef | null)[]` (47
+  entries per group). Simpler than a Map — serializes naturally to JSON
+  for localStorage and the save API.
+- **Connection groups data module:** Created
+  `src/data/autotile-groups.ts` — copies the 7 group names and 47
+  canonical masks from the game's `autotile.ts`. This is a deliberate
+  duplication rather than an import to keep the tool self-contained.
+  The group list and mask values rarely change.
+- **Variant reference overlay:** Rather than a separate overlay panel,
+  empty variant slots render mini 3×3 connectivity diagrams directly
+  using canvas drawing. Blue=self, green=connected neighbor,
+  gray=not connected. When a sprite is assigned, the diagram is
+  replaced by the sprite thumbnail. This keeps the UI compact.
+- **Right-click to unassign:** In the autotile grid, right-click on an
+  assigned slot unassigns it. This avoids cluttering the compact grid
+  with × buttons on every cell.
+- **Hooks ordering fix:** Initial implementation had an early return in
+  `EnumPanel` for the autotile tab that violated React's rules of hooks
+  (the `useMemo` was only called for non-autotile tabs). Fixed by
+  moving the early return after all hooks, with the `useMemo` returning
+  an empty array when `activeTab === "autotile"`.
+
+### New files
+
+- `src/data/autotile-groups.ts` — connection group names, variant count,
+  canonical masks, `getVariantInfo()`, `createEmptyVariants()`
+- `src/components/AutotilePanel.tsx` — autotile tab UI: group dropdown,
+  8×6 variant grid with sprite thumbnails and connectivity diagrams
+
+### What's ready for Phase 4
+
+Phase 3 is complete. The tool now supports all three assignment modes:
+TileType, DisplayGlyph, and Autotile. POST /api/save generates autotile
+sheet PNGs alongside the master sheet.
+
+Phase 4 adds live game updates: Vite HMR wiring so the game hot-reloads
+sprites when the assigner saves new assets to disk.
