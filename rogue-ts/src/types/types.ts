@@ -93,10 +93,8 @@ export interface CellDisplayBuffer {
     foreColorComponents: [number, number, number];
     backColorComponents: [number, number, number];
     opacity: number;
-    /** When set, tile/hybrid renderer may look up sprite by TileType instead of DisplayGlyph. */
+    /** When set, tile renderer may look up sprite by TileType instead of DisplayGlyph. */
     tileType?: TileType;
-    /** When set (creature cells), tile/hybrid renderer draws this terrain sprite under the creature. */
-    underlyingTerrain?: TileType;
 }
 
 export interface ScreenDisplayBuffer {
@@ -116,6 +114,7 @@ export interface Pcell {
     volume: number;       // quantity of gas
     machineNumber: number;
     rememberedAppearance: CellDisplayBuffer;
+    rememberedLayers: TileType[];    // indexed by DungeonLayer (4 entries) — sprite-mode remembered terrain
     rememberedItemCategory: number;  // itemCategory bitmask
     rememberedItemKind: number;
     rememberedItemQuantity: number;

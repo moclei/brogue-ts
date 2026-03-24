@@ -39,6 +39,8 @@ import {
 import { actionMenu } from "./io/input-mouse.js";
 import { buildHoverHandlerFn, buildClearHoverPathFn } from "./io/hover-wiring.js";
 import { GraphicsMode } from "./types/enums.js";
+import type { CellSpriteDataProvider } from "./platform/browser-renderer.js";
+import { buildCellSpriteDataProvider } from "./sprite-data-wiring.js";
 
 // =============================================================================
 // Module-level state
@@ -60,7 +62,7 @@ export interface PlatformConsoleWithGraphics extends PlatformConsole {
 let _console: PlatformConsole | null = null;
 
 /** Current graphics mode. Persists so input context and renderer stay in sync. */
-let _graphicsMode: GraphicsMode = GraphicsMode.Text;
+let _graphicsMode: GraphicsMode = GraphicsMode.Tiles;
 
 /** True when the console supports setGraphicsMode (e.g. browser renderer). */
 let _hasGraphics = false;
@@ -78,15 +80,23 @@ type PlotCharFn = (
     fr: number, fg: number, fb: number,
     br: number, bg: number, bb: number,
     tileType?: TileType,
-    underlyingTerrain?: TileType,
 ) => void;
 let _plotChar: PlotCharFn | null = null;
+
+/** Setter for the layer compositing data provider (absent in test mocks). */
+type SetProviderFn = (provider: CellSpriteDataProvider) => void;
+let _setCellSpriteDataProvider: SetProviderFn | null = null;
 
 /** Previous frame buffer for dirty-cell detection in commitDraws(). */
 let _prevBuffer: ScreenDisplayBuffer = createScreenDisplayBuffer();
 
 /** When true, next commitDraws() redraws every cell (e.g. after graphics mode change). */
 let _forceFullRedraw = false;
+
+/** Schedule a full redraw on the next commitDraws() cycle. */
+export function forceFullRedraw(): void {
+    _forceFullRedraw = true;
+}
 
 /**
  * Event captured by pauseAndCheckForEvent() when an input arrives before the
@@ -107,9 +117,14 @@ let _lookaheadEvent: RogueEvent | null = null;
  * Test mocks that only implement waitForEvent() work fine — commitDraws()
  * becomes a no-op in that case.
  */
-export function initPlatform(browserConsole: PlatformConsole & { plotChar?: PlotCharFn; setGraphicsMode?: (mode: GraphicsMode) => GraphicsMode }): void {
+export function initPlatform(browserConsole: PlatformConsole & {
+    plotChar?: PlotCharFn;
+    setGraphicsMode?: (mode: GraphicsMode) => GraphicsMode;
+    setCellSpriteDataProvider?: SetProviderFn;
+}): void {
     _console = browserConsole;
     _plotChar = browserConsole.plotChar ?? null;
+    _setCellSpriteDataProvider = browserConsole.setCellSpriteDataProvider ?? null;
     _hasGraphics = typeof (browserConsole as PlatformConsoleWithGraphics).setGraphicsMode === "function";
     _prevBuffer = createScreenDisplayBuffer();
     registerPauseAndCheckForEvent(pauseAndCheckForEvent);
@@ -117,7 +132,7 @@ export function initPlatform(browserConsole: PlatformConsole & { plotChar?: Plot
 }
 
 /**
- * Current graphics mode (Text / Tiles / Hybrid). Used by input context and renderer.
+ * Current graphics mode (Text / Tiles). Used by input context and renderer.
  */
 export function getGraphicsMode(): GraphicsMode {
     return _graphicsMode;
@@ -256,8 +271,7 @@ export function commitDraws(): void {
                 cell.backColorComponents[0] !== prev.backColorComponents[0] ||
                 cell.backColorComponents[1] !== prev.backColorComponents[1] ||
                 cell.backColorComponents[2] !== prev.backColorComponents[2] ||
-                cell.tileType !== prev.tileType ||
-                cell.underlyingTerrain !== prev.underlyingTerrain;
+                cell.tileType !== prev.tileType;
 
             if (changed) {
                 _plotChar(
@@ -265,7 +279,6 @@ export function commitDraws(): void {
                     cell.foreColorComponents[0], cell.foreColorComponents[1], cell.foreColorComponents[2],
                     cell.backColorComponents[0], cell.backColorComponents[1], cell.backColorComponents[2],
                     cell.tileType,
-                    cell.underlyingTerrain,
                 );
 
                 prev.character = cell.character;
@@ -276,7 +289,6 @@ export function commitDraws(): void {
                 prev.backColorComponents[1] = cell.backColorComponents[1];
                 prev.backColorComponents[2] = cell.backColorComponents[2];
                 prev.tileType = cell.tileType;
-                prev.underlyingTerrain = cell.underlyingTerrain;
             }
         }
     }
@@ -427,6 +439,10 @@ export async function mainGameLoop(): Promise<void> {
     _menuState = buildGameMenuButtonState(rogue.playbackMode);
     _hoverHandler = buildHoverHandlerFn();
     _clearHoverPath = buildClearHoverPathFn();
+
+    if (_setCellSpriteDataProvider) {
+        _setCellSpriteDataProvider(buildCellSpriteDataProvider());
+    }
     while (!rogue.gameHasEnded) {
         // Defect 3 fix: idle animation loop — animate dancing terrain between inputs.
         // C: mainInputLoop calls displayLevel/refreshDungeonCell on a ~25ms timer.

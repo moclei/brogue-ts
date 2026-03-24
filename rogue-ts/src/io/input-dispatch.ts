@@ -413,12 +413,11 @@ export async function executeKeystroke(
                 break;
             case GRAPHICS_KEY:
                 if (ctx.hasGraphics) {
-                    ctx.graphicsMode = ctx.setGraphicsMode((ctx.graphicsMode + 1) % 3);
-                    const modeMsg = ["Switched to text mode.", "Switched to graphical tiles.", "Switched to hybrid mode."];
+                    ctx.graphicsMode = ctx.setGraphicsMode((ctx.graphicsMode + 1) % 2);
+                    const modeMsg = ["Switched to text mode.", "Switched to graphical tiles."];
                     const modeMsgKb = [
                         "Switched to text mode. Press 'G' again to enable tiles.",
-                        "Switched to graphical tiles. Press 'G' again to enable hybrid mode.",
-                        "Switched to hybrid mode. Press 'G' again to disable tiles.",
+                        "Switched to graphical tiles. Press 'G' again to disable tiles.",
                     ];
                     ctx.messageWithColor(KEYBOARD_LABELS ? (modeMsgKb[ctx.graphicsMode] ?? "") : (modeMsg[ctx.graphicsMode] ?? ""), teal, 0);
                 }

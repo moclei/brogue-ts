@@ -42,6 +42,5 @@ export interface Renderer {
     bgG: number,
     bgB: number,
     tileType?: TileType,
-    underlyingTerrain?: TileType,
   ): void;
 }

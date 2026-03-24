@@ -15,6 +15,8 @@ import type { BrogueConsole } from "../types/platform.js";
 import type { RogueEvent, PauseBehavior } from "../types/types.js";
 import { EventType, GraphicsMode, DisplayGlyph } from "../types/enums.js";
 import type { TileType } from "../types/enums.js";
+import type { CellSpriteData } from "./render-layers.js";
+import { spriteDebug } from "./sprite-debug.js";
 import {
   COLS,
   ROWS,
@@ -42,10 +44,12 @@ import {
   NUMPAD_9,
   PRINTSCREEN_KEY,
 } from "../types/constants.js";
-import { isEnvironmentGlyph } from "./glyph-map.js";
 import { TextRenderer } from "./text-renderer.js";
 import { SpriteRenderer } from "./sprite-renderer.js";
 import type { CellRect } from "./renderer.js";
+
+/** Produces per-layer sprite data for a dungeon cell at (dungeonX, dungeonY). */
+export type CellSpriteDataProvider = (dungeonX: number, dungeonY: number) => CellSpriteData;
 
 // =============================================================================
 // Constants
@@ -175,12 +179,17 @@ export function createBrowserConsole(
   waitForEvent(): Promise<RogueEvent>;
   /** Recalculate cell sizes after canvas resize. */
   handleResize(): void;
+  /** Register the sprite data provider for layer compositing. */
+  setCellSpriteDataProvider(provider: CellSpriteDataProvider): void;
 } {
   const { canvas, onGameLoop, textRenderer, spriteRenderer } = options;
   const ctx2d = canvas.getContext("2d")!;
 
-  /** Current graphics mode; used by plotChar to choose text vs. tiles (Phase 2). */
-  let currentGraphicsMode: GraphicsMode = GraphicsMode.Text;
+  /** Current graphics mode; used by plotChar to choose text vs. tiles. */
+  let currentGraphicsMode: GraphicsMode = GraphicsMode.Tiles;
+
+  /** Layer compositing data provider, set via setCellSpriteDataProvider. */
+  let getCellSpriteDataFn: CellSpriteDataProvider | null = null;
 
   /** True if (x,y) is a cell in the dungeon viewport (not message area or sidebar). */
   function isInDungeonViewport(cellX: number, cellY: number): boolean {
@@ -423,6 +432,7 @@ export function createBrowserConsole(
   const browserConsole: BrogueConsole & {
     waitForEvent(): Promise<RogueEvent>;
     handleResize(): void;
+    setCellSpriteDataProvider(provider: CellSpriteDataProvider): void;
   } = {
     waitForEvent: _waitForEvent,
     handleResize: recalcCellSize,
@@ -483,31 +493,44 @@ export function createBrowserConsole(
       backGreen: number,
       backBlue: number,
       tileType?: TileType,
-      underlyingTerrain?: TileType,
     ): void {
-      const fr = Math.round((foreRed * 255) / 100);
-      const fg = Math.round((foreGreen * 255) / 100);
-      const fb = Math.round((foreBlue * 255) / 100);
-      const br = Math.round((backRed * 255) / 100);
-      const bg = Math.round((backGreen * 255) / 100);
-      const bb = Math.round((backBlue * 255) / 100);
-
-      const cellRect = getCellRect(x, y);
+      const cr = getCellRect(x, y);
 
       const useTiles =
         spriteRenderer &&
-        isInDungeonViewport(x, y) &&
-        (currentGraphicsMode === GraphicsMode.Tiles ||
-          (currentGraphicsMode === GraphicsMode.Hybrid &&
-            isEnvironmentGlyph(inputChar)));
+        currentGraphicsMode === GraphicsMode.Tiles &&
+        isInDungeonViewport(x, y);
 
       if (useTiles) {
-        spriteRenderer.drawCell(
-          cellRect, inputChar, fr, fg, fb, br, bg, bb,
-          tileType, underlyingTerrain,
-        );
+        if (getCellSpriteDataFn && tileType !== undefined) {
+          const dx = x - (STAT_BAR_WIDTH + 1);
+          const dy = y - MESSAGE_LINES;
+          if (spriteDebug.enabled) {
+            spriteDebug._renderingX = dx;
+            spriteDebug._renderingY = dy;
+          }
+          const spriteData = getCellSpriteDataFn(dx, dy);
+          spriteRenderer.drawCellLayers(cr, spriteData);
+        } else {
+          const fr = Math.round((foreRed * 255) / 100);
+          const fg = Math.round((foreGreen * 255) / 100);
+          const fb = Math.round((foreBlue * 255) / 100);
+          const br = Math.round((backRed * 255) / 100);
+          const bg = Math.round((backGreen * 255) / 100);
+          const bb = Math.round((backBlue * 255) / 100);
+          spriteRenderer.drawCell(
+            cr, inputChar, fr, fg, fb, br, bg, bb,
+            tileType,
+          );
+        }
       } else {
-        textRenderer.drawCell(cellRect, inputChar, fr, fg, fb, br, bg, bb);
+        const fr = Math.round((foreRed * 255) / 100);
+        const fg = Math.round((foreGreen * 255) / 100);
+        const fb = Math.round((foreBlue * 255) / 100);
+        const br = Math.round((backRed * 255) / 100);
+        const bg = Math.round((backGreen * 255) / 100);
+        const bb = Math.round((backBlue * 255) / 100);
+        textRenderer.drawCell(cr, inputChar, fr, fg, fb, br, bg, bb);
       }
     },
 
@@ -547,6 +570,10 @@ export function createBrowserConsole(
     setGraphicsMode(mode: GraphicsMode): GraphicsMode {
       currentGraphicsMode = mode;
       return currentGraphicsMode;
+    },
+
+    setCellSpriteDataProvider(provider: CellSpriteDataProvider): void {
+      getCellSpriteDataFn = provider;
     },
   };
 

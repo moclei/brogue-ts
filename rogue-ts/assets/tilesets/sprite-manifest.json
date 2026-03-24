@@ -1,0 +1,573 @@
+{
+  "tileSize": 16,
+  "gridWidth": 24,
+  "gridHeight": 15,
+  "tiles": {
+    "FLOOR": {
+      "x": 2,
+      "y": 0
+    },
+    "CARPET": {
+      "x": 4,
+      "y": 0
+    },
+    "MARBLE_FLOOR": {
+      "x": 5,
+      "y": 0
+    },
+    "WALL": {
+      "x": 6,
+      "y": 0
+    },
+    "DOOR": {
+      "x": 7,
+      "y": 0
+    },
+    "OPEN_DOOR": {
+      "x": 8,
+      "y": 0
+    },
+    "LOCKED_DOOR": {
+      "x": 10,
+      "y": 0
+    },
+    "DOWN_STAIRS": {
+      "x": 12,
+      "y": 0
+    },
+    "UP_STAIRS": {
+      "x": 13,
+      "y": 0
+    },
+    "DUNGEON_EXIT": {
+      "x": 14,
+      "y": 0
+    },
+    "TORCH_WALL": {
+      "x": 16,
+      "y": 0
+    },
+    "WOODEN_BARRICADE": {
+      "x": 20,
+      "y": 0
+    },
+    "STATUE_INERT": {
+      "x": 6,
+      "y": 1
+    },
+    "STATUE_DORMANT": {
+      "x": 7,
+      "y": 1
+    },
+    "PORTAL": {
+      "x": 10,
+      "y": 1
+    },
+    "ALTAR_INERT": {
+      "x": 17,
+      "y": 1
+    },
+    "ALTAR_KEYHOLE": {
+      "x": 18,
+      "y": 1
+    },
+    "ALTAR_CAGE_OPEN": {
+      "x": 19,
+      "y": 1
+    },
+    "ALTAR_CAGE_CLOSED": {
+      "x": 20,
+      "y": 1
+    },
+    "PEDESTAL": {
+      "x": 0,
+      "y": 2
+    },
+    "MONSTER_CAGE_OPEN": {
+      "x": 1,
+      "y": 2
+    },
+    "MONSTER_CAGE_CLOSED": {
+      "x": 2,
+      "y": 2
+    },
+    "COFFIN_CLOSED": {
+      "x": 3,
+      "y": 2
+    },
+    "COFFIN_OPEN": {
+      "x": 4,
+      "y": 2
+    },
+    "GAS_TRAP_POISON": {
+      "x": 6,
+      "y": 2
+    },
+    "DEEP_WATER": {
+      "x": 14,
+      "y": 3
+    },
+    "SHALLOW_WATER": {
+      "x": 15,
+      "y": 3
+    },
+    "MUD": {
+      "x": 16,
+      "y": 3
+    },
+    "CHASM": {
+      "x": 17,
+      "y": 3
+    },
+    "LAVA": {
+      "x": 21,
+      "y": 3
+    },
+    "BRIDGE": {
+      "x": 5,
+      "y": 4
+    },
+    "STONE_BRIDGE": {
+      "x": 8,
+      "y": 4
+    },
+    "FLOOD_WATER_DEEP": {
+      "x": 19,
+      "y": 4
+    },
+    "FLOOD_WATER_SHALLOW": {
+      "x": 20,
+      "y": 4
+    },
+    "GRASS": {
+      "x": 21,
+      "y": 4
+    },
+    "DEAD_GRASS": {
+      "x": 22,
+      "y": 4
+    },
+    "GRAY_FUNGUS": {
+      "x": 23,
+      "y": 4
+    },
+    "LUMINESCENT_FUNGUS": {
+      "x": 0,
+      "y": 5
+    },
+    "LICHEN": {
+      "x": 1,
+      "y": 5
+    },
+    "HAY": {
+      "x": 2,
+      "y": 5
+    },
+    "RED_BLOOD": {
+      "x": 3,
+      "y": 5
+    },
+    "GREEN_BLOOD": {
+      "x": 4,
+      "y": 5
+    },
+    "PURPLE_BLOOD": {
+      "x": 5,
+      "y": 5
+    },
+    "ACID_SPLATTER": {
+      "x": 6,
+      "y": 5
+    },
+    "VOMIT": {
+      "x": 7,
+      "y": 5
+    },
+    "URINE": {
+      "x": 8,
+      "y": 5
+    },
+    "UNICORN_POOP": {
+      "x": 9,
+      "y": 5
+    },
+    "WORM_BLOOD": {
+      "x": 10,
+      "y": 5
+    },
+    "ASH": {
+      "x": 11,
+      "y": 5
+    },
+    "BURNED_CARPET": {
+      "x": 12,
+      "y": 5
+    },
+    "PUDDLE": {
+      "x": 13,
+      "y": 5
+    },
+    "BONES": {
+      "x": 14,
+      "y": 5
+    },
+    "RUBBLE": {
+      "x": 15,
+      "y": 5
+    },
+    "JUNK": {
+      "x": 16,
+      "y": 5
+    },
+    "BROKEN_GLASS": {
+      "x": 17,
+      "y": 5
+    },
+    "ECTOPLASM": {
+      "x": 18,
+      "y": 5
+    },
+    "EMBERS": {
+      "x": 19,
+      "y": 5
+    },
+    "SPIDERWEB": {
+      "x": 20,
+      "y": 5
+    },
+    "NETTING": {
+      "x": 21,
+      "y": 5
+    },
+    "FOLIAGE": {
+      "x": 22,
+      "y": 5
+    },
+    "DEAD_FOLIAGE": {
+      "x": 23,
+      "y": 5
+    },
+    "TRAMPLED_FOLIAGE": {
+      "x": 0,
+      "y": 6
+    },
+    "FUNGUS_FOREST": {
+      "x": 1,
+      "y": 6
+    },
+    "TRAMPLED_FUNGUS_FOREST": {
+      "x": 2,
+      "y": 6
+    },
+    "FORCEFIELD": {
+      "x": 3,
+      "y": 6
+    },
+    "FORCEFIELD_MELT": {
+      "x": 4,
+      "y": 6
+    },
+    "SACRED_GLYPH": {
+      "x": 5,
+      "y": 6
+    },
+    "MANACLE_TL": {
+      "x": 6,
+      "y": 6
+    },
+    "MANACLE_BR": {
+      "x": 7,
+      "y": 6
+    },
+    "MANACLE_TR": {
+      "x": 8,
+      "y": 6
+    },
+    "MANACLE_BL": {
+      "x": 9,
+      "y": 6
+    },
+    "MANACLE_T": {
+      "x": 10,
+      "y": 6
+    },
+    "MANACLE_B": {
+      "x": 11,
+      "y": 6
+    },
+    "MANACLE_L": {
+      "x": 12,
+      "y": 6
+    },
+    "MANACLE_R": {
+      "x": 13,
+      "y": 6
+    },
+    "PORTAL_LIGHT": {
+      "x": 14,
+      "y": 6
+    },
+    "GUARDIAN_GLOW": {
+      "x": 15,
+      "y": 6
+    },
+    "PLAIN_FIRE": {
+      "x": 16,
+      "y": 6
+    },
+    "BRIMSTONE_FIRE": {
+      "x": 17,
+      "y": 6
+    },
+    "FLAMEDANCER_FIRE": {
+      "x": 18,
+      "y": 6
+    },
+    "GAS_FIRE": {
+      "x": 19,
+      "y": 6
+    },
+    "GAS_EXPLOSION": {
+      "x": 20,
+      "y": 6
+    },
+    "DART_EXPLOSION": {
+      "x": 21,
+      "y": 6
+    },
+    "ITEM_FIRE": {
+      "x": 22,
+      "y": 6
+    },
+    "CREATURE_FIRE": {
+      "x": 23,
+      "y": 6
+    },
+    "POISON_GAS": {
+      "x": 0,
+      "y": 7
+    },
+    "CONFUSION_GAS": {
+      "x": 1,
+      "y": 7
+    },
+    "ROT_GAS": {
+      "x": 2,
+      "y": 7
+    },
+    "STENCH_SMOKE_GAS": {
+      "x": 3,
+      "y": 7
+    },
+    "PARALYSIS_GAS": {
+      "x": 4,
+      "y": 7
+    },
+    "METHANE_GAS": {
+      "x": 5,
+      "y": 7
+    },
+    "STEAM": {
+      "x": 6,
+      "y": 7
+    },
+    "DARKNESS_CLOUD": {
+      "x": 7,
+      "y": 7
+    },
+    "HEALING_CLOUD": {
+      "x": 8,
+      "y": 7
+    },
+    "BLOODFLOWER_STALK": {
+      "x": 9,
+      "y": 7
+    },
+    "BLOODFLOWER_POD": {
+      "x": 10,
+      "y": 7
+    },
+    "HAVEN_BEDROLL": {
+      "x": 11,
+      "y": 7
+    },
+    "ANCIENT_SPIRIT_VINES": {
+      "x": 15,
+      "y": 7
+    },
+    "ANCIENT_SPIRIT_GRASS": {
+      "x": 16,
+      "y": 7
+    }
+  },
+  "glyphs": {
+    "G_POTION": {
+      "x": 2,
+      "y": 9
+    },
+    "G_GOLD": {
+      "x": 7,
+      "y": 9
+    },
+    "G_KEY": {
+      "x": 10,
+      "y": 9
+    },
+    "G_FOOD": {
+      "x": 20,
+      "y": 9
+    },
+    "G_PLAYER": {
+      "x": 0,
+      "y": 10
+    },
+    "G_CENTAUR": {
+      "x": 2,
+      "y": 10
+    },
+    "G_DRAGON": {
+      "x": 3,
+      "y": 10
+    },
+    "G_FLAMEDANCER": {
+      "x": 4,
+      "y": 10
+    },
+    "G_GOLEM": {
+      "x": 5,
+      "y": 10
+    },
+    "G_TENTACLE_HORROR": {
+      "x": 6,
+      "y": 10
+    },
+    "G_JELLY": {
+      "x": 8,
+      "y": 10
+    },
+    "G_KRAKEN": {
+      "x": 9,
+      "y": 10
+    },
+    "G_LICH": {
+      "x": 10,
+      "y": 10
+    },
+    "G_NAGA": {
+      "x": 11,
+      "y": 10
+    },
+    "G_OGRE": {
+      "x": 12,
+      "y": 10
+    },
+    "G_PHANTOM": {
+      "x": 13,
+      "y": 10
+    },
+    "G_SALAMANDER": {
+      "x": 15,
+      "y": 10
+    },
+    "G_TROLL": {
+      "x": 16,
+      "y": 10
+    },
+    "G_UNDERWORM": {
+      "x": 17,
+      "y": 10
+    },
+    "G_VAMPIRE": {
+      "x": 18,
+      "y": 10
+    },
+    "G_ARMOR": {
+      "x": 21,
+      "y": 10
+    },
+    "G_STAFF": {
+      "x": 22,
+      "y": 10
+    },
+    "G_BLOAT": {
+      "x": 1,
+      "y": 11
+    },
+    "G_CENTIPEDE": {
+      "x": 2,
+      "y": 11
+    },
+    "G_DAR_BLADEMASTER": {
+      "x": 3,
+      "y": 11
+    },
+    "G_EEL": {
+      "x": 4,
+      "y": 11
+    },
+    "G_GOBLIN": {
+      "x": 6,
+      "y": 11
+    },
+    "G_JACKAL": {
+      "x": 8,
+      "y": 11
+    },
+    "G_KOBOLD": {
+      "x": 9,
+      "y": 11
+    },
+    "G_MONKEY": {
+      "x": 10,
+      "y": 11
+    },
+    "G_RAT": {
+      "x": 12,
+      "y": 11
+    },
+    "G_SPIDER": {
+      "x": 13,
+      "y": 11
+    },
+    "G_TOAD": {
+      "x": 14,
+      "y": 11
+    },
+    "G_BAT": {
+      "x": 15,
+      "y": 11
+    },
+    "G_SCROLL": {
+      "x": 2,
+      "y": 12
+    },
+    "G_RING": {
+      "x": 3,
+      "y": 12
+    },
+    "G_WEAPON": {
+      "x": 4,
+      "y": 12
+    },
+    "G_CHARM": {
+      "x": 10,
+      "y": 12
+    },
+    "G_GEM": {
+      "x": 4,
+      "y": 13
+    },
+    "G_WAND": {
+      "x": 5,
+      "y": 13
+    },
+    "G_TORCH": {
+      "x": 10,
+      "y": 13
+    },
+    "G_CRYSTAL": {
+      "x": 11,
+      "y": 13
+    }
+  }
+}

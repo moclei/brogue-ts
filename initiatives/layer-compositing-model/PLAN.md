@@ -371,6 +371,32 @@ green is subtractive (removes non-green channels), not additive (painting
 green on top). Restore `globalCompositeOperation = 'source-over'` after
 each multiply fill.
 
+#### Phase 4b implementation notes
+
+**Data-side overlay support (Phase 4b complete).** `render-layers.ts`
+exports `getVisibilityOverlay(state, inWater)` — a pre-allocated lookup
+that returns a `VisibilityOverlay` spec (composite mode, color, optional
+alpha) for each visibility state. The renderer (Phase 5) calls this once
+per cell after drawing all sprite layers. `CellSpriteData.inWater`
+(set from `rogue.inWater` in `getCellSpriteData`) lets the renderer
+distinguish normal remembered (multiply with `memoryColor`) from
+underwater remembered (source-over dark fill at alpha 0.8). Shroud and
+Visible return null — no overlay drawn.
+
+**Remembered overlay simplification.** getCellAppearance applies both
+`applyColorMultiplier(memoryColor)` and `applyColorAverage(memoryOverlay,
+25)` to remembered colors. The sprite overlay uses only the multiply fill
+with `memoryColor`. The `memoryOverlay` average constants are exported
+(`REMEMBERED_AVERAGE_COLOR`, `REMEMBERED_AVERAGE_WEIGHT = 25`) for
+potential future refinement, but the multiply-only approach is visually
+sufficient — `memoryColor` already provides the blue-tinted dimming.
+
+**TM_BRIGHT_MEMORY divergence.** getCellAppearance skips the foreground
+multiply for cells with `TM_BRIGHT_MEMORY` (e.g., Yendor amulet glow).
+The sprite path's whole-cell overlay does not distinguish foreground
+from background. This is an accepted visual divergence — bright-memory
+cells are rare and the overlay still produces acceptable results.
+
 ## Technical Notes
 
 ### Shared cell-query extraction

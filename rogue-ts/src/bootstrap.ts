@@ -22,29 +22,41 @@ import {
     createBrowserConsole,
     type BrowserRendererOptions,
 } from "./platform/browser-renderer.js";
-import { initPlatform } from "./platform.js";
+import { initPlatform, forceFullRedraw, commitDraws } from "./platform.js";
 import { getGameState } from "./core.js";
 import { buildMenuContext } from "./menus.js";
 import { mainBrogueJunction } from "./menus/main-menu.js";
-import { COLS, ROWS } from "./types/constants.js";
-import { loadTilesetImages } from "./platform/tileset-loader.js";
-import { buildGlyphSpriteMap, buildTileTypeSpriteMap } from "./platform/glyph-sprite-map.js";
+import { COLS, ROWS, STAT_BAR_WIDTH, MESSAGE_LINES, DCOLS, DROWS } from "./types/constants.js";
+import { loadTilesetImages, reloadTilesetImages } from "./platform/tileset-loader.js";
+import {
+    buildGlyphSpriteMap,
+    buildTileTypeSpriteMap,
+    buildAutotileVariantMap,
+    fetchSpriteManifest,
+} from "./platform/glyph-sprite-map.js";
 import { TextRenderer } from "./platform/text-renderer.js";
 import { SpriteRenderer } from "./platform/sprite-renderer.js";
+import { spriteDebug, toggleDebugPanel } from "./platform/sprite-debug.js";
 
 // =============================================================================
 // Canvas setup
 // =============================================================================
 
+const MIN_CELL_SIZE = 12;
+
 /**
  * Find the canvas element and size it for the current viewport and DPR.
  * Returns { cellSize, dpr } so the renderer can set the correct font size.
+ *
+ * Enforces MIN_CELL_SIZE so the game never becomes unreadably small.
+ * When the viewport is too narrow, the canvas exceeds the viewport and
+ * the page becomes scrollable (see overflow: auto on <body>).
  */
 function sizeCanvas(canvas: HTMLCanvasElement): { cellSize: number; dpr: number } {
     const dpr = window.devicePixelRatio || 1;
     const cellWidth = Math.floor(window.innerWidth / COLS);
     const cellHeight = Math.floor(window.innerHeight / ROWS);
-    const cellSize = Math.min(cellWidth, cellHeight);
+    const cellSize = Math.max(MIN_CELL_SIZE, Math.min(cellWidth, cellHeight));
 
     const cssWidth = cellSize * COLS;
     const cssHeight = cellSize * ROWS;
@@ -104,6 +116,7 @@ async function main(): Promise<void> {
     }
     const spriteMap = buildGlyphSpriteMap();
     const tileTypeSpriteMap = buildTileTypeSpriteMap();
+    const autotileVariantMap = buildAutotileVariantMap(tileTypeSpriteMap);
 
     // 2. Set up canvas, renderers, and the browser console event bridge
     const canvasEl = document.getElementById("brogue-canvas");
@@ -115,7 +128,7 @@ async function main(): Promise<void> {
     const initialFontSize = Math.max(8, cellSize - 2);
     const textRenderer = new TextRenderer(ctx2d, "monospace", initialFontSize);
     const spriteRenderer = tiles
-        ? new SpriteRenderer(ctx2d, tiles, spriteMap, tileTypeSpriteMap, textRenderer)
+        ? new SpriteRenderer(ctx2d, tiles, spriteMap, tileTypeSpriteMap, textRenderer, autotileVariantMap)
         : undefined;
 
     const browserConsole = initBrowserConsole({
@@ -134,6 +147,90 @@ async function main(): Promise<void> {
 
     // 5. Get the display buffer from core state
     const { displayBuffer } = getGameState();
+
+    // 5b. F2 debug panel — intercept before canvas keydown reaches the game
+    const canvasParent = canvas.parentElement ?? document.body;
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "F2") {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleDebugPanel(canvasParent);
+            forceFullRedraw();
+        }
+    }, true);
+
+    // Click-to-inspect: when the debug panel is open, clicking a dungeon cell
+    // snapshots that cell's per-layer tint values into the panel.
+    canvas.addEventListener("click", (e) => {
+        if (!spriteDebug.enabled || !spriteDebug.onInspect) return;
+        const rect = canvas.getBoundingClientRect();
+        const cellX = Math.floor((e.clientX - rect.left) / (rect.width / COLS));
+        const cellY = Math.floor((e.clientY - rect.top) / (rect.height / ROWS));
+        const dx = cellX - (STAT_BAR_WIDTH + 1);
+        const dy = cellY - MESSAGE_LINES;
+        if (dx >= 0 && dx < DCOLS && dy >= 0 && dy < DROWS) {
+            spriteDebug.inspectTarget = { x: dx, y: dy };
+            spriteDebug.dirty = true;
+        }
+    });
+
+    // Poll the spriteDebug dirty flag to trigger redraws when panel controls change.
+    function checkDebugDirty(): void {
+        if (spriteDebug.dirty) {
+            spriteDebug.dirty = false;
+            forceFullRedraw();
+        }
+        requestAnimationFrame(checkDebugDirty);
+    }
+    requestAnimationFrame(checkDebugDirty);
+
+    // Benchmark: expose a function for timing full viewport redraws from dev console.
+    // Usage: window.benchmarkRedraw(100) — runs 100 forced redraws and logs average ms.
+    (window as unknown as Record<string, unknown>).benchmarkRedraw = (iterations = 50) => {
+        const times: number[] = [];
+        for (let n = 0; n < iterations; n++) {
+            forceFullRedraw();
+            const t0 = performance.now();
+            commitDraws();
+            times.push(performance.now() - t0);
+        }
+        times.sort((a, b) => a - b);
+        const avg = times.reduce((s, t) => s + t, 0) / times.length;
+        const p50 = times[Math.floor(times.length * 0.5)];
+        const p95 = times[Math.floor(times.length * 0.95)];
+        // eslint-disable-next-line no-console
+        console.log(
+            `[benchmark] ${iterations} redraws: avg=${avg.toFixed(2)}ms p50=${p50.toFixed(2)}ms p95=${p95.toFixed(2)}ms`,
+        );
+        return { avg, p50, p95, times };
+    };
+
+    // 5c. HMR: hot-reload sprites when the sprite assigner writes new assets
+    if (import.meta.hot) {
+        import.meta.hot.on("tileset-update", async (data: { file: string }) => {
+            if (!spriteRenderer) return;
+            // eslint-disable-next-line no-console
+            console.log(`[rogue-ts] Tileset changed: ${data.file}, reloading sprites…`);
+            try {
+                const [newTiles, newManifest] = await Promise.all([
+                    reloadTilesetImages(),
+                    fetchSpriteManifest(),
+                ]);
+                const newSpriteMap = buildGlyphSpriteMap(newManifest);
+                const newTileTypeSpriteMap = buildTileTypeSpriteMap(newManifest);
+                const newAutotileVariantMap = buildAutotileVariantMap(newTileTypeSpriteMap);
+                await spriteRenderer.reloadTiles(
+                    newTiles, newSpriteMap, newTileTypeSpriteMap, newAutotileVariantMap,
+                );
+                forceFullRedraw();
+                commitDraws();
+                // eslint-disable-next-line no-console
+                console.log("[rogue-ts] Sprites hot-reloaded successfully.");
+            } catch (e) {
+                console.warn("[rogue-ts] Sprite hot-reload failed:", e);
+            }
+        });
+    }
 
     // eslint-disable-next-line no-console
     console.log(`[rogue-ts] Bootstrap complete. Grid: ${COLS}×${ROWS}`);

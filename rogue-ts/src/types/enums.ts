@@ -57,7 +57,6 @@ export enum DisplayGlyph {
 export enum GraphicsMode {
     Text,
     Tiles,
-    Hybrid, // text for items and creatures, tiles for environment
 }
 
 // ===== eventTypes =====

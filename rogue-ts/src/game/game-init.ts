@@ -899,6 +899,7 @@ function createEmptyLevelData(): LevelData {
                     backColorComponents: [0, 0, 0] as [number, number, number],
                     opacity: 0,
                 },
+                rememberedLayers: [],
                 rememberedItemCategory: 0,
                 rememberedItemKind: 0,
                 rememberedItemQuantity: 0,
