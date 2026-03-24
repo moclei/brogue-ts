@@ -68,12 +68,31 @@ src/brogue/          C source — ground truth for game behavior
 src/platform/        C platform backends (SDL2, curses, web, null)
 ts/                  First port attempt — preserved for reference, do not modify
 rogue-ts/            Second port attempt — active work
+tools/               Dev tools — sprite assigner, sheet generators (see tools/CONTEXT.md)
 initiatives/         Active initiative docs (BRIEF / PLAN / TASKS)
 initiatives/archive/ Old initiatives from first attempt
 docs/                Reference: PORT_V2.md, FIRST_PORT_ANALYSIS.md
 .context/            PROJECT.md (this file), WORKFLOW.md
 codeql/              CodeQL databases + query library (see codeql/CONTEXT.md); databases/ gitignored
 ```
+
+## Context Hierarchy
+
+This file is the root context document — it provides orientation and references
+to deeper context. Key subdirectories have their own `CONTEXT.md` files that
+cover domain-specific details. Load them on demand, not by default.
+
+| Path | Scope |
+|---|---|
+| `.context/PROJECT.md` | This file — project overview, layout, conventions |
+| `tools/CONTEXT.md` | Listing of all dev tools (sprite assigner, generators, build scripts) |
+| `tools/sprite-assigner-v2/CONTEXT.md` | Full architecture and feature docs for the sprite assigner |
+| `codeql/CONTEXT.md` | CodeQL databases, query reference, shell workflow |
+| `.context/research/INDEX.md` | Pre-computed mechanic/system research — load before investigating |
+
+When working in a subdirectory, read its `CONTEXT.md` first. When adding a new
+tool or subsystem, add a `CONTEXT.md` if it would save a future reader from
+having to piece together understanding from source files alone.
 
 ---
 
@@ -99,18 +118,21 @@ The C codebase is ~49K lines, split across three layers:
 
 ---
 
-## CodeQL-first protocol
+## Code Investigation Tools
 
-We have indexed our C and Typescript codebases with CodeQL and made them available to you via an MCP server. 
+**Priority order** when investigating code:
 
-This is meant to save context window usage by allowing you to investigate the flow of data through the codebase without having to over-use grep or read entire files. 
+1. **Check `.context/research/INDEX.md`** — if a research doc exists for the topic, read
+   it and skip everything below. This is pre-computed understanding.
+2. **CodeQL** — for call chains, field access tracing, type usage, function listings.
+   Available via MCP tools (`codeql_run_query_text`) or shell (`codeql/run-query.sh`).
+   Full instructions: `codeql/CONTEXT.md`. Query syntax: `codeql/QUERY_REFERENCE.md`.
+3. **Grep** — for string patterns, comment searches, cross-language `// C: FuncName()` lookups.
+4. **Glob** — for finding files by name.
+5. **Read** — for reading specific lines of a file already located by steps 1–4.
 
-Full instructions and link to a query reference are in `codeql/CONTEXT.md`. 
-
-Consider using it as a first step, if the task calls for it.
-
-When NOT to use CodeQL: single-file reads, string pattern searches (use Grep), file
-name lookups (use Glob).
+**Goal:** identify exact file + line targets before reading code. Never read an entire
+large file hoping to find the relevant function.
 
 ---
 
