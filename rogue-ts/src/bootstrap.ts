@@ -27,8 +27,13 @@ import { getGameState } from "./core.js";
 import { buildMenuContext } from "./menus.js";
 import { mainBrogueJunction } from "./menus/main-menu.js";
 import { COLS, ROWS, STAT_BAR_WIDTH, MESSAGE_LINES, DCOLS, DROWS } from "./types/constants.js";
-import { loadTilesetImages } from "./platform/tileset-loader.js";
-import { buildGlyphSpriteMap, buildTileTypeSpriteMap, buildAutotileVariantMap } from "./platform/glyph-sprite-map.js";
+import { loadTilesetImages, reloadTilesetImages } from "./platform/tileset-loader.js";
+import {
+    buildGlyphSpriteMap,
+    buildTileTypeSpriteMap,
+    buildAutotileVariantMap,
+    fetchSpriteManifest,
+} from "./platform/glyph-sprite-map.js";
 import { TextRenderer } from "./platform/text-renderer.js";
 import { SpriteRenderer } from "./platform/sprite-renderer.js";
 import { spriteDebug, toggleDebugPanel } from "./platform/sprite-debug.js";
@@ -193,6 +198,33 @@ async function main(): Promise<void> {
         );
         return { avg, p50, p95, times };
     };
+
+    // 5c. HMR: hot-reload sprites when the sprite assigner writes new assets
+    if (import.meta.hot) {
+        import.meta.hot.on("tileset-update", async (data: { file: string }) => {
+            if (!spriteRenderer) return;
+            // eslint-disable-next-line no-console
+            console.log(`[rogue-ts] Tileset changed: ${data.file}, reloading sprites…`);
+            try {
+                const [newTiles, newManifest] = await Promise.all([
+                    reloadTilesetImages(),
+                    fetchSpriteManifest(),
+                ]);
+                const newSpriteMap = buildGlyphSpriteMap(newManifest);
+                const newTileTypeSpriteMap = buildTileTypeSpriteMap(newManifest);
+                const newAutotileVariantMap = buildAutotileVariantMap(newTileTypeSpriteMap);
+                await spriteRenderer.reloadTiles(
+                    newTiles, newSpriteMap, newTileTypeSpriteMap, newAutotileVariantMap,
+                );
+                forceFullRedraw();
+                commitDraws();
+                // eslint-disable-next-line no-console
+                console.log("[rogue-ts] Sprites hot-reloaded successfully.");
+            } catch (e) {
+                console.warn("[rogue-ts] Sprite hot-reload failed:", e);
+            }
+        });
+    }
 
     // eslint-disable-next-line no-console
     console.log(`[rogue-ts] Bootstrap complete. Grid: ${COLS}×${ROWS}`);

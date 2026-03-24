@@ -320,3 +320,49 @@ sheet PNGs alongside the master sheet.
 
 Phase 4 adds live game updates: Vite HMR wiring so the game hot-reloads
 sprites when the assigner saves new assets to disk.
+
+---
+
+## Session Notes — Phase 4
+
+### Decisions made
+
+- **Approach (A) chosen over (B).** The Vite HMR custom event approach
+  was straightforward to implement — no cross-server communication
+  needed. The game's Vite file watcher detects changes written by the
+  assigner to `rogue-ts/assets/tilesets/` and sends `tileset-update`
+  custom events to connected clients.
+- **Manifest reload via fetch.** `glyph-sprite-map.ts` imports
+  `sprite-manifest.json` statically for initial load. For HMR, a new
+  `fetchSpriteManifest()` function fetches the manifest at runtime with
+  cache-busting. The builder functions (`buildTileTypeSpriteMap`,
+  `buildGlyphSpriteMap`) now accept an optional manifest parameter.
+- **SpriteRenderer made mutable.** The `tiles`, `spriteMap`,
+  `tileTypeSpriteMap`, and `autotileVariantMap` fields were changed from
+  `readonly` to mutable so `reloadTiles()` can swap them. The method
+  closes old ImageBitmaps before clearing the cache.
+- **Cache-busting for images.** `reloadTilesetImages()` appends
+  `?t=<timestamp>` to the `?url`-imported base URLs. In Vite dev mode,
+  these resolve to direct file-serving paths, so the timestamp busts
+  the browser cache.
+- **ESM __dirname fix.** The game uses `"type": "module"`, so
+  `vite.config.ts` derives `__dirname` from `import.meta.url` via
+  `fileURLToPath` for portable path resolution.
+
+### Files modified
+
+- `rogue-ts/vite.config.ts` — added `tilesetHmrPlugin()` Vite plugin
+- `rogue-ts/src/platform/tileset-loader.ts` — added
+  `reloadTilesetImages()`, extracted shared `loadImagesFromUrls()`
+- `rogue-ts/src/platform/glyph-sprite-map.ts` — added `SpriteManifest`
+  type, optional manifest param on builders, `fetchSpriteManifest()`
+- `rogue-ts/src/platform/sprite-renderer.ts` — made mutable fields,
+  added `reloadTiles()` method
+- `rogue-ts/src/bootstrap.ts` — added HMR event listener
+  (`tileset-update`) that orchestrates the full reload pipeline
+
+### Initiative complete
+
+All four phases are done. The sprite assigner V2 is a fully functional
+dev tool: Vite + React app with backend file writes, autotile authoring,
+and live game updates via Vite HMR.

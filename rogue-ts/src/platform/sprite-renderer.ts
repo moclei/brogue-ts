@@ -62,11 +62,11 @@ function bitmapKey(ref: SpriteRef): string {
  */
 export class SpriteRenderer implements Renderer {
   private readonly ctx: CanvasRenderingContext2D;
-  private readonly tiles: Map<string, HTMLImageElement>;
-  private readonly spriteMap: Map<DisplayGlyph, SpriteRef>;
-  private readonly tileTypeSpriteMap: Map<TileType, SpriteRef>;
+  private tiles: Map<string, HTMLImageElement>;
+  private spriteMap: Map<DisplayGlyph, SpriteRef>;
+  private tileTypeSpriteMap: Map<TileType, SpriteRef>;
   private readonly textRenderer: TextRenderer;
-  private readonly autotileVariantMap?: Map<TileType, SpriteRef[]>;
+  private autotileVariantMap?: Map<TileType, SpriteRef[]>;
 
   private readonly tintCanvas: OffscreenCanvas;
   private readonly tintCtx: OffscreenCanvasRenderingContext2D;
@@ -138,6 +138,28 @@ export class SpriteRenderer implements Renderer {
       }
     }
     await Promise.all(tasks);
+  }
+
+  /**
+   * Hot-reload tileset data: swap tile images + sprite maps, clear old
+   * ImageBitmaps, and rebuild the bitmap cache. Called by the HMR handler
+   * in bootstrap.ts when the sprite assigner writes new assets to disk.
+   */
+  async reloadTiles(
+    tiles: Map<string, HTMLImageElement>,
+    spriteMap: Map<DisplayGlyph, SpriteRef>,
+    tileTypeSpriteMap: Map<TileType, SpriteRef>,
+    autotileVariantMap?: Map<TileType, SpriteRef[]>,
+  ): Promise<void> {
+    for (const bmp of this.bitmaps.values()) bmp.close();
+    this.bitmaps.clear();
+
+    this.tiles = tiles;
+    this.spriteMap = spriteMap;
+    this.tileTypeSpriteMap = tileTypeSpriteMap;
+    this.autotileVariantMap = autotileVariantMap;
+
+    await this.precreateBitmaps();
   }
 
   // ===========================================================================

@@ -10,7 +10,7 @@
 
 import { DisplayGlyph, TileType } from "../types/enums.js";
 import { getConnectionGroupInfo, AUTOTILE_VARIANT_COUNT } from "./autotile.js";
-import manifest from "../../assets/tilesets/sprite-manifest.json";
+import defaultManifest from "../../assets/tilesets/sprite-manifest.json";
 
 export interface SpriteRef {
   sheetKey: string;
@@ -18,13 +18,21 @@ export interface SpriteRef {
   tileY: number;
 }
 
+export interface SpriteManifest {
+  tiles: Record<string, { x: number; y: number }>;
+  glyphs: Record<string, { x: number; y: number }>;
+}
+
 export const MASTER_SHEET_KEY = "master";
 
 /**
  * Build the TileType → sprite lookup from the master spritesheet manifest.
  * Unmapped TileTypes fall back to the DisplayGlyph-based sprite in the renderer.
+ * Pass a manifest to use a freshly-fetched one (HMR); omit for the static import.
  */
-export function buildTileTypeSpriteMap(): Map<TileType, SpriteRef> {
+export function buildTileTypeSpriteMap(
+  manifest: SpriteManifest = defaultManifest,
+): Map<TileType, SpriteRef> {
   const m = new Map<TileType, SpriteRef>();
   for (const [name, coords] of Object.entries(manifest.tiles)) {
     const tt = TileType[name as keyof typeof TileType];
@@ -105,8 +113,11 @@ export function buildAutotileVariantMap(
 /**
  * Build the glyph → sprite lookup from the master spritesheet manifest.
  * Unmapped glyphs return undefined; the renderer draws a fallback.
+ * Pass a manifest to use a freshly-fetched one (HMR); omit for the static import.
  */
-export function buildGlyphSpriteMap(): Map<DisplayGlyph, SpriteRef> {
+export function buildGlyphSpriteMap(
+  manifest: SpriteManifest = defaultManifest,
+): Map<DisplayGlyph, SpriteRef> {
   const m = new Map<DisplayGlyph, SpriteRef>();
   for (const [name, coords] of Object.entries(manifest.glyphs)) {
     const dg = DisplayGlyph[name as keyof typeof DisplayGlyph];
@@ -115,4 +126,14 @@ export function buildGlyphSpriteMap(): Map<DisplayGlyph, SpriteRef> {
     }
   }
   return m;
+}
+
+/**
+ * Fetch the sprite manifest from the dev server at runtime.
+ * Used during HMR to get updated tile coordinates after the assigner saves.
+ */
+export async function fetchSpriteManifest(): Promise<SpriteManifest> {
+  const resp = await fetch(`/assets/tilesets/sprite-manifest.json?t=${Date.now()}`);
+  if (!resp.ok) throw new Error(`Failed to fetch sprite manifest: ${resp.status}`);
+  return resp.json() as Promise<SpriteManifest>;
 }

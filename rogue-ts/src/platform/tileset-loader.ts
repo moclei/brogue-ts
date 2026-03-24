@@ -26,8 +26,27 @@ export const TILE_SIZE = 16;
  * autotile sheet names like "WallAutotile"). Fails if any image fails.
  */
 export function loadTilesetImages(): Promise<Map<string, HTMLImageElement>> {
+  return loadImagesFromUrls(SHEET_URLS);
+}
+
+/**
+ * Re-fetch all tileset images with cache-busting query params.
+ * Used by the HMR handler after the sprite assigner writes new assets.
+ */
+export function reloadTilesetImages(): Promise<Map<string, HTMLImageElement>> {
+  const bustSuffix = `?t=${Date.now()}`;
+  const busted: Record<string, string> = {};
+  for (const [name, url] of Object.entries(SHEET_URLS)) {
+    busted[name] = url + bustSuffix;
+  }
+  return loadImagesFromUrls(busted);
+}
+
+function loadImagesFromUrls(
+  urls: Record<string, string>,
+): Promise<Map<string, HTMLImageElement>> {
   const map = new Map<string, HTMLImageElement>();
-  const entries = Object.entries(SHEET_URLS);
+  const entries = Object.entries(urls);
 
   return Promise.all(
     entries.map(([name, url]) => {

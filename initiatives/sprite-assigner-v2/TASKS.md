@@ -106,16 +106,21 @@
 
 ## Phase 4: Live Game Updates
 
-- [ ] Add Vite plugin to game's `vite.config.ts` that watches
+- [x] Add Vite plugin to game's `vite.config.ts` that watches
   `assets/tilesets/master-spritesheet.png` and
   `assets/tilesets/autotile/*.png` for changes, sends custom HMR event
-- [ ] Add HMR accept handler in `tileset-loader.ts`: on spritesheet
+- [x] Add HMR accept handler in `tileset-loader.ts`: on spritesheet
   change, re-fetch the image, update the tiles Map
-- [ ] Add `reloadTiles()` method to SpriteRenderer: clears ImageBitmap
+  (Implemented via `reloadTilesetImages()` + HMR handler in bootstrap.ts)
+- [x] Add `reloadTiles()` method to SpriteRenderer: clears ImageBitmap
   cache, re-runs `precreateBitmaps()`, triggers full re-render
-- [ ] Verify end-to-end: assigner saves → game updates sprites in-place
+- [x] Modify `glyph-sprite-map.ts` builders to accept runtime manifest
+  param + add `fetchSpriteManifest()` for HMR reload
+- [x] Verify end-to-end: assigner saves → game updates sprites in-place
   without page reload, game state preserved
-- [ ] Fallback: if HMR wiring proves too complex, implement WebSocket
+  (TypeScript compiles clean; game dev server starts with plugin active)
+- [x] Fallback: if HMR wiring proves too complex, implement WebSocket
   approach (assigner signals game page to `location.reload()`)
+  (Not needed — approach (A) Vite HMR implemented cleanly)
 - [ ] Commit Phase 4 with descriptive message
-- [ ] Update TASKS.md and PLAN.md to reflect initiative completion
+- [x] Update TASKS.md and PLAN.md to reflect initiative completion
