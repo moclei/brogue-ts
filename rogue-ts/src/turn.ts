@@ -68,7 +68,7 @@ import { shuffleTerrainColors as shuffleTerrainColorsFn } from "./render-state.j
 import { checkForContinuedLeadership as checkForContinuedLeadershipFn, demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "./monsters/monster-ally-ops.js";
 import { buildResolvePronounEscapesFn, getMonsterDFMessage as getMonsterDFMessageFn } from "./io/text.js";
 import { buildMonstersTurnContext } from "./turn-monster-ai.js";
-import { doMakeMonsterDropItem } from "./monsters.js";
+import { doMakeMonsterDropItem } from "./monsters/monster-drop.js";
 import { updateEncumbrance as updateEncumbranceFn, recalculateEquipmentBonuses as recalculateEquipmentBonusesFn } from "./items/item-usage.js";
 import { buildEquipState, syncEquipBonuses } from "./items/equip-helpers.js";
 import { getFOVMask as getFOVMaskFn } from "./light/fov.js";
