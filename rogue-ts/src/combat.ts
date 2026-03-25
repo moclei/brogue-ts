@@ -63,6 +63,7 @@ import { specialHit as specialHitFn } from "./combat/combat-runics.js";
 import type { RunicContext } from "./combat/combat-runics.js";
 import { itemName as itemNameFn } from "./items/item-naming.js";
 import { cloneMonster as cloneMonsterFn } from "./monsters/monster-lifecycle.js";
+import { doMakeMonsterDropItem } from "./monsters/monster-drop.js";
 import type { CloneMonsterContext } from "./monsters/monster-lifecycle.js";
 import { wandTable, staffTable, ringTable, charmTable, charmEffectTable } from "./globals/item-catalog.js";
 import { ringWisdomMultiplier as ringWisdomMultiplierFn, charmRechargeDelay as charmRechargeDelayFn } from "./power/power-tables.js";
@@ -140,10 +141,11 @@ export function buildCombatDamageContext(): CombatDamageContext {
             if (idx >= 0) floorItems.splice(idx, 1);
         },
         makeMonsterDropItem(monst) {
-            if (monst.carriedItem) {
-                floorItems.push(monst.carriedItem);
-                monst.carriedItem = null;
-            }
+            doMakeMonsterDropItem(
+                monst, pmap, floorItems,
+                (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags),
+                refreshDungeonCell,
+            );
         },
 
         // ── Reference clearing ────────────────────────────────────────────────

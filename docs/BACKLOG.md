@@ -248,7 +248,7 @@ only if the path is genuinely not reachable in normal play.
       C: `IO.c` (`getCellAppearance` trap visibility), `Architect.c` (trap placement).
       TS: `io/display.ts` or `vision-wiring.ts`. **M**
 
-- [ ] **B101 — Monkey steals item; item is lost when monkey killed** — When a monkey steals
+- [x] **B101 — Monkey steals item; item is lost when monkey killed** — When a monkey steals
       an item from the player and is then killed, the item disappears instead of being dropped
       on the floor. Or maybe it was never actually removed from the player inventory? In C a monkey steals an item, flees, and killing it causes the item to be dropped.
       C: `Monsters.c` (`killCreature` / item-drop on death).
