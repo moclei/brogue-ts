@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-19 (cleanup: archived more completed items; added B98–B105 from playtesting)
+**Status:** updated 2026-03-25 (added B106/B107 from playtesting)
 **Tests at last update:** 88 files · 2324 pass · 55 skip
 
 ---
@@ -290,6 +290,27 @@ only if the path is genuinely not reachable in normal play.
       from `getSafetyMap` in the monster-AI path.
       C: `Monsters.c` (`updateSafetyMap` / safety-map context).
       TS: `turn-monster-ai.ts:550` (getSafetyMap call site), `safety-maps.ts:300`. **P1**
+
+- [x] **B106 — BigInt/Number type error in `rechargeItemsIncrementally` when equipping ring of wisdom** —
+      Fatal bootstrap error on equipping a ring of wisdom: `TypeError: Cannot mix BigInt and
+      other types, use explicit conversions` at `misc-helpers.ts:159:54`. Stack:
+      `rechargeItemsIncrementally` → `turn.ts:567` → `playerTurnEnded` (turn-processing.ts:616)
+      → `equip` (inventory-actions.ts:164) → `displayInventory` → `executeKeystroke`.
+      Root cause: `rechargeItemsIncrementally` context wiring in `turn.ts` and `combat.ts`
+      passed the raw BigInt `FP_FACTOR` and `ringWisdomMultiplierFn` (which takes/returns `Fixpt`)
+      directly into a context typed as `number`. The multiplication `wisdomBonus * FP_FACTOR`
+      mixed `number × BigInt`, crashing at runtime. Fixed by wrapping both in number↔BigInt
+      converters at the wiring site.
+      C: `Time.c` (`rechargeItemsIncrementally`), `Rogue.h` (`fixpt` type).
+      TS: `turn.ts:571`, `combat.ts:400`. **S**
+
+- [ ] **B107 — Staff of firebolt does not ignite dry wooden barricades** — Zapping a dry
+      wooden barricade with a staff of firebolt has no fire effect; the barricade is not
+      ignited. In C a firebolt hitting a flammable terrain feature calls `exposeTileToFire`
+      which sets the tile on fire and propagates to adjacent flammable cells.
+      Likely cause: `exposeTileToFire` is stubbed (`() => false`) in `tile-effects-wiring.ts`.
+      C: `Items.c` (bolt impact → `exposeTileToFire`), `Time.c` (`exposeTileToFire`).
+      TS: `tile-effects-wiring.ts` (`exposeTileToFire` stub), `items/staff-wiring.ts`. **S**
 
 ---
 
