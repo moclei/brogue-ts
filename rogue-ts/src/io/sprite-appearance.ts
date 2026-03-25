@@ -23,9 +23,9 @@
  */
 
 import type { Color, Creature, Item } from "../types/types.js";
-import { DungeonLayer, StatusEffect } from "../types/enums.js";
+import { DungeonLayer, StatusEffect, TileType } from "../types/enums.js";
 import {
-    TileFlag, TerrainFlag, MonsterBehaviorFlag, ANY_KIND_OF_VISIBLE,
+    TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, ANY_KIND_OF_VISIBLE,
 } from "../types/flags.js";
 import {
     classifyVisibility, lookupCreatureAt, buildMonsterQueryCtx,
@@ -142,14 +142,19 @@ function populateRememberedLayers(
     // Dungeon → TERRAIN
     const dungeonTile = remLayers[DungeonLayer.Dungeon];
     if (dungeonTile) {
+        // TM_IS_SECRET: hidden traps were seen as floor; remember them as floor too.
+        const effectiveTile = (!ctx.rogue.playbackOmniscience
+            && (ctx.tileCatalog[dungeonTile].mechFlags & TerrainMechFlag.TM_IS_SECRET))
+            ? TileType.FLOOR
+            : dungeonTile;
         const entry = acquireLayerEntry(pool, RenderLayer.TERRAIN);
-        entry.tileType = dungeonTile;
-        const te = ctx.tileCatalog[dungeonTile];
+        entry.tileType = effectiveTile;
+        const te = ctx.tileCatalog[effectiveTile];
         if (te.foreColor) copyColorTo(entry.tint, te.foreColor);
         spriteData.layers[RenderLayer.TERRAIN] = entry;
         if (te.backColor) copyColorTo(spriteData.bgColor, te.backColor);
 
-        const groupInfo = getConnectionGroupInfo(dungeonTile);
+        const groupInfo = getConnectionGroupInfo(effectiveTile);
         if (groupInfo) {
             entry.adjacencyMask = computeAdjacencyMask(
                 x, y, groupInfo.members, groupInfo.oobConnects,
@@ -265,14 +270,20 @@ export function getCellSpriteData(
 
     const dungeonTile = cell.layers[DungeonLayer.Dungeon];
     if (dungeonTile) {
+        // TM_IS_SECRET: hidden traps and similar tiles render as floor until
+        // discovered (matches getCellAppearance displayChar = G_FLOOR masking).
+        const effectiveTile = (!ctx.rogue.playbackOmniscience
+            && (ctx.tileCatalog[dungeonTile].mechFlags & TerrainMechFlag.TM_IS_SECRET))
+            ? TileType.FLOOR
+            : dungeonTile;
         const entry = acquireLayerEntry(pool, RenderLayer.TERRAIN);
-        entry.tileType = dungeonTile;
-        const te = ctx.tileCatalog[dungeonTile];
+        entry.tileType = effectiveTile;
+        const te = ctx.tileCatalog[effectiveTile];
         if (te.foreColor) copyColorTo(entry.tint, te.foreColor);
         spriteData.layers[RenderLayer.TERRAIN] = entry;
         if (te.backColor) copyColorTo(spriteData.bgColor, te.backColor);
 
-        const tGroupInfo = getConnectionGroupInfo(dungeonTile);
+        const tGroupInfo = getConnectionGroupInfo(effectiveTile);
         if (tGroupInfo) {
             entry.adjacencyMask = computeAdjacencyMask(
                 x, y, tGroupInfo.members, tGroupInfo.oobConnects,
