@@ -17,7 +17,7 @@ import { playerTurnEnded as playerTurnEndedFn } from "../src/time/turn-processin
 import { createCreature } from "../src/monsters/monster-creation.js";
 import { monsterCatalog } from "../src/globals/monster-catalog.js";
 import { MonsterBookkeepingFlag, MonsterAbilityFlag } from "../src/types/flags.js";
-import { MonsterType, StatusEffect, CreatureState, CreatureMode, ItemCategory, TileType } from "../src/types/enums.js";
+import { MonsterType, StatusEffect, CreatureState, CreatureMode, ItemCategory, TileType, DungeonLayer } from "../src/types/enums.js";
 import type { Creature, Item } from "../src/types/types.js";
 
 // =============================================================================
@@ -114,7 +114,12 @@ describe("killCreature — marks creature dying and handles item drop", () => {
         monster.loc = { x: 6, y: 5 };
         const item = makeItem();
         monster.carriedItem = item;
-        const { monsters, floorItems } = getGameState();
+        const { monsters, floorItems, pmap } = getGameState();
+        // set a real floor cell so doMakeMonsterDropItem can find a drop location
+        pmap[6][5].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+        pmap[6][5].layers[DungeonLayer.Liquid] = TileType.NOTHING;
+        pmap[6][5].layers[DungeonLayer.Gas] = TileType.NOTHING;
+        pmap[6][5].layers[DungeonLayer.Surface] = TileType.NOTHING;
         monsters.push(monster);
 
         const ctx = buildCombatDamageContext();
@@ -183,7 +188,12 @@ describe("attack — player attacks sleeping monster", () => {
         monster.creatureState = CreatureState.Sleeping;
         const item = makeItem();
         monster.carriedItem = item;
-        const { monsters, floorItems } = getGameState();
+        const { monsters, floorItems, pmap } = getGameState();
+        // set a real floor cell so doMakeMonsterDropItem can find a drop location
+        pmap[6][5].layers[DungeonLayer.Dungeon] = TileType.FLOOR;
+        pmap[6][5].layers[DungeonLayer.Liquid] = TileType.NOTHING;
+        pmap[6][5].layers[DungeonLayer.Gas] = TileType.NOTHING;
+        pmap[6][5].layers[DungeonLayer.Surface] = TileType.NOTHING;
         monsters.push(monster);
 
         const ctx = buildCombatAttackContext();
