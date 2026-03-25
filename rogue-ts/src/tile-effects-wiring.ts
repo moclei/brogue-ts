@@ -33,6 +33,7 @@ import type { CombatDamageContext } from "./combat/combat-damage.js";
 import {
     buildRefreshDungeonCellFn,
     buildMessageFns,
+    buildRefreshSideBarFn,
 } from "./io-wiring.js";
 import { buildUpdateVisionFn } from "./vision-wiring.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
@@ -61,15 +62,15 @@ import {
     white, pink, green, yellow, orange, red, darkRed, darkGreen,
 } from "./globals/colors.js";
 import { randRange, randPercent, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "./math/rng.js";
-import { DCOLS, DROWS } from "./types/constants.js";
+import { DCOLS, DROWS, STOMACH_SIZE } from "./types/constants.js";
 import { TileFlag, ItemFlag, DFFlag, MonsterBookkeepingFlag } from "./types/flags.js";
 
-import { CreatureState, DungeonLayer, LightType } from "./types/enums.js";
+import { CreatureState, DungeonLayer, FoodKind, LightType, StatusEffect } from "./types/enums.js";
 import { createFlare as createFlareFn } from "./light/flares.js";
 import { lightCatalog } from "./globals/light-catalog.js";
 import { INVALID_POS } from "./types/types.js";
-import type { Creature, Pos, Color } from "./types/types.js";
-import { wandTable, staffTable, ringTable, charmTable } from "./globals/item-catalog.js";
+import type { Creature, Item, Pos, Color } from "./types/types.js";
+import { foodTable, wandTable, staffTable, ringTable, charmTable } from "./globals/item-catalog.js";
 import type { ItemTable } from "./types/types.js";
 
 // =============================================================================
@@ -318,7 +319,25 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
         removeItemFromChain: (item: any, chain: any[]) => removeItemFromArrayFn(item, chain),
         deleteItem: deleteItemFn,
         dropItem: () => null,
-        eat: () => {},
+        eat: (theItem: Item, _recordCommands: boolean) => {
+            // C: Items.c:6700 — update nutrition, then consume item from pack
+            const foodPower = (foodTable as unknown as ItemTable[])[theItem.kind]?.power ?? 0;
+            player.status[StatusEffect.Nutrition] = Math.min(
+                foodPower + player.status[StatusEffect.Nutrition],
+                STOMACH_SIZE,
+            );
+            buildRefreshSideBarFn()();
+            const msg = theItem.kind === FoodKind.Ration
+                ? "That food tasted delicious!"
+                : "My, what a yummy mango!";
+            void io.messageWithColor(msg, itemMessageColor, 0);
+            if (theItem.quantity > 1) {
+                theItem.quantity--;
+            } else {
+                removeItemFromArrayFn(theItem, packItems);
+                deleteItemFn(theItem);
+            }
+        },
         makeMonsterDropItem: () => {},
 
         // Combat helpers

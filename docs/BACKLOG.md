@@ -155,7 +155,7 @@ only if the path is genuinely not reachable in normal play.
       C: `Architect.c` (glyph machine type and trigger dispatch).
       TS: `tile-effects-wiring.ts`, `turn.ts`. **S**
 
-- [ ] **B90 — Auto-eat loop: hunger message repeats but satiety does not restore** — When
+- [x] **B90 — Auto-eat loop: hunger message repeats but satiety does not restore** — When
       the player reaches "starving" hunger the game shows "Unable to control your hunger, you
       eat a ration of food" on every turn, but the hunger/satiety level never increases. The
       loop continues until the player manually eats. Additionally, eating a ration manually
@@ -229,7 +229,7 @@ only if the path is genuinely not reachable in normal play.
       TS: `items/pickup.ts` (`pickUpItemAt`), `movement/travel-explore.ts` (`getExploreMap`),
       `movement.ts` (pickup context wiring). **P1**
 
-- [ ] **B98 — No death animation** — When the player dies, there is no death animation.
+- [x] **B98 — No death animation** — When the player dies, there is no death animation.
       In C the screen flashes and the player glyph animates before the game-over screen.
       C: `RogueMain.c` / `IO.c` (death animation sequence).
       TS: `lifecycle-gameover.ts` or `menus.ts`. **S**
@@ -250,7 +250,7 @@ only if the path is genuinely not reachable in normal play.
 
 - [ ] **B101 — Monkey steals item; item is lost when monkey killed** — When a monkey steals
       an item from the player and is then killed, the item disappears instead of being dropped
-      on the floor. In C killing a monster that carries a stolen item should drop it.
+      on the floor. Or maybe it was never actually removed from the player inventory? In C a monkey steals an item, flees, and killing it causes the item to be dropped.
       C: `Monsters.c` (`killCreature` / item-drop on death).
       TS: `monsters/monster-death.ts` or combat kill path. **S**
 
