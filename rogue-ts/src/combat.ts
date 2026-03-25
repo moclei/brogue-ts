@@ -397,8 +397,8 @@ export function buildCombatAttackContext(): AttackContext {
         decrementWeaponAutoIDTimer: () => {},
         rechargeItemsIncrementally: (multiplier: number) => rechargeItemsIncrementallyFn(multiplier, {
             rogue: { wisdomBonus: rogue.wisdomBonus },
-            FP_FACTOR,
-            ringWisdomMultiplier: ringWisdomMultiplierFn,
+            FP_FACTOR: Number(FP_FACTOR),
+            ringWisdomMultiplier: (val: number) => Number(ringWisdomMultiplierFn(BigInt(val))),
             packItems,
             randClumpedRange,
             max: Math.max,
