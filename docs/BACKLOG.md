@@ -240,13 +240,20 @@ only if the path is genuinely not reachable in normal play.
       C: `IO.c` (button glyph rendering).
       TS: `io/buttons.ts` or the main-menu UI. **S**
 
-- [ ] **B100 — All traps visible by default** — All trap tiles on the dungeon floor are
+- [x] **B100 — All traps visible by default** — All trap tiles on the dungeon floor are
       visible to the player from the start, with no fog-of-war hiding them. In C traps are
       hidden unless the player is adjacent or has detected them. Likely cause: the
       `DISCOVERED` flag or the trap visibility check is not set correctly during dungeon
       generation or the FOV render.
       C: `IO.c` (`getCellAppearance` trap visibility), `Architect.c` (trap placement).
       TS: `io/display.ts` or `vision-wiring.ts`. **M**
+      — **Sprite path fixed (PR #93):** `getCellSpriteData` now masks `TM_IS_SECRET` tiles
+      as `TileType.FLOOR` so hidden traps no longer render as dark voids.
+      — **ASCII path WAI (confirmed PR #94):** `getCellAppearance` already returns
+      `{glyph:32, black, black}` for undiscovered cells via early return (line 318), before
+      any layer loop or TM_IS_SECRET processing. Hidden traps use `displayChar: G_FLOOR`
+      anyway, so even discovered-but-unseen memory shows them as a floor dot (correct).
+      Regression test added to `tests/io/cell-appearance.test.ts`.
 
 - [x] **B101 — Monkey steals item; item is lost when monkey killed** — When a monkey steals
       an item from the player and is then killed, the item disappears instead of being dropped
