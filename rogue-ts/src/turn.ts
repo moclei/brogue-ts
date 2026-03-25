@@ -42,6 +42,7 @@ import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machin
 import {
     goodMessageColor, badMessageColor, advancementMessageColor, itemMessageColor,
     orange, green, red, yellow, darkRed, darkGreen, poisonColor,
+    white, minersLightColor,
 } from "./globals/colors.js";
 import { DCOLS, DROWS, HUNGER_THRESHOLD, WEAK_THRESHOLD, FAINT_THRESHOLD } from "./types/constants.js";
 import { TileFlag, ItemFlag, MessageFlag, MonsterBookkeepingFlag, TerrainFlag, TerrainMechFlag, T_OBSTRUCTS_SCENT, IS_IN_MACHINE } from "./types/flags.js";
@@ -449,6 +450,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         // ── Colors ───────────────────────────────────────────────────────────
         goodMessageColor, badMessageColor, advancementMessageColor, itemMessageColor,
         orange, green, red, yellow, darkRed, darkGreen,
+        white, minersLightColor,
 
         // ── Environment / vision ──────────────────────────────────────────────
         updateEnvironment: () => {
