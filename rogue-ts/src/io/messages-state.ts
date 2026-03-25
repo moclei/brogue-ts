@@ -86,8 +86,8 @@ export interface MessageContext {
     refreshSideBar(x: number, y: number, forceFullUpdate: boolean): void;
     refreshDungeonCell(loc: Pos): void;
     waitForAcknowledgment(): void | Promise<void>;
-    pauseBrogue(ms: number, behavior: PauseBehavior): boolean;
-    nextBrogueEvent(textInput: boolean, colorsDance: boolean, realInput: boolean): RogueEvent;
+    pauseBrogue(ms: number, behavior: PauseBehavior): Promise<boolean>;
+    nextBrogueEvent(textInput: boolean, colorsDance: boolean, realInput: boolean): Promise<RogueEvent>;
     flashTemporaryAlert(msg: string, ms: number): void | Promise<void>;
     updateFlavorText(): void;
     stripShiftFromMovementKeystroke(keystroke: number): number;

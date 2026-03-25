@@ -435,14 +435,14 @@ function drawMessageArchive(
  *
  * C: `animateMessageArchive` (static) in IO.c
  */
-function animateMessageArchive(
+async function animateMessageArchive(
     ctx: MessageContext,
     opening: boolean,
     messages: string[],
     length: number,
     offset: number,
     height: number,
-): void {
+): Promise<void> {
     let fastForward = false;
 
     for (
@@ -454,10 +454,10 @@ function animateMessageArchive(
 
         drawMessageArchive(ctx, messages, length, offset - height + i, i);
 
-        if (!fastForward && ctx.pauseBrogue(opening ? 2 : 1, { interruptForMouseMove: false })) {
+        if (!fastForward && await ctx.pauseBrogue(opening ? 2 : 1, { interruptForMouseMove: false })) {
             fastForward = true;
             // Dequeue the event that interrupted us
-            ctx.nextBrogueEvent(false, false, true);
+            await ctx.nextBrogueEvent(false, false, true);
             i = opening ? height - 1 : MESSAGE_LINES + 1; // skip to end
         }
         ctx.restoreDisplayBuffer(rbuf);
@@ -470,13 +470,13 @@ function animateMessageArchive(
  *
  * C: `scrollMessageArchive` (static) in IO.c
  */
-function scrollMessageArchive(
+async function scrollMessageArchive(
     ctx: MessageContext,
     messages: string[],
     length: number,
     startOffset: number,
     height: number,
-): number {
+): Promise<number> {
     let offset = startOffset;
     let lastOffset = offset - 1; // ensure first render
 
@@ -494,7 +494,7 @@ function scrollMessageArchive(
         }
         lastOffset = offset;
 
-        const theEvent = ctx.nextBrogueEvent(false, false, false);
+        const theEvent = await ctx.nextBrogueEvent(false, false, false);
 
         if (theEvent.eventType === EventType.Keystroke) {
             let keystroke = theEvent.param1;
@@ -558,7 +558,7 @@ function scrollMessageArchive(
  *
  * C: `displayMessageArchive` in IO.c
  */
-export function displayMessageArchive(ctx: MessageContext): void {
+export async function displayMessageArchive(ctx: MessageContext): Promise<void> {
     const { buffer: messageBuffer, linesFormatted: length } = formatRecentMessages(
         ctx.messageState,
         MESSAGE_ARCHIVE_LINES,
@@ -572,9 +572,9 @@ export function displayMessageArchive(ctx: MessageContext): void {
     const height = Math.min(length, MESSAGE_ARCHIVE_VIEW_LINES);
     let offset = height;
 
-    animateMessageArchive(ctx, true, messageBuffer, length, offset, height);
-    offset = scrollMessageArchive(ctx, messageBuffer, length, offset, height);
-    animateMessageArchive(ctx, false, messageBuffer, length, offset, height);
+    await animateMessageArchive(ctx, true, messageBuffer, length, offset, height);
+    offset = await scrollMessageArchive(ctx, messageBuffer, length, offset, height);
+    await animateMessageArchive(ctx, false, messageBuffer, length, offset, height);
 
     ctx.updateFlavorText();
     confirmMessages(ctx);
