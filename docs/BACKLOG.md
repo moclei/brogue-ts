@@ -254,7 +254,7 @@ only if the path is genuinely not reachable in normal play.
       C: `Monsters.c` (`killCreature` / item-drop on death).
       TS: `monsters/monster-death.ts` or combat kill path. **S**
 
-- [ ] **B102 — Fire status visual effect never clears after player stops burning** — After the
+- [x] **B102 — Fire status visual effect never clears after player stops burning** — After the
       player stops being on fire, the fire visual effect (animated flames) persists on-screen
       indefinitely. The burning status clears correctly in the sidebar but the tile/display
       overlay is not removed.

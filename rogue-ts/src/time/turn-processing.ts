@@ -162,6 +162,8 @@ export interface TurnProcessingContext {
     yellow: Color;
     darkRed: Color;
     darkGreen: Color;
+    white: Color;
+    minersLightColor: Color;
 
     // Environment
     updateEnvironment(): void;
@@ -538,8 +540,12 @@ export async function playerTurnEnded(
                 ctx.gameOver("Burned to death", true);
             }
             if (!--ctx.player.status[StatusEffect.Burning]) {
-                // extinguishFireOnCreature inline for player
+                // extinguishFireOnCreature — C: Time.c:1858
                 ctx.player.status[StatusEffect.Burning] = 0;
+                ctx.player.info.foreColor = ctx.white;
+                ctx.rogue.minersLight.lightColor = ctx.minersLightColor;
+                ctx.refreshDungeonCell(ctx.player.loc);
+                ctx.updateVision(true);
                 ctx.message("you are no longer on fire.", 0);
             }
         }
