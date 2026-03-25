@@ -275,11 +275,15 @@ only if the path is genuinely not reachable in normal play.
       C: `Items.c` (`drinkPotion` invisibility branch), `Monsters.c` (scent/tracking reset).
       TS: `items/item-handlers.ts`, `monsters/monster-ai.ts`. **S**
 
-- [ ] **B104 — Messages panel should expand on click to show scroll history** — Clicking the
+- [x] **B104 — Messages panel should expand on click to show scroll history** — Clicking the
       message area should open a scrollable message history overlay. Currently clicking does
       nothing. In C pressing `M` (or clicking the message panel) opens the full log.
       C: `IO.c` (message history display).
       TS: `menus.ts` or the message-panel click handler in `platform.ts` / `io-wiring.ts`. **S**
+      — Fixed: `displayMessageArchive`, `scrollMessageArchive`, `animateMessageArchive` were
+      synchronous but called `pauseBrogue`/`nextBrogueEvent` which return Promises. Made all
+      three async, updated `MessageContext` interface, wired real `waitForEvent()` and
+      `pauseAndCheckForEvent()` into `buildMessageContext()` (PR #XX).
 
 - [x] **B105 — `updateSafetyMap` crash: `ctx.coordinatesAreInMap is not a function`** —
       Confirmed in two separate playtesting sessions (confusion potion use; fighting a monkey):

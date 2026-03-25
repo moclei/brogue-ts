@@ -69,7 +69,7 @@ export async function executeMouseClick(ctx: InputContext, theEvent: RogueEvent)
         mouse.windowY >= 0 &&
         mouse.windowY < MESSAGE_LINES
     ) {
-        ctx.displayMessageArchive();
+        await ctx.displayMessageArchive();
     }
 }
 

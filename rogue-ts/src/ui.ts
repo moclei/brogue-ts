@@ -302,8 +302,12 @@ export function buildMessageContext(): MessageContext {
                 // Platform not initialised (tests) — acknowledge immediately
             }
         },
-        pauseBrogue: async () => false,                       // stub — sync/async bridge (Phase 7)
-        nextBrogueEvent: async () => fakeEvent(),             // stub — sync/async bridge (Phase 7)
+        pauseBrogue: async (ms: number) => {
+            try { commitDraws(); return await pauseAndCheckForEvent(ms); } catch { return false; }
+        },
+        nextBrogueEvent: async () => {
+            try { commitDraws(); return await waitForEvent(); } catch { return fakeEvent(); }
+        },
         flashTemporaryAlert: async (msg: string, ms: number) => {
             const fCtx = {
                 rogue: { playbackFastForward: rogue.playbackFastForward },

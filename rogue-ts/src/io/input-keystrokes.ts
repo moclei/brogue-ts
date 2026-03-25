@@ -144,7 +144,7 @@ export interface InputContext {
     displayLevel(): void;
     refreshSideBar(x: number, y: number, justClearing: boolean): void;
     displayInventory(categoryMask: number, titleFlags: number, focusFlags: number, includeDetails: boolean, includeButtons: boolean): void | Promise<void>;
-    displayMessageArchive(): void;
+    displayMessageArchive(): void | Promise<void>;
     printHelpScreen(): void | Promise<void>;
     displayFeatsScreen(): void | Promise<void>;
     printDiscoveriesScreen(): void | Promise<void>;
