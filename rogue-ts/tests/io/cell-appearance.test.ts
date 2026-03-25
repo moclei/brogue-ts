@@ -124,6 +124,37 @@ describe("getCellAppearance", () => {
         expect(result.backColor.blue).toBe(0);
     });
 
+    // B100 regression: hidden trap tile (TM_IS_SECRET) on an undiscovered cell must
+    // render as black void — not as the trap's displayChar (G_FLOOR = middle-dot).
+    it("undiscovered hidden trap (TM_IS_SECRET) renders as black void, not floor glyph", () => {
+        const pmap = makePmap();
+        const tmap = makeTmap();
+        const displayBuffer: ScreenDisplayBuffer = createScreenDisplayBuffer();
+        const rogue = makeRogue();
+        const player = {} as unknown as Creature;
+
+        // Place a hidden trap in the dungeon layer; leave flags = 0 (undiscovered)
+        pmap[5][5].layers[0] = TileType.GAS_TRAP_POISON_HIDDEN;
+        // pmap[5][5].flags = 0 → no DISCOVERED, no VISIBLE
+
+        const result = getCellAppearance(
+            { x: 5, y: 5 },
+            pmap, tmap, displayBuffer, rogue, player,
+            [], [], [],
+            tileCatalog, dungeonFeatureCatalog, monsterCatalog,
+            makeTerrainRandomValues(), makeGrid(), makeGrid(),
+        );
+
+        // Undiscovered cells must return glyph=space (32) regardless of trap type
+        expect(result.glyph).toBe(32);
+        expect(result.foreColor.red).toBe(0);
+        expect(result.foreColor.green).toBe(0);
+        expect(result.foreColor.blue).toBe(0);
+        expect(result.backColor.red).toBe(0);
+        expect(result.backColor.green).toBe(0);
+        expect(result.backColor.blue).toBe(0);
+    });
+
     it("stable memory cell restores stored appearance (before post-processing)", () => {
         const pmap = makePmap();
         const tmap = makeTmap();
