@@ -20,6 +20,7 @@
  */
 
 import { getGameState, takePendingDeathMessage, takePendingVictory } from "./core.js";
+import { runDeathScreen } from "./lifecycle-gameover.js";
 import { waitForEvent, commitDraws, mainGameLoop, pauseAndCheckForEvent } from "./platform.js";
 import {
     initializeRogue, startLevel, freeEverything,
@@ -112,18 +113,18 @@ async function showGameEndScreen(): Promise<void> {
 
     if (!deathMsg && victoryType === 'none') return;
 
-    const { rogue, displayBuffer } = getGameState();
+    if (deathMsg) {
+        // Full C-faithful death sequence: message, inventory review, fade, death text
+        await runDeathScreen(deathMsg);
+        return;
+    }
 
-    // Black out the screen
+    // Victory placeholder (B98 only covers death; victory screens are a separate item)
+    const { rogue, displayBuffer } = getGameState();
     blackOutScreen(displayBuffer);
 
-    // Build the text lines to show
     const lines: Array<{ text: string; color: Color }> = [];
-
-    if (deathMsg) {
-        lines.push({ text: "You are dead.", color: { ...white } });
-        lines.push({ text: `${deathMsg} on depth ${rogue.depthLevel}.`, color: { ...veryDarkGray } });
-    } else if (victoryType === 'super') {
+    if (victoryType === 'super') {
         lines.push({ text: "You escaped with the Amulet of Yendor!", color: { ...yellow } });
         lines.push({ text: `You survived to depth ${rogue.depthLevel}.`, color: { ...veryDarkGray } });
     } else {
