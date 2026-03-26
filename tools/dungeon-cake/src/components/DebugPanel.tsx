@@ -5,7 +5,7 @@
 
 import { type ReactNode, useState, useRef, useCallback, useEffect } from "react";
 import type { LayerState, BlendMode } from "../state/debug-state.js";
-import { LAYER_NAMES } from "../state/debug-state.js";
+import { LAYER_NAMES, LAYER_DEFAULT_BLEND_MODES, LAYER_DEFAULT_TINT_ALPHAS } from "../state/debug-state.js";
 import { LayerColumn } from "./LayerColumn.js";
 
 const STORAGE_KEY = "dungeon-cake:panel-height";
@@ -26,11 +26,11 @@ interface DebugPanelProps {
     layers: LayerState[];
     onToggleLayer: (index: number) => void;
     onToggleEnabled: (enabled: boolean) => void;
-    onTintEnabled: (index: number, enabled: boolean) => void;
-    onTintColor: (index: number, color: string) => void;
-    onTintAlpha: (index: number, alpha: number) => void;
     onAlpha: (index: number, alpha: number | null) => void;
     onBlendMode: (index: number, mode: BlendMode | null) => void;
+    onTintAlpha: (index: number, alpha: number | null) => void;
+    onFilter: (index: number, filter: string | null) => void;
+    onShadowColor: (index: number, color: string | null) => void;
     onReset: () => void;
     children?: ReactNode;
 }
@@ -40,11 +40,11 @@ export function DebugPanel({
     layers,
     onToggleLayer,
     onToggleEnabled,
-    onTintEnabled,
-    onTintColor,
-    onTintAlpha,
     onAlpha,
     onBlendMode,
+    onTintAlpha,
+    onFilter,
+    onShadowColor,
     onReset,
     children,
 }: DebugPanelProps) {
@@ -103,23 +103,30 @@ export function DebugPanel({
             {enabled && (
                 <div className="debug-body">
                     <div className="layer-grid">
-                        {LAYER_NAMES.map((name, i) => (
-                            <LayerColumn
-                                key={name}
-                                name={name}
-                                index={i}
-                                visible={layers[i].visible}
-                                tint={layers[i].tint}
-                                alpha={layers[i].alpha}
-                                blendMode={layers[i].blendMode}
-                                onToggle={onToggleLayer}
-                                onTintEnabled={onTintEnabled}
-                                onTintColor={onTintColor}
-                                onTintAlpha={onTintAlpha}
-                                onAlpha={onAlpha}
-                                onBlendMode={onBlendMode}
-                            />
-                        ))}
+                        {LAYER_NAMES.map((name, i) => {
+                            const layer = layers[i]!;
+                            return (
+                                <LayerColumn
+                                    key={name}
+                                    name={name}
+                                    index={i}
+                                    visible={layer.visible}
+                                    alpha={layer.alpha}
+                                    blendMode={layer.blendMode}
+                                    defaultBlendMode={LAYER_DEFAULT_BLEND_MODES[i]!}
+                                    tintAlpha={layer.tintAlpha}
+                                    defaultTintAlpha={LAYER_DEFAULT_TINT_ALPHAS[i]!}
+                                    filter={layer.filter}
+                                    shadowColor={layer.shadowColor}
+                                    onToggle={onToggleLayer}
+                                    onAlpha={onAlpha}
+                                    onBlendMode={onBlendMode}
+                                    onTintAlpha={onTintAlpha}
+                                    onFilter={onFilter}
+                                    onShadowColor={onShadowColor}
+                                />
+                            );
+                        })}
                     </div>
                     {children}
                 </div>

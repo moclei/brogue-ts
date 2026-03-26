@@ -84,18 +84,20 @@ export function App() {
                         layers={debug.state.layers}
                         onToggleLayer={debug.toggleLayer}
                         onToggleEnabled={debug.setEnabled}
-                        onTintEnabled={debug.setTintEnabled}
-                        onTintColor={debug.setTintColor}
-                        onTintAlpha={debug.setTintAlpha}
                         onAlpha={debug.setAlpha}
                         onBlendMode={debug.setBlendMode}
+                        onTintAlpha={debug.setTintAlpha}
+                        onFilter={debug.setFilter}
+                        onShadowColor={debug.setShadowColor}
                         onReset={debug.reset}
                     >
                         <GlobalControls
                             lightingEnabled={lightingEnabled}
                             bgColorOverride={debug.state.bgColorOverride}
+                            showVariantIndices={debug.state.showVariantIndices}
                             onToggleLighting={setLightingEnabled}
                             onBgColorChange={debug.setBgColor}
+                            onShowVariantIndices={debug.setShowVariantIndices}
                             onResetAll={handleResetAll}
                         />
                     </DebugPanel>

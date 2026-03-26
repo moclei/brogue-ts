@@ -73,6 +73,12 @@ const LAYER_DEFAULTS: readonly LayerConfig[] = [
   /* UI         */ { blendMode: "none", tintAlpha: 1.0 },
 ];
 
+/** Per-layer default blend modes, exported for the debug panel UI. */
+export const LAYER_DEFAULT_BLEND_MODES: readonly BlendMode[] = LAYER_DEFAULTS.map(c => c.blendMode);
+
+/** Per-layer default tint alphas (blend fill opacity), exported for the debug panel UI. */
+export const LAYER_DEFAULT_TINT_ALPHAS: readonly number[] = LAYER_DEFAULTS.map(c => c.tintAlpha);
+
 /** Config for the legacy drawCell path (no layer model). */
 const LEGACY_LAYER_CONFIG: LayerConfig = {
   blendMode: "multiply",
@@ -421,15 +427,16 @@ export class SpriteRenderer implements Renderer {
 
   private drawVariantLabel(cellRect: CellRect, index: number): void {
     const { ctx } = this;
-    const fontSize = Math.max(8, Math.floor(cellRect.height * 0.45));
+    const fontSize = Math.max(6, Math.floor(cellRect.height * 0.3));
     ctx.save();
+    ctx.globalAlpha = 0.6;
     ctx.font = `bold ${fontSize}px monospace`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     const cx = cellRect.x + cellRect.width / 2;
     const cy = cellRect.y + cellRect.height / 2;
     ctx.strokeStyle = "black";
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 1.5;
     ctx.strokeText(String(index), cx, cy);
     ctx.fillStyle = "#ff0";
     ctx.fillText(String(index), cx, cy);
@@ -503,7 +510,9 @@ export class SpriteRenderer implements Renderer {
           TILE_SIZE,
         );
 
-        const tintAlpha = debugOverride?.tintOverride?.a ?? config.tintAlpha;
+        const tintAlpha = debugOverride?.tintAlphaOverride
+          ?? debugOverride?.tintOverride?.a
+          ?? config.tintAlpha;
         tintCtx.save();
         tintCtx.globalCompositeOperation = blendMode;
         if (tintAlpha < 1) tintCtx.globalAlpha = tintAlpha;

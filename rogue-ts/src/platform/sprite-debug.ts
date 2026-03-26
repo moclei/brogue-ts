@@ -26,21 +26,50 @@ import { createDeepDivePanel } from "./sprite-debug-detail.js";
 
 export type BlendMode =
   | "none"
-  | "multiply"
   | "source-over"
+  | "source-in"
+  | "source-out"
+  | "source-atop"
+  | "destination-over"
+  | "destination-in"
+  | "destination-out"
+  | "destination-atop"
+  | "lighter"
+  | "copy"
+  | "xor"
+  | "multiply"
   | "screen"
   | "overlay"
+  | "darken"
+  | "lighten"
   | "color-dodge"
-  | "color-burn";
+  | "color-burn"
+  | "hard-light"
+  | "soft-light"
+  | "difference"
+  | "exclusion"
+  | "hue"
+  | "saturation"
+  | "color"
+  | "luminosity";
 
-const ALL_BLEND_MODES: BlendMode[] = [
-  "none", "multiply", "source-over", "screen", "overlay", "color-dodge", "color-burn",
+export const ALL_BLEND_MODES: BlendMode[] = [
+  "none",
+  "source-over", "source-in", "source-out", "source-atop",
+  "destination-over", "destination-in", "destination-out", "destination-atop",
+  "lighter", "copy", "xor",
+  "multiply", "screen", "overlay", "darken", "lighten",
+  "color-dodge", "color-burn", "hard-light", "soft-light",
+  "difference", "exclusion",
+  "hue", "saturation", "color", "luminosity",
 ];
 
 export interface LayerOverride {
   visible: boolean;
   /** RGB 0-255 + optional alpha 0-1 for the tint fill itself. */
   tintOverride: { r: number; g: number; b: number; a: number } | null;
+  /** Override the tint fill opacity (0-1). null = use LAYER_DEFAULTS tintAlpha. */
+  tintAlphaOverride: number | null;
   alphaOverride: number | null;
   blendMode: BlendMode | null;
 
@@ -67,7 +96,8 @@ export interface InspectedLayerData {
 
 function defaultLayerOverride(): LayerOverride {
   return {
-    visible: true, tintOverride: null, alphaOverride: null, blendMode: null,
+    visible: true, tintOverride: null, tintAlphaOverride: null,
+    alphaOverride: null, blendMode: null,
     filterOverride: null, shadowBlur: null, shadowColor: null,
     shadowOffsetX: null, shadowOffsetY: null, imageSmoothingOverride: null,
     flipH: false, rotation: 0, scale: 1,
@@ -121,6 +151,7 @@ export function resetSpriteDebug(): void {
     const lo = spriteDebug.layers[i];
     lo.visible = true;
     lo.tintOverride = null;
+    lo.tintAlphaOverride = null;
     lo.alphaOverride = null;
     lo.blendMode = null;
     lo.filterOverride = null;
