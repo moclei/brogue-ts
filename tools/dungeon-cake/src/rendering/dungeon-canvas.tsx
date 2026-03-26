@@ -1,56 +1,79 @@
 /*
- *  dungeon-canvas.tsx — Canvas component rendering pmap as colored rectangles
- *  dungeon-cake (Phase 1a — replaced by sprite rendering in Phase 1b)
+ *  dungeon-canvas.tsx — Canvas component rendering dungeon with sprites
+ *  dungeon-cake
  */
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import type { Pcell } from "@game/types/types.js";
+import type { CellQueryContext } from "@game/io/cell-queries.js";
 import { DCOLS, DROWS } from "@game/types/constants.js";
-import { DungeonLayer } from "@game/types/enums.js";
-import { getTileColor } from "./tile-colors.js";
+import { TILE_SIZE, loadTilesets } from "../shared/tileset-bridge.js";
+import type { TilesetBundle } from "../shared/tileset-bridge.js";
+import { createQueryContext } from "../generation/query-context.js";
+import { renderDungeon } from "./cell-renderer.js";
 
 interface DungeonCanvasProps {
     pmap: Pcell[][] | null;
     zoom: number;
+    redrawCounter?: number;
 }
 
-const CELL_SIZE = 16;
-
-export function DungeonCanvas({ pmap, zoom }: DungeonCanvasProps) {
+export function DungeonCanvas({ pmap, zoom, redrawCounter }: DungeonCanvasProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const bundleRef = useRef<TilesetBundle | null>(null);
+    const queryCtxRef = useRef<CellQueryContext | null>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    const ensureTilesets = useCallback(async (ctx: CanvasRenderingContext2D) => {
+        if (bundleRef.current) return bundleRef.current;
+        setLoading(true);
+        try {
+            const bundle = await loadTilesets(ctx);
+            bundleRef.current = bundle;
+            return bundle;
+        } catch (err) {
+            setLoadError(err instanceof Error ? err.message : String(err));
+            return null;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas || !pmap) return;
 
-        const px = CELL_SIZE * zoom;
-        canvas.width = DCOLS * px;
-        canvas.height = DROWS * px;
+        const cellSize = TILE_SIZE * zoom;
+        canvas.width = DCOLS * cellSize;
+        canvas.height = DROWS * cellSize;
 
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
 
-        ctx.fillStyle = "#0a0a12";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        let cancelled = false;
 
-        for (let x = 0; x < DCOLS; x++) {
-            for (let y = 0; y < DROWS; y++) {
-                const cell = pmap[x]![y]!;
-                const tileType = cell.layers[DungeonLayer.Dungeon]!;
-                ctx.fillStyle = getTileColor(tileType);
-                ctx.fillRect(x * px, y * px, px, px);
-            }
-        }
-    }, [pmap, zoom]);
+        (async () => {
+            const bundle = await ensureTilesets(ctx);
+            if (cancelled || !bundle) return;
 
-    const px = CELL_SIZE * zoom;
+            queryCtxRef.current = createQueryContext(pmap);
+            renderDungeon(ctx, bundle.spriteRenderer, queryCtxRef.current, zoom);
+        })();
+
+        return () => { cancelled = true; };
+    }, [pmap, zoom, redrawCounter, ensureTilesets]);
+
+    const cellSize = TILE_SIZE * zoom;
 
     return (
         <div className="canvas-container">
+            {loading && <div className="loading-overlay">Loading tilesets...</div>}
+            {loadError && <div className="error-overlay">Tileset error: {loadError}</div>}
             <canvas
                 ref={canvasRef}
-                width={DCOLS * px}
-                height={DROWS * px}
+                width={DCOLS * cellSize}
+                height={DROWS * cellSize}
                 style={{ imageRendering: "pixelated" }}
             />
         </div>

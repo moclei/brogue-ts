@@ -1,5 +1,5 @@
 /*
- *  App.tsx — Root layout: toolbar, dungeon canvas
+ *  App.tsx — Root layout: toolbar, dungeon canvas, debug panel
  *  dungeon-cake
  */
 
@@ -8,6 +8,8 @@ import type { Pcell } from "@game/types/types.js";
 import { generateLevel } from "./generation/generate-level.js";
 import { Toolbar } from "./components/Toolbar.js";
 import { DungeonCanvas } from "./rendering/dungeon-canvas.js";
+import { DebugPanel } from "./components/DebugPanel.js";
+import { useDebugState } from "./state/debug-state.js";
 import {
     DungeonStateContext,
     DungeonActionsContext,
@@ -20,11 +22,12 @@ export function App() {
     const [pmap, setPmap] = useState<Pcell[][] | null>(null);
     const [generating, setGenerating] = useState(false);
 
+    const debug = useDebugState();
+
     const generate = useCallback((d: number, s: number) => {
         setGenerating(true);
         setDepth(d);
         setSeed(s);
-        // Defer to let React render the "generating" state
         requestAnimationFrame(() => {
             try {
                 const result = generateLevel(d, s);
@@ -56,8 +59,19 @@ export function App() {
                     />
                     <div className="main-content">
                         {generating && <div className="generating">Generating...</div>}
-                        <DungeonCanvas pmap={pmap} zoom={zoom} />
+                        <DungeonCanvas
+                            pmap={pmap}
+                            zoom={zoom}
+                            redrawCounter={debug.state.redrawCounter}
+                        />
                     </div>
+                    <DebugPanel
+                        enabled={debug.state.enabled}
+                        layerVisible={debug.state.layerVisible}
+                        onToggleLayer={debug.toggleLayer}
+                        onToggleEnabled={debug.setEnabled}
+                        onReset={debug.reset}
+                    />
                 </div>
             </DungeonActionsContext.Provider>
         </DungeonStateContext.Provider>

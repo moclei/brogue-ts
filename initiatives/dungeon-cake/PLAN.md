@@ -84,7 +84,11 @@ All catalogs (`tileCatalog`, `dungeonProfileCatalog`, `dungeonFeatureCatalog`, `
 
 ## Open Questions
 
-1. **`updateLighting()` dependency surface.** When the lighting toggle is on, the tool needs to call `updateLighting()`. Its transitive dependencies have not been fully traced — it may require game state beyond `pmap`/`tmap`. Phase 1b will resolve this by tracing the dependency chain. If the dependencies are too heavy, the tool defaults to lighting-off mode and lighting support moves to the roadmap.
+*None — all resolved.*
+
+### Resolved
+
+1. **`updateLighting()` dependency surface.** Traced in Phase 1b. The `LightingContext` interface requires: `tmap`, `pmap`, `displayDetail` (all already available), `player`/`rogue` (stub extensions needed: `rogue.minersLight`, `rogue.minersLightRadius`, `rogue.lightMultiplier`), `lightCatalog` (static import), `mutationCatalog` (static import), `monsterRevealed` (stub → `() => false`), plus `FOVContext` (already in stubs.ts). **Verdict: stubbable.** The tool can call `updateLighting()` to populate tmap.light, then the existing `colorMultiplierFromDungeonLight()` in getCellSpriteData reads those values. Wiring deferred to Phase 2 — Phase 1b defaults to lighting-off (tmap.light all set to [100,100,100] = white, no darkening).
 
 ## Rejected Approaches
 

@@ -290,13 +290,14 @@ export function createPlayerCreatureStub(loc: Pos = { x: 0, y: 0 }): Creature {
 }
 
 /**
- * Minimal PlayerCharacter stub. Only the 3 fields accessed by
- * getCellSpriteData matter; the rest are structural defaults.
+ * Minimal PlayerCharacter stub. Only 3 of ~100 fields are accessed by
+ * getCellSpriteData — the rest are never touched in terrain-only mode.
+ * Cast is safe because no other code path runs against this stub.
  */
-export function createRogueStub(): Pick<PlayerCharacter, "playbackOmniscience" | "inWater" | "trueColorMode"> {
+export function createRogueStub(): PlayerCharacter {
     return {
         playbackOmniscience: false,
         inWater: false,
         trueColorMode: false,
-    };
+    } as PlayerCharacter;
 }

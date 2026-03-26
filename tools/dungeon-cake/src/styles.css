@@ -111,3 +111,82 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.1em;
 }
+
+.loading-overlay,
+.error-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.loading-overlay { color: #668; }
+.error-overlay { color: #a44; }
+
+/* Debug Panel */
+
+.debug-panel {
+    flex-shrink: 0;
+    background: #14141e;
+    border-top: 1px solid #2a2a3a;
+    padding: 8px 16px;
+}
+
+.debug-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.debug-enable {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #6cf;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.debug-reset {
+    padding: 3px 10px;
+    background: #222;
+    border: 1px solid #333;
+    border-radius: 3px;
+    color: #888;
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.debug-reset:hover { color: #ccc; border-color: #555; }
+
+.layer-grid {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.layer-column {
+    min-width: 80px;
+}
+
+.layer-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    color: #aaa;
+}
+
+.layer-toggle input { cursor: pointer; }
+
+.layer-name {
+    font-family: inherit;
+    letter-spacing: 0.03em;
+}
