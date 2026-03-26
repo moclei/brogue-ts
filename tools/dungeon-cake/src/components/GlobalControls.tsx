@@ -1,5 +1,5 @@
 /*
- *  GlobalControls.tsx — Lighting toggle, background color override, Reset All
+ *  GlobalControls.tsx — Lighting, bg color, variant indices, Reset All
  *  dungeon-cake
  */
 
@@ -8,16 +8,20 @@ import { useState } from "react";
 interface GlobalControlsProps {
     lightingEnabled: boolean;
     bgColorOverride: string | null;
+    showVariantIndices: boolean;
     onToggleLighting: (enabled: boolean) => void;
     onBgColorChange: (color: string | null) => void;
+    onShowVariantIndices: (enabled: boolean) => void;
     onResetAll: () => void;
 }
 
 export function GlobalControls({
     lightingEnabled,
     bgColorOverride,
+    showVariantIndices,
     onToggleLighting,
     onBgColorChange,
+    onShowVariantIndices,
     onResetAll,
 }: GlobalControlsProps) {
     const [bgEnabled, setBgEnabled] = useState(bgColorOverride !== null);
@@ -53,6 +57,15 @@ export function GlobalControls({
                     onChange={(e) => onBgColorChange(e.target.value)}
                 />
             </div>
+
+            <label className="global-control" title="Show autotile variant index on each cell">
+                <input
+                    type="checkbox"
+                    checked={showVariantIndices}
+                    onChange={(e) => onShowVariantIndices(e.target.checked)}
+                />
+                <span>Variants</span>
+            </label>
 
             <button className="reset-all-btn" onClick={onResetAll}>
                 Reset All

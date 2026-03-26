@@ -53,6 +53,7 @@ export function DungeonCanvas({ pmap, zoom, redrawCounter, lightingEnabled, fogM
 
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
+        ctx.imageSmoothingEnabled = false;
 
         let cancelled = false;
 
