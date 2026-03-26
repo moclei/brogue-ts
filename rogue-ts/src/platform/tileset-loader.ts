@@ -11,11 +11,13 @@
 
 import MasterSheetUrl from "../../assets/tilesets/master-spritesheet.png?url";
 import WallAutotileUrl from "../../assets/tilesets/autotile/wall-autotile.png?url";
+import FloorAutotileUrl from "../../assets/tilesets/autotile/floor-autotile.png?url";
 import { MASTER_SHEET_KEY } from "./glyph-sprite-map.js";
 
 const SHEET_URLS: Record<string, string> = {
   [MASTER_SHEET_KEY]: MasterSheetUrl,
   WallAutotile: WallAutotileUrl,
+  FloorAutotile: FloorAutotileUrl,
 };
 
 export const TILE_SIZE = 16;

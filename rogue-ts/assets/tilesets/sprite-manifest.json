@@ -51,12 +51,28 @@
       "x": 20,
       "y": 0
     },
+    "WALL_LEVER": {
+      "x": 3,
+      "y": 1
+    },
+    "WALL_LEVER_PULLED": {
+      "x": 4,
+      "y": 1
+    },
     "STATUE_INERT": {
       "x": 6,
       "y": 1
     },
     "STATUE_DORMANT": {
       "x": 7,
+      "y": 1
+    },
+    "STATUE_CRACKING": {
+      "x": 8,
+      "y": 1
+    },
+    "STATUE_INSTACRACK": {
+      "x": 9,
       "y": 1
     },
     "PORTAL": {
@@ -77,6 +93,18 @@
     },
     "ALTAR_CAGE_CLOSED": {
       "x": 20,
+      "y": 1
+    },
+    "ALTAR_SWITCH": {
+      "x": 21,
+      "y": 1
+    },
+    "ALTAR_SWITCH_RETRACTING": {
+      "x": 22,
+      "y": 1
+    },
+    "ALTAR_CAGE_RETRACTABLE": {
+      "x": 23,
       "y": 1
     },
     "PEDESTAL": {
@@ -129,6 +157,10 @@
     },
     "STONE_BRIDGE": {
       "x": 8,
+      "y": 4
+    },
+    "HOLE": {
+      "x": 16,
       "y": 4
     },
     "FLOOD_WATER_DEEP": {
@@ -398,6 +430,50 @@
     "ANCIENT_SPIRIT_GRASS": {
       "x": 16,
       "y": 7
+    },
+    "AMULET_SWITCH": {
+      "x": 17,
+      "y": 7
+    },
+    "COMMUTATION_ALTAR": {
+      "x": 18,
+      "y": 7
+    },
+    "COMMUTATION_ALTAR_INERT": {
+      "x": 19,
+      "y": 7
+    },
+    "RESURRECTION_ALTAR": {
+      "x": 22,
+      "y": 7
+    },
+    "RESURRECTION_ALTAR_INERT": {
+      "x": 23,
+      "y": 7
+    },
+    "SACRIFICE_ALTAR_DORMANT": {
+      "x": 1,
+      "y": 8
+    },
+    "SACRIFICE_ALTAR": {
+      "x": 2,
+      "y": 8
+    },
+    "DEMONIC_STATUE": {
+      "x": 5,
+      "y": 8
+    },
+    "STATUE_INERT_DOORWAY": {
+      "x": 6,
+      "y": 8
+    },
+    "STATUE_DORMANT_DOORWAY": {
+      "x": 7,
+      "y": 8
+    },
+    "TURRET_LEVER": {
+      "x": 15,
+      "y": 8
     }
   },
   "glyphs": {

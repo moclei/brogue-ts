@@ -10,50 +10,35 @@
       "x": 95,
       "y": 10
     },
-    "WALL": {
-      "sheet": "Wall",
-      "x": 10,
-      "y": 15
-    },
-    "GRASS": {
-      "sheet": "muddy cave v2",
-      "x": 7,
-      "y": 11
-    },
-    "DEAD_GRASS": {
-      "sheet": "muddy cave v2",
-      "x": 2,
+    "FOLIAGE": {
+      "sheet": "the-roguelike",
+      "x": 13,
       "y": 5
     },
-    "FOLIAGE": {
-      "sheet": "muddy cave v3",
-      "x": 4,
-      "y": 11
-    },
     "DEAD_FOLIAGE": {
-      "sheet": "muddy cave v3",
-      "x": 5,
-      "y": 11
+      "sheet": "the-roguelike",
+      "x": 68,
+      "y": 7
     },
     "TRAMPLED_FOLIAGE": {
-      "sheet": "muddy cave v2",
-      "x": 5,
-      "y": 12
+      "sheet": "the-roguelike",
+      "x": 17,
+      "y": 9
     },
     "BLOODFLOWER_STALK": {
-      "sheet": "TheRoguelikeSolid",
-      "x": 98,
-      "y": 3
+      "sheet": "the-roguelike",
+      "x": 45,
+      "y": 6
     },
     "BLOODFLOWER_POD": {
-      "sheet": "TheRoguelikeSolid",
-      "x": 5,
+      "sheet": "the-roguelike",
+      "x": 44,
       "y": 7
     },
     "FUNGUS_FOREST": {
-      "sheet": "muddy cave v3",
-      "x": 5,
-      "y": 10
+      "sheet": "the-roguelike",
+      "x": 58,
+      "y": 5
     },
     "TRAMPLED_FUNGUS_FOREST": {
       "sheet": "Ground0",
@@ -61,14 +46,14 @@
       "y": 0
     },
     "GRAY_FUNGUS": {
-      "sheet": "muddy cave v3",
-      "x": 12,
-      "y": 11
+      "sheet": "the-roguelike",
+      "x": 59,
+      "y": 5
     },
     "LUMINESCENT_FUNGUS": {
-      "sheet": "muddy cave v3",
-      "x": 12,
-      "y": 11
+      "sheet": "the-roguelike",
+      "x": 59,
+      "y": 5
     },
     "LICHEN": {
       "sheet": "muddy cave v3",
@@ -86,14 +71,14 @@
       "y": 5
     },
     "ANCIENT_SPIRIT_GRASS": {
-      "sheet": "TheRoguelikeSolid",
-      "x": 53,
+      "sheet": "the-roguelike",
+      "x": 10,
       "y": 5
     },
     "RED_BLOOD": {
-      "sheet": "Raven_Icons",
-      "x": 0,
-      "y": 57
+      "sheet": "DD_Full",
+      "x": 3,
+      "y": 16
     },
     "GREEN_BLOOD": {
       "sheet": "TheRoguelikeSolid",
@@ -126,9 +111,9 @@
       "y": 68
     },
     "WORM_BLOOD": {
-      "sheet": "Raven_Icons",
-      "x": 0,
-      "y": 68
+      "sheet": "the-roguelike",
+      "x": 91,
+      "y": 9
     },
     "ASH": {
       "sheet": "Raven_Icons",
@@ -286,14 +271,14 @@
       "y": 17
     },
     "CHASM": {
-      "sheet": "TheRoguelikeSolid",
-      "x": 13,
-      "y": 10
+      "sheet": "mainlevbuild",
+      "x": 7,
+      "y": 4
     },
     "DOOR": {
-      "sheet": "TheRoguelikeSolid",
-      "x": 67,
-      "y": 22
+      "sheet": "Dungeon_item_props_v2",
+      "x": 6,
+      "y": 3
     },
     "OPEN_DOOR": {
       "sheet": "TheRoguelikeSolid",
@@ -331,12 +316,12 @@
       "y": 33
     },
     "STATUE_INERT": {
-      "sheet": "TheRoguelikeSolid",
+      "sheet": "the-roguelike",
       "x": 7,
       "y": 34
     },
     "STATUE_DORMANT": {
-      "sheet": "TheRoguelikeSolid",
+      "sheet": "the-roguelike",
       "x": 7,
       "y": 34
     },
@@ -425,11 +410,6 @@
       "x": 92,
       "y": 13
     },
-    "FLOOR": {
-      "sheet": "muddy cave v2",
-      "x": 1,
-      "y": 5
-    },
     "TORCH_WALL": {
       "sheet": "decorative",
       "x": 12,
@@ -451,14 +431,14 @@
       "y": 25
     },
     "ALTAR_CAGE_OPEN": {
-      "sheet": "TheRoguelikeSolid",
-      "x": 26,
-      "y": 25
+      "sheet": "the-roguelike",
+      "x": 73,
+      "y": 10
     },
     "ALTAR_CAGE_CLOSED": {
-      "sheet": "TheRoguelikeSolid",
-      "x": 58,
-      "y": 27
+      "sheet": "the-roguelike",
+      "x": 72,
+      "y": 10
     },
     "ALTAR_KEYHOLE": {
       "sheet": "TheRoguelikeSolid",
@@ -494,6 +474,121 @@
       "sheet": "TheRoguelikeSolid",
       "x": 108,
       "y": 10
+    },
+    "GRASS": {
+      "sheet": "the-roguelike",
+      "x": 70,
+      "y": 5
+    },
+    "DEAD_GRASS": {
+      "sheet": "the-roguelike",
+      "x": 71,
+      "y": 5
+    },
+    "HOLE": {
+      "sheet": "DD_Frozen",
+      "x": 17,
+      "y": 13
+    },
+    "STATUE_CRACKING": {
+      "sheet": "the-roguelike",
+      "x": 7,
+      "y": 34
+    },
+    "STATUE_INSTACRACK": {
+      "sheet": "the-roguelike",
+      "x": 7,
+      "y": 34
+    },
+    "DEMONIC_STATUE": {
+      "sheet": "the-roguelike",
+      "x": 13,
+      "y": 34
+    },
+    "STATUE_INERT_DOORWAY": {
+      "sheet": "the-roguelike",
+      "x": 7,
+      "y": 34
+    },
+    "STATUE_DORMANT_DOORWAY": {
+      "sheet": "the-roguelike",
+      "x": 7,
+      "y": 34
+    },
+    "ALTAR_CAGE_RETRACTABLE": {
+      "sheet": "the-roguelike",
+      "x": 72,
+      "y": 10
+    },
+    "COMMUTATION_ALTAR": {
+      "sheet": "the-roguelike",
+      "x": 8,
+      "y": 23
+    },
+    "COMMUTATION_ALTAR_INERT": {
+      "sheet": "the-roguelike",
+      "x": 11,
+      "y": 23
+    },
+    "RESURRECTION_ALTAR": {
+      "sheet": "the-roguelike",
+      "x": 31,
+      "y": 23
+    },
+    "RESURRECTION_ALTAR_INERT": {
+      "sheet": "the-roguelike",
+      "x": 31,
+      "y": 23
+    },
+    "SACRIFICE_ALTAR_DORMANT": {
+      "sheet": "the-roguelike",
+      "x": 80,
+      "y": 23
+    },
+    "SACRIFICE_ALTAR": {
+      "sheet": "the-roguelike",
+      "x": 81,
+      "y": 23
+    },
+    "ALTAR_SWITCH": {
+      "sheet": "DD_Generics",
+      "x": 1,
+      "y": 5
+    },
+    "ALTAR_SWITCH_RETRACTING": {
+      "sheet": "DD_Generics",
+      "x": 0,
+      "y": 5
+    },
+    "AMULET_SWITCH": {
+      "sheet": "DD_Generics",
+      "x": 2,
+      "y": 5
+    },
+    "WALL_LEVER": {
+      "sheet": "DD_Generics",
+      "x": 1,
+      "y": 6
+    },
+    "WALL_LEVER_PULLED": {
+      "sheet": "DD_Generics",
+      "x": 0,
+      "y": 6
+    },
+    "TURRET_LEVER": {
+      "sheet": "DD_Generics",
+      "x": 1,
+      "y": 8
+    },
+    "WALL": {
+      "sheet": "the-roguelike",
+      "x": 22,
+      "y": 2
+    },
+    "FLOOR": {
+      "sheet": "the-roguelike",
+      "x": 22,
+      "y": 2
     }
   },
   "glyph": {
@@ -711,239 +806,476 @@
   "autotile": {
     "WALL": [
       {
-        "sheet": "DD_Full",
+        "sheet": "wall-autotile",
+        "x": 0,
+        "y": 0
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 1,
+        "y": 0
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 2,
+        "y": 0
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 3,
+        "y": 0
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 4,
+        "y": 0
+      },
+      {
+        "sheet": "wall-autotile",
         "x": 5,
         "y": 0
       },
       {
-        "sheet": "DD_Full",
+        "sheet": "wall-autotile",
+        "x": 6,
+        "y": 0
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 7,
+        "y": 0
+      },
+      {
+        "sheet": "wall-autotile",
         "x": 0,
-        "y": 2
-      },
-      {
-        "sheet": "DD_Full",
-        "x": 2,
-        "y": 2
-      },
-      {
-        "sheet": "DD_Full",
-        "x": 2,
         "y": 1
       },
       {
-        "sheet": "DD_Full",
-        "x": 2,
-        "y": 1
-      },
-      {
-        "sheet": "DD_Full",
+        "sheet": "wall-autotile",
         "x": 1,
-        "y": 2
-      },
-      {
-        "sheet": "DD_Full",
-        "x": 4,
         "y": 1
       },
       {
-        "sheet": "DD_Full",
+        "sheet": "wall-autotile",
         "x": 2,
-        "y": 0
-      },
-      {
-        "sheet": "DD_Full",
-        "x": 0,
         "y": 1
       },
       {
-        "sheet": "DD_Full",
-        "x": 0,
-        "y": 1
-      },
-      {
-        "sheet": "DD_Full",
-        "x": 2,
-        "y": 0
-      },
-      {
-        "sheet": "DD_Full",
-        "x": 0,
-        "y": 1
-      },
-      {
-        "sheet": "DD_Full",
-        "x": 4,
-        "y": 1
-      },
-      {
-        "sheet": "DD_Full",
+        "sheet": "wall-autotile",
         "x": 3,
         "y": 1
       },
       {
-        "sheet": "DD_Full",
+        "sheet": "wall-autotile",
         "x": 4,
+        "y": 1
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 5,
+        "y": 1
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 6,
+        "y": 1
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 7,
+        "y": 1
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 0,
         "y": 2
       },
       {
-        "sheet": "DD_Full",
+        "sheet": "wall-autotile",
+        "x": 1,
+        "y": 2
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 2,
+        "y": 2
+      },
+      {
+        "sheet": "wall-autotile",
         "x": 3,
         "y": 2
       },
       {
-        "sheet": "DD_Full",
-        "x": 1,
-        "y": 1
+        "sheet": "wall-autotile",
+        "x": 4,
+        "y": 2
       },
       {
         "sheet": "DD_Full",
-        "x": 1,
-        "y": 1
+        "x": 5,
+        "y": 0
       },
       {
-        "sheet": "DD_Full",
+        "sheet": "wall-autotile",
+        "x": 6,
+        "y": 2
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 7,
+        "y": 2
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 0,
+        "y": 3
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 1,
+        "y": 3
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 2,
+        "y": 3
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 3,
+        "y": 3
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 4,
+        "y": 3
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 5,
+        "y": 3
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 6,
+        "y": 3
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 7,
+        "y": 3
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 0,
+        "y": 4
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 1,
+        "y": 4
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 2,
+        "y": 4
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 3,
+        "y": 4
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 4,
+        "y": 4
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 5,
+        "y": 4
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 6,
+        "y": 4
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 7,
+        "y": 4
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 0,
+        "y": 5
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 1,
+        "y": 5
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 2,
+        "y": 5
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 3,
+        "y": 5
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 4,
+        "y": 5
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 5,
+        "y": 5
+      },
+      {
+        "sheet": "wall-autotile",
+        "x": 6,
+        "y": 5
+      }
+    ],
+    "FLOOR": [
+      {
+        "sheet": "floor-autotile",
+        "x": 0,
+        "y": 0
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 1,
+        "y": 0
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 2,
+        "y": 0
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 3,
+        "y": 0
+      },
+      {
+        "sheet": "floor-autotile",
         "x": 4,
         "y": 0
       },
       {
-        "sheet": "DD_Full",
+        "sheet": "floor-autotile",
+        "x": 5,
+        "y": 0
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 6,
+        "y": 0
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 7,
+        "y": 0
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 0,
+        "y": 1
+      },
+      {
+        "sheet": "floor-autotile",
         "x": 1,
-        "y": 0
+        "y": 1
       },
       {
-        "sheet": "DD_Full",
-        "x": 0,
-        "y": 0
+        "sheet": "floor-autotile",
+        "x": 2,
+        "y": 1
       },
       {
-        "sheet": "DD_Full",
-        "x": 5,
-        "y": 0
+        "sheet": "floor-autotile",
+        "x": 3,
+        "y": 1
       },
       {
-        "sheet": "DD_Full",
-        "x": 5,
-        "y": 0
-      },
-      {
-        "sheet": "DD_Full",
-        "x": 0,
-        "y": 0
-      },
-      {
-        "sheet": "DD_Full",
-        "x": 5,
-        "y": 0
-      },
-      {
-        "sheet": "DD_Full",
-        "x": 5,
-        "y": 0
-      },
-      {
-        "sheet": "DD_Full",
+        "sheet": "floor-autotile",
         "x": 4,
-        "y": 0
+        "y": 1
       },
       {
-        "sheet": "DD_Full",
-        "x": 1,
-        "y": 0
+        "sheet": "floor-autotile",
+        "x": 5,
+        "y": 1
       },
       {
-        "sheet": "DD_Full",
+        "sheet": "floor-autotile",
+        "x": 6,
+        "y": 1
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 7,
+        "y": 1
+      },
+      {
+        "sheet": "floor-autotile",
         "x": 0,
-        "y": 0
+        "y": 2
       },
       {
-        "sheet": "DD_Full",
-        "x": 5,
-        "y": 0
+        "sheet": "floor-autotile",
+        "x": 1,
+        "y": 2
       },
       {
-        "sheet": "DD_Full",
-        "x": 5,
-        "y": 0
+        "sheet": "floor-autotile",
+        "x": 2,
+        "y": 2
       },
       {
-        "sheet": "DD_Full",
+        "sheet": "floor-autotile",
         "x": 3,
         "y": 2
       },
       {
-        "sheet": "DD_Full",
-        "x": 5,
-        "y": 0
-      },
-      {
-        "sheet": "DD_Full",
-        "x": 5,
-        "y": 0
-      },
-      {
-        "sheet": "DD_Full",
+        "sheet": "floor-autotile",
         "x": 4,
         "y": 2
       },
       {
-        "sheet": "DD_Full",
+        "sheet": "floor-autotile",
+        "x": 5,
+        "y": 2
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 6,
+        "y": 2
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 7,
+        "y": 2
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 0,
+        "y": 3
+      },
+      {
+        "sheet": "floor-autotile",
         "x": 1,
-        "y": 1
+        "y": 3
       },
       {
-        "sheet": "DD_Full",
+        "sheet": "floor-autotile",
+        "x": 2,
+        "y": 3
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 3,
+        "y": 3
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 4,
+        "y": 3
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 5,
+        "y": 3
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 6,
+        "y": 3
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 7,
+        "y": 3
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 0,
+        "y": 4
+      },
+      {
+        "sheet": "floor-autotile",
         "x": 1,
-        "y": 1
+        "y": 4
       },
       {
-        "sheet": "DD_Full",
+        "sheet": "floor-autotile",
+        "x": 2,
+        "y": 4
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 3,
+        "y": 4
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 4,
+        "y": 4
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 5,
+        "y": 4
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 6,
+        "y": 4
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 7,
+        "y": 4
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 0,
+        "y": 5
+      },
+      {
+        "sheet": "floor-autotile",
         "x": 1,
-        "y": 0
+        "y": 5
       },
       {
-        "sheet": "DD_Full",
+        "sheet": "floor-autotile",
+        "x": 2,
+        "y": 5
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 3,
+        "y": 5
+      },
+      {
+        "sheet": "floor-autotile",
+        "x": 4,
+        "y": 5
+      },
+      {
+        "sheet": "floor-autotile",
         "x": 5,
-        "y": 0
+        "y": 5
       },
       {
-        "sheet": "DD_Full",
-        "x": 5,
-        "y": 0
-      },
-      {
-        "sheet": "DD_Full",
-        "x": 5,
-        "y": 0
-      },
-      {
-        "sheet": "DD_Full",
-        "x": 5,
-        "y": 0
-      },
-      {
-        "sheet": "DD_Full",
-        "x": 1,
-        "y": 0
-      },
-      {
-        "sheet": "DD_Full",
-        "x": 5,
-        "y": 0
-      },
-      {
-        "sheet": "DD_Full",
-        "x": 5,
-        "y": 0
-      },
-      {
-        "sheet": "DD_Full",
-        "x": 5,
-        "y": 0
-      },
-      {
-        "sheet": "DD_Full",
-        "x": 5,
-        "y": 0
+        "sheet": "floor-autotile",
+        "x": 6,
+        "y": 5
       }
     ]
   }

@@ -303,3 +303,22 @@ export function isShallowLiquid(t: TileType): boolean {
             return false;
     }
 }
+
+/**
+ * Chasm/pit TileTypes — placed on DungeonLayer.Liquid by lake generation
+ * but visually terrain (opaque, full-cell). The renderer routes these to
+ * RenderLayer.TERRAIN instead of LIQUID so they get terrain-appropriate
+ * blend and tint treatment.
+ */
+export function isChasmTileType(t: TileType): boolean {
+    switch (t) {
+        case TT.CHASM:
+        case TT.CHASM_EDGE:
+        case TT.CHASM_WITH_HIDDEN_BRIDGE:
+        case TT.CHASM_WITH_HIDDEN_BRIDGE_ACTIVE:
+        case TT.MACHINE_CHASM_EDGE:
+            return true;
+        default:
+            return false;
+    }
+}
