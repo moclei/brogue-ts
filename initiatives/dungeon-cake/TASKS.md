@@ -31,11 +31,17 @@
 
 ## Phase 2: Full V1
 
-- [ ] Extend `LayerColumn.tsx` — add tint controls (enable/disable checkbox, color picker, alpha slider), alpha slider (0.0–1.0), blend mode dropdown (source-over, multiply, screen, overlay, color-dodge, color-burn). Wire all controls through `debug-state.ts` → `spriteDebug` bridge.
-- [ ] Build `src/components/GlobalControls.tsx` — lighting toggle, background color override (color picker replacing `rgb(10,10,18)`), Reset All button. Wire to `debug-state.ts`.
-- [ ] Build fog-of-war toggle in `Toolbar.tsx` — dropdown cycling through visibility states (all visible, remembered, clairvoyant, telepathic, magic mapped, omniscience). On change, reinitialize `tmap` with appropriate flags on all cells and trigger redraw.
-- [ ] Make debug panel resizable — add a drag divider between the canvas region and the bottom panel. Persist panel height in localStorage.
-- [ ] Dark monospace theme polish — match sprite assigner aesthetic. Consistent spacing, font, color palette. Toolbar, canvas container, debug panel all styled.
-- [ ] End-to-end validation: test all v1 features together. Generate at edge depths, cycle fog states, adjust all layer controls, verify visual output matches expectations. Fix any remaining issues.
+- [x] Extend `LayerColumn.tsx` — add tint controls (enable/disable checkbox, color picker, alpha slider), alpha slider (0.0–1.0), blend mode dropdown (source-over, multiply, screen, overlay, color-dodge, color-burn). Wire all controls through `debug-state.ts` → `spriteDebug` bridge.
+  - DebugState restructured: flat `layerVisible[]` replaced with `LayerState[]` containing `visible`, `tint` (enabled/color/alpha), `alpha`, `blendMode`. Five new action types added. `syncToSingleton` writes `tintOverride`, `alphaOverride`, `blendMode` to spriteDebug. Deleted unused `tile-colors.ts` (Phase 1a artifact).
+- [x] Build `src/components/GlobalControls.tsx` — lighting toggle, background color override (color picker replacing `rgb(10,10,18)`), Reset All button. Wire to `debug-state.ts`.
+  - Lighting toggle wired: extended rogue stub with `minersLight`/`minersLightRadius`/`lightMultiplier`, built `LightingContext` in `query-context.ts` with `lightCatalog`/`mutationCatalog` (static imports) and `monsterRevealed` stub. `createQueryContext` accepts `lightingEnabled` flag; when true, calls `updateLighting()`. BG color override managed via `debug-state.ts` `setBgColor` → `spriteDebug.bgColorOverride`. Reset All resets debug state + lighting + fog mode.
+- [x] Build fog-of-war toggle in `Toolbar.tsx` — dropdown cycling through visibility states (all visible, remembered, clairvoyant, telepathic, magic mapped, omniscience). On change, reinitialize `tmap` with appropriate flags on all cells and trigger redraw.
+  - Six fog modes defined in `query-context.ts` with `FogMode` type and `FOG_MODES` constant. `applyFogMode()` clears/sets `DISCOVERED|VISIBLE|CLAIRVOYANT_VISIBLE|TELEPATHIC_VISIBLE|MAGIC_MAPPED` flags. Omniscience mode sets `rogue.playbackOmniscience = true`.
+- [x] Make debug panel resizable — add a drag divider between the canvas region and the bottom panel. Persist panel height in localStorage.
+  - Pointer-event-based drag handle at top of panel. Min 48px, max 600px, default 180px. Height persisted under `dungeon-cake:panel-height` key.
+- [x] Dark monospace theme polish — match sprite assigner aesthetic. Consistent spacing, font, color palette. Toolbar, canvas container, debug panel all styled.
+  - Unified dark palette (#0a0a12 bg, #12121c panels, #252535 borders). Custom scrollbar styling. Transition effects on buttons and handles. Resize handle indicator with hover highlight.
+- [x] End-to-end validation: test all v1 features together. Generate at edge depths, cycle fog states, adjust all layer controls, verify visual output matches expectations. Fix any remaining issues.
+  - Verified at depth 5 on port 5183. Dungeon renders with sprites at 2x zoom. All 11 layer columns show full controls (visibility checkbox, tint T checkbox + color picker + alpha slider, layer alpha slider, blend mode dropdown with 8 modes). Fog dropdown in toolbar shows all 6 modes. GlobalControls section (Lighting checkbox, BG override, Reset All) visible below layer grid. Resize handle works. No console errors on clean load. Build passes (546KB → 565KB from lighting imports).
 
 ## Deferred

@@ -1,14 +1,16 @@
 /*
- *  App.tsx — Root layout: toolbar, dungeon canvas, debug panel
+ *  App.tsx — Root layout: toolbar, dungeon canvas, debug panel, global controls
  *  dungeon-cake
  */
 
 import { useState, useCallback } from "react";
 import type { Pcell } from "@game/types/types.js";
+import type { FogMode } from "./generation/query-context.js";
 import { generateLevel } from "./generation/generate-level.js";
 import { Toolbar } from "./components/Toolbar.js";
 import { DungeonCanvas } from "./rendering/dungeon-canvas.js";
 import { DebugPanel } from "./components/DebugPanel.js";
+import { GlobalControls } from "./components/GlobalControls.js";
 import { useDebugState } from "./state/debug-state.js";
 import {
     DungeonStateContext,
@@ -21,6 +23,8 @@ export function App() {
     const [zoom, setZoom] = useState(2);
     const [pmap, setPmap] = useState<Pcell[][] | null>(null);
     const [generating, setGenerating] = useState(false);
+    const [lightingEnabled, setLightingEnabled] = useState(false);
+    const [fogMode, setFogMode] = useState<FogMode>("visible");
 
     const debug = useDebugState();
 
@@ -45,6 +49,12 @@ export function App() {
         generate(depth, nextSeed);
     }, [depth, seed, generate]);
 
+    const handleResetAll = useCallback(() => {
+        debug.reset();
+        setLightingEnabled(false);
+        setFogMode("visible");
+    }, [debug]);
+
     return (
         <DungeonStateContext.Provider value={{ pmap, depth, seed }}>
             <DungeonActionsContext.Provider value={{ generate, reroll }}>
@@ -53,9 +63,11 @@ export function App() {
                         depth={depth}
                         seed={seed}
                         zoom={zoom}
+                        fogMode={fogMode}
                         onGenerate={generate}
                         onReroll={reroll}
                         onZoomChange={setZoom}
+                        onFogModeChange={setFogMode}
                     />
                     <div className="main-content">
                         {generating && <div className="generating">Generating...</div>}
@@ -63,15 +75,30 @@ export function App() {
                             pmap={pmap}
                             zoom={zoom}
                             redrawCounter={debug.state.redrawCounter}
+                            lightingEnabled={lightingEnabled}
+                            fogMode={fogMode}
                         />
                     </div>
                     <DebugPanel
                         enabled={debug.state.enabled}
-                        layerVisible={debug.state.layerVisible}
+                        layers={debug.state.layers}
                         onToggleLayer={debug.toggleLayer}
                         onToggleEnabled={debug.setEnabled}
+                        onTintEnabled={debug.setTintEnabled}
+                        onTintColor={debug.setTintColor}
+                        onTintAlpha={debug.setTintAlpha}
+                        onAlpha={debug.setAlpha}
+                        onBlendMode={debug.setBlendMode}
                         onReset={debug.reset}
-                    />
+                    >
+                        <GlobalControls
+                            lightingEnabled={lightingEnabled}
+                            bgColorOverride={debug.state.bgColorOverride}
+                            onToggleLighting={setLightingEnabled}
+                            onBgColorChange={debug.setBgColor}
+                            onResetAll={handleResetAll}
+                        />
+                    </DebugPanel>
                 </div>
             </DungeonActionsContext.Provider>
         </DungeonStateContext.Provider>

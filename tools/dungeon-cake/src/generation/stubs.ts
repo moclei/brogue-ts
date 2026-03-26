@@ -290,14 +290,22 @@ export function createPlayerCreatureStub(loc: Pos = { x: 0, y: 0 }): Creature {
 }
 
 /**
- * Minimal PlayerCharacter stub. Only 3 of ~100 fields are accessed by
- * getCellSpriteData — the rest are never touched in terrain-only mode.
- * Cast is safe because no other code path runs against this stub.
+ * Minimal PlayerCharacter stub. Fields accessed by getCellSpriteData
+ * (playbackOmniscience, inWater, trueColorMode) plus lighting fields
+ * (minersLight, minersLightRadius, lightMultiplier) for updateLighting.
  */
 export function createRogueStub(): PlayerCharacter {
     return {
         playbackOmniscience: false,
         inWater: false,
         trueColorMode: false,
+        minersLight: {
+            lightColor: { red: 180, green: 180, blue: 180, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false },
+            lightRadius: { lowerBound: 0, upperBound: 0, clumpFactor: 0 },
+            radialFadeToPercent: 35,
+            passThroughCreatures: true,
+        },
+        minersLightRadius: BigInt(78) * 65536n,
+        lightMultiplier: 7,
     } as PlayerCharacter;
 }

@@ -1,26 +1,32 @@
 /*
- *  Toolbar.tsx — Generation controls: depth, seed, generate, re-roll, zoom
+ *  Toolbar.tsx — Generation controls: depth, seed, generate, re-roll, zoom, fog
  *  dungeon-cake
  */
 
 import { useState, useCallback } from "react";
+import type { FogMode } from "../generation/query-context.js";
+import { FOG_MODES } from "../generation/query-context.js";
 
 interface ToolbarProps {
     depth: number;
     seed: number;
     zoom: number;
+    fogMode: FogMode;
     onGenerate: (depth: number, seed: number) => void;
     onReroll: () => void;
     onZoomChange: (zoom: number) => void;
+    onFogModeChange: (mode: FogMode) => void;
 }
 
 export function Toolbar({
     depth: initialDepth,
     seed: initialSeed,
     zoom,
+    fogMode,
     onGenerate,
     onReroll,
     onZoomChange,
+    onFogModeChange,
 }: ToolbarProps) {
     const [depthInput, setDepthInput] = useState(String(initialDepth));
     const [seedInput, setSeedInput] = useState(String(initialSeed));
@@ -76,6 +82,19 @@ export function Toolbar({
                     <option value={2}>2x</option>
                     <option value={3}>3x</option>
                     <option value={4}>4x</option>
+                </select>
+            </label>
+            <label>
+                Fog:
+                <select
+                    value={fogMode}
+                    onChange={(e) => onFogModeChange(e.target.value as FogMode)}
+                >
+                    {FOG_MODES.map((m) => (
+                        <option key={m.value} value={m.value}>
+                            {m.label}
+                        </option>
+                    ))}
                 </select>
             </label>
         </div>
