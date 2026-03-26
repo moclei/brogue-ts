@@ -60,8 +60,8 @@ interface LayerConfig {
 }
 
 const LAYER_DEFAULTS: readonly LayerConfig[] = [
-  /* TERRAIN    */ { blendMode: "multiply", tintAlpha: 0.8 },
-  /* LIQUID     */ { blendMode: "multiply", tintAlpha: 1.0 },
+  /* TERRAIN    */ { blendMode: "multiply", tintAlpha: 0.5 },
+  /* LIQUID     */ { blendMode: "source-over", tintAlpha: 0.86 },
   /* SURFACE    */ { blendMode: "multiply", tintAlpha: 0.2 },
   /* ITEM       */ { blendMode: "none", tintAlpha: 1.0 },
   /* ENTITY     */ { blendMode: "none", tintAlpha: 1.0 },
@@ -74,10 +74,13 @@ const LAYER_DEFAULTS: readonly LayerConfig[] = [
 ];
 
 /** Per-layer default blend modes, exported for the debug panel UI. */
-export const LAYER_DEFAULT_BLEND_MODES: readonly BlendMode[] = LAYER_DEFAULTS.map(c => c.blendMode);
+export const LAYER_DEFAULT_BLEND_MODES: readonly BlendMode[] =
+  LAYER_DEFAULTS.map((c) => c.blendMode);
 
 /** Per-layer default tint alphas (blend fill opacity), exported for the debug panel UI. */
-export const LAYER_DEFAULT_TINT_ALPHAS: readonly number[] = LAYER_DEFAULTS.map(c => c.tintAlpha);
+export const LAYER_DEFAULT_TINT_ALPHAS: readonly number[] = LAYER_DEFAULTS.map(
+  (c) => c.tintAlpha,
+);
 
 /** Config for the legacy drawCell path (no layer model). */
 const LEGACY_LAYER_CONFIG: LayerConfig = {
@@ -510,9 +513,10 @@ export class SpriteRenderer implements Renderer {
           TILE_SIZE,
         );
 
-        const tintAlpha = debugOverride?.tintAlphaOverride
-          ?? debugOverride?.tintOverride?.a
-          ?? config.tintAlpha;
+        const tintAlpha =
+          debugOverride?.tintAlphaOverride ??
+          debugOverride?.tintOverride?.a ??
+          config.tintAlpha;
         tintCtx.save();
         tintCtx.globalCompositeOperation = blendMode;
         if (tintAlpha < 1) tintCtx.globalAlpha = tintAlpha;

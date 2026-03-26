@@ -65,6 +65,7 @@ function autotileVariants(sheetKey: string): SpriteRef[] {
  */
 const AUTOTILE_SHEETS: Record<string, string> = {
   WALL: "WallAutotile",
+  FLOOR: "FloorAutotile",
 };
 
 const AUTOTILE_SKIP = new Set<TileType>([
@@ -80,18 +81,20 @@ const AUTOTILE_SKIP = new Set<TileType>([
 ]);
 
 /**
- * Build the autotile variant map: for each connectable TileType that has a
- * tileTypeSpriteMap entry, create a 47-element array. If an autotile
- * spritesheet exists for the type's connection group, use distinct
- * per-variant refs from the sheet. Types in AUTOTILE_SKIP get placeholder
- * fills so they keep their own sprite. Remaining types without a sheet
- * also get placeholder fills.
+ * Build the autotile variant map: for each connectable TileType, create a
+ * 47-element array. If an autotile spritesheet exists for the type's
+ * connection group, use distinct per-variant refs from the sheet — even if
+ * the type has no entry in the master spritesheet manifest.  Types in
+ * AUTOTILE_SKIP get placeholder fills so they keep their own sprite.
+ * Remaining types without a sheet also get placeholder fills.
  */
 export function buildAutotileVariantMap(
   tileTypeSpriteMap: Map<TileType, SpriteRef>,
 ): Map<TileType, SpriteRef[]> {
   const map = new Map<TileType, SpriteRef[]>();
   const sheetCache = new Map<string, SpriteRef[]>();
+
+  // First pass: tile types present in the manifest
   for (const [tileType, spriteRef] of tileTypeSpriteMap) {
     const groupInfo = getConnectionGroupInfo(tileType);
     if (!groupInfo) continue;
@@ -107,6 +110,24 @@ export function buildAutotileVariantMap(
       map.set(tileType, new Array<SpriteRef>(AUTOTILE_VARIANT_COUNT).fill(spriteRef));
     }
   }
+
+  // Second pass: tile types with an autotile sheet but no manifest entry
+  // (e.g. FLOOR/WALL when their sprites live entirely on autotile sheets)
+  for (const val of Object.values(TileType)) {
+    const tt = val as TileType;
+    if (typeof tt !== "number" || map.has(tt)) continue;
+    const groupInfo = getConnectionGroupInfo(tt);
+    if (!groupInfo) continue;
+    const sheetKey = AUTOTILE_SHEETS[groupInfo.group];
+    if (!sheetKey || AUTOTILE_SKIP.has(tt)) continue;
+    let variants = sheetCache.get(sheetKey);
+    if (!variants) {
+      variants = autotileVariants(sheetKey);
+      sheetCache.set(sheetKey, variants);
+    }
+    map.set(tt, variants);
+  }
+
   return map;
 }
 

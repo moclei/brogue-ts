@@ -59,7 +59,7 @@ import { traversiblePathBetween as traversiblePathBetweenFn } from "./monsters/m
 import type { MonsterQueryContext } from "./monsters/monster-queries.js";
 import type { MonsterGenContext } from "./monsters/monster-creation.js";
 import { becomeAllyWith as becomeAllyWithFn } from "./monsters/monster-lifecycle.js";
-import type { Creature, Pos, Item, Pcell } from "./types/types.js";
+import type { Creature, Pos } from "./types/types.js";
 import { buildRefreshDungeonCellFn, buildMessageFns } from "./io-wiring.js";
 import { doMakeMonsterDropItem, buildQualifyingPathCtx } from "./monsters/monster-drop.js";
 import { getQualifyingPathLocNear as getQualifyingPathLocNearFn } from "./movement/path-qualifying.js";

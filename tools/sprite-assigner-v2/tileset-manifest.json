@@ -665,6 +665,22 @@
           "category": "terrain"
         }
       ]
+    },
+    {
+      "id": "autotile",
+      "name": "autotile",
+      "sheets": [
+        {
+          "key": "wall-autotile",
+          "path": "autotile/wall-autotile.png",
+          "category": "terrain"
+        },
+        {
+          "key": "floor-autotile",
+          "path": "autotile/floor-autotile.png",
+          "category": "terrain"
+        }
+      ]
     }
   ]
 }

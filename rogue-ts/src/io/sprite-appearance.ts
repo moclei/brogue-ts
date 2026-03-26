@@ -35,6 +35,7 @@ import type { CellQueryContext } from "./cell-queries.js";
 import {
     RenderLayer, acquireLayerEntry, resetCellSpriteData,
     isFireTileType, isGasTileType, isSurfaceTileType, isShallowLiquid,
+    isChasmTileType,
 } from "../platform/render-layers.js";
 import type { CellSpriteData, LayerEntryPool } from "../platform/render-layers.js";
 import {
@@ -141,20 +142,20 @@ function populateRememberedLayers(
 
     // Dungeon → TERRAIN
     const dungeonTile = remLayers[DungeonLayer.Dungeon];
+    let effectiveDungeonTile = dungeonTile;
     if (dungeonTile) {
-        // TM_IS_SECRET: hidden traps were seen as floor; remember them as floor too.
-        const effectiveTile = (!ctx.rogue.playbackOmniscience
-            && (ctx.tileCatalog[dungeonTile].mechFlags & TerrainMechFlag.TM_IS_SECRET))
-            ? TileType.FLOOR
-            : dungeonTile;
+        if (!ctx.rogue.playbackOmniscience
+            && (ctx.tileCatalog[dungeonTile].mechFlags & TerrainMechFlag.TM_IS_SECRET)) {
+            effectiveDungeonTile = TileType.FLOOR;
+        }
         const entry = acquireLayerEntry(pool, RenderLayer.TERRAIN);
-        entry.tileType = effectiveTile;
-        const te = ctx.tileCatalog[effectiveTile];
+        entry.tileType = effectiveDungeonTile;
+        const te = ctx.tileCatalog[effectiveDungeonTile];
         if (te.foreColor) copyColorTo(entry.tint, te.foreColor);
         spriteData.layers[RenderLayer.TERRAIN] = entry;
         if (te.backColor) copyColorTo(spriteData.bgColor, te.backColor);
 
-        const groupInfo = getConnectionGroupInfo(effectiveTile);
+        const groupInfo = getConnectionGroupInfo(effectiveDungeonTile);
         if (groupInfo) {
             entry.adjacencyMask = computeAdjacencyMask(
                 x, y, groupInfo.members, groupInfo.oobConnects,
@@ -163,25 +164,47 @@ function populateRememberedLayers(
         }
     }
 
-    // Liquid → LIQUID layer
+    // Liquid → LIQUID or TERRAIN layer (chasm/priority routing)
     const liquidTile = remLayers[DungeonLayer.Liquid];
     if (liquidTile) {
         const lte = ctx.tileCatalog[liquidTile];
-        const entry = acquireLayerEntry(pool, RenderLayer.LIQUID);
-        entry.tileType = liquidTile;
-        if (lte.foreColor) copyColorTo(entry.tint, lte.foreColor);
-        entry.alpha = isShallowLiquid(liquidTile) ? 0.55 : 1;
-        spriteData.layers[RenderLayer.LIQUID] = entry;
-        if (!dungeonTile && lte.backColor) {
-            copyColorTo(spriteData.bgColor, lte.backColor);
-        }
 
-        const lGroupInfo = getConnectionGroupInfo(liquidTile);
-        if (lGroupInfo) {
-            entry.adjacencyMask = computeAdjacencyMask(
-                x, y, lGroupInfo.members, lGroupInfo.oobConnects,
-                (nx, ny) => rememberedNeighborTile(ctx, nx, ny, lGroupInfo.dungeonLayer),
-            );
+        if (isChasmTileType(liquidTile)) {
+            const entry = acquireLayerEntry(pool, RenderLayer.TERRAIN);
+            entry.tileType = liquidTile;
+            if (lte.foreColor) copyColorTo(entry.tint, lte.foreColor);
+            spriteData.layers[RenderLayer.TERRAIN] = entry;
+            if (lte.backColor) copyColorTo(spriteData.bgColor, lte.backColor);
+
+            const groupInfo = getConnectionGroupInfo(liquidTile);
+            if (groupInfo) {
+                entry.adjacencyMask = computeAdjacencyMask(
+                    x, y, groupInfo.members, groupInfo.oobConnects,
+                    (nx, ny) => rememberedNeighborTile(ctx, nx, ny, groupInfo.dungeonLayer),
+                );
+            }
+        } else if (
+            effectiveDungeonTile
+            && ctx.tileCatalog[effectiveDungeonTile].drawPriority <= lte.drawPriority
+        ) {
+            // Suppress — dungeon tile is visually dominant
+        } else {
+            const entry = acquireLayerEntry(pool, RenderLayer.LIQUID);
+            entry.tileType = liquidTile;
+            if (lte.foreColor) copyColorTo(entry.tint, lte.foreColor);
+            entry.alpha = isShallowLiquid(liquidTile) ? 0.55 : 1;
+            spriteData.layers[RenderLayer.LIQUID] = entry;
+            if (!dungeonTile && lte.backColor) {
+                copyColorTo(spriteData.bgColor, lte.backColor);
+            }
+
+            const lGroupInfo = getConnectionGroupInfo(liquidTile);
+            if (lGroupInfo) {
+                entry.adjacencyMask = computeAdjacencyMask(
+                    x, y, lGroupInfo.members, lGroupInfo.oobConnects,
+                    (nx, ny) => rememberedNeighborTile(ctx, nx, ny, lGroupInfo.dungeonLayer),
+                );
+            }
         }
     }
 
@@ -269,21 +292,20 @@ export function getCellSpriteData(
     // ---- TERRAIN layer (DungeonLayer.Dungeon) ----
 
     const dungeonTile = cell.layers[DungeonLayer.Dungeon];
+    let effectiveDungeonTile = dungeonTile;
     if (dungeonTile) {
-        // TM_IS_SECRET: hidden traps and similar tiles render as floor until
-        // discovered (matches getCellAppearance displayChar = G_FLOOR masking).
-        const effectiveTile = (!ctx.rogue.playbackOmniscience
-            && (ctx.tileCatalog[dungeonTile].mechFlags & TerrainMechFlag.TM_IS_SECRET))
-            ? TileType.FLOOR
-            : dungeonTile;
+        if (!ctx.rogue.playbackOmniscience
+            && (ctx.tileCatalog[dungeonTile].mechFlags & TerrainMechFlag.TM_IS_SECRET)) {
+            effectiveDungeonTile = TileType.FLOOR;
+        }
         const entry = acquireLayerEntry(pool, RenderLayer.TERRAIN);
-        entry.tileType = effectiveTile;
-        const te = ctx.tileCatalog[effectiveTile];
+        entry.tileType = effectiveDungeonTile;
+        const te = ctx.tileCatalog[effectiveDungeonTile];
         if (te.foreColor) copyColorTo(entry.tint, te.foreColor);
         spriteData.layers[RenderLayer.TERRAIN] = entry;
         if (te.backColor) copyColorTo(spriteData.bgColor, te.backColor);
 
-        const tGroupInfo = getConnectionGroupInfo(effectiveTile);
+        const tGroupInfo = getConnectionGroupInfo(effectiveDungeonTile);
         if (tGroupInfo) {
             entry.adjacencyMask = computeAdjacencyMask(
                 x, y, tGroupInfo.members, tGroupInfo.oobConnects,
@@ -294,28 +316,57 @@ export function getCellSpriteData(
         }
     }
 
-    // ---- LIQUID layer (semi-transparent water over floor) ----
+    // ---- LIQUID layer ----
 
     const liquidTile = cell.layers[DungeonLayer.Liquid];
     if (liquidTile) {
         const lte = ctx.tileCatalog[liquidTile];
-        const entry = acquireLayerEntry(pool, RenderLayer.LIQUID);
-        entry.tileType = liquidTile;
-        if (lte.foreColor) copyColorTo(entry.tint, lte.foreColor);
-        entry.alpha = isShallowLiquid(liquidTile) ? 0.55 : 1;
-        spriteData.layers[RenderLayer.LIQUID] = entry;
 
-        const lGroupInfo = getConnectionGroupInfo(liquidTile);
-        if (lGroupInfo) {
-            entry.adjacencyMask = computeAdjacencyMask(
-                x, y, lGroupInfo.members, lGroupInfo.oobConnects,
-                (nx, ny) => coordinatesAreInMap(nx, ny)
-                    ? ctx.pmap[nx][ny].layers[lGroupInfo.dungeonLayer]
-                    : undefined,
-            );
-        }
-        if (!dungeonTile && lte.backColor) {
-            copyColorTo(spriteData.bgColor, lte.backColor);
+        if (isChasmTileType(liquidTile)) {
+            // Chasms are placed on DungeonLayer.Liquid by lake generation but
+            // are visually opaque terrain — route to TERRAIN, overriding the
+            // FLOOR that lake placement puts on DungeonLayer.Dungeon.
+            const entry = acquireLayerEntry(pool, RenderLayer.TERRAIN);
+            entry.tileType = liquidTile;
+            if (lte.foreColor) copyColorTo(entry.tint, lte.foreColor);
+            spriteData.layers[RenderLayer.TERRAIN] = entry;
+            if (lte.backColor) copyColorTo(spriteData.bgColor, lte.backColor);
+
+            const groupInfo = getConnectionGroupInfo(liquidTile);
+            if (groupInfo) {
+                entry.adjacencyMask = computeAdjacencyMask(
+                    x, y, groupInfo.members, groupInfo.oobConnects,
+                    (nx, ny) => coordinatesAreInMap(nx, ny)
+                        ? ctx.pmap[nx][ny].layers[groupInfo.dungeonLayer]
+                        : undefined,
+                );
+            }
+        } else if (
+            effectiveDungeonTile
+            && ctx.tileCatalog[effectiveDungeonTile].drawPriority <= lte.drawPriority
+        ) {
+            // Dungeon tile is visually dominant — suppress liquid rendering.
+            // Mirrors C's drawPriority winner-takes-all in getCellAppearance:
+            // e.g., WALL (priority 0) suppresses SHALLOW_WATER (priority 55).
+        } else {
+            const entry = acquireLayerEntry(pool, RenderLayer.LIQUID);
+            entry.tileType = liquidTile;
+            if (lte.foreColor) copyColorTo(entry.tint, lte.foreColor);
+            entry.alpha = isShallowLiquid(liquidTile) ? 0.55 : 1;
+            spriteData.layers[RenderLayer.LIQUID] = entry;
+
+            const lGroupInfo = getConnectionGroupInfo(liquidTile);
+            if (lGroupInfo) {
+                entry.adjacencyMask = computeAdjacencyMask(
+                    x, y, lGroupInfo.members, lGroupInfo.oobConnects,
+                    (nx, ny) => coordinatesAreInMap(nx, ny)
+                        ? ctx.pmap[nx][ny].layers[lGroupInfo.dungeonLayer]
+                        : undefined,
+                );
+            }
+            if (!dungeonTile && lte.backColor) {
+                copyColorTo(spriteData.bgColor, lte.backColor);
+            }
         }
     }
 
