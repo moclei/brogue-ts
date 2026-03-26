@@ -87,6 +87,7 @@ cover domain-specific details. Load them on demand, not by default.
 | `.context/PROJECT.md` | This file — project overview, layout, conventions |
 | `tools/CONTEXT.md` | Listing of all dev tools (sprite assigner, generators, build scripts) |
 | `tools/sprite-assigner-v2/CONTEXT.md` | Full architecture and feature docs for the sprite assigner |
+| `tools/dungeon-cake/CONTEXT.md` | Dungeon Cake — standalone sprite evaluation tool with debug controls |
 | `codeql/CONTEXT.md` | CodeQL databases, query reference, shell workflow |
 | `.context/research/INDEX.md` | Pre-computed mechanic/system research — load before investigating |
 

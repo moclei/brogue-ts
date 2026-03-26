@@ -1,6 +1,6 @@
 # Tools
 
-Dev tools and build scripts. The sprite-assigner-v2 has its own `CONTEXT.md` with full documentation.
+Dev tools and build scripts. The sprite assigner and dungeon cake each have their own `CONTEXT.md` with full documentation.
 
 ## Sprite Assigner (`sprite-assigner-v2/`)
 
@@ -9,6 +9,14 @@ Vite + React dev tool for managing the game's pixel-art sprite pipeline. Assign 
 **Start:** `cd tools/sprite-assigner-v2 && npm run dev`
 
 See `sprite-assigner-v2/CONTEXT.md` for architecture, features, and how the tool connects to the game.
+
+## Dungeon Cake (`dungeon-cake/`)
+
+Standalone Vite + React dev tool for evaluating sprites in the context of real dungeon layouts. Generates levels on demand via `digDungeon`, renders at integer zoom (1x–4x) with the full layer compositing pipeline, and provides per-layer debug controls (visibility, tint, alpha, blend mode), lighting toggle, and fog-of-war mode selection.
+
+**Start:** `cd tools/dungeon-cake && npm run dev`
+
+See `dungeon-cake/CONTEXT.md` for architecture, features, roadmap, and how the tool connects to the game.
 
 ## Master Spritesheet Generator (`generate-master-spritesheet.mjs`)
 
