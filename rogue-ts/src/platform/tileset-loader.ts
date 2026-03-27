@@ -12,12 +12,16 @@
 import MasterSheetUrl from "../../assets/tilesets/master-spritesheet.png?url";
 import WallAutotileUrl from "../../assets/tilesets/autotile/wall-autotile.png?url";
 import FloorAutotileUrl from "../../assets/tilesets/autotile/floor-autotile.png?url";
+import ChasmAutotileUrl from "../../assets/tilesets/autotile/chasm-autotile.png?url";
+import ChasmAutotileV2Url from "../../assets/tilesets/autotile/chasm-autotile-v2.png?url";
 import { MASTER_SHEET_KEY } from "./glyph-sprite-map.js";
 
 const SHEET_URLS: Record<string, string> = {
   [MASTER_SHEET_KEY]: MasterSheetUrl,
   WallAutotile: WallAutotileUrl,
   FloorAutotile: FloorAutotileUrl,
+  ChasmAutotile: ChasmAutotileUrl,
+  "chasm-autotile-v2": ChasmAutotileV2Url,
 };
 
 export const TILE_SIZE = 16;

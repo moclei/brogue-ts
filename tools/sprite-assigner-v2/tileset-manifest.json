@@ -679,6 +679,16 @@
           "key": "floor-autotile",
           "path": "autotile/floor-autotile.png",
           "category": "terrain"
+        },
+        {
+          "key": "chasm-autotile",
+          "path": "autotile/chasm-autotile.png",
+          "category": "terrain"
+        },
+        {
+          "key": "chasm-autotile-v2",
+          "path": "autotile/chasm-autotile-v2.png",
+          "category": "terrain"
         }
       ]
     }

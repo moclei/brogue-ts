@@ -11,6 +11,7 @@
 import { DisplayGlyph, TileType } from "../types/enums.js";
 import { getConnectionGroupInfo, AUTOTILE_VARIANT_COUNT } from "./autotile.js";
 import defaultManifest from "../../assets/tilesets/sprite-manifest.json";
+import defaultAssignments from "../../assets/tilesets/assignments.json";
 
 export interface SpriteRef {
   sheetKey: string;
@@ -21,6 +22,16 @@ export interface SpriteRef {
 export interface SpriteManifest {
   tiles: Record<string, { x: number; y: number }>;
   glyphs: Record<string, { x: number; y: number }>;
+}
+
+interface AutotileAssignment {
+  sheet: string;
+  x: number;
+  y: number;
+}
+
+export interface AssignmentsData {
+  autotile?: Record<string, AutotileAssignment[]>;
 }
 
 export const MASTER_SHEET_KEY = "master";
@@ -66,6 +77,14 @@ function autotileVariants(sheetKey: string): SpriteRef[] {
 const AUTOTILE_SHEETS: Record<string, string> = {
   WALL: "WallAutotile",
   FLOOR: "FloorAutotile",
+  CHASM: "ChasmAutotile",
+};
+
+/** Map kebab-case sheet names from assignments.json to PascalCase tileset keys. */
+const SHEET_NAME_MAP: Record<string, string> = {
+  "wall-autotile": "WallAutotile",
+  "floor-autotile": "FloorAutotile",
+  "chasm-autotile": "ChasmAutotile",
 };
 
 const AUTOTILE_SKIP = new Set<TileType>([
@@ -81,18 +100,56 @@ const AUTOTILE_SKIP = new Set<TileType>([
 ]);
 
 /**
+ * Convert per-variant assignments from assignments.json into SpriteRef[].
+ * Returns undefined if the group has no explicit assignments.
+ */
+function assignmentVariants(
+  groupName: string,
+  assignments: AssignmentsData,
+): SpriteRef[] | undefined {
+  const entries = assignments.autotile?.[groupName];
+  if (!entries || entries.length !== AUTOTILE_VARIANT_COUNT) return undefined;
+  return entries.map(a => ({
+    sheetKey: SHEET_NAME_MAP[a.sheet] ?? a.sheet,
+    tileX: a.x,
+    tileY: a.y,
+  }));
+}
+
+/**
+ * Resolve the 47-variant array for a connection group: use explicit
+ * per-variant assignments from assignments.json if available, otherwise
+ * fall back to the standard 8x6 grid layout.
+ */
+function resolveGroupVariants(
+  groupName: string,
+  sheetKey: string,
+  assignments: AssignmentsData,
+  cache: Map<string, SpriteRef[]>,
+): SpriteRef[] {
+  const cacheKey = `${groupName}:${sheetKey}`;
+  let variants = cache.get(cacheKey);
+  if (variants) return variants;
+  variants = assignmentVariants(groupName, assignments)
+    ?? autotileVariants(sheetKey);
+  cache.set(cacheKey, variants);
+  return variants;
+}
+
+/**
  * Build the autotile variant map: for each connectable TileType, create a
  * 47-element array. If an autotile spritesheet exists for the type's
- * connection group, use distinct per-variant refs from the sheet — even if
- * the type has no entry in the master spritesheet manifest.  Types in
- * AUTOTILE_SKIP get placeholder fills so they keep their own sprite.
- * Remaining types without a sheet also get placeholder fills.
+ * connection group, use distinct per-variant refs from the sheet — either
+ * from explicit assignments.json entries or the standard 8x6 grid layout.
+ * Types in AUTOTILE_SKIP get placeholder fills so they keep their own
+ * sprite. Remaining types without a sheet also get placeholder fills.
  */
 export function buildAutotileVariantMap(
   tileTypeSpriteMap: Map<TileType, SpriteRef>,
+  assignments: AssignmentsData = defaultAssignments,
 ): Map<TileType, SpriteRef[]> {
   const map = new Map<TileType, SpriteRef[]>();
-  const sheetCache = new Map<string, SpriteRef[]>();
+  const variantCache = new Map<string, SpriteRef[]>();
 
   // First pass: tile types present in the manifest
   for (const [tileType, spriteRef] of tileTypeSpriteMap) {
@@ -100,12 +157,9 @@ export function buildAutotileVariantMap(
     if (!groupInfo) continue;
     const sheetKey = AUTOTILE_SHEETS[groupInfo.group];
     if (sheetKey && !AUTOTILE_SKIP.has(tileType)) {
-      let variants = sheetCache.get(sheetKey);
-      if (!variants) {
-        variants = autotileVariants(sheetKey);
-        sheetCache.set(sheetKey, variants);
-      }
-      map.set(tileType, variants);
+      map.set(tileType, resolveGroupVariants(
+        groupInfo.group, sheetKey, assignments, variantCache,
+      ));
     } else {
       map.set(tileType, new Array<SpriteRef>(AUTOTILE_VARIANT_COUNT).fill(spriteRef));
     }
@@ -120,12 +174,9 @@ export function buildAutotileVariantMap(
     if (!groupInfo) continue;
     const sheetKey = AUTOTILE_SHEETS[groupInfo.group];
     if (!sheetKey || AUTOTILE_SKIP.has(tt)) continue;
-    let variants = sheetCache.get(sheetKey);
-    if (!variants) {
-      variants = autotileVariants(sheetKey);
-      sheetCache.set(sheetKey, variants);
-    }
-    map.set(tt, variants);
+    map.set(tt, resolveGroupVariants(
+      groupInfo.group, sheetKey, assignments, variantCache,
+    ));
   }
 
   return map;

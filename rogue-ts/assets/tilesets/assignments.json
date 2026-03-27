@@ -1277,6 +1277,243 @@
         "x": 6,
         "y": 5
       }
+    ],
+    "CHASM": [
+      {
+        "sheet": "chasm-autotile",
+        "x": 0,
+        "y": 0
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 3,
+        "y": 0
+      },
+      {
+        "sheet": "chasm-autotile-v2",
+        "x": 2,
+        "y": 0
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 4,
+        "y": 0
+      },
+      {
+        "sheet": "chasm-autotile-v2",
+        "x": 4,
+        "y": 0
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 7,
+        "y": 3
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 0,
+        "y": 0
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 2,
+        "y": 1
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 3,
+        "y": 1
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 3,
+        "y": 1
+      },
+      {
+        "sheet": "chasm-autotile-v2",
+        "x": 2,
+        "y": 1
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 3,
+        "y": 1
+      },
+      {
+        "sheet": "chasm-autotile-v2",
+        "x": 4,
+        "y": 1
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 5,
+        "y": 1
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 6,
+        "y": 1
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 0,
+        "y": 0
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 3,
+        "y": 4
+      },
+      {
+        "sheet": "chasm-autotile-v2",
+        "x": 1,
+        "y": 2
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 4,
+        "y": 3
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 3,
+        "y": 2
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 4,
+        "y": 3
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 5,
+        "y": 2
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 5,
+        "y": 2
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 4,
+        "y": 3
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 5,
+        "y": 2
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 5,
+        "y": 2
+      },
+      {
+        "sheet": "chasm-autotile-v2",
+        "x": 2,
+        "y": 3
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 3,
+        "y": 2
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 4,
+        "y": 3
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 5,
+        "y": 2
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 5,
+        "y": 2
+      },
+      {
+        "sheet": "chasm-autotile-v2",
+        "x": 7,
+        "y": 3
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 5,
+        "y": 2
+      },
+      {
+        "sheet": "chasm-autotile-v2",
+        "x": 1,
+        "y": 4
+      },
+      {
+        "sheet": "chasm-autotile-v2",
+        "x": 2,
+        "y": 4
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 3,
+        "y": 4
+      },
+      {
+        "sheet": "chasm-autotile-v2",
+        "x": 4,
+        "y": 4
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 3,
+        "y": 2
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 5,
+        "y": 2
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 5,
+        "y": 2
+      },
+      {
+        "sheet": "chasm-autotile",
+        "x": 5,
+        "y": 2
+      },
+      {
+        "sheet": "chasm-autotile-v2",
+        "x": 1,
+        "y": 5
+      },
+      {
+        "sheet": "chasm-autotile-v2",
+        "x": 2,
+        "y": 5
+      },
+      {
+        "sheet": "chasm-autotile-v2",
+        "x": 4,
+        "y": 5
+      },
+      {
+        "sheet": "chasm-autotile-v2",
+        "x": 4,
+        "y": 5
+      },
+      {
+        "sheet": "chasm-autotile-v2",
+        "x": 5,
+        "y": 5
+      },
+      {
+        "sheet": "chasm-autotile-v2",
+        "x": 6,
+        "y": 5
+      }
     ]
   }
 }
