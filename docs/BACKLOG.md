@@ -312,6 +312,19 @@ only if the path is genuinely not reachable in normal play.
       C: `Items.c` (bolt impact → `exposeTileToFire`), `Time.c` (`exposeTileToFire`).
       TS: `tile-effects-wiring.ts` (`exposeTileToFire` stub), `items/staff-wiring.ts`. **S**
 
+- [ ] **B108 — Autotiled sprites show wrong on first dungeon render (pixel art mode)** —
+      When loading a new game with pixel art (Tiles) mode enabled, autotiled sprites (walls,
+      floors — the only two currently using autotile sheets) display incorrectly on the
+      initial frame. They appear to show only the background/tint color rather than the
+      actual sprite. Cells render correctly once the player moves (triggering FOV-based
+      redraw) or on mouse hover. Non-autotiled sprites render correctly on the first frame.
+      Likely cause: either a missing `forceFullRedraw()` at game start, or `tileType` being
+      `undefined` on initial cells so they hit the legacy `drawCell` path instead of the
+      layer pipeline (`getCellSpriteDataFn`), or the `getCellSpriteDataFn` callback not
+      being wired at the time of the first `commitDraws()`.
+      TS: `platform.ts` (`commitDraws`, `forceFullRedraw`), `browser-renderer.ts`
+      (`plotChar` tile/layer branching), `bootstrap.ts` (renderer initialization timing). **S**
+
 ---
 
 ## Persistence layer (implement as a group)

@@ -3,7 +3,7 @@
  *  dungeon-cake
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { Pcell } from "@game/types/types.js";
 import type { FogMode } from "./generation/query-context.js";
 import { generateLevel } from "./generation/generate-level.js";
@@ -17,9 +17,23 @@ import {
     DungeonActionsContext,
 } from "./state/dungeon-state.js";
 
+const STORAGE_KEY_DEPTH = "dungeon-cake:depth";
+const STORAGE_KEY_SEED = "dungeon-cake:seed";
+
+function loadPersistedNumber(key: string, fallback: number): number {
+    try {
+        const raw = localStorage.getItem(key);
+        if (raw === null) return fallback;
+        const n = Number(raw);
+        return Number.isFinite(n) ? n : fallback;
+    } catch {
+        return fallback;
+    }
+}
+
 export function App() {
-    const [depth, setDepth] = useState(5);
-    const [seed, setSeed] = useState(42);
+    const [depth, setDepth] = useState(() => loadPersistedNumber(STORAGE_KEY_DEPTH, 5));
+    const [seed, setSeed] = useState(() => loadPersistedNumber(STORAGE_KEY_SEED, 42));
     const [zoom, setZoom] = useState(2);
     const [pmap, setPmap] = useState<Pcell[][] | null>(null);
     const [generating, setGenerating] = useState(false);
@@ -27,11 +41,14 @@ export function App() {
     const [fogMode, setFogMode] = useState<FogMode>("visible");
 
     const debug = useDebugState();
+    const didAutoGenerate = useRef(false);
 
     const generate = useCallback((d: number, s: number) => {
         setGenerating(true);
         setDepth(d);
         setSeed(s);
+        localStorage.setItem(STORAGE_KEY_DEPTH, String(d));
+        localStorage.setItem(STORAGE_KEY_SEED, String(s));
         requestAnimationFrame(() => {
             try {
                 const result = generateLevel(d, s);
@@ -43,6 +60,12 @@ export function App() {
             }
         });
     }, []);
+
+    useEffect(() => {
+        if (didAutoGenerate.current) return;
+        didAutoGenerate.current = true;
+        generate(depth, seed);
+    }, [depth, seed, generate]);
 
     const reroll = useCallback(() => {
         const nextSeed = seed + 1;
