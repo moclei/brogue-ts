@@ -228,7 +228,7 @@ describe("getConnectionGroupInfo", () => {
     it("returns correct dungeonLayer per group", () => {
         expect(getConnectionGroupInfo(TileType.WALL)!.dungeonLayer).toBe(0);     // Dungeon
         expect(getConnectionGroupInfo(TileType.FLOOR)!.dungeonLayer).toBe(0);    // Dungeon
-        expect(getConnectionGroupInfo(TileType.CHASM)!.dungeonLayer).toBe(0);    // Dungeon
+        expect(getConnectionGroupInfo(TileType.CHASM)!.dungeonLayer).toBe(1);    // Liquid
         expect(getConnectionGroupInfo(TileType.DEEP_WATER)!.dungeonLayer).toBe(1); // Liquid
         expect(getConnectionGroupInfo(TileType.LAVA)!.dungeonLayer).toBe(1);     // Liquid
         expect(getConnectionGroupInfo(TileType.ICE_DEEP)!.dungeonLayer).toBe(1); // Liquid

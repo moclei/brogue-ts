@@ -117,7 +117,7 @@ const GROUP_DEFS: readonly GroupDef[] = [
     },
     {
         group: "CHASM",
-        dungeonLayer: DungeonLayer.Dungeon,
+        dungeonLayer: DungeonLayer.Liquid,
         oobConnects: false,
         tileTypes: [
             TileType.CHASM, TileType.CHASM_EDGE,
