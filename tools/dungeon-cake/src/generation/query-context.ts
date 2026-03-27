@@ -11,7 +11,7 @@ import type { Pcell, Tcell, ScreenDisplayBuffer, Creature } from "@game/types/ty
 import type { CellQueryContext } from "@game/io/cell-queries.js";
 import type { LightingContext } from "@game/light/light.js";
 import { TileFlag } from "@game/types/flags.js";
-import { TileType, DisplayGlyph } from "@game/types/enums.js";
+import { TileType, DisplayGlyph, DungeonLayer } from "@game/types/enums.js";
 import { DCOLS, DROWS, COLS, ROWS } from "@game/types/constants.js";
 
 import { tileCatalog } from "@game/globals/tile-catalog.js";
@@ -112,9 +112,16 @@ const VISIBILITY_MASK =
 
 function applyFogMode(pmap: Pcell[][], mode: FogMode): void {
     const flags = fogFlags(mode);
+    const needsRemembered = mode === "remembered" || mode === "magic-mapped";
     for (let x = 0; x < DCOLS; x++) {
         for (let y = 0; y < DROWS; y++) {
-            pmap[x][y].flags = (pmap[x][y].flags & ~VISIBILITY_MASK) | flags;
+            const cell = pmap[x][y];
+            cell.flags = (cell.flags & ~VISIBILITY_MASK) | flags;
+            if (needsRemembered && cell.rememberedLayers.length === 0) {
+                cell.rememberedLayers = cell.layers.slice(
+                    0, DungeonLayer.NumberTerrainLayers,
+                ) as TileType[];
+            }
         }
     }
 }
