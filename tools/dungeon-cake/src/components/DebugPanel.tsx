@@ -1,5 +1,5 @@
 /*
- *  DebugPanel.tsx — Resizable bottom panel with per-layer debug controls
+ *  DebugPanel.tsx — Collapsible right-side panel with per-layer debug controls
  *  dungeon-cake
  */
 
@@ -8,17 +8,17 @@ import type { LayerState, BlendMode } from "../state/debug-state.js";
 import { LAYER_NAMES, LAYER_DEFAULT_BLEND_MODES, LAYER_DEFAULT_TINT_ALPHAS } from "../state/debug-state.js";
 import { LayerColumn } from "./LayerColumn.js";
 
-const STORAGE_KEY = "dungeon-cake:panel-height";
-const DEFAULT_HEIGHT = 180;
-const MIN_HEIGHT = 48;
-const MAX_HEIGHT = 600;
+const STORAGE_KEY = "dungeon-cake:panel-width";
+const DEFAULT_WIDTH = 240;
+const MIN_WIDTH = 160;
+const MAX_WIDTH = 500;
 
-function loadHeight(): number {
+function loadWidth(): number {
     try {
         const v = localStorage.getItem(STORAGE_KEY);
-        if (v) return Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, parseInt(v, 10)));
+        if (v) return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, parseInt(v, 10)));
     } catch { /* ignore */ }
-    return DEFAULT_HEIGHT;
+    return DEFAULT_WIDTH;
 }
 
 interface DebugPanelProps {
@@ -48,23 +48,23 @@ export function DebugPanel({
     onReset,
     children,
 }: DebugPanelProps) {
-    const [panelHeight, setPanelHeight] = useState(loadHeight);
+    const [panelWidth, setPanelWidth] = useState(loadWidth);
     const dragging = useRef(false);
-    const startY = useRef(0);
-    const startH = useRef(0);
+    const startX = useRef(0);
+    const startW = useRef(0);
 
     const onPointerDown = useCallback((e: React.PointerEvent) => {
         dragging.current = true;
-        startY.current = e.clientY;
-        startH.current = panelHeight;
+        startX.current = e.clientX;
+        startW.current = panelWidth;
         (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    }, [panelHeight]);
+    }, [panelWidth]);
 
     const onPointerMove = useCallback((e: React.PointerEvent) => {
         if (!dragging.current) return;
-        const delta = startY.current - e.clientY;
-        const newH = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, startH.current + delta));
-        setPanelHeight(newH);
+        const delta = startX.current - e.clientX;
+        const newW = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, startW.current + delta));
+        setPanelWidth(newW);
     }, []);
 
     const onPointerUp = useCallback(() => {
@@ -72,13 +72,13 @@ export function DebugPanel({
     }, []);
 
     useEffect(() => {
-        try { localStorage.setItem(STORAGE_KEY, String(panelHeight)); } catch { /* ignore */ }
-    }, [panelHeight]);
+        try { localStorage.setItem(STORAGE_KEY, String(panelWidth)); } catch { /* ignore */ }
+    }, [panelWidth]);
 
-    const heightStyle = enabled ? { height: panelHeight } : undefined;
+    const widthStyle = enabled ? { width: panelWidth } : undefined;
 
     return (
-        <div className="debug-panel" style={heightStyle}>
+        <div className={`debug-panel${enabled ? "" : " collapsed"}`} style={widthStyle}>
             {enabled && (
                 <div
                     className="resize-handle"
@@ -94,11 +94,13 @@ export function DebugPanel({
                         checked={enabled}
                         onChange={(e) => onToggleEnabled(e.target.checked)}
                     />
-                    <span>Layer Debug</span>
+                    <span>Layers</span>
                 </label>
-                <button className="debug-reset" onClick={onReset}>
-                    Reset
-                </button>
+                {enabled && (
+                    <button className="debug-reset" onClick={onReset}>
+                        Reset
+                    </button>
+                )}
             </div>
             {enabled && (
                 <div className="debug-body">

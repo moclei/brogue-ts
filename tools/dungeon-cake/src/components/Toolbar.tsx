@@ -1,5 +1,5 @@
 /*
- *  Toolbar.tsx — Generation controls: depth, seed, generate, re-roll, zoom, fog
+ *  Toolbar.tsx — Generation controls, view toggles
  *  dungeon-cake
  */
 
@@ -12,10 +12,14 @@ interface ToolbarProps {
     seed: number;
     zoom: number;
     fogMode: FogMode;
+    lightingEnabled: boolean;
+    showVariantIndices: boolean;
     onGenerate: (depth: number, seed: number) => void;
     onReroll: () => void;
     onZoomChange: (zoom: number) => void;
     onFogModeChange: (mode: FogMode) => void;
+    onToggleLighting: (enabled: boolean) => void;
+    onShowVariantIndices: (enabled: boolean) => void;
 }
 
 export function Toolbar({
@@ -23,10 +27,14 @@ export function Toolbar({
     seed: initialSeed,
     zoom,
     fogMode,
+    lightingEnabled,
+    showVariantIndices,
     onGenerate,
     onReroll,
     onZoomChange,
     onFogModeChange,
+    onToggleLighting,
+    onShowVariantIndices,
 }: ToolbarProps) {
     const [depthInput, setDepthInput] = useState(String(initialDepth));
     const [seedInput, setSeedInput] = useState(String(initialSeed));
@@ -72,6 +80,7 @@ export function Toolbar({
             </label>
             <button onClick={handleGenerate}>Generate</button>
             <button onClick={handleReroll}>Re-roll</button>
+            <div className="toolbar-separator" />
             <label>
                 Zoom:
                 <select
@@ -96,6 +105,22 @@ export function Toolbar({
                         </option>
                     ))}
                 </select>
+            </label>
+            <label title="Compute dungeon lighting (glowing tiles + miner's light)">
+                <input
+                    type="checkbox"
+                    checked={lightingEnabled}
+                    onChange={(e) => onToggleLighting(e.target.checked)}
+                />
+                Lighting
+            </label>
+            <label title="Show autotile variant index on each cell">
+                <input
+                    type="checkbox"
+                    checked={showVariantIndices}
+                    onChange={(e) => onShowVariantIndices(e.target.checked)}
+                />
+                Variants
             </label>
         </div>
     );
