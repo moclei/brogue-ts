@@ -20,6 +20,7 @@ import { COLS, DCOLS, DROWS, MESSAGE_ARCHIVE_ENTRIES, MESSAGE_LINES, NUMBER_TERR
 import { TileType, GameMode, NGCommand, DisplayGlyph, GameVariant } from "./types/enums.js";
 import { INVALID_POS } from "./types/types.js";
 import { MonsterBookkeepingFlag } from "./types/flags.js";
+import { debugFlags } from "./game/game-init.js";
 import type {
     Creature, PlayerCharacter, Pcell, Tcell, Item, LevelData,
     GameConstants, LightSource, CreatureType, ItemTable,
@@ -303,6 +304,14 @@ export function gameOver(killedBy: string): void {
         return;
     }
     player.bookkeepingFlags |= MonsterBookkeepingFlag.MB_IS_DYING;
+
+    // Debug: immortality — restore HP and bail without ending the game.
+    if (debugFlags.immortal) {
+        player.currentHP = player.info.maxHP;
+        player.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_IS_DYING;
+        return;
+    }
+
     rogue.autoPlayingLevel = false;
     rogue.gameInProgress = false;
     rogue.gameHasEnded = true;
