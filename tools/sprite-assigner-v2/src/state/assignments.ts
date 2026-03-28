@@ -13,13 +13,7 @@ import {
   getInitialTileTypeAssignments,
   getInitialGlyphAssignments,
 } from "../data/initial-assignments.ts";
-import {
-  AUTOTILE_VARIANT_COUNT,
-  WANG_BLOB_COLS,
-  WANG_BLOB_ROWS,
-  wangBlobCellToVariant,
-  type ConnectionGroup,
-} from "../data/autotile-groups.ts";
+import type { ConnectionGroup } from "../data/autotile-groups.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -31,12 +25,16 @@ export interface SpriteRef {
   y: number;
 }
 
-export type AutotileVariants = (SpriteRef | null)[];
+export interface AutotileGroupConfig {
+  sheet: string;
+  format: string;
+}
 
 export interface Assignments {
+  sheets?: { master: string };
   tiletype: Record<string, SpriteRef>;
   glyph: Record<string, SpriteRef>;
-  autotile: Record<string, AutotileVariants>;
+  autotile: Record<string, AutotileGroupConfig>;
 }
 
 export type AssignmentTab = "tiletype" | "glyph" | "autotile";
@@ -60,18 +58,12 @@ type Action =
   | { type: "reset" }
   | { type: "importJSON"; data: Assignments }
   | { type: "loadFromManifest"; data: Assignments }
-  | { type: "assignVariant"; group: ConnectionGroup; index: number; ref: SpriteRef }
-  | { type: "unassignVariant"; group: ConnectionGroup; index: number }
-  | { type: "resetGroup"; group: ConnectionGroup }
-  | { type: "importWangBlob"; group: ConnectionGroup; sheetKey: string };
+  | { type: "setAutotileGroup"; group: ConnectionGroup; config: AutotileGroupConfig }
+  | { type: "removeAutotileGroup"; group: ConnectionGroup };
 
 // ---------------------------------------------------------------------------
 // Reducer
 // ---------------------------------------------------------------------------
-
-function ensureVariants(state: Assignments, group: string): AutotileVariants {
-  return state.autotile[group] ?? new Array(AUTOTILE_VARIANT_COUNT).fill(null);
-}
 
 function reducer(state: Assignments, action: Action): Assignments {
   switch (action.type) {
@@ -95,35 +87,20 @@ function reducer(state: Assignments, action: Action): Assignments {
     case "importJSON":
     case "loadFromManifest":
       return {
+        sheets: action.data.sheets,
         tiletype: action.data.tiletype ?? {},
         glyph: action.data.glyph ?? {},
         autotile: action.data.autotile ?? {},
       };
-    case "assignVariant": {
-      const variants = [...ensureVariants(state, action.group)];
-      variants[action.index] = action.ref;
-      return { ...state, autotile: { ...state.autotile, [action.group]: variants } };
-    }
-    case "unassignVariant": {
-      const variants = [...ensureVariants(state, action.group)];
-      variants[action.index] = null;
-      return { ...state, autotile: { ...state.autotile, [action.group]: variants } };
-    }
-    case "resetGroup": {
+    case "setAutotileGroup":
+      return {
+        ...state,
+        autotile: { ...state.autotile, [action.group]: action.config },
+      };
+    case "removeAutotileGroup": {
       const autotile = { ...state.autotile };
       delete autotile[action.group];
       return { ...state, autotile };
-    }
-    case "importWangBlob": {
-      const variants: AutotileVariants = new Array(AUTOTILE_VARIANT_COUNT).fill(null);
-      for (let row = 0; row < WANG_BLOB_ROWS; row++) {
-        for (let col = 0; col < WANG_BLOB_COLS; col++) {
-          const variantIdx = wangBlobCellToVariant(col, row);
-          if (variantIdx < 0) continue;
-          variants[variantIdx] = { sheet: action.sheetKey, x: col, y: row };
-        }
-      }
-      return { ...state, autotile: { ...state.autotile, [action.group]: variants } };
     }
   }
 }
@@ -145,6 +122,7 @@ function loadFromStorage(): Assignments {
     }
   } catch { /* fall through */ }
   return {
+    sheets: { master: "master-spritesheet.png" },
     tiletype: getInitialTileTypeAssignments(),
     glyph: getInitialGlyphAssignments(),
     autotile: {},
@@ -163,20 +141,14 @@ const SKIP_TILE_TYPES = new Set(["NOTHING", "NUMBER_TILETYPES"]);
 
 export function computeStats(state: Assignments): AssignmentStats {
   const ttTotal = TILE_TYPES.filter((n) => !SKIP_TILE_TYPES.has(n)).length;
-  let autotileGroups = 0;
-  let autotileVariantsAssigned = 0;
-  for (const variants of Object.values(state.autotile)) {
-    const assigned = variants.filter((v) => v !== null).length;
-    if (assigned > 0) autotileGroups++;
-    autotileVariantsAssigned += assigned;
-  }
+  const autotileGroups = Object.keys(state.autotile).length;
   return {
     tileTypeAssigned: Object.keys(state.tiletype).length,
     tileTypeTotal: ttTotal,
     glyphAssigned: Object.keys(state.glyph).length,
     glyphTotal: DISPLAY_GLYPHS.length,
     autotileGroups,
-    autotileVariantsAssigned,
+    autotileVariantsAssigned: autotileGroups,
   };
 }
 
@@ -221,31 +193,19 @@ export function useAssignmentHelpers() {
     [dispatch],
   );
 
-  const assignVariant = useCallback(
-    (group: ConnectionGroup, index: number, ref: SpriteRef) =>
-      dispatch({ type: "assignVariant", group, index, ref }),
+  const setAutotileGroup = useCallback(
+    (group: ConnectionGroup, config: AutotileGroupConfig) =>
+      dispatch({ type: "setAutotileGroup", group, config }),
     [dispatch],
   );
 
-  const unassignVariant = useCallback(
-    (group: ConnectionGroup, index: number) =>
-      dispatch({ type: "unassignVariant", group, index }),
-    [dispatch],
-  );
-
-  const resetGroup = useCallback(
+  const removeAutotileGroup = useCallback(
     (group: ConnectionGroup) =>
-      dispatch({ type: "resetGroup", group }),
+      dispatch({ type: "removeAutotileGroup", group }),
     [dispatch],
   );
 
-  const importWangBlob = useCallback(
-    (group: ConnectionGroup, sheetKey: string) =>
-      dispatch({ type: "importWangBlob", group, sheetKey }),
-    [dispatch],
-  );
-
-  return { assign, unassign, reset, importJSON, assignVariant, unassignVariant, resetGroup, importWangBlob };
+  return { assign, unassign, reset, importJSON, setAutotileGroup, removeAutotileGroup };
 }
 
 // ---------------------------------------------------------------------------

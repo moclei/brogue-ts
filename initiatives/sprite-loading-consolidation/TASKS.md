@@ -21,11 +21,11 @@
 # --- handoff point ---
 
 ## Phase 3: Sprite assigner save changes
-- [ ] Remove `generateAutotileSheets()` from `generate.ts`
-- [ ] Remove `rewriteAutotileForGame()` from `api.ts`
-- [ ] Update save endpoint: write new `autotile` format (per-group objects) + `sheets` section to `assignments.json`
-- [ ] Update `SavePayload` type: `autotile` becomes `Record<string, { sheet: string; format: string }>` instead of per-variant arrays
-- [ ] Update assignment state types in `assignments.ts` to match new autotile model
+- [x] Remove `generateAutotileSheets()` from `generate.ts`
+- [x] Remove `rewriteAutotileForGame()` from `api.ts`
+- [x] Update save endpoint: write new `autotile` format (per-group objects) + `sheets` section to `assignments.json`
+- [x] Update `SavePayload` type: `autotile` becomes `Record<string, { sheet: string; format: string }>` instead of per-variant arrays
+- [x] Update assignment state types in `assignments.ts` to match new autotile model
 - [ ] Verify: Save to Disk writes correct assignments.json, game hot-reloads from it
 
 ## Phase 4: Sprite assigner autotile UI simplification
