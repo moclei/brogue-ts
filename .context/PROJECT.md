@@ -85,6 +85,7 @@ cover domain-specific details. Load them on demand, not by default.
 | Path | Scope |
 |---|---|
 | `.context/PROJECT.md` | This file — project overview, layout, conventions |
+| `docs/CONTEXT.md` | Feature docs, audits, investigations — see its own CONTEXT.md for full listing |
 | `tools/CONTEXT.md` | Listing of all dev tools (sprite assigner, generators, build scripts) |
 | `tools/sprite-assigner-v2/CONTEXT.md` | Full architecture and feature docs for the sprite assigner |
 | `tools/dungeon-cake/CONTEXT.md` | Dungeon Cake — standalone sprite evaluation tool with debug controls |

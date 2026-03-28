@@ -22,20 +22,21 @@ well beyond Brogue's scope.
 Not all must-haves; potential directions ranked by how well they fit the
 current codebase versus requiring a different platform.
 
-| Feature | Category | Codebase fit | Notes |
-|---------|----------|-------------|-------|
-| Networking (multiplayer/co-op) | Game logic | Strong | Turn-based grid games are easy to network. WebSockets are native to TS/browser. |
-| Real-time movement (grid-based) | Game logic + presentation | Moderate | Game loop refactor needed (tick-based instead of input-blocking). `requestAnimationFrame` is native. Design challenge > implementation challenge. |
-| Isometric rendering | Presentation | Moderate | Rendering transform only — game logic stays 2D grid. Coordinate transforms, y-sorting, asset pipeline. Pixi.js has community examples. Godot has this built in. |
-| Animations & particle effects | Presentation | Moderate | Pixi.js handles sprites, particles, blend modes, filters. No visual timeline editor (code-first). |
-| Terrain destruction/building (DF-like) | Game logic | Strong | Brogue already has a terrain transformation system (fire, water, gas, pressure plates, machines). Extending for player-initiated placement is natural. |
-| Deeper simulation | Game logic | Strong | Brogue simulates fire spread, gas diffusion, light, creature ecology. More simulation = more game code; platform irrelevant. |
+| Feature                                | Category                  | Codebase fit | Notes                                                                                                                                                           |
+| -------------------------------------- | ------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Networking (multiplayer/co-op)         | Game logic                | Strong       | Turn-based grid games are easy to network. WebSockets are native to TS/browser.                                                                                 |
+| Real-time movement (grid-based)        | Game logic + presentation | Moderate     | Game loop refactor needed (tick-based instead of input-blocking). `requestAnimationFrame` is native. Design challenge > implementation challenge.               |
+| Isometric rendering                    | Presentation              | Moderate     | Rendering transform only — game logic stays 2D grid. Coordinate transforms, y-sorting, asset pipeline. Pixi.js has community examples. Godot has this built in. |
+| Animations & particle effects          | Presentation              | Moderate     | Pixi.js handles sprites, particles, blend modes, filters. No visual timeline editor (code-first).                                                               |
+| Terrain destruction/building (DF-like) | Game logic                | Strong       | Brogue already has a terrain transformation system (fire, water, gas, pressure plates, machines). Extending for player-initiated placement is natural.          |
+| Deeper simulation                      | Game logic                | Strong       | Brogue simulates fire spread, gas diffusion, light, creature ecology. More simulation = more game code; platform irrelevant.                                    |
 
 ## Options Evaluated
 
 ### Option A: Stay on BrogueCE TypeScript codebase
 
 **Strengths:**
+
 - Working game with deep, tested systems (dungeon gen, combat, AI, items, machines, FOV, lighting, status effects)
 - ~2300 tests providing a safety net for refactoring
 - TypeScript is web-native: browser, Node terminal, Electron desktop, Capacitor mobile
@@ -44,6 +45,7 @@ current codebase versus requiring a different platform.
 - Estimated time to add all listed features: ~3-4 months
 
 **Weaknesses:**
+
 - Presentation layer (rendering, animation, audio) must be built or integrated via libraries
 - No visual editors for animation timelines, particle systems, tilemaps
 - Isometric rendering is doable but not turnkey
@@ -54,12 +56,14 @@ current codebase versus requiring a different platform.
 ### Option B: Port game logic to Godot
 
 **Strengths:**
+
 - Built-in isometric TileMap, AnimationPlayer, GPUParticles2D, audio
 - Visual editors for content authoring
 - Export to web, desktop, mobile
 - Large community and plugin ecosystem
 
 **Weaknesses:**
+
 - Porting game logic from TS to GDScript/C#: estimated 2-3 months
 - Test suite (~2300 tests) would need to be ported or abandoned
 - GDScript is less expressive than TS for complex game logic; C# is more verbose
@@ -71,10 +75,12 @@ current codebase versus requiring a different platform.
 ### Option C: Write from scratch
 
 **Strengths:**
+
 - Clean architecture designed for target game's actual needs
 - No legacy coupling to Brogue's rules
 
 **Weaknesses:**
+
 - Loses 6+ months of working, tested game logic
 - Must re-derive dungeon generation, monster AI, FOV, pathfinding, status effects, combat
 - Slowest path to a playable game unless the target is architecturally very different from a grid roguelike
@@ -133,13 +139,13 @@ Movement interpolation between grid cells. Monster AI on timers. Estimated:
 
 ## Recommended TS library stack
 
-| Need | Library | Maturity |
-|------|---------|----------|
-| 2D rendering (WebGL) | Pixi.js | Extremely mature |
-| Audio | Howler.js | Industry standard |
-| Networking | Native WebSocket / socket.io / PartyKit | Excellent |
-| Desktop packaging | Electron or Tauri | Mature |
-| Mobile wrapping | Capacitor | Viable for grid games |
+| Need                 | Library                                 | Maturity              |
+| -------------------- | --------------------------------------- | --------------------- |
+| 2D rendering (WebGL) | Pixi.js                                 | Extremely mature      |
+| Audio                | Howler.js                               | Industry standard     |
+| Networking           | Native WebSocket / socket.io / PartyKit | Excellent             |
+| Desktop packaging    | Electron or Tauri                       | Mature                |
+| Mobile wrapping      | Capacitor                               | Viable for grid games |
 
 ## Key insight
 
