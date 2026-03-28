@@ -27,16 +27,19 @@ import { getGameState } from "./core.js";
 import { buildMenuContext } from "./menus.js";
 import { mainBrogueJunction } from "./menus/main-menu.js";
 import { COLS, ROWS, STAT_BAR_WIDTH, MESSAGE_LINES, DCOLS, DROWS } from "./types/constants.js";
-import { loadTilesetImages, reloadTilesetImages } from "./platform/tileset-loader.js";
+import { loadTilesetImages } from "./platform/tileset-loader.js";
 import {
     buildGlyphSpriteMap,
     buildTileTypeSpriteMap,
     buildAutotileVariantMap,
+    buildSheetUrls,
     fetchSpriteManifest,
+    fetchAssignments,
 } from "./platform/glyph-sprite-map.js";
 import { TextRenderer } from "./platform/text-renderer.js";
 import { SpriteRenderer } from "./platform/sprite-renderer.js";
-import { spriteDebug, toggleDebugPanel } from "./platform/sprite-debug.js";
+import { spriteDebug } from "./platform/sprite-debug.js";
+import { toggleCheatPanel } from "./platform/game-debug-panel.js";
 
 // =============================================================================
 // Canvas setup
@@ -108,9 +111,10 @@ function initBrowserConsole(options: BrowserRendererOptions): ReturnType<typeof 
 
 async function main(): Promise<void> {
     // 1. Load tileset for pixel-art mode (optional; continues without tiles on failure)
-    let tiles: Awaited<ReturnType<typeof loadTilesetImages>> | undefined;
+    const sheetUrls = buildSheetUrls();
+    let tiles: Map<string, HTMLImageElement> | undefined;
     try {
-        tiles = await loadTilesetImages();
+        tiles = await loadTilesetImages(sheetUrls);
     } catch (e) {
         console.warn("[rogue-ts] Tileset failed to load; tile mode will show placeholders.", e);
     }
@@ -154,8 +158,7 @@ async function main(): Promise<void> {
         if (e.key === "F2") {
             e.preventDefault();
             e.stopPropagation();
-            toggleDebugPanel(canvasParent);
-            forceFullRedraw();
+            toggleCheatPanel(canvasParent);
         }
     }, true);
 
@@ -212,13 +215,17 @@ async function main(): Promise<void> {
             // eslint-disable-next-line no-console
             console.log(`[rogue-ts] Tileset changed: ${data.file}, reloading sprites…`);
             try {
-                const [newTiles, newManifest] = await Promise.all([
-                    reloadTilesetImages(),
+                const [newAssignments, newManifest] = await Promise.all([
+                    fetchAssignments(),
                     fetchSpriteManifest(),
                 ]);
+                const newUrls = buildSheetUrls(newAssignments, `?t=${Date.now()}`);
+                const newTiles = await loadTilesetImages(newUrls);
                 const newSpriteMap = buildGlyphSpriteMap(newManifest);
                 const newTileTypeSpriteMap = buildTileTypeSpriteMap(newManifest);
-                const newAutotileVariantMap = buildAutotileVariantMap(newTileTypeSpriteMap);
+                const newAutotileVariantMap = buildAutotileVariantMap(
+                    newTileTypeSpriteMap, newAssignments,
+                );
                 await spriteRenderer.reloadTiles(
                     newTiles, newSpriteMap, newTileTypeSpriteMap, newAutotileVariantMap,
                 );
