@@ -13,7 +13,13 @@ import {
   getInitialTileTypeAssignments,
   getInitialGlyphAssignments,
 } from "../data/initial-assignments.ts";
-import { AUTOTILE_VARIANT_COUNT, type ConnectionGroup } from "../data/autotile-groups.ts";
+import {
+  AUTOTILE_VARIANT_COUNT,
+  WANG_BLOB_COLS,
+  WANG_BLOB_ROWS,
+  wangBlobCellToVariant,
+  type ConnectionGroup,
+} from "../data/autotile-groups.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -56,7 +62,8 @@ type Action =
   | { type: "loadFromManifest"; data: Assignments }
   | { type: "assignVariant"; group: ConnectionGroup; index: number; ref: SpriteRef }
   | { type: "unassignVariant"; group: ConnectionGroup; index: number }
-  | { type: "resetGroup"; group: ConnectionGroup };
+  | { type: "resetGroup"; group: ConnectionGroup }
+  | { type: "importWangBlob"; group: ConnectionGroup; sheetKey: string };
 
 // ---------------------------------------------------------------------------
 // Reducer
@@ -106,6 +113,17 @@ function reducer(state: Assignments, action: Action): Assignments {
       const autotile = { ...state.autotile };
       delete autotile[action.group];
       return { ...state, autotile };
+    }
+    case "importWangBlob": {
+      const variants: AutotileVariants = new Array(AUTOTILE_VARIANT_COUNT).fill(null);
+      for (let row = 0; row < WANG_BLOB_ROWS; row++) {
+        for (let col = 0; col < WANG_BLOB_COLS; col++) {
+          const variantIdx = wangBlobCellToVariant(col, row);
+          if (variantIdx < 0) continue;
+          variants[variantIdx] = { sheet: action.sheetKey, x: col, y: row };
+        }
+      }
+      return { ...state, autotile: { ...state.autotile, [action.group]: variants } };
     }
   }
 }
@@ -221,7 +239,13 @@ export function useAssignmentHelpers() {
     [dispatch],
   );
 
-  return { assign, unassign, reset, importJSON, assignVariant, unassignVariant, resetGroup };
+  const importWangBlob = useCallback(
+    (group: ConnectionGroup, sheetKey: string) =>
+      dispatch({ type: "importWangBlob", group, sheetKey }),
+    [dispatch],
+  );
+
+  return { assign, unassign, reset, importJSON, assignVariant, unassignVariant, resetGroup, importWangBlob };
 }
 
 // ---------------------------------------------------------------------------

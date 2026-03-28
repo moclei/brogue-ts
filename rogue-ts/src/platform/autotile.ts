@@ -281,3 +281,50 @@ function buildBitmaskToVariant(): Uint8Array {
  * Precomputed at module load time.
  */
 export const BITMASK_TO_VARIANT: Uint8Array = buildBitmaskToVariant();
+
+// =============================================================================
+// Wang Blob layout — 7×7 grid (49 cells, 2 empty corners = 47 unique variants)
+// =============================================================================
+
+export const WANG_BLOB_COLS = 7;
+export const WANG_BLOB_ROWS = 7;
+
+/**
+ * Bitmask values arranged in the Wang Blob spatial layout. Connected
+ * tiles are visually adjacent, making the template natural to draw on.
+ * Zero-cells at (col=6, row=0) and (col=6, row=6) are empty corners;
+ * (col=0, row=0) is the actual variant-0 cell (no connections).
+ */
+export const WANG_BLOB_GRID: readonly (readonly number[])[] = [
+    [  0,   4,  92, 124, 116,  80,   0],
+    [ 16,  20,  87, 223, 241,  21,  64],
+    [ 29, 117,  85,  71, 221, 125, 112],
+    [ 31, 253, 113,  28, 127, 247, 209],
+    [ 23, 199, 213,  95, 255, 245,  81],
+    [  5,  84,  93, 119, 215, 193,  17],
+    [  0,   1,   7, 197,  69,  68,  65],
+];
+
+const WANG_BLOB_EMPTY_CORNERS: ReadonlySet<string> = new Set(["6,0", "0,6"]);
+
+/**
+ * Build a lookup from variant index (0–46) to Wang Blob grid {col, row}.
+ * Used by wangBlobVariants() in glyph-sprite-map.ts to load sheets
+ * drawn in Wang Blob format directly.
+ */
+export function buildVariantToWangBlob(): Map<number, { col: number; row: number }> {
+    const canonicalToIndex = new Map<number, number>();
+    for (let i = 0; i < VARIANT_CANONICAL_MASKS.length; i++) {
+        canonicalToIndex.set(VARIANT_CANONICAL_MASKS[i]!, i);
+    }
+    const map = new Map<number, { col: number; row: number }>();
+    for (let row = 0; row < WANG_BLOB_ROWS; row++) {
+        for (let col = 0; col < WANG_BLOB_COLS; col++) {
+            const mask = WANG_BLOB_GRID[row]![col]!;
+            if (mask === 0 && WANG_BLOB_EMPTY_CORNERS.has(`${col},${row}`)) continue;
+            const variantIdx = canonicalToIndex.get(mask);
+            if (variantIdx !== undefined) map.set(variantIdx, { col, row });
+        }
+    }
+    return map;
+}

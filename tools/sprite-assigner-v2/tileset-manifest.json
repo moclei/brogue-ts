@@ -564,6 +564,11 @@
           "key": "decorative",
           "path": "rf-catacombs/decorative.png",
           "category": "item"
+        },
+        {
+          "key": "RA_Graveyard",
+          "path": "rf-catacombs/RA_Graveyard.png",
+          "category": "item"
         }
       ]
     },
@@ -681,13 +686,8 @@
           "category": "terrain"
         },
         {
-          "key": "chasm-autotile",
-          "path": "autotile/chasm-autotile.png",
-          "category": "terrain"
-        },
-        {
-          "key": "chasm-autotile-v2",
-          "path": "autotile/chasm-autotile-v2.png",
+          "key": "chasm-autotile-v3",
+          "path": "autotile/chasm-autotile-v3.png",
           "category": "terrain"
         }
       ]
