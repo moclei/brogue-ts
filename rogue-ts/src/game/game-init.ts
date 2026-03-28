@@ -53,10 +53,18 @@ export const RNG_SUBSTANTIVE = 0;
 /** RNG mode: cosmetic-only RNG */
 export const RNG_COSMETIC = 1;
 
-/** D_IMMORTAL: debug immortality flag (false in production) */
+/** Runtime debug flags — toggled by the in-game cheat panel (F2). */
+export const debugFlags = {
+    /** D_IMMORTAL: player cannot die when true. */
+    immortal: false,
+    /** D_OMNISCENCE: debug omniscience (unused at runtime, kept for parity). */
+    omniscience: false,
+};
+
+/** @deprecated Use debugFlags.immortal instead. Kept for test compatibility. */
 export const D_IMMORTAL = false;
 
-/** D_OMNISCENCE: debug omniscience flag (false in production) */
+/** @deprecated Use debugFlags.omniscience instead. */
 export const D_OMNISCENCE = false;
 
 /** EXIT_STATUS_SUCCESS code */
