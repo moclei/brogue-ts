@@ -120,13 +120,12 @@ const GROUP_DEFS: readonly GroupDef[] = [
         dungeonLayer: DungeonLayer.Liquid,
         oobConnects: false,
         tileTypes: [
-            TileType.CHASM, TileType.CHASM_EDGE,
+            TileType.CHASM,
             TileType.MACHINE_COLLAPSE_EDGE_DORMANT,
             TileType.MACHINE_COLLAPSE_EDGE_SPREADING,
-            TileType.MACHINE_CHASM_EDGE,
             TileType.CHASM_WITH_HIDDEN_BRIDGE,
             TileType.CHASM_WITH_HIDDEN_BRIDGE_ACTIVE,
-            TileType.HOLE, TileType.HOLE_GLOW, TileType.HOLE_EDGE,
+            TileType.HOLE, TileType.HOLE_GLOW,
         ],
     },
     {
@@ -141,6 +140,17 @@ const GROUP_DEFS: readonly GroupDef[] = [
             TileType.MACHINE_TRIGGER_FLOOR,
             TileType.MACHINE_TRIGGER_FLOOR_REPEATING,
             TileType.MUD_FLOOR,
+            // Chasm/hole edge types are walkable (flags: 0) and live on
+            // DungeonLayer.Liquid, but they're functionally floor. Placing
+            // them here means: (a) FLOOR autotile extends seamlessly across
+            // the edge, and (b) CHASM autotile correctly shows cliff edges
+            // where deep chasm meets the walkable boundary. The liquid-path
+            // adjacency accessor applies the chasm-override so these tiles
+            // see each other via the liquid layer despite FLOOR's dungeon-
+            // layer read.
+            TileType.CHASM_EDGE,
+            TileType.MACHINE_CHASM_EDGE,
+            TileType.HOLE_EDGE,
         ],
     },
     {

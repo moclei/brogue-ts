@@ -180,13 +180,21 @@ function populateRememberedLayers(
         const lte = ctx.tileCatalog[liquidTile];
 
         if (isChasmTileType(liquidTile)) {
+            const prevTerrain = spriteData.layers[RenderLayer.TERRAIN];
+            const groupInfo = getConnectionGroupInfo(liquidTile);
+            const isFloorEdge = prevTerrain
+                && groupInfo?.dungeonLayer === DungeonLayer.Dungeon;
+
             const entry = acquireLayerEntry(pool, RenderLayer.TERRAIN);
             entry.tileType = liquidTile;
-            if (lte.foreColor) copyColorTo(entry.tint, lte.foreColor);
+            if (isFloorEdge) {
+                copyColorTo(entry.tint, prevTerrain!.tint);
+            } else {
+                if (lte.foreColor) copyColorTo(entry.tint, lte.foreColor);
+                if (lte.backColor) copyColorTo(spriteData.bgColor, lte.backColor);
+            }
             spriteData.layers[RenderLayer.TERRAIN] = entry;
-            if (lte.backColor) copyColorTo(spriteData.bgColor, lte.backColor);
 
-            const groupInfo = getConnectionGroupInfo(liquidTile);
             if (groupInfo) {
                 entry.adjacencyMask = computeAdjacencyMask(
                     x, y, groupInfo.members, groupInfo.oobConnects,
@@ -342,19 +350,37 @@ export function getCellSpriteData(
             // Chasms are placed on DungeonLayer.Liquid by lake generation but
             // are visually opaque terrain — route to TERRAIN, overriding the
             // FLOOR that lake placement puts on DungeonLayer.Dungeon.
+            const prevTerrain = spriteData.layers[RenderLayer.TERRAIN];
+            const groupInfo = getConnectionGroupInfo(liquidTile);
+            const isFloorEdge = prevTerrain
+                && groupInfo?.dungeonLayer === DungeonLayer.Dungeon;
+
             const entry = acquireLayerEntry(pool, RenderLayer.TERRAIN);
             entry.tileType = liquidTile;
-            if (lte.foreColor) copyColorTo(entry.tint, lte.foreColor);
+            if (isFloorEdge) {
+                // Walkable edge tiles (CHASM_EDGE, etc.) are in the FLOOR
+                // group — inherit the dungeon-layer tile's tint so they
+                // match surrounding floor. Their own foreColor is white,
+                // which produces an invisible multiply tint.
+                copyColorTo(entry.tint, prevTerrain!.tint);
+            } else {
+                if (lte.foreColor) copyColorTo(entry.tint, lte.foreColor);
+                if (lte.backColor) copyColorTo(spriteData.bgColor, lte.backColor);
+            }
             spriteData.layers[RenderLayer.TERRAIN] = entry;
-            if (lte.backColor) copyColorTo(spriteData.bgColor, lte.backColor);
 
-            const groupInfo = getConnectionGroupInfo(liquidTile);
             if (groupInfo) {
                 entry.adjacencyMask = computeAdjacencyMask(
                     x, y, groupInfo.members, groupInfo.oobConnects,
-                    (nx, ny) => coordinatesAreInMap(nx, ny)
-                        ? ctx.pmap[nx][ny].layers[groupInfo.dungeonLayer]
-                        : undefined,
+                    (nx, ny) => {
+                        if (!coordinatesAreInMap(nx, ny)) return undefined;
+                        const nCell = ctx.pmap[nx][ny];
+                        if (groupInfo.dungeonLayer === DungeonLayer.Dungeon) {
+                            const liq = nCell.layers[DungeonLayer.Liquid];
+                            if (liq && isChasmTileType(liq)) return liq;
+                        }
+                        return nCell.layers[groupInfo.dungeonLayer];
+                    },
                 );
             }
         } else if (
