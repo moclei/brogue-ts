@@ -11,6 +11,7 @@ import {
     buildGlyphSpriteMap,
     buildTileTypeSpriteMap,
     buildAutotileVariantMap,
+    buildSheetUrls,
 } from "@game/platform/glyph-sprite-map.js";
 import { TextRenderer } from "@game/platform/text-renderer.js";
 import { SpriteRenderer } from "@game/platform/sprite-renderer.js";
@@ -29,7 +30,7 @@ export interface TilesetBundle {
  * The canvas context must be provided by the caller (from the dungeon canvas).
  */
 export async function loadTilesets(ctx: CanvasRenderingContext2D): Promise<TilesetBundle> {
-    const tiles = await loadTilesetImages();
+    const tiles = await loadTilesetImages(buildSheetUrls());
 
     const glyphMap = buildGlyphSpriteMap();
     const tileTypeMap = buildTileTypeSpriteMap();

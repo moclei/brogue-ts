@@ -8,13 +8,14 @@
 # --- handoff point ---
 
 ## Phase 2: New autotile schema + data-driven image loading
-- [ ] Define new `autotile` schema type in `glyph-sprite-map.ts`: per-group `{ sheet: string, format: "grid" | "wang" }` instead of per-variant arrays
-- [ ] Add `sheets` section type (`{ master: string }`) to `AssignmentsData`
-- [ ] Hand-write the new `autotile` + `sheets` sections in `assignments.json` for WALL, FLOOR, CHASM
-- [ ] Rewrite `tileset-loader.ts`: remove static `?url` imports, load image paths from assignments.json (`sheets` for master, `autotile` for per-group sheets)
-- [ ] Update `buildAutotileVariantMap()`: read per-group `{ sheet, format }` from assignments.json, use `autotileVariants()` for "grid" / `wangBlobVariants()` for "wang"
-- [ ] Remove `AUTOTILE_SHEETS`, `SHEET_NAME_MAP`, `assignmentVariants()`, `resolveGroupVariants()`
-- [ ] Update `bootstrap.ts` HMR handler: re-fetch assignments.json on reload, pass to loader + map builders
+- [x] Define new `autotile` schema type in `glyph-sprite-map.ts`: per-group `{ sheet: string, format: "grid" | "wang" }` instead of per-variant arrays
+- [x] Add `sheets` section type (`{ master: string }`) to `AssignmentsData`
+- [x] Hand-write the new `autotile` + `sheets` sections in `assignments.json` for WALL, FLOOR, CHASM
+- [x] Rewrite `tileset-loader.ts`: remove static `?url` imports, load image paths from assignments.json (`sheets` for master, `autotile` for per-group sheets)
+- [x] Update `buildAutotileVariantMap()`: read per-group `{ sheet, format }` from assignments.json, use `gridVariants()` for "grid" / `wangVariants()` for "wang"
+- [x] Remove `AUTOTILE_SHEETS`, `SHEET_NAME_MAP`, `assignmentVariants()`, `resolveGroupVariants()`
+- [x] Update `bootstrap.ts` HMR handler: re-fetch assignments.json on reload, pass to loader + map builders
+- [x] Add `serveGameAssets()` Vite plugin to Dungeon Cake for dynamic tileset URL resolution
 - [ ] Verify: initial load works, HMR reload works, all three autotile groups render correctly
 
 # --- handoff point ---
