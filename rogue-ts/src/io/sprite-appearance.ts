@@ -107,11 +107,21 @@ function rememberedNeighborTile(
         case VisibilityState.Visible:
         case VisibilityState.Clairvoyant:
         case VisibilityState.Telepathic:
-        case VisibilityState.Omniscience:
+        case VisibilityState.Omniscience: {
+            if (dungeonLayer === DungeonLayer.Dungeon) {
+                const liq = nCell.layers[DungeonLayer.Liquid];
+                if (liq && isChasmTileType(liq)) return liq;
+            }
             return nCell.layers[dungeonLayer];
+        }
         case VisibilityState.Remembered:
-        case VisibilityState.MagicMapped:
+        case VisibilityState.MagicMapped: {
+            if (dungeonLayer === DungeonLayer.Dungeon) {
+                const liq = nCell.rememberedLayers[DungeonLayer.Liquid];
+                if (liq && isChasmTileType(liq)) return liq;
+            }
             return nCell.rememberedLayers[dungeonLayer];
+        }
         default:
             return undefined;
     }
@@ -309,9 +319,15 @@ export function getCellSpriteData(
         if (tGroupInfo) {
             entry.adjacencyMask = computeAdjacencyMask(
                 x, y, tGroupInfo.members, tGroupInfo.oobConnects,
-                (nx, ny) => coordinatesAreInMap(nx, ny)
-                    ? ctx.pmap[nx][ny].layers[tGroupInfo.dungeonLayer]
-                    : undefined,
+                (nx, ny) => {
+                    if (!coordinatesAreInMap(nx, ny)) return undefined;
+                    const nCell = ctx.pmap[nx][ny];
+                    if (tGroupInfo.dungeonLayer === DungeonLayer.Dungeon) {
+                        const liq = nCell.layers[DungeonLayer.Liquid];
+                        if (liq && isChasmTileType(liq)) return liq;
+                    }
+                    return nCell.layers[tGroupInfo.dungeonLayer];
+                },
             );
         }
     }
