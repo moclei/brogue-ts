@@ -30,5 +30,10 @@ rogue-ts/dist/
 # Research clones (temporary, deleted after study)
 _research/
 
+# Pixel art working files — source art, backups, reference images
+rogue-ts/assets/tilesets/backup/
+rogue-ts/assets/tilesets/raw-autotile/
+rogue-ts/assets/tilesets/rf-catacombs/
+
 # CodeQL — databases are large build artifacts, never committed
 codeql/databases/
