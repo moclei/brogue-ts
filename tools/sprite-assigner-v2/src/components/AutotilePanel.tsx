@@ -10,16 +10,27 @@ import {
 import { TILE_SIZE } from "../data/tile-types.ts";
 import { useAssignments, useAssignmentHelpers } from "../state/assignments.ts";
 import { useApp } from "../state/app-state.ts";
+import type { TilesetManifest } from "../data/sheet-manifest.ts";
 
 const CELL_SIZE = 40;
 const GAP = 2;
 
+function allSheetKeys(manifest: TilesetManifest | null): string[] {
+  if (!manifest) return [];
+  const keys: string[] = [];
+  for (const ts of manifest.tilesets) {
+    for (const s of ts.sheets) keys.push(s.key);
+  }
+  return keys;
+}
+
 export function AutotilePanel() {
   const [group, setGroup] = useState<ConnectionGroup>("WALL");
+  const [showWangImport, setShowWangImport] = useState(false);
   const { state, showToast } = useApp();
-  const { selectedTile } = state;
+  const { selectedTile, manifest, currentSheetKey } = state;
   const assignments = useAssignments();
-  const { assignVariant, unassignVariant, resetGroup } = useAssignmentHelpers();
+  const { assignVariant, unassignVariant, resetGroup, importWangBlob } = useAssignmentHelpers();
 
   const variants = assignments.autotile[group] ?? [];
   const assignedCount = variants.filter((v) => v !== null).length;
@@ -50,6 +61,15 @@ export function AutotilePanel() {
     showToast(`Reset ${group} autotile variants`);
   }, [group, resetGroup, showToast]);
 
+  const handleWangBlobImport = useCallback(
+    (sheetKey: string) => {
+      importWangBlob(group, sheetKey);
+      showToast(`Imported Wang Blob sheet "${sheetKey}" → ${group} (47 variants)`);
+      setShowWangImport(false);
+    },
+    [group, importWangBlob, showToast],
+  );
+
   return (
     <div className="autotile-panel">
       <div className="autotile-header">
@@ -65,7 +85,22 @@ export function AutotilePanel() {
           {assignedCount}/{AUTOTILE_VARIANT_COUNT}
         </span>
         <button onClick={handleReset} title="Reset group">Reset</button>
+        <button
+          onClick={() => setShowWangImport(!showWangImport)}
+          title="Import a 7×7 Wang Blob spritesheet"
+          className={showWangImport ? "active" : ""}
+        >
+          Wang Blob
+        </button>
       </div>
+      {showWangImport && (
+        <WangBlobImportBar
+          sheetKeys={allSheetKeys(manifest)}
+          defaultSheet={currentSheetKey}
+          onImport={handleWangBlobImport}
+          onCancel={() => setShowWangImport(false)}
+        />
+      )}
       <div className="autotile-grid-scroll">
         <div
           className="autotile-grid"
@@ -163,6 +198,41 @@ function AutotileSlot({ index, ref_, isSelected, onAssign, onUnassign }: Autotil
         className="autotile-slot-canvas"
       />
       <span className="autotile-slot-index">{index}</span>
+    </div>
+  );
+}
+
+interface WangBlobImportBarProps {
+  sheetKeys: string[];
+  defaultSheet: string | null;
+  onImport: (sheetKey: string) => void;
+  onCancel: () => void;
+}
+
+function WangBlobImportBar({ sheetKeys, defaultSheet, onImport, onCancel }: WangBlobImportBarProps) {
+  const [selected, setSelected] = useState(defaultSheet ?? sheetKeys[0] ?? "");
+
+  return (
+    <div className="wang-blob-import-bar">
+      <label>
+        Sheet:
+        <select value={selected} onChange={(e) => setSelected(e.target.value)}>
+          {sheetKeys.map((k) => (
+            <option key={k} value={k}>{k}</option>
+          ))}
+        </select>
+      </label>
+      <button
+        onClick={() => {
+          if (!selected) return;
+          if (!confirm(`Import Wang Blob sheet "${selected}"?\nThis will overwrite all variant assignments for this group.`)) return;
+          onImport(selected);
+        }}
+        disabled={!selected}
+      >
+        Import 7×7
+      </button>
+      <button onClick={onCancel}>Cancel</button>
     </div>
   );
 }

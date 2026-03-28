@@ -68,3 +68,63 @@ export function getVariantInfo(index: number): VariantInfo {
 export function createEmptyVariants(): (null)[] {
   return new Array(AUTOTILE_VARIANT_COUNT).fill(null);
 }
+
+// =============================================================================
+// Wang Blob layout — 7×7 grid (49 cells, 2 empty corners = 47 unique variants)
+// =============================================================================
+
+export const WANG_BLOB_COLS = 7;
+export const WANG_BLOB_ROWS = 7;
+
+/**
+ * Bitmask values arranged in the Wang Blob spatial layout. Connected
+ * tiles are visually adjacent, making the template natural to draw on.
+ * Zero-cells at (col=6, row=0) and (col=6, row=6) are empty corners;
+ * (col=0, row=0) is the actual variant-0 cell (no connections).
+ */
+export const WANG_BLOB_GRID: readonly (readonly number[])[] = [
+  [  0,   4,  92, 124, 116,  80,   0],
+  [ 16,  20,  87, 223, 241,  21,  64],
+  [ 29, 117,  85,  71, 221, 125, 112],
+  [ 31, 253, 113,  28, 127, 247, 209],
+  [ 23, 199, 213,  95, 255, 245,  81],
+  [  5,  84,  93, 119, 215, 193,  17],
+  [  0,   1,   7, 197,  69,  68,  65],
+];
+
+const WANG_BLOB_EMPTY_CORNERS: ReadonlySet<string> = new Set(["6,0", "0,6"]);
+
+function isWangBlobEmpty(col: number, row: number): boolean {
+  return WANG_BLOB_GRID[row]![col] === 0 && WANG_BLOB_EMPTY_CORNERS.has(`${col},${row}`);
+}
+
+const maskToVariantIndex = new Map<number, number>();
+for (let i = 0; i < VARIANT_CANONICAL_MASKS.length; i++) {
+  maskToVariantIndex.set(VARIANT_CANONICAL_MASKS[i]!, i);
+}
+
+/**
+ * Map a Wang Blob grid cell to its variant index (0–46).
+ * Returns -1 for empty corner cells.
+ */
+export function wangBlobCellToVariant(col: number, row: number): number {
+  if (isWangBlobEmpty(col, row)) return -1;
+  const mask = WANG_BLOB_GRID[row]![col]!;
+  return maskToVariantIndex.get(mask) ?? -1;
+}
+
+/**
+ * Build a lookup from variant index → Wang Blob grid position.
+ * Useful for placing sprites into the 7×7 layout.
+ */
+export function buildVariantToWangBlob(): Map<number, { col: number; row: number }> {
+  const map = new Map<number, { col: number; row: number }>();
+  for (let row = 0; row < WANG_BLOB_ROWS; row++) {
+    for (let col = 0; col < WANG_BLOB_COLS; col++) {
+      if (isWangBlobEmpty(col, row)) continue;
+      const variantIdx = wangBlobCellToVariant(col, row);
+      if (variantIdx >= 0) map.set(variantIdx, { col, row });
+    }
+  }
+  return map;
+}

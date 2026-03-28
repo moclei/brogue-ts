@@ -9,7 +9,11 @@
  */
 
 import { DisplayGlyph, TileType } from "../types/enums.js";
-import { getConnectionGroupInfo, AUTOTILE_VARIANT_COUNT } from "./autotile.js";
+import {
+  getConnectionGroupInfo,
+  AUTOTILE_VARIANT_COUNT,
+  buildVariantToWangBlob,
+} from "./autotile.js";
 import defaultManifest from "../../assets/tilesets/sprite-manifest.json";
 import defaultAssignments from "../../assets/tilesets/assignments.json";
 
@@ -66,6 +70,35 @@ function autotileVariants(sheetKey: string): SpriteRef[] {
   return variants;
 }
 
+/** Lazily cached Wang Blob variant→grid mapping. */
+let wangBlobMap: Map<number, { col: number; row: number }> | null = null;
+
+/**
+ * Build a 47-element variant array from a 7×7 Wang Blob spritesheet.
+ * Each variant index maps to its spatial position in the Wang Blob
+ * layout, where connected tiles are visually adjacent.
+ */
+function wangBlobVariants(sheetKey: string): SpriteRef[] {
+  if (!wangBlobMap) wangBlobMap = buildVariantToWangBlob();
+  const variants: SpriteRef[] = [];
+  for (let v = 0; v < AUTOTILE_VARIANT_COUNT; v++) {
+    const pos = wangBlobMap.get(v);
+    if (pos) {
+      variants.push({ sheetKey, tileX: pos.col, tileY: pos.row });
+    } else {
+      variants.push({ sheetKey, tileX: 0, tileY: 0 });
+    }
+  }
+  return variants;
+}
+
+type AutotileFormat = "grid" | "wang-blob";
+
+interface AutotileSheetDef {
+  sheet: string;
+  format: AutotileFormat;
+}
+
 /**
  * Autotile spritesheets keyed by connection group name. When a sheet
  * exists for a group, wall-like TileTypes in that group use its 47
@@ -73,11 +106,14 @@ function autotileVariants(sheetKey: string): SpriteRef[] {
  * participate in the connection group (so neighbors see them as
  * connected) but render with their distinct sprite, not the autotile
  * sheet.
+ *
+ * format "grid" = standard 8×6 sequential layout.
+ * format "wang-blob" = 7×7 Wang Blob spatial layout.
  */
-const AUTOTILE_SHEETS: Record<string, string> = {
-  WALL: "WallAutotile",
-  FLOOR: "FloorAutotile",
-  CHASM: "ChasmAutotile",
+const AUTOTILE_SHEETS: Record<string, AutotileSheetDef> = {
+  WALL:  { sheet: "WallAutotile",  format: "grid" },
+  FLOOR: { sheet: "FloorAutotile", format: "grid" },
+  CHASM: { sheet: "ChasmAutotileV3", format: "wang-blob" },
 };
 
 /** Map kebab-case sheet names from assignments.json to PascalCase tileset keys. */
@@ -119,19 +155,21 @@ function assignmentVariants(
 /**
  * Resolve the 47-variant array for a connection group: use explicit
  * per-variant assignments from assignments.json if available, otherwise
- * fall back to the standard 8x6 grid layout.
+ * fall back to the grid layout determined by the sheet's format.
  */
 function resolveGroupVariants(
   groupName: string,
-  sheetKey: string,
+  sheetDef: AutotileSheetDef,
   assignments: AssignmentsData,
   cache: Map<string, SpriteRef[]>,
 ): SpriteRef[] {
-  const cacheKey = `${groupName}:${sheetKey}`;
+  const cacheKey = `${groupName}:${sheetDef.sheet}`;
   let variants = cache.get(cacheKey);
   if (variants) return variants;
   variants = assignmentVariants(groupName, assignments)
-    ?? autotileVariants(sheetKey);
+    ?? (sheetDef.format === "wang-blob"
+      ? wangBlobVariants(sheetDef.sheet)
+      : autotileVariants(sheetDef.sheet));
   cache.set(cacheKey, variants);
   return variants;
 }
@@ -155,10 +193,10 @@ export function buildAutotileVariantMap(
   for (const [tileType, spriteRef] of tileTypeSpriteMap) {
     const groupInfo = getConnectionGroupInfo(tileType);
     if (!groupInfo) continue;
-    const sheetKey = AUTOTILE_SHEETS[groupInfo.group];
-    if (sheetKey && !AUTOTILE_SKIP.has(tileType)) {
+    const sheetDef = AUTOTILE_SHEETS[groupInfo.group];
+    if (sheetDef && !AUTOTILE_SKIP.has(tileType)) {
       map.set(tileType, resolveGroupVariants(
-        groupInfo.group, sheetKey, assignments, variantCache,
+        groupInfo.group, sheetDef, assignments, variantCache,
       ));
     } else {
       map.set(tileType, new Array<SpriteRef>(AUTOTILE_VARIANT_COUNT).fill(spriteRef));
@@ -172,10 +210,10 @@ export function buildAutotileVariantMap(
     if (typeof tt !== "number" || map.has(tt)) continue;
     const groupInfo = getConnectionGroupInfo(tt);
     if (!groupInfo) continue;
-    const sheetKey = AUTOTILE_SHEETS[groupInfo.group];
-    if (!sheetKey || AUTOTILE_SKIP.has(tt)) continue;
+    const sheetDef = AUTOTILE_SHEETS[groupInfo.group];
+    if (!sheetDef || AUTOTILE_SKIP.has(tt)) continue;
     map.set(tt, resolveGroupVariants(
-      groupInfo.group, sheetKey, assignments, variantCache,
+      groupInfo.group, sheetDef, assignments, variantCache,
     ));
   }
 

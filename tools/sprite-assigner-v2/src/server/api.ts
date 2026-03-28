@@ -105,9 +105,13 @@ export function spriteAssignerApi(repoRoot: string): Plugin {
             (async () => {
               const payload = JSON.parse(body) as SavePayload;
               const result = await generateMasterSheet(payload, sheetPaths, tilesetsDir);
+              const gamePayload = {
+                ...payload,
+                autotile: rewriteAutotileForGame(payload.autotile ?? {}, result.autotileSheets),
+              };
               fs.writeFileSync(
                 path.join(tilesetsDir, "assignments.json"),
-                JSON.stringify(payload, null, 2) + "\n",
+                JSON.stringify(gamePayload, null, 2) + "\n",
               );
               res.setHeader("Content-Type", "application/json");
               res.end(JSON.stringify({ ok: true, ...result }));
@@ -220,6 +224,39 @@ export function spriteAssignerApi(repoRoot: string): Plugin {
       });
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Autotile assignment rewriting
+// ---------------------------------------------------------------------------
+
+type AutotileVariant = { sheet: string; x: number; y: number } | null;
+
+/**
+ * Rewrite autotile assignments so they reference the generated 8x6 output
+ * sheets instead of the source sheets. The game loads the generated PNGs
+ * (e.g. "ChasmAutotile" from autotile/chasm-autotile.png) — it doesn't
+ * have access to the source sheets used during assignment.
+ */
+function rewriteAutotileForGame(
+  autotile: Record<string, AutotileVariant[]>,
+  generatedSheets: string[],
+): Record<string, AutotileVariant[]> {
+  const generatedGroups = new Set(
+    generatedSheets.map(f => f.replace("-autotile.png", "").toUpperCase()),
+  );
+  const result: Record<string, AutotileVariant[]> = {};
+  for (const [group, variants] of Object.entries(autotile)) {
+    if (!generatedGroups.has(group)) {
+      result[group] = variants;
+      continue;
+    }
+    const sheetName = `${group.toLowerCase()}-autotile`;
+    result[group] = variants.map((v, i) =>
+      v ? { sheet: sheetName, x: i % 8, y: Math.floor(i / 8) } : null,
+    );
+  }
+  return result;
 }
 
 // ---------------------------------------------------------------------------

@@ -28,7 +28,13 @@ Standalone Node CLI that builds `master-spritesheet.png` + `sprite-manifest.json
 
 Python script (requires Pillow) that generates a debug autotile spritesheet with variant index numbers and connectivity diagrams baked into each 16x16 cell. Useful for visually verifying the autotile system's variant selection in-game.
 
-**Usage:** `python tools/gen-debug-autotile.py`
+**Usage:** `python3 tools/gen-debug-autotile.py`
+
+## Wang Blob Template Generator (`gen-wang-blob-template.py`)
+
+Python script (requires Pillow) that generates a Wang Blob autotile template PNG — a 7×7 grid where the 47 connectivity variants are spatially arranged so adjacent tiles share visual connections. Each cell shows its variant index and a mini connectivity diagram. Configurable tile size (default 16×16). The artist draws directly on this template, and the sheet can be imported into the sprite assigner or loaded natively by the game.
+
+**Usage:** `python3 tools/gen-wang-blob-template.py [--tile-size 32] [-o output.png]`
 
 ## Upstream Build Scripts
 
