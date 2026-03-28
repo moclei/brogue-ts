@@ -52,7 +52,11 @@ export function buildTileTypeSpriteMap(
   for (const [name, coords] of Object.entries(manifest.tiles)) {
     const tt = TileType[name as keyof typeof TileType];
     if (tt !== undefined && typeof tt === "number") {
-      m.set(tt, { sheetKey: MASTER_SHEET_KEY, tileX: coords.x, tileY: coords.y });
+      m.set(tt, {
+        sheetKey: MASTER_SHEET_KEY,
+        tileX: coords.x,
+        tileY: coords.y,
+      });
     }
   }
   return m;
@@ -111,9 +115,9 @@ interface AutotileSheetDef {
  * format "wang-blob" = 7×7 Wang Blob spatial layout.
  */
 const AUTOTILE_SHEETS: Record<string, AutotileSheetDef> = {
-  WALL:  { sheet: "WallAutotile",  format: "grid" },
+  WALL: { sheet: "WallAutotile", format: "grid" },
   FLOOR: { sheet: "FloorAutotile", format: "grid" },
-  CHASM: { sheet: "ChasmAutotileV3", format: "wang-blob" },
+  CHASM: { sheet: "ChasmAutotile", format: "grid" },
 };
 
 /** Map kebab-case sheet names from assignments.json to PascalCase tileset keys. */
@@ -145,7 +149,7 @@ function assignmentVariants(
 ): SpriteRef[] | undefined {
   const entries = assignments.autotile?.[groupName];
   if (!entries || entries.length !== AUTOTILE_VARIANT_COUNT) return undefined;
-  return entries.map(a => ({
+  return entries.map((a) => ({
     sheetKey: SHEET_NAME_MAP[a.sheet] ?? a.sheet,
     tileX: a.x,
     tileY: a.y,
@@ -166,8 +170,9 @@ function resolveGroupVariants(
   const cacheKey = `${groupName}:${sheetDef.sheet}`;
   let variants = cache.get(cacheKey);
   if (variants) return variants;
-  variants = assignmentVariants(groupName, assignments)
-    ?? (sheetDef.format === "wang-blob"
+  variants =
+    assignmentVariants(groupName, assignments) ??
+    (sheetDef.format === "wang-blob"
       ? wangBlobVariants(sheetDef.sheet)
       : autotileVariants(sheetDef.sheet));
   cache.set(cacheKey, variants);
@@ -195,11 +200,20 @@ export function buildAutotileVariantMap(
     if (!groupInfo) continue;
     const sheetDef = AUTOTILE_SHEETS[groupInfo.group];
     if (sheetDef && !AUTOTILE_SKIP.has(tileType)) {
-      map.set(tileType, resolveGroupVariants(
-        groupInfo.group, sheetDef, assignments, variantCache,
-      ));
+      map.set(
+        tileType,
+        resolveGroupVariants(
+          groupInfo.group,
+          sheetDef,
+          assignments,
+          variantCache,
+        ),
+      );
     } else {
-      map.set(tileType, new Array<SpriteRef>(AUTOTILE_VARIANT_COUNT).fill(spriteRef));
+      map.set(
+        tileType,
+        new Array<SpriteRef>(AUTOTILE_VARIANT_COUNT).fill(spriteRef),
+      );
     }
   }
 
@@ -212,9 +226,15 @@ export function buildAutotileVariantMap(
     if (!groupInfo) continue;
     const sheetDef = AUTOTILE_SHEETS[groupInfo.group];
     if (!sheetDef || AUTOTILE_SKIP.has(tt)) continue;
-    map.set(tt, resolveGroupVariants(
-      groupInfo.group, sheetDef, assignments, variantCache,
-    ));
+    map.set(
+      tt,
+      resolveGroupVariants(
+        groupInfo.group,
+        sheetDef,
+        assignments,
+        variantCache,
+      ),
+    );
   }
 
   return map;
@@ -232,7 +252,11 @@ export function buildGlyphSpriteMap(
   for (const [name, coords] of Object.entries(manifest.glyphs)) {
     const dg = DisplayGlyph[name as keyof typeof DisplayGlyph];
     if (dg !== undefined && typeof dg === "number") {
-      m.set(dg, { sheetKey: MASTER_SHEET_KEY, tileX: coords.x, tileY: coords.y });
+      m.set(dg, {
+        sheetKey: MASTER_SHEET_KEY,
+        tileX: coords.x,
+        tileY: coords.y,
+      });
     }
   }
   return m;
@@ -243,7 +267,10 @@ export function buildGlyphSpriteMap(
  * Used during HMR to get updated tile coordinates after the assigner saves.
  */
 export async function fetchSpriteManifest(): Promise<SpriteManifest> {
-  const resp = await fetch(`/assets/tilesets/sprite-manifest.json?t=${Date.now()}`);
-  if (!resp.ok) throw new Error(`Failed to fetch sprite manifest: ${resp.status}`);
+  const resp = await fetch(
+    `/assets/tilesets/sprite-manifest.json?t=${Date.now()}`,
+  );
+  if (!resp.ok)
+    throw new Error(`Failed to fetch sprite manifest: ${resp.status}`);
   return resp.json() as Promise<SpriteManifest>;
 }

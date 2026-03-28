@@ -29,7 +29,7 @@ import {
     ACKNOWLEDGE_KEY, ESCAPE_KEY, INVENTORY_KEY, EASY_MODE_KEY,
 } from "../types/constants.js";
 
-import { setPlayerDisplayChar, D_IMMORTAL, EXIT_STATUS_SUCCESS } from "./game-init.js";
+import { setPlayerDisplayChar, debugFlags, EXIT_STATUS_SUCCESS } from "./game-init.js";
 
 // =============================================================================
 // Notification event types
@@ -225,7 +225,7 @@ export function gameOver(ctx: LifecycleContext, killedBy: string, useCustomPhras
         }
     } else {
         const playback = rogue.playbackMode;
-        if (!D_IMMORTAL && !ctx.nonInteractivePlayback) {
+        if (!debugFlags.immortal && !ctx.nonInteractivePlayback) {
             rogue.playbackMode = false;
         }
 
@@ -278,7 +278,7 @@ export function gameOver(ctx: LifecycleContext, killedBy: string, useCustomPhras
 
     rogue.creaturesWillFlashThisTurn = false;
 
-    if (D_IMMORTAL && !rogue.quit) {
+    if (debugFlags.immortal && !rogue.quit) {
         ctx.message("...but then you get better.", 0);
         player.currentHP = player.info.maxHP;
         // If nutrition is critical, restore it

@@ -86,8 +86,8 @@ neighbor's TileType against the group's member set.
 | WALL  | Dungeon | true  | GRANITE, WALL, SECRET_DOOR, TORCH_WALL, CRYSTAL_WALL, WALL_LEVER_HIDDEN, WALL_LEVER_HIDDEN_DORMANT, WALL_MONSTER_DORMANT, RAT_TRAP_WALL_DORMANT, RAT_TRAP_WALL_CRACKING, WORM_TUNNEL_OUTER_WALL, MUD_WALL, DOOR, OPEN_DOOR, LOCKED_DOOR, PORTCULLIS_CLOSED, PORTCULLIS_DORMANT, WOODEN_BARRICADE, MUD_DOORWAY, TURRET_DORMANT, OPEN_IRON_DOOR_INERT |
 | WATER | Liquid  | false | DEEP_WATER, SHALLOW_WATER, FLOOD_WATER_DEEP, FLOOD_WATER_SHALLOW, MACHINE_FLOOD_WATER_DORMANT, MACHINE_FLOOD_WATER_SPREADING, DEEP_WATER_ALGAE_WELL, DEEP_WATER_ALGAE_1, DEEP_WATER_ALGAE_2 |
 | LAVA  | Liquid  | false | LAVA, LAVA_RETRACTABLE, LAVA_RETRACTING, ACTIVE_BRIMSTONE, SACRIFICE_LAVA |
-| CHASM | Liquid  | false | CHASM, CHASM_EDGE, MACHINE_COLLAPSE_EDGE_DORMANT, MACHINE_COLLAPSE_EDGE_SPREADING, MACHINE_CHASM_EDGE, CHASM_WITH_HIDDEN_BRIDGE, CHASM_WITH_HIDDEN_BRIDGE_ACTIVE, HOLE, HOLE_GLOW, HOLE_EDGE |
-| FLOOR | Dungeon | false | FLOOR, FLOOR_FLOODABLE, CARPET, MARBLE_FLOOR, DARK_FLOOR_DORMANT, DARK_FLOOR_DARKENING, DARK_FLOOR, MACHINE_TRIGGER_FLOOR, MACHINE_TRIGGER_FLOOR_REPEATING, MUD_FLOOR |
+| CHASM | Liquid  | false | CHASM, MACHINE_COLLAPSE_EDGE_DORMANT, MACHINE_COLLAPSE_EDGE_SPREADING, CHASM_WITH_HIDDEN_BRIDGE, CHASM_WITH_HIDDEN_BRIDGE_ACTIVE, HOLE, HOLE_GLOW |
+| FLOOR | Dungeon | false | FLOOR, FLOOR_FLOODABLE, CARPET, MARBLE_FLOOR, DARK_FLOOR_DORMANT, DARK_FLOOR_DARKENING, DARK_FLOOR, MACHINE_TRIGGER_FLOOR, MACHINE_TRIGGER_FLOOR_REPEATING, MUD_FLOOR, CHASM_EDGE, MACHINE_CHASM_EDGE, HOLE_EDGE |
 | ICE   | Liquid  | false | ICE_DEEP, ICE_DEEP_MELT, ICE_SHALLOW, ICE_SHALLOW_MELT |
 | MUD   | Liquid  | false | MUD, MACHINE_MUD_DORMANT |
 
@@ -125,8 +125,14 @@ When computing adjacency for Dungeon-layer groups (WALL, FLOOR), the
 neighbor accessor checks `DungeonLayer.Liquid` for chasm-type tiles. If a
 neighbor has a chasm tile on its liquid layer, that tile is returned instead
 of the dungeon-layer tile, ensuring the adjacency reflects the visual
-output. Implemented in `sprite-appearance.ts` for both live and
-remembered cell paths.
+output. This override is applied in three places in `sprite-appearance.ts`:
+
+1. **TERRAIN path** (live cells) — the Dungeon-layer adjacency accessor
+2. **Liquid/chasm path** (live cells) — for chasm-type tiles in the FLOOR
+   group (CHASM_EDGE, HOLE_EDGE) that compute Dungeon-layer adjacency
+   despite living on the Liquid layer
+3. **Remembered path** — `rememberedNeighborTile()` applies the override
+   for any Dungeon-layer read, covering both TERRAIN and chasm branches
 
 ---
 
@@ -670,11 +676,15 @@ connected (corner-clearing rule).
 
 ## Known Issues
 
-- **CHASM_EDGE / HOLE_EDGE in CHASM group.** These transition tiles have
-  inherent edge sprites. When surrounded by other CHASM tiles they compute
-  a "connected interior" bitmask, which may conflict with their edge
-  appearance once real autotile art is applied. May need sub-group or
-  exclusion from autotiling.
+- **CHASM_EDGE / HOLE_EDGE moved to FLOOR group.** These walkable edge
+  tiles (flags: 0) were previously in the CHASM group, which made them
+  render with chasm autotile sprites (looking impassable) and caused
+  adjacent deep-chasm tiles to compute interior variants instead of cliff
+  edges. Now in FLOOR group: they autotile as floor (seamless walkable
+  surface), and CHASM tiles correctly show edges at the precipice. The
+  liquid-path adjacency accessor applies the same chasm-override as the
+  TERRAIN path so edge tiles on DungeonLayer.Liquid see each other
+  correctly despite FLOOR's Dungeon-layer read.
 - **B108 — First-frame rendering.** Autotiled sprites may show incorrectly
   on the initial dungeon render. Cells correct after first FOV redraw or
   mouse hover. See `docs/BACKLOG.md`.
