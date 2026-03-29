@@ -38,9 +38,11 @@
 # --- handoff point ---
 
 ## Phase 5: Cleanup and docs
-- [ ] Remove dead code: `wangBlobVariants()` fallback function if fully superseded, unused imports
-- [ ] Evaluate whether `sprite-manifest.json` generation path needs any updates
-- [ ] Update `docs/pixel-art/autotile/AUTOTILE.md` — data pipeline section, key files table
-- [ ] Update `docs/pixel-art/sprite-layer-pipeline.md` — key files table
-- [ ] Update `tools/sprite-assigner-v2/CONTEXT.md` — output file descriptions, autotile workflow
+- [x] Remove dead code: `wangBlobVariants()` fallback function if fully superseded, unused imports
+  - No dead code found. `wangVariants()` is actively used for wang format. Fixed stale comment in autotile.ts.
+- [x] Evaluate whether `sprite-manifest.json` generation path needs any updates
+  - No changes needed — `generateMasterSheet()` still writes it correctly.
+- [x] Update `docs/pixel-art/autotile/AUTOTILE.md` — data pipeline section, key files table
+- [x] Update `docs/pixel-art/sprite-layer-pipeline.md` — key files table
+- [x] Update `tools/sprite-assigner-v2/CONTEXT.md` — output file descriptions, autotile workflow
 - [ ] End-to-end test: edit PNG in Aseprite → reload game → correct rendering (no assigner needed)

@@ -577,11 +577,11 @@ Global controls:
 | `src/platform/sprite-debug.ts` | F2 debug panel (overview + config) |
 | `src/platform/sprite-debug-detail.ts` | F2 deep-dive panel (per-layer Canvas2D controls) |
 | `src/platform/autotile.ts` | Connection groups, bitmask computation, variant lookup |
-| `src/platform/glyph-sprite-map.ts` | Manifest-driven sprite assignments (reads `sprite-manifest.json`) |
-| `src/platform/tileset-loader.ts` | Loads master spritesheet + autotile sheets |
+| `src/platform/glyph-sprite-map.ts` | Manifest + assignments.json → TileType/Glyph/autotile sprite maps |
+| `src/platform/tileset-loader.ts` | Loads master + autotile sheet images from assignments.json URLs |
+| `assets/tilesets/assignments.json` | Single source of truth: sheets, tiletype/glyph refs, autotile config |
 | `assets/tilesets/master-spritesheet.png` | Packed 384×240 spritesheet (24×15 grid of 16×16 tiles) |
 | `assets/tilesets/sprite-manifest.json` | TileType/DisplayGlyph → grid coordinates in master sheet |
-| `tools/generate-master-spritesheet.mjs` | Build script: generates master sheet + manifest from source sheets |
-| `tools/sprite-assigner-v2/` | Vite+React dev tool for sprite assignment, autotile authoring, sheet management |
+| `tools/sprite-assigner-v2/` | Vite+React dev tool for sprite assignment, autotile config, sheet management |
 | `src/globals/tile-catalog.ts` | Master tile catalog (appearance, behavior, text per TileType) |
 | `src/globals/colors.ts` | Color definitions used by tile catalog |
