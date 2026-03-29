@@ -520,7 +520,13 @@ export function getExploreMap(
     for (let i = 0; i < DCOLS; i++) {
         for (let j = 0; j < DROWS; j++) {
             map[i][j] = 30000; // Can be overridden later.
-            const theItem = ctx.itemAtLoc({ x: i, y: j });
+            // Mirror C itemAtLoc(): only consider the item if HAS_ITEM is set in pmap.
+            // Without this guard, stale floorItems entries (items dropped by monsters
+            // without HAS_ITEM being set, or orphaned entries after stacked pickups)
+            // would be treated as explore goals, causing perpetual oscillation (B96).
+            const theItem = (ctx.pmap[i][j].flags & TileFlag.HAS_ITEM)
+                ? ctx.itemAtLoc({ x: i, y: j })
+                : null;
 
             if (!(ctx.pmap[i][j].flags & TileFlag.DISCOVERED)) {
                 if (

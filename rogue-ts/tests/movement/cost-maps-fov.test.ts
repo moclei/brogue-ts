@@ -306,6 +306,9 @@ describe("populateCreatureCostMap", () => {
         const ctx = makeCtx({
             itemAtLoc: () => avoidedItem,
         });
+        // Set HAS_ITEM on the cell being tested so the guard in populateCreatureCostMap
+        // mirrors C itemAtLoc() behaviour (C checks HAS_ITEM before searching floorItems).
+        ctx.pmap[5][5].flags |= TileFlag.HAS_ITEM;
         const costMap = makeGrid();
 
         populateCreatureCostMap(costMap, ctx.player, ctx);

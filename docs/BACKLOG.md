@@ -44,48 +44,6 @@ only if the path is genuinely not reachable in normal play.
 
 ## Bug reports from playtesting
 
-- [x] **B49 — Pressure plate → steam vent → crash ~2 moves later** — Stepping on a pressure
-      plate triggered steam from two vents. The game crashed approximately two moves after the
-      event, not immediately. The delayed crash suggests a corrupt/dangling reference introduced
-      during the terrain-effect chain rather than a direct throw. Possible causes: monster or
-      item list mutation during `applyInstantTileEffectsToCreature` (gas spawn kills/moves a
-      creature mid-iteration), or a `spawnDungeonFeature` stub silently producing inconsistent
-      pmap state that a subsequent turn-pass then trips over.
-      ⚠️ **Confirm before coding:** hard to reproduce; need to isolate seed + sequence. The
-      crash may have been incidental — confirm it is still present and stems from the pressure-plate
-      event rather than unrelated monster-turn processing.
-      Don't fix it right away! instead, let the user know what you think the bug is, and ask for permission to fix.
-      C: `Time.c` (applyInstantTileEffectsToCreature), `Architect.c` (triggerMachinesOfKind).
-      TS: `tile-effects-wiring.ts`, `time/creature-effects.ts`. **M**
-
-- [x] **B51 — Depth transition: first-turn monsters not drawn until player moves** — On
-      entering a new dungeon level, monsters that should be immediately visible in the player's
-      field of view are not rendered. After the player takes one move they appear correctly.
-      Likely cause: `displayLevel` or `commitDraws` is called before monster positions are
-      stamped onto the display buffer in the level-entry sequence, so the first frame shows an
-      empty dungeon and monsters only appear after the next full turn redraw.
-      C: `RogueMain.c:547` (startLevel), `IO.c` (displayLevel, displayMonster).
-      TS: `lifecycle.ts` (buildLevelContext / startLevel sequence), `turn-processing.ts`. **S**
-
-- [x] **B57 — Scroll of negation crashes the game** — Cannot reproduce. Static analysis
-      shows both crash candidates are already handled: `[...monsters]` snapshot at
-      `item-effects.ts:90` prevents list mutation; all `NegateContext` callbacks in
-      `items.ts:negateCtx` are wired to real functions (not `() => {}` stubs). Crash was
-      likely coincidental or fixed as part of B44 wiring. Fixed gap: `refreshSideBar` was
-      not called after NEGATABLE_TRAITS strip (C: `Monsters.c:3797`); added to
-      `NegateContext` and wired in `negateCtx`.
-      C: `Items.c` (negationBlast, readScroll SCROLL_NEGATION:4080).
-      TS: `items/item-handlers.ts` (negationBlast), `items.ts` (NegateContext). **M**
-
-- [x] **B67 — Potion of paralysis: status appears instant (no tick-down)** — After drinking
-      a paralysis potion the paralysis status seems to appear and vanish without visibly counting
-      down. Either `decrementPlayerStatus` for `STATUS_PARALYZED` is not firing each turn, the
-      sidebar is not refreshing to show intermediate values, or `haste` / `paralysis` duration is
-      being set to 1.
-      C: `Time.c:decrementPlayerStatus`, `Items.c:drinkPotion` (paralysis case).
-      TS: `time/turn-processing.ts` (decrementPlayerStatus call), `items/item-handlers.ts`
-      (paralysis case). **S**
-
 - [ ] **B68 — Hallucination visual slightly different from C game (needs investigation)** —
       Hallucination mode looks roughly correct but differs subtly from C. Likely candidates:
       wrong color range, wrong randomized-glyph set, or color randomization applied at wrong
@@ -116,26 +74,6 @@ only if the path is genuinely not reachable in normal play.
       TS: `turn-monster-zap-wiring.ts` — wire `updateSafetyMap` the same way it was done
       in `turn-monster-ai.ts` for `getSafetyMap` (PR #38). **S**
 
-- [x] **B85 — Trapped key rooms: machine effects don't fire on key pickup** — Several
-      vault key room traps fail to trigger:
-  1. A room full of vegetation does not catch fire when the key is picked up.
-  2. A vault door key room trap fires no effect at all.
-  3. A paralysis-gas + rat-swarm room: "paralyzed" message shows and the false walls
-     immediately snap to their broken state, but no rats emerge. In C the false walls
-     should shatter one-by-one over several turns (each with an animation), spawning a
-     rat per wall; the player is trapped inside the swarm for the duration. The paralyze
-     gas behaviour is tracked separately (B67).
-     All three point to machine trigger logic not firing `spawnDungeonFeature`,
-     `exposeTileToFire`, or `spawnHorde` on the key-pickup event. Related stubs:
-     `spawnDungeonFeature: () => {}` in `tile-effects-wiring.ts:438`, `items.ts:375`,
-     `items/staff-wiring.ts:438`; `exposeTileToFire: () => false` in
-     `tile-effects-wiring.ts:128`; `spawnHorde: () => null` in `lifecycle.ts:326`.
-     C: `Architect.c` (`triggerMachinesOfKind`, machine effect dispatch),
-     `RogueMain.c` (machine-key pickup handler).
-     TS: `tile-effects-wiring.ts`, `lifecycle.ts`, `items/item-commands.ts`. **M**
-     ⚠️ **Needs playtest confirmation** — stubs wired in PR #72, but these rooms are
-     rare so the fix hasn't been verified in-game yet.
-
 - [ ] **B88 — Arrow turret can spawn inside an unreachable interior corner** — An arrow
       turret spawned at a diagonal interior corner where neither the player nor the turret
       could draw line-of-sight through the adjacent walls. Neither party could attack the
@@ -155,17 +93,6 @@ only if the path is genuinely not reachable in normal play.
       C: `Architect.c` (glyph machine type and trigger dispatch).
       TS: `tile-effects-wiring.ts`, `turn.ts`. **S**
 
-- [x] **B90 — Auto-eat loop: hunger message repeats but satiety does not restore** — When
-      the player reaches "starving" hunger the game shows "Unable to control your hunger, you
-      eat a ration of food" on every turn, but the hunger/satiety level never increases. The
-      loop continues until the player manually eats. Additionally, eating a ration manually
-      does not update the hunger bar until the next move.
-      Root cause: `eat: () => {}` is stubbed in `tile-effects-wiring.ts:289`, so auto-eat
-      fires the message but never calls the real eat logic. Sidebar refresh on manual eat may
-      also be missing a `refreshSideBar` call.
-      C: `Time.c` (`applyInstantTileEffectsToCreature` hunger branch), `Items.c` (`eat`).
-      TS: `tile-effects-wiring.ts:289`, `items/item-commands.ts`. **S**
-
 - [ ] **B92 — "Quit and abandon run" menu option does nothing** — Opening the in-game
       menu and selecting "Quit and abandon" has no effect; the game continues. The quit path
       does not depend on persistence/recordings so it should be wireable now.
@@ -174,47 +101,7 @@ only if the path is genuinely not reachable in normal play.
       ⚠️ **Re-opened** — a fix was applied in PR #70 but playtesting re-confirmed the issue
       is still present. The menu option still has no effect after the fix.
 
-- [ ] **B93 — “You see an eel” message fires when the eel is submerged** — The message area
-      says “you see an eel” when no eel is visible on the map (they are submerged). This spoils
-      the intended mechanic of eels submerging and surprising the player. Additionally, the side
-      panel shows “Something” with health bars and status for submerged eels, which should also
-      be hidden. Root cause: `monsterCanSubmergeNow: () => false` is stubbed in
-      `io/sidebar-wiring.ts:332` and `turn-monster-ai.ts:219`, causing submerged monsters to
-      always appear visible.
-      C: `IO.c` (`canSeeMonster` / submerge visibility gate).
-      TS: `io/sidebar-wiring.ts:332`, `turn-monster-ai.ts:219`. **S**
-      ⚠️ **Re-opened** — a fix was attempted but playtesting re-confirmed the issue is still
-      present. Submerged eels continue to trigger “you see an eel” messages and sidebar entries.
-
-- [ ] **B94 — Wands always show the same unidentified appearance ("bronze")** — All
-      unidentified wands display the same descriptor ("bronze") rather than drawing from the
-      randomized appearance table generated at game start. Likely cause: the per-run item
-      appearance shuffle (wand color/material table) is either not called or not stored, so
-      all wands fall back to the same default entry.
-      C: `Items.c` (`initializeItemTable` — appearance randomization for wands/staffs/potions/
-      scrolls/rings).
-      TS: item initialization in `lifecycle.ts` or `items.ts`. **M**
-
-- [x] **B97 — Monsters disappear during multi-monster combat and reappear on player move** —
-      When fighting a group of monsters, one or more monsters visually vanish mid-combat
-      and reappear after the player moves. Root cause: `runicCtx.setMonsterLocation` in
-      `combat.ts` used `HAS_MONSTER` for all creatures (including the player) and never
-      called `refreshDungeonCell`. When a monster with `MA_ATTACKS_STAGGER` hit the player,
-      the stagger push left a stale `HAS_PLAYER` flag at the player's old tile; a second monster
-      could then "move into" that tile (monsterAtLoc returned null), stacking `HAS_MONSTER` with
-      the stale `HAS_PLAYER`; getCellAppearance shows the player glyph, hiding the monster.
-      C: `Combat.c:processStaggerHit`, `Monsters.c:setMonsterLocation`.
-      TS: `combat.ts` (`runicCtx.setMonsterLocation`). **S**
-      ⚠️ **Needs playtest confirmation** — fix was applied (PR #66) but the original symptom
-      could not be reliably reproduced afterward. If the bug resurfaces, re-add these two
-      diagnostic logs and reproduce: 1. In `combat-attack.ts:attack()` entry: log attacker/defender names, locs, and
-      `ctx.cellFlags(loc).toString(16)` for both. 2. In `turn-processing.ts:playerTurnEnded()` just before `removeDeadMonsters()`: call
-      a consistency checker that warns on (a) `HAS_PLAYER` set at any cell other than
-      `player.loc`, (b) `HAS_MONSTER` set at a cell with no live monster, (c) a live
-      monster whose cell has no `HAS_MONSTER`. The warning type tells you which hypothesis
-      (stale flag vs. missing refresh) is the real cause.
-
-- [ ] **B96 — Explore oscillation after item pickup; item shown on floor despite being in inventory** —
+- [x] **B96 — Explore oscillation after item pickup; item shown on floor despite being in inventory** —
       After picking up a scroll (observed on Depth 2), pressing 'x' to auto-explore causes the
       character to oscillate indefinitely between the item's former square and an adjacent square.
       The sidebar shows the item as visible on the floor even though it is in inventory. Using the
@@ -229,44 +116,11 @@ only if the path is genuinely not reachable in normal play.
       TS: `items/pickup.ts` (`pickUpItemAt`), `movement/travel-explore.ts` (`getExploreMap`),
       `movement.ts` (pickup context wiring). **P1**
 
-- [x] **B98 — No death animation** — When the player dies, there is no death animation.
-      In C the screen flashes and the player glyph animates before the game-over screen.
-      C: `RogueMain.c` / `IO.c` (death animation sequence).
-      TS: `lifecycle-gameover.ts` or `menus.ts`. **S**
-
 - [ ] **B99 — Play/View buttons show rectangle icon instead of left-arrow** — The "Play"
       and "View" buttons on the main menu show a box/rectangle icon instead of the expected
       left-facing arrow (▶). Likely a font or glyph mapping issue in the button renderer.
       C: `IO.c` (button glyph rendering).
       TS: `io/buttons.ts` or the main-menu UI. **S**
-
-- [x] **B100 — All traps visible by default** — All trap tiles on the dungeon floor are
-      visible to the player from the start, with no fog-of-war hiding them. In C traps are
-      hidden unless the player is adjacent or has detected them. Likely cause: the
-      `DISCOVERED` flag or the trap visibility check is not set correctly during dungeon
-      generation or the FOV render.
-      C: `IO.c` (`getCellAppearance` trap visibility), `Architect.c` (trap placement).
-      TS: `io/display.ts` or `vision-wiring.ts`. **M**
-      — **Sprite path fixed (PR #93):** `getCellSpriteData` now masks `TM_IS_SECRET` tiles
-      as `TileType.FLOOR` so hidden traps no longer render as dark voids.
-      — **ASCII path WAI (confirmed PR #94):** `getCellAppearance` already returns
-      `{glyph:32, black, black}` for undiscovered cells via early return (line 318), before
-      any layer loop or TM_IS_SECRET processing. Hidden traps use `displayChar: G_FLOOR`
-      anyway, so even discovered-but-unseen memory shows them as a floor dot (correct).
-      Regression test added to `tests/io/cell-appearance.test.ts`.
-
-- [x] **B101 — Monkey steals item; item is lost when monkey killed** — When a monkey steals
-      an item from the player and is then killed, the item disappears instead of being dropped
-      on the floor. Or maybe it was never actually removed from the player inventory? In C a monkey steals an item, flees, and killing it causes the item to be dropped.
-      C: `Monsters.c` (`killCreature` / item-drop on death).
-      TS: `monsters/monster-death.ts` or combat kill path. **S**
-
-- [x] **B102 — Fire status visual effect never clears after player stops burning** — After the
-      player stops being on fire, the fire visual effect (animated flames) persists on-screen
-      indefinitely. The burning status clears correctly in the sidebar but the tile/display
-      overlay is not removed.
-      C: `IO.c` (fire overlay rendering, status-based display).
-      TS: `io/display.ts` or status rendering in the turn loop. **S**
 
 - [ ] **B103 — Potion of invisibility: monsters didn't disengage** — After drinking a potion
       of invisibility monsters that were tracking the player continued to pursue as if the
@@ -280,29 +134,6 @@ only if the path is genuinely not reachable in normal play.
       nothing. In C pressing `M` (or clicking the message panel) opens the full log.
       C: `IO.c` (message history display).
       TS: `menus.ts` or the message-panel click handler in `platform.ts` / `io-wiring.ts`. **S**
-
-- [x] **B105 — `updateSafetyMap` crash: `ctx.coordinatesAreInMap is not a function`** —
-      Confirmed in two separate playtesting sessions (confusion potion use; fighting a monkey):
-      the game crashes with `TypeError: ctx.coordinatesAreInMap is not a function` at
-      `safety-maps.ts:300` → `updateSafetyMap` → `turn-monster-ai.ts:550` → `getSafetyMap`
-      → `monster-flee-ai.ts:81` → `monstersTurn` → `turn.ts`. The `coordinatesAreInMap`
-      function is missing from whichever context is passed to `updateSafetyMap` when called
-      from `getSafetyMap` in the monster-AI path.
-      C: `Monsters.c` (`updateSafetyMap` / safety-map context).
-      TS: `turn-monster-ai.ts:550` (getSafetyMap call site), `safety-maps.ts:300`. **P1**
-
-- [x] **B106 — BigInt/Number type error in `rechargeItemsIncrementally` when equipping ring of wisdom** —
-      Fatal bootstrap error on equipping a ring of wisdom: `TypeError: Cannot mix BigInt and
-      other types, use explicit conversions` at `misc-helpers.ts:159:54`. Stack:
-      `rechargeItemsIncrementally` → `turn.ts:567` → `playerTurnEnded` (turn-processing.ts:616)
-      → `equip` (inventory-actions.ts:164) → `displayInventory` → `executeKeystroke`.
-      Root cause: `rechargeItemsIncrementally` context wiring in `turn.ts` and `combat.ts`
-      passed the raw BigInt `FP_FACTOR` and `ringWisdomMultiplierFn` (which takes/returns `Fixpt`)
-      directly into a context typed as `number`. The multiplication `wisdomBonus * FP_FACTOR`
-      mixed `number × BigInt`, crashing at runtime. Fixed by wrapping both in number↔BigInt
-      converters at the wiring site.
-      C: `Time.c` (`rechargeItemsIncrementally`), `Rogue.h` (`fixpt` type).
-      TS: `turn.ts:571`, `combat.ts:400`. **S**
 
 - [ ] **B107 — Staff of firebolt does not ignite dry wooden barricades** — Zapping a dry
       wooden barricade with a staff of firebolt has no fire effect; the barricade is not
