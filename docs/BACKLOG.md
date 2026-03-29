@@ -253,7 +253,7 @@ only if the path is genuinely not reachable in normal play.
       C: `RogueMain.c` / `IO.c` (death animation sequence).
       TS: `lifecycle-gameover.ts` or `menus.ts`. **S**
 
-- [ ] **B99 — Play/View buttons show rectangle icon instead of left-arrow** — The "Play"
+- [x] **B99 — Play/View buttons show rectangle icon instead of left-arrow** — The "Play"
       and "View" buttons on the main menu show a box/rectangle icon instead of the expected
       left-facing arrow (▶). Likely a font or glyph mapping issue in the button renderer.
       C: `IO.c` (button glyph rendering).

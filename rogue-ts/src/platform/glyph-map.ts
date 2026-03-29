@@ -39,7 +39,10 @@ const U_DOWN_ARROW          = 0x2193;
 const U_OMEGA               = 0x03A9;
 const U_CIRCLE_BARS         = 0x29F2;
 const U_FILLED_CIRCLE_BARS  = 0x29F3;
-const U_LEFT_TRIANGLE       = 0x1F780;
+// 0x1F780 (Geometric Shapes Extended) is not in common monospace fonts and renders
+// as a rectangle in browsers. Use U+25C4 (◄ BLACK LEFT-POINTING POINTER) from the
+// basic Geometric Shapes block, which is universally supported.
+const U_LEFT_TRIANGLE       = 0x25C4;
 
 // =============================================================================
 // glyphToUnicode — map DisplayGlyph enum to Unicode code point
