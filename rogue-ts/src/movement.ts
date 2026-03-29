@@ -106,9 +106,9 @@ import { monsterDamageAdjustmentAmount as monsterDamageAdjustmentAmountFn } from
 import { allocGrid, freeGrid } from "./grid/grid.js";
 import { dijkstraScan, calculateDistances } from "./dijkstra/dijkstra.js";
 import { FP_FACTOR } from "./math/fixpt.js";
-import { randRange, randPercent, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "./math/rng.js";
+import { randRange, randPercent, cosmeticRandRange, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "./math/rng.js";
 import { TileFlag, TerrainFlag, TerrainMechFlag, ItemFlag, DFFlag, MonsterBookkeepingFlag } from "./types/flags.js";
-import { ItemCategory, CreatureState, DungeonLayer } from "./types/enums.js";
+import { ItemCategory, CreatureState, DungeonLayer, StatusEffect, MonsterType } from "./types/enums.js";
 import {
     ASCEND_KEY, DESCEND_KEY, RETURN_KEY,
     DCOLS, DROWS,
@@ -120,7 +120,7 @@ import { useStairs as useStairsFn } from "./movement/travel-explore.js";
 import type { TravelExploreContext } from "./movement/travel-explore.js";
 import { startLevel as startLevelFn } from "./lifecycle.js";
 import { commitDraws } from "./platform.js";
-import type { Creature, Pos, RogueEvent } from "./types/types.js";
+import type { Creature, CreatureType, Pos, RogueEvent } from "./types/types.js";
 import type { EnvironmentContext } from "./time/environment.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildGetCellAppearanceFn, buildConfirmFn, buildUpdateFlavorTextFn } from "./io-wiring.js";
@@ -140,9 +140,35 @@ function buildMonsterAtLocHelper(player: Creature, monsters: Creature[]) {
         return null;
     };
 }
-function buildMonsterNameHelper(player: Creature) {
+function buildMonsterNameHelper(
+    player: Creature,
+    pmap?: ReturnType<typeof getGameState>["pmap"],
+    playerStatus?: number[],
+    playbackOmniscience?: boolean,
+    monsterCatalogArg?: CreatureType[],
+) {
     return function monsterName(monst: Creature, includeArticle: boolean): string {
+        // C: Monsters.c:monsterName
         if (monst === player) return "you";
+        // Determine visibility (mirrors canSeeMonster)
+        const canSee = pmap
+            ? !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE)
+            : true;
+        if (!canSee && !playbackOmniscience) return "something";
+        // Hallucination branch: C Monsters.c:263
+        if (
+            playerStatus &&
+            playerStatus[StatusEffect.Hallucinating] > 0 &&
+            !playbackOmniscience &&
+            !playerStatus[StatusEffect.Telepathic]
+        ) {
+            const catalog = monsterCatalogArg;
+            if (catalog && catalog.length > 1) {
+                const idx = cosmeticRandRange(1, MonsterType.NUMBER_MONSTER_KINDS - 1);
+                const fakeName = catalog[idx]?.monsterName ?? monst.info.monsterName;
+                return `${includeArticle ? "the " : ""}${fakeName}`;
+            }
+        }
         const pfx = includeArticle
             ? (monst.creatureState === CreatureState.Ally ? "your " : "the ")
             : "";
@@ -346,7 +372,7 @@ export function buildMovementContext(): PlayerMoveContext {
         monstersAreEnemies: (a, b) => monstersAreEnemiesFn(a, b, player, cellHasTerrainFlag),
         monsterWillAttackTarget: (a, d) =>
             monsterWillAttackTargetFn(a, d, player, cellHasTerrainFlag),
-        monsterName: buildMonsterNameHelper(player),
+        monsterName: buildMonsterNameHelper(player, pmap, player.status, rogue.playbackOmniscience, monsterCatalog),
         monsterAvoids: (m, pos) => monsterAvoidsFn(m, pos, monsterStateCtx),
         monsterShouldFall: (m) => monsterShouldFallFn(m,
             { cellHasTerrainFlag } as unknown as import("./time/creature-effects.js").CreatureEffectsContext),
@@ -408,7 +434,7 @@ export function buildMovementContext(): PlayerMoveContext {
         checkForMissingKeys: (x, y) => checkForMissingKeysFn(x, y, itemHelperCtx),
 
         // ── Ally/captive ──────────────────────────────────────────────────────
-        freeCaptive: (m) => freeCaptiveFn(m, { player, pmap, refreshDungeonCell, monsterAtLoc, cellHasTerrainFlag, message: io.message, monsterName: buildMonsterNameHelper(player), demoteMonsterFromLeadership: (x) => demoteMonsterFromLeadershipFn(x, monsters), makeMonsterDropItem: (x) => { if (x.carriedItem) { floorItems.push(x.carriedItem); x.carriedItem = null; } } }),
+        freeCaptive: (m) => freeCaptiveFn(m, { player, pmap, refreshDungeonCell, monsterAtLoc, cellHasTerrainFlag, message: io.message, monsterName: buildMonsterNameHelper(player, pmap, player.status, rogue.playbackOmniscience, monsterCatalog), demoteMonsterFromLeadership: (x) => demoteMonsterFromLeadershipFn(x, monsters), makeMonsterDropItem: (x) => { if (x.carriedItem) { floorItems.push(x.carriedItem); x.carriedItem = null; } } }),
 
         // ── Map manipulation ──────────────────────────────────────────────────
         promoteTile: (x, y, layer, useFireDF) => promoteTileFn(x, y, layer as DungeonLayer, useFireDF, envCtx),
@@ -443,7 +469,7 @@ export function buildMovementContext(): PlayerMoveContext {
                 dungeonFeatureCatalog,
                 spawnDungeonFeature: runtimeSpawnFeature,
                 canDirectlySeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
-                monsterName: buildMonsterNameHelper(player),
+                monsterName: buildMonsterNameHelper(player, pmap, player.status, rogue.playbackOmniscience, monsterCatalog),
                 combatMessage: io.combatMessage,
                 automationActive: rogue.automationActive,
             });

@@ -33,9 +33,10 @@ import { boltCatalog } from "./globals/bolt-catalog.js";
 import { lightBlue } from "./globals/colors.js";
 import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
 import { TileFlag, TerrainFlag, MonsterBookkeepingFlag } from "./types/flags.js";
-import { CreatureState, DisplayGlyph } from "./types/enums.js";
+import { CreatureState, DisplayGlyph, StatusEffect, MonsterType } from "./types/enums.js";
 import type { WeaponAttackContext, BoltInfo } from "./movement/weapon-attacks.js";
-import type { Creature, Pos, Color, Bolt } from "./types/types.js";
+import type { Creature, CreatureType, Pos, Color, Bolt } from "./types/types.js";
+import { cosmeticRandRange } from "./math/rng.js";
 import { getImpactLoc as getImpactLocFn } from "./items/bolt-geometry.js";
 import { buildStaffZapFn } from "./items/staff-wiring.js";
 
@@ -53,9 +54,34 @@ function buildMonsterAtLocHelper(player: Creature, monsters: Creature[]) {
     };
 }
 
-function buildMonsterNameHelper(player: Creature) {
+function buildMonsterNameHelper(
+    player: Creature,
+    pmap?: ReturnType<typeof getGameState>["pmap"],
+    playerStatus?: number[],
+    playbackOmniscience?: boolean,
+    monsterCatalogArg?: CreatureType[],
+) {
     return function monsterName(monst: Creature, includeArticle: boolean): string {
+        // C: Monsters.c:monsterName
         if (monst === player) return "you";
+        const canSee = pmap
+            ? !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE)
+            : true;
+        if (!canSee && !playbackOmniscience) return "something";
+        // Hallucination branch: C Monsters.c:263
+        if (
+            playerStatus &&
+            playerStatus[StatusEffect.Hallucinating] > 0 &&
+            !playbackOmniscience &&
+            !playerStatus[StatusEffect.Telepathic]
+        ) {
+            const catalog = monsterCatalogArg;
+            if (catalog && catalog.length > 1) {
+                const idx = cosmeticRandRange(1, MonsterType.NUMBER_MONSTER_KINDS - 1);
+                const fakeName = catalog[idx]?.monsterName ?? monst.info.monsterName;
+                return `${includeArticle ? "the " : ""}${fakeName}`;
+            }
+        }
         const pfx = includeArticle
             ? (monst.creatureState === CreatureState.Ally ? "your " : "the ")
             : "";
@@ -69,7 +95,7 @@ function buildMonsterNameHelper(player: Creature) {
 
 /** Build a WeaponAttackContext for whip/spear/flail attacks. */
 export function buildWeaponAttackContext(): WeaponAttackContext {
-    const { player, rogue, pmap, monsters, displayBuffer } = getGameState();
+    const { player, rogue, pmap, monsters, displayBuffer, monsterCatalog } = getGameState();
     const attackCtx = buildCombatAttackContext();
     const refreshDungeonCell = buildRefreshDungeonCellFn();
 
@@ -104,7 +130,7 @@ export function buildWeaponAttackContext(): WeaponAttackContext {
             monsterWillAttackTargetFn(a, d, player, cellHasTerrainFlag),
         monsterIsInClass: (m, cls) => monsterIsInClassFn(m, monsterClassCatalog[cls]),
         monstersAreEnemies: (a, b) => monstersAreEnemiesFn(a, b, player, cellHasTerrainFlag),
-        monsterName: buildMonsterNameHelper(player),
+        monsterName: buildMonsterNameHelper(player, pmap, player.status, rogue.playbackOmniscience, monsterCatalog),
         distanceBetween: (a, b) => distanceBetween(a, b),
 
         itemName: () => "item",             // stub — real name in port-v2-platform

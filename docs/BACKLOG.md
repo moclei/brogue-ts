@@ -93,7 +93,7 @@ only if the path is genuinely not reachable in normal play.
       C: `IO.c` (hallucination rendering in `getCellAppearance` / `displayLevel`).
       TS: `io/display.ts` or render pipeline. **S**
 
-- [ ] **B70 — While hallucinating, monster names show their real name on hit** — When
+- [x] **B70 — While hallucinating, monster names show their real name on hit** — When
       hallucinating, the combat message should use a random fake monster name (as in C). The TS
       `monsterName` helper likely does not check `player.status[STATUS_HALLUCINATING]` before
       deciding which name to return.

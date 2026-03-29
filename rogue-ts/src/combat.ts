@@ -24,7 +24,7 @@ import {
     discoveredTerrainFlagsAtLoc as discoveredTerrainFlagsAtLocFn,
     burnedTerrainFlagsAtLoc as burnedTerrainFlagsAtLocFn,
 } from "./state/helpers.js";
-import { randRange, randPercent, randClump, randClumpedRange, clamp } from "./math/rng.js";
+import { randRange, randPercent, randClump, randClumpedRange, clamp, cosmeticRandRange } from "./math/rng.js";
 import { FP_FACTOR } from "./math/fixpt.js";
 import { coordinatesAreInMap } from "./globals/tables.js";
 import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
@@ -38,11 +38,11 @@ import {
     goodMessageColor, badMessageColor, itemMessageColor,
 } from "./globals/colors.js";
 import { TileFlag, ItemFlag } from "./types/flags.js";
-import { CreatureState, CreatureMode, GameMode, ItemCategory, FeatType } from "./types/enums.js";
+import { CreatureState, CreatureMode, GameMode, ItemCategory, FeatType, StatusEffect, MonsterType } from "./types/enums.js";
 import { flashMonster } from "./combat/combat-damage.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { AttackContext } from "./combat/combat-attack.js";
-import type { Creature, Item, ItemTable, Pos } from "./types/types.js";
+import type { Creature, CreatureType, Item, ItemTable, Pos } from "./types/types.js";
 import { getCellAppearance } from "./io/cell-appearance.js";
 import { terrainRandomValues, displayDetail } from "./render-state.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
@@ -74,9 +74,34 @@ import type { MiscHelpersContext } from "./time/misc-helpers.js";
 // Private helpers
 // =============================================================================
 
-function buildMonsterName(player: Creature) {
+function buildMonsterName(
+    player: Creature,
+    pmap?: ReturnType<typeof getGameState>["pmap"],
+    playerStatus?: number[],
+    playbackOmniscience?: boolean,
+    monsterCatalogArg?: CreatureType[],
+) {
     return function (monst: Creature, includeArticle: boolean): string {
+        // C: Monsters.c:monsterName
         if (monst === player) return "you";
+        const canSee = pmap
+            ? !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE)
+            : true;
+        if (!canSee && !playbackOmniscience) return "something";
+        // Hallucination branch: C Monsters.c:263
+        if (
+            playerStatus &&
+            playerStatus[StatusEffect.Hallucinating] > 0 &&
+            !playbackOmniscience &&
+            !playerStatus[StatusEffect.Telepathic]
+        ) {
+            const catalog = monsterCatalogArg;
+            if (catalog && catalog.length > 1) {
+                const idx = cosmeticRandRange(1, MonsterType.NUMBER_MONSTER_KINDS - 1);
+                const fakeName = catalog[idx]?.monsterName ?? monst.info.monsterName;
+                return `${includeArticle ? "the " : ""}${fakeName}`;
+            }
+        }
         const pfx = includeArticle
             ? (monst.creatureState === CreatureState.Ally ? "your " : "the ")
             : "";
@@ -130,7 +155,7 @@ export function buildCombatDamageContext(): CombatDamageContext {
         applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
         fadeInMonster: buildFadeInMonsterFn(),
 
-        monsterName: buildMonsterName(player),
+        monsterName: buildMonsterName(player, pmap, player.status, rogue.playbackOmniscience, monsterCatalog),
 
         gameOver(msg) { gameOver(msg); },
         setCreaturesWillFlash() { rogue.creaturesWillFlashThisTurn = true; },
@@ -211,7 +236,7 @@ export function buildCombatAttackContext(): AttackContext {
         packItems, gameConst, mutablePotionTable, mutableScrollTable, monsterCatalog,
     } = getGameState();
     const damageCtx = buildCombatDamageContext();
-    const monsterNameFn = buildMonsterName(player);
+    const monsterNameFn = buildMonsterName(player, pmap, player.status, rogue.playbackOmniscience, monsterCatalog);
 
     const cellHasTerrainFlag = (loc: Pos, flags: number): boolean =>
         cellHasTerrainFlagFn(pmap, loc, flags);
