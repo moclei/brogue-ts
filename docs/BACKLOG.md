@@ -108,7 +108,7 @@ only if the path is genuinely not reachable in normal play.
       C: `Architect.c` (machine done-check / cage promotion).
       TS: `turn.ts` (`updateEnvironment` / machine state). **M**
 
-- [ ] **B75 — `monsterBlinkToSafety` uses stubbed `updateSafetyMap`** — Monsters with a
+- [x] **B75 — `monsterBlinkToSafety` uses stubbed `updateSafetyMap`** — Monsters with a
       blink-to-safety bolt (e.g. will-o-wisps) blink to a random/suboptimal destination
       instead of the genuinely safest reachable cell, because the `blinkToSafetyCtx` in
       `turn-monster-zap-wiring.ts:549` has `updateSafetyMap: () => {}`.

@@ -58,7 +58,12 @@ import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
     cellHasTMFlag as cellHasTMFlagFn,
     burnedTerrainFlagsAtLoc as burnedTerrainFlagsAtLocFn,
+    discoveredTerrainFlagsAtLoc as discoveredTerrainFlagsAtLocFn,
 } from "./state/helpers.js";
+import { updateSafetyMap as updateSafetyMapFn } from "./time/safety-maps.js";
+import type { SafetyMapsContext } from "./time/safety-maps.js";
+import { dijkstraScan as dijkstraScanFn } from "./dijkstra/dijkstra.js";
+import { DCOLS, DROWS } from "./types/constants.js";
 import {
     buildMessageFns,
     buildExposeCreatureToFireFn,
@@ -535,19 +540,41 @@ export function buildMonsterBoltBlinkContexts(deps: MonsterBoltBlinkDeps): {
         MONST_CAST_SPELLS_SLOWLY: MonsterBehaviorFlag.MONST_CAST_SPELLS_SLOWLY,
     };
 
+    const monsterAtLoc = buildMonsterAtLocFn(player, monsters);
+    const chTMF = (loc: Pos, flag: number) => cellHasTMFlagFn(pmap, loc, flag);
+
     const blinkToSafetyCtx: MonsterBlinkToSafetyContext = {
         ...blinkCtx,
         allySafetyMap: allocGrid(),
-        rogue: {
-            updatedAllySafetyMapThisTurn: rogue.updatedAllySafetyMapThisTurn,
-            updatedSafetyMapThisTurn: rogue.updatedSafetyMapThisTurn,
-        },
+        rogue,  // real object so updatedSafetyMapThisTurn writes persist
         player,
         safetyMap: localSafetyMap,
         inFieldOfView: inFOV,
         allocGrid,
         copyGrid,
-        updateSafetyMap: () => {},
+        updateSafetyMap: () => updateSafetyMapFn({
+            rogue,
+            player,
+            pmap,
+            safetyMap: localSafetyMap,
+            allySafetyMap: localSafetyMap,  // unused by updateSafetyMap
+            DCOLS, DROWS,
+            FP_FACTOR: 1,                   // unused by updateSafetyMap
+            cellHasTerrainFlag: chTF,
+            cellHasTMFlag: chTMF,
+            coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
+            discoveredTerrainFlagsAtLoc: (pos: Pos) => discoveredTerrainFlagsAtLocFn(
+                pmap, pos, tileCatalog,
+                (tileType) => {
+                    const df = tileCatalog[tileType]?.discoverType ?? 0;
+                    return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
+                },
+            ),
+            monsterAtLoc,
+            allocGrid,
+            freeGrid: () => {},
+            dijkstraScan: dijkstraScanFn,
+        } as unknown as SafetyMapsContext),
         updateAllySafetyMap: () => {},
     };
 
