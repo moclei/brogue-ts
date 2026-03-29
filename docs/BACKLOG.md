@@ -146,7 +146,7 @@ only if the path is genuinely not reachable in normal play.
       C: `Architect.c` (turret placement validation).
       TS: dungeon generation wiring. **S**
 
-- [ ] **B89 — Magical glyphs do nothing** — Rooms containing "magical glyphs" surrounding
+- [x] **B89 — Magical glyphs do nothing** — Rooms containing "magical glyphs" surrounding
       candle-lit altars with staffs produce no effect when the player walks over the glyphs or
       picks up the staffs. In C the glyphs are a machine trigger; stepping on them or removing
       the item should fire an effect (alarm, teleport, or similar). Root cause: likely the
