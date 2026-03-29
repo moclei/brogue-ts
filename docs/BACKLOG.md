@@ -151,7 +151,7 @@ only if the path is genuinely not reachable in normal play.
       `MF_IN_VIEW_OF_ORIGIN` and the FOV computation identically to C (`machines.ts` lines
       1471–1484, `cellIsFeatureCandidate` line 323). This edge case is C-faithful behavior.
 
-- [ ] **B89 — Magical glyphs do nothing** — Rooms containing "magical glyphs" surrounding
+- [x] **B89 — Magical glyphs do nothing** — Rooms containing "magical glyphs" surrounding
       candle-lit altars with staffs produce no effect when the player walks over the glyphs or
       picks up the staffs. In C the glyphs are a machine trigger; stepping on them or removing
       the item should fire an effect (alarm, teleport, or similar). Root cause: likely the

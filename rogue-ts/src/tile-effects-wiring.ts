@@ -72,6 +72,8 @@ import { INVALID_POS } from "./types/types.js";
 import type { Creature, Item, Pos, Color } from "./types/types.js";
 import { foodTable, wandTable, staffTable, ringTable, charmTable } from "./globals/item-catalog.js";
 import type { ItemTable } from "./types/types.js";
+import { monstersTurn as monstersTurnFn } from "./monsters/monster-actions.js";
+import { buildMonstersTurnContext } from "./turn-monster-ai.js";
 
 // =============================================================================
 // buildApplyInstantTileEffectsFn
@@ -118,7 +120,9 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
     // Runtime spawnDungeonFeature: calls the base function then applies gameplay effects
     // (message display, dormant monster activation) that are not needed during generation.
     const runtimeSpawnFeature = (x: number, y: number, feat: any, v: boolean, o: boolean): void => {
-        spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat, v, o);
+        // Pass refreshDungeonCell so spread features (e.g. DF_INACTIVE_GLYPH) visually update
+        // cells immediately during gameplay (C: Architect.c spawnDungeonFeature refreshCell path).
+        spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat, v, o, refreshDungeonCell);
         // Show message if feature has description and player can see the cell (C: Architect.c:3370)
         if (feat.description && !feat.messageDisplayed && (pmap[x]?.[y]?.flags & TileFlag.VISIBLE)) {
             feat.messageDisplayed = true;
@@ -151,7 +155,9 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
         pmap, rogue, tileCatalog, dungeonFeatureCatalog, DCOLS, DROWS, monsters, levels,
         refreshDungeonCell, spawnDungeonFeature: spawnFeature, cellHasTerrainFlag, cellHasTMFlag,
         coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
-        monstersFall: () => {}, updateFloorItems: () => {}, monstersTurn: () => {}, keyOnTileAt: () => null,
+        monstersFall: () => {}, updateFloorItems: () => {},
+        monstersTurn: (monst: Creature) => { void monstersTurnFn(monst, buildMonstersTurnContext()); },
+        keyOnTileAt: () => null,
         removeCreature: () => false, prependCreature: () => {},
         rand_range: randRange, rand_percent: randPercent,
         max: Math.max, min: Math.min,

@@ -1126,6 +1126,39 @@ describe("applyInstantTileEffectsToCreature", () => {
         applyInstantTileEffectsToCreature(ctx.player, ctx);
         expect(ctx.useKeyAt).toHaveBeenCalledWith(theKey, 3, 3);
     });
+
+    // B89 — magical glyph fires promoteTile when player enters (TM_PROMOTES_ON_PLAYER_ENTRY)
+    it("calls promoteTile for player on TM_PROMOTES_ON_PLAYER_ENTRY tile (B89)", () => {
+        const ctx = makeCtx();
+        ctx.player.loc = { x: 3, y: 3 };
+        // Mark dungeon layer as MACHINE_GLYPH-like with TM_PROMOTES_ON_PLAYER_ENTRY
+        const glyphTileIdx = ctx.pmap[3][3].layers[DungeonLayer.Dungeon];
+        ctx.tileCatalog[glyphTileIdx] = {
+            ...ctx.tileCatalog[glyphTileIdx],
+            mechFlags: TerrainMechFlag.TM_PROMOTES_ON_PLAYER_ENTRY | TerrainMechFlag.TM_IS_WIRED,
+        };
+        (ctx.cellHasTMFlag as any).mockImplementation((_pos: Pos, flag: number) => {
+            return !!(flag & TerrainMechFlag.TM_PROMOTES_ON_PLAYER_ENTRY);
+        });
+        applyInstantTileEffectsToCreature(ctx.player, ctx);
+        expect(ctx.promoteTile).toHaveBeenCalledWith(3, 3, DungeonLayer.Dungeon, false);
+    });
+
+    // B89 — glyph step is skipped for non-player creatures
+    it("does not call promoteTile for non-player on TM_PROMOTES_ON_PLAYER_ENTRY tile (B89)", () => {
+        const ctx = makeCtx();
+        const monst = makeCreature({ loc: { x: 3, y: 3 } });
+        const glyphTileIdx = ctx.pmap[3][3].layers[DungeonLayer.Dungeon];
+        ctx.tileCatalog[glyphTileIdx] = {
+            ...ctx.tileCatalog[glyphTileIdx],
+            mechFlags: TerrainMechFlag.TM_PROMOTES_ON_PLAYER_ENTRY | TerrainMechFlag.TM_IS_WIRED,
+        };
+        (ctx.cellHasTMFlag as any).mockImplementation((_pos: Pos, flag: number) => {
+            return !!(flag & TerrainMechFlag.TM_PROMOTES_ON_PLAYER_ENTRY);
+        });
+        applyInstantTileEffectsToCreature(monst, ctx);
+        expect(ctx.promoteTile).not.toHaveBeenCalled();
+    });
 });
 
 // =============================================================================
