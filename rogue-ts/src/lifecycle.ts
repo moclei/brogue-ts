@@ -20,7 +20,7 @@
  */
 
 import { getGameState, setMonsters, setDormantMonsters, setLevels, getScentMap, setScentMap, setBuildMachineFn } from "./core.js";
-import { commitDraws } from "./platform.js";
+import { commitDraws, refreshSpriteDataProvider } from "./platform.js";
 import { initializeRogue as initializeRogueFn } from "./game/game-init.js";
 import { startLevel as startLevelFn } from "./game/game-level.js";
 import { freeEverything as freeEverythingFn } from "./game/game-cleanup.js";
@@ -599,6 +599,10 @@ export function initializeRogue(seed: bigint): void {
     if (!allySafetyMap) allySafetyMap = allocGrid();
     if (!chokeMap) chokeMap = allocGrid();
     initializeRogueFn(buildGameInitContext(), seed);
+    // Wire a fresh CellSpriteDataProvider after initializeRogue replaces pmap/tmap.
+    // This must happen before startLevel → displayLevel → commitDraws so that autotiled
+    // sprites (walls, floors) use the layer pipeline on the very first frame.
+    refreshSpriteDataProvider();
 }
 
 /** Transition to a new level. oldLevel = the level number being left (1-indexed). */

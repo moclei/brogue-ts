@@ -312,7 +312,7 @@ only if the path is genuinely not reachable in normal play.
       C: `Items.c` (bolt impact → `exposeTileToFire`), `Time.c` (`exposeTileToFire`).
       TS: `tile-effects-wiring.ts` (`exposeTileToFire` stub), `items/staff-wiring.ts`. **S**
 
-- [ ] **B108 — Autotiled sprites show wrong on first dungeon render (pixel art mode)** —
+- [x] **B108 — Autotiled sprites show wrong on first dungeon render (pixel art mode)** —
       When loading a new game with pixel art (Tiles) mode enabled, autotiled sprites (walls,
       floors — the only two currently using autotile sheets) display incorrectly on the
       initial frame. They appear to show only the background/tint color rather than the

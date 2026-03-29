@@ -99,6 +99,24 @@ export function forceFullRedraw(): void {
 }
 
 /**
+ * Build a fresh CellSpriteDataProvider (capturing the current pmap/tmap
+ * references from getGameState()) and wire it into the browser renderer.
+ * Must be called after initializeRogue() — which replaces pmap/tmap — and
+ * before the first commitDraws() of a new game, so the autotile pipeline
+ * is active on the very first frame.
+ *
+ * Also schedules a full redraw so no stale cells remain from a previous session.
+ *
+ * No-op in test environments (setCellSpriteDataProvider not present).
+ */
+export function refreshSpriteDataProvider(): void {
+    if (_setCellSpriteDataProvider) {
+        _setCellSpriteDataProvider(buildCellSpriteDataProvider());
+        _forceFullRedraw = true;
+    }
+}
+
+/**
  * Event captured by pauseAndCheckForEvent() when an input arrives before the
  * timeout. Drained by the next waitForEvent() call.
  */
@@ -440,9 +458,6 @@ export async function mainGameLoop(): Promise<void> {
     _hoverHandler = buildHoverHandlerFn();
     _clearHoverPath = buildClearHoverPathFn();
 
-    if (_setCellSpriteDataProvider) {
-        _setCellSpriteDataProvider(buildCellSpriteDataProvider());
-    }
     while (!rogue.gameHasEnded) {
         // Defect 3 fix: idle animation loop — animate dancing terrain between inputs.
         // C: mainInputLoop calls displayLevel/refreshDungeonCell on a ~25ms timer.
