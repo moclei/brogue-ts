@@ -190,7 +190,7 @@ only if the path is genuinely not reachable in normal play.
       `mqCtx` objects in `io/sidebar-wiring.ts`. Two regression tests added to
       `tests/monsters/monster-queries.test.ts`.
 
-- [ ] **B94 — Wands always show the same unidentified appearance ("bronze")** — All
+- [x] **B94 — Wands always show the same unidentified appearance ("bronze")** — All
       unidentified wands display the same descriptor ("bronze") rather than drawing from the
       randomized appearance table generated at game start. Likely cause: the per-run item
       appearance shuffle (wand color/material table) is either not called or not stored, so
@@ -198,6 +198,12 @@ only if the path is genuinely not reachable in normal play.
       C: `Items.c` (`initializeItemTable` — appearance randomization for wands/staffs/potions/
       scrolls/rings).
       TS: item initialization in `lifecycle.ts` or `items.ts`. **M**
+      Root cause confirmed: `numberWandKinds` was 0 during `shuffleFlavors()` (fixed by B82),
+      so the wand flavor assignment loop never ran. B82 wired `numberWandKinds` correctly;
+      `shuffleFlavors` now updates `wandTable[i].flavor = itemMetals[i]` for all wand kinds.
+      Added three regression tests: flavor assignment to wand table, flavor variation across
+      seeds, and `itemName` using shuffled flavor for unidentified wand. Fixed `withCleanTables`
+      test helper to save/restore flavor fields and flavor arrays for proper isolation.
 
 - [x] **B97 — Monsters disappear during multi-monster combat and reappear on player move** —
       When fighting a group of monsters, one or more monsters visually vanish mid-combat
