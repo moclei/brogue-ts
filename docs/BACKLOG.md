@@ -44,7 +44,37 @@ only if the path is genuinely not reachable in normal play.
 
 ## Bug reports from playtesting
 
-All items resolved. See `docs/BACKLOG-DONE.md`.
+Resolved items: see `docs/BACKLOG-DONE.md`.
+
+- [ ] **B109 — Hover highlight flashes but doesn't stay** — The white highlight on the
+  currently hovered square flashes briefly but does not remain visible while the mouse
+  is stationary over the cell.
+
+- [ ] **B110 — Chasm fall requires player move + confirmation instead of "more" prompt** —
+  When the floor collapses or the player drinks a potion of descent, the game should
+  force a "more" prompt before falling. Instead the player must manually move, which
+  triggers an "are you sure?" confirmation screen requiring Yes/No before the fall occurs.
+
+- [ ] **B111 — No way to open the top messages overlay to scroll history** — Cannot find
+  a mechanism to open/scroll the top message log overlay. The C game allows scrolling
+  through past messages; the TS port appears to have no working entry point for this.
+
+- [ ] **B112 — Monster disappear-on-kill recurring** — After killing a monster in a group,
+  the monster behind moves into the vacated square and disappears visually, though it
+  can still attack and be attacked. This has been "fixed" multiple times (B97 etc.) —
+  need to audit all prior fixes and understand why the root cause keeps reasserting.
+
+- [ ] **B113 — Monsters don't spawn mid-level** — No new monsters appear on levels during
+  play. The C game periodically spawns monsters as the player lingers; the TS port does
+  not appear to trigger mid-level monster spawning.
+
+- [ ] **B114 — Hallucination duration shorter than C game?** — Hallucination seems to wear
+  off faster than in the base game. Needs comparison of status-tick logic against C source.
+
+- [ ] **B115 — Staff of obstruction / mystic spell behavior** — Two possible issues (report
+  text was truncated): (1) obstructions created by the staff behave differently than C,
+  and/or (2) mystics don't cast spells. Needs reproduction and comparison with C source.
+  *(Raw report: "obstructions behave difystics don't cast spells" — likely garbled.)*
 
 ---
 
