@@ -165,7 +165,13 @@ function buildMinCombatDamageCtx(deps: ItemCommandDeps): CombatDamageContext {
             if (idx >= 0) floorItems.splice(idx, 1);
         },
         makeMonsterDropItem(monst) {
-            if (monst.carriedItem) { floorItems.push(monst.carriedItem); monst.carriedItem = null; }
+            if (monst.carriedItem) {
+                const item = monst.carriedItem;
+                item.loc = { ...monst.loc };
+                floorItems.push(item);
+                pmap[monst.loc.x][monst.loc.y].flags |= TileFlag.HAS_ITEM;
+                monst.carriedItem = null;
+            }
         },
         clearLastTarget(monst) { if (rogue.lastTarget === monst) rogue.lastTarget = null; },
         clearYendorWarden(monst) { if (rogue.yendorWarden === monst) rogue.yendorWarden = null; },

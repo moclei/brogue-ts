@@ -448,7 +448,7 @@ export function buildMovementContext(): PlayerMoveContext {
         checkForMissingKeys: (x, y) => checkForMissingKeysFn(x, y, itemHelperCtx),
 
         // ── Ally/captive ──────────────────────────────────────────────────────
-        freeCaptive: (m) => freeCaptiveFn(m, { player, pmap, refreshDungeonCell, monsterAtLoc, cellHasTerrainFlag, message: io.message, monsterName: buildMonsterNameHelper(player, pmap, player.status, rogue.playbackOmniscience, monsterCatalog), demoteMonsterFromLeadership: (x) => demoteMonsterFromLeadershipFn(x, monsters), makeMonsterDropItem: (x) => { if (x.carriedItem) { floorItems.push(x.carriedItem); x.carriedItem = null; } } }),
+        freeCaptive: (m) => freeCaptiveFn(m, { player, pmap, refreshDungeonCell, monsterAtLoc, cellHasTerrainFlag, message: io.message, monsterName: buildMonsterNameHelper(player, pmap, player.status, rogue.playbackOmniscience, monsterCatalog), demoteMonsterFromLeadership: (x) => demoteMonsterFromLeadershipFn(x, monsters), makeMonsterDropItem: (x) => { if (x.carriedItem) { const item = x.carriedItem; item.loc = { ...x.loc }; floorItems.push(item); pmap[x.loc.x][x.loc.y].flags |= TileFlag.HAS_ITEM; x.carriedItem = null; refreshDungeonCell(x.loc); } } }),
 
         // ── Map manipulation ──────────────────────────────────────────────────
         promoteTile: (x, y, layer, useFireDF) => promoteTileFn(x, y, layer as DungeonLayer, useFireDF, envCtx),
