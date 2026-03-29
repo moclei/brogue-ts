@@ -462,7 +462,21 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
                 cellHasTMFlag: (pos, flags) => cellHasTMFlagFn(pmap, pos, flags),
                 coordinatesAreInMap: (x, y) => coordinatesAreInMap(x, y),
                 refreshDungeonCell,
-                spawnDungeonFeature: (x, y, feat, v, o) => spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, v, o, refreshDungeonCell),
+                spawnDungeonFeature: (x, y, feat, v, o) => {
+                    const spawned = spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, v, o, refreshDungeonCell);
+                    if (spawned) {
+                        // Mirror C: Architect.c spawnDungeonFeature creates a flare when lightFlare is set and we refreshed the cell
+                        if (v && feat.lightFlare) {
+                            createFlareFn(x, y, feat.lightFlare as LightType, rogue, lightCatalog);
+                        }
+                        // Mirror C: display feat->description message if not yet shown and player can see the tile
+                        if (feat.description && !feat.messageDisplayed && (pmap[x]?.[y]?.flags & TileFlag.VISIBLE)) {
+                            void io.message(feat.description, 0);
+                            feat.messageDisplayed = true;
+                        }
+                    }
+                    return spawned;
+                },
                 monstersFall: () => {},
                 monstersTurn: () => {},
                 updateFloorItems: buildUpdateFloorItemsFn({

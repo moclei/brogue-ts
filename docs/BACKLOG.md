@@ -106,7 +106,7 @@ only if the path is genuinely not reachable in normal play.
       C: `IO.c:monsterName` (hallucination branch).
       TS: wherever `monsterName` is built in item or combat contexts. **S**
 
-- [ ] **B72 — Vault cage-closing animation fires immediately on item pickup** — After picking
+- [x] **B72 — Vault cage-closing animation fires immediately on item pickup** — After picking
       up an item from a vault, the remaining items immediately change color to show they are
       caged. In C the cage-close effect is deferred: it fires on the turn after the player steps
       off the pickup square, with a brief per-item animation. Fix requires the cage-close

@@ -108,7 +108,9 @@ import { dijkstraScan, calculateDistances } from "./dijkstra/dijkstra.js";
 import { FP_FACTOR } from "./math/fixpt.js";
 import { randRange, randPercent, cosmeticRandRange, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "./math/rng.js";
 import { TileFlag, TerrainFlag, TerrainMechFlag, ItemFlag, DFFlag, MonsterBookkeepingFlag } from "./types/flags.js";
-import { ItemCategory, CreatureState, DungeonLayer, StatusEffect, MonsterType } from "./types/enums.js";
+import { ItemCategory, CreatureState, DungeonLayer, StatusEffect, MonsterType, LightType } from "./types/enums.js";
+import { createFlare as createFlareFn } from "./light/flares.js";
+import { lightCatalog } from "./globals/light-catalog.js";
 import {
     ASCEND_KEY, DESCEND_KEY, RETURN_KEY,
     DCOLS, DROWS,
@@ -213,6 +215,10 @@ export function buildMovementContext(): PlayerMoveContext {
     const runtimeSpawnFeature = (x: number, y: number, feat: any, rc: boolean, ab: boolean): boolean => {
         const result = spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, rc, ab, rc ? refreshDungeonCell : undefined);
         if (result) {
+            // Mirror C: Architect.c spawnDungeonFeature creates a flare when lightFlare is set and we refreshed the cell
+            if (rc && feat.lightFlare) {
+                createFlareFn(x, y, feat.lightFlare as LightType, rogue, lightCatalog);
+            }
             if (feat.description && !feat.messageDisplayed && (pmap[x]?.[y]?.flags & TileFlag.VISIBLE)) {
                 feat.messageDisplayed = true;
                 void io.message(feat.description, 0);
