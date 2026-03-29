@@ -174,7 +174,7 @@ only if the path is genuinely not reachable in normal play.
       ⚠️ **Re-opened** — a fix was applied in PR #70 but playtesting re-confirmed the issue
       is still present. The menu option still has no effect after the fix.
 
-- [ ] **B93 — “You see an eel” message fires when the eel is submerged** — The message area
+- [x] **B93 — “You see an eel” message fires when the eel is submerged** — The message area
       says “you see an eel” when no eel is visible on the map (they are submerged). This spoils
       the intended mechanic of eels submerging and surprising the player. Additionally, the side
       panel shows “Something” with health bars and status for submerged eels, which should also
@@ -183,8 +183,12 @@ only if the path is genuinely not reachable in normal play.
       always appear visible.
       C: `IO.c` (`canSeeMonster` / submerge visibility gate).
       TS: `io/sidebar-wiring.ts:332`, `turn-monster-ai.ts:219`. **S**
-      ⚠️ **Re-opened** — a fix was attempted but playtesting re-confirmed the issue is still
-      present. Submerged eels continue to trigger “you see an eel” messages and sidebar entries.
+      Fixed: replaced `canSeeMonster` stub (VISIBLE flag check) with real `canSeeMonsterFn` in
+      `movement.ts` (both `buildMovementContext` and `buildTravelContext`),
+      `io/input-context.ts` (`buildMiscHelpersContext` and `buildInputContext`),
+      `time/stairs-wiring.ts`, and fixed `cellHasGas: () => false` stubs in all three
+      `mqCtx` objects in `io/sidebar-wiring.ts`. Two regression tests added to
+      `tests/monsters/monster-queries.test.ts`.
 
 - [ ] **B94 — Wands always show the same unidentified appearance ("bronze")** — All
       unidentified wands display the same descriptor ("bronze") rather than drawing from the
