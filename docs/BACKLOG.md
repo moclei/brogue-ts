@@ -136,15 +136,14 @@ only if the path is genuinely not reachable in normal play.
      ⚠️ **Needs playtest confirmation** — stubs wired in PR #72, but these rooms are
      rare so the fix hasn't been verified in-game yet.
 
-- [ ] **B88 — Arrow turret can spawn inside an unreachable interior corner** — An arrow
-      turret spawned at a diagonal interior corner where neither the player nor the turret
-      could draw line-of-sight through the adjacent walls. Neither party could attack the
-      other, making it an unblockable obstacle with no gameplay effect.
-      ⚠️ **Confirm against C game first:** this may be a known edge-case in the base C game
-      rather than a TS regression. Reproduce in BrogueCE C build with the same seed; if the
-      C game places the turret identically, this is WAI and should be closed.
-      C: `Architect.c` (turret placement validation).
-      TS: dungeon generation wiring. **S**
+- [x] **B88 — Arrow turret can spawn inside an unreachable interior corner** — WAI.
+      Investigated C source: all turret machine features in `GlobalsBrogue.c` use
+      `MF_BUILD_IN_WALLS | MF_IN_VIEW_OF_ORIGIN`. The `MF_IN_VIEW_OF_ORIGIN` check uses
+      `getFOVMask` with `cautiousOnWalls=false`, which illuminates wall cells that terminate
+      a ray — so a wall cell at a diagonal interior corner can pass the view check even if
+      the effective bolt path is blocked by adjacent walls. The TS port implements
+      `MF_IN_VIEW_OF_ORIGIN` and the FOV computation identically to C (`machines.ts` lines
+      1471–1484, `cellIsFeatureCandidate` line 323). This edge case is C-faithful behavior.
 
 - [ ] **B89 — Magical glyphs do nothing** — Rooms containing "magical glyphs" surrounding
       candle-lit altars with staffs produce no effect when the player walks over the glyphs or
