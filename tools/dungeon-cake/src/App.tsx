@@ -1,5 +1,5 @@
 /*
- *  App.tsx — Root layout: toolbar, dungeon canvas, debug panel, global controls
+ *  App.tsx — Root layout: toolbar, dungeon canvas + debug panel side-by-side
  *  dungeon-cake
  */
 
@@ -87,43 +87,45 @@ export function App() {
                         seed={seed}
                         zoom={zoom}
                         fogMode={fogMode}
+                        lightingEnabled={lightingEnabled}
+                        showVariantIndices={debug.state.showVariantIndices}
                         onGenerate={generate}
                         onReroll={reroll}
                         onZoomChange={setZoom}
                         onFogModeChange={setFogMode}
+                        onToggleLighting={setLightingEnabled}
+                        onShowVariantIndices={debug.setShowVariantIndices}
                     />
-                    <div className="main-content">
-                        {generating && <div className="generating">Generating...</div>}
-                        <DungeonCanvas
-                            pmap={pmap}
-                            zoom={zoom}
-                            redrawCounter={debug.state.redrawCounter}
-                            lightingEnabled={lightingEnabled}
-                            fogMode={fogMode}
-                        />
+                    <div className="main-area">
+                        <div className="main-content">
+                            {generating && <div className="generating">Generating...</div>}
+                            <DungeonCanvas
+                                pmap={pmap}
+                                zoom={zoom}
+                                redrawCounter={debug.state.redrawCounter}
+                                lightingEnabled={lightingEnabled}
+                                fogMode={fogMode}
+                            />
+                        </div>
+                        <DebugPanel
+                            enabled={debug.state.enabled}
+                            layers={debug.state.layers}
+                            onToggleLayer={debug.toggleLayer}
+                            onToggleEnabled={debug.setEnabled}
+                            onAlpha={debug.setAlpha}
+                            onBlendMode={debug.setBlendMode}
+                            onTintAlpha={debug.setTintAlpha}
+                            onFilter={debug.setFilter}
+                            onShadowColor={debug.setShadowColor}
+                            onReset={debug.reset}
+                        >
+                            <GlobalControls
+                                bgColorOverride={debug.state.bgColorOverride}
+                                onBgColorChange={debug.setBgColor}
+                                onResetAll={handleResetAll}
+                            />
+                        </DebugPanel>
                     </div>
-                    <DebugPanel
-                        enabled={debug.state.enabled}
-                        layers={debug.state.layers}
-                        onToggleLayer={debug.toggleLayer}
-                        onToggleEnabled={debug.setEnabled}
-                        onAlpha={debug.setAlpha}
-                        onBlendMode={debug.setBlendMode}
-                        onTintAlpha={debug.setTintAlpha}
-                        onFilter={debug.setFilter}
-                        onShadowColor={debug.setShadowColor}
-                        onReset={debug.reset}
-                    >
-                        <GlobalControls
-                            lightingEnabled={lightingEnabled}
-                            bgColorOverride={debug.state.bgColorOverride}
-                            showVariantIndices={debug.state.showVariantIndices}
-                            onToggleLighting={setLightingEnabled}
-                            onBgColorChange={debug.setBgColor}
-                            onShowVariantIndices={debug.setShowVariantIndices}
-                            onResetAll={handleResetAll}
-                        />
-                    </DebugPanel>
                 </div>
             </DungeonActionsContext.Provider>
         </DungeonStateContext.Provider>

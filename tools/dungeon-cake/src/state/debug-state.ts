@@ -67,7 +67,7 @@ function initialState(): DebugState {
         layers.push(defaultLayerState());
     }
     return {
-        enabled: false, layers, bgColorOverride: null,
+        enabled: true, layers, bgColorOverride: null,
         showVariantIndices: false, redrawCounter: 0,
     };
 }

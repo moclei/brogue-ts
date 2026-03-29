@@ -104,15 +104,10 @@ export function ExportModal() {
         ok: boolean;
         tileCount?: number;
         glyphCount?: number;
-        autotileSheets?: string[];
         error?: string;
       };
       if (result.ok) {
-        const parts = [`${result.tileCount} tiles`, `${result.glyphCount} glyphs`];
-        if (result.autotileSheets && result.autotileSheets.length > 0) {
-          parts.push(`${result.autotileSheets.length} autotile sheet(s)`);
-        }
-        showToast(`Saved: ${parts.join(", ")}`);
+        showToast(`Saved: ${result.tileCount} tiles, ${result.glyphCount} glyphs`);
       } else {
         showToast(`Save failed: ${result.error ?? "unknown error"}`);
       }

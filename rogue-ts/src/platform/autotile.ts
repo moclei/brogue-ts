@@ -319,7 +319,7 @@ const WANG_BLOB_EMPTY_CORNERS: ReadonlySet<string> = new Set(["6,0", "0,6"]);
 
 /**
  * Build a lookup from variant index (0–46) to Wang Blob grid {col, row}.
- * Used by wangBlobVariants() in glyph-sprite-map.ts to load sheets
+ * Used by wangVariants() in glyph-sprite-map.ts to map sheets
  * drawn in Wang Blob format directly.
  */
 export function buildVariantToWangBlob(): Map<number, { col: number; row: number }> {

@@ -158,30 +158,38 @@ Used by: **CHASM** (`chasm-autotile-v3.png`)
 Empty corners: (col=6, row=0) and (col=0, row=6). Cell (col=0, row=0)
 is variant 0 (no connections).
 
-### Autotile sheet registry
+### Autotile sheet config
 
-Defined in `AUTOTILE_SHEETS` in `glyph-sprite-map.ts`:
+Declared per connection group in `assignments.json` under the `autotile`
+key. Each entry has a sheet path (relative to `assets/tilesets/`) and a
+format:
 
-| Group | Sheet key | Format |
-|-------|-----------|--------|
-| WALL  | `WallAutotile`  | grid |
-| FLOOR | `FloorAutotile` | grid |
-| CHASM | `ChasmAutotileV3` | wang-blob |
+```json
+"autotile": {
+  "WALL":  { "sheet": "autotile/wall-autotile.png",       "format": "grid" },
+  "FLOOR": { "sheet": "autotile/floor-autotile.png",      "format": "grid" },
+  "CHASM": { "sheet": "raw-autotile/chasm-autotile-v3.png", "format": "wang" }
+}
+```
 
-Groups without a sheet entry (WATER, LAVA, ICE, MUD) use placeholder
-fills — all 47 variant slots point to the same single sprite.
+The game loads the artist's source PNG directly at runtime — no
+intermediate sheet conversion. The sprite assigner writes this section
+on save; editing the PNG in Aseprite + reloading the game shows changes
+immediately.
+
+Groups without an entry (WATER, LAVA, ICE, MUD) use placeholder fills —
+all 47 variant slots point to the same single sprite.
 
 ### Variant resolution
 
-`resolveGroupVariants()` in `glyph-sprite-map.ts` resolves variants in
-priority order:
+`resolveVariants()` in `glyph-sprite-map.ts` maps format to coordinates:
 
-1. Explicit per-variant assignments from `assignments.json` (if present)
-2. Sheet format layout (wang-blob → `wangBlobVariants()`, grid → `autotileVariants()`)
+- **"grid"** → `gridVariants()` — `x = N % 8, y = floor(N / 8)`
+- **"wang"** → `wangVariants()` — lookup from `buildVariantToWangBlob()`
 
-The `buildAutotileVariantMap()` function builds
-`Map<TileType, SpriteRef[]>` at init time. TileTypes in `AUTOTILE_SKIP`
-get placeholder fills. TileTypes without a sheet also get placeholders.
+`buildAutotileVariantMap()` builds `Map<TileType, SpriteRef[]>` at init
+time. TileTypes in `AUTOTILE_SKIP` get placeholder fills. TileTypes
+without a declared sheet also get placeholders.
 
 ---
 
@@ -665,12 +673,15 @@ connected (corner-clearing rule).
 | `rogue-ts/src/platform/autotile.ts` | Connection groups, bitmask computation, 256→47 table, Wang Blob grid |
 | `rogue-ts/src/io/sprite-appearance.ts` | Computes adjacencyMask in getCellSpriteData (live + remembered paths) |
 | `rogue-ts/src/platform/sprite-renderer.ts` | Resolves autotile variants in drawCellLayers |
-| `rogue-ts/src/platform/glyph-sprite-map.ts` | Builds autotile variant map, sheet registry, skip list |
+| `rogue-ts/src/platform/glyph-sprite-map.ts` | Builds autotile variant map from assignments.json, skip list |
+| `rogue-ts/src/platform/tileset-loader.ts` | Loads master + autotile sheet images from URLs built by buildSheetUrls() |
 | `rogue-ts/src/platform/render-layers.ts` | `adjacencyMask` on LayerEntry, `isChasmTileType` classifier |
 | `rogue-ts/src/platform/sprite-debug.ts` | F2 panel autotile inspection |
 | `rogue-ts/tests/platform/autotile.test.ts` | Bitmask, connection group, reduction table tests |
 | `rogue-ts/tests/io/sprite-appearance.test.ts` | adjacencyMask population tests |
-| `rogue-ts/assets/tilesets/autotile/` | Autotile spritesheet PNGs |
+| `rogue-ts/assets/tilesets/assignments.json` | Single source of truth: sheets, tiletype/glyph refs, autotile config |
+| `rogue-ts/assets/tilesets/autotile/` | Grid-format autotile PNGs (wall, floor) |
+| `rogue-ts/assets/tilesets/raw-autotile/` | Wang Blob-format autotile PNGs (chasm) |
 
 ---
 

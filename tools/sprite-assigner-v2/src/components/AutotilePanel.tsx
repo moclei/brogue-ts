@@ -1,266 +1,139 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useCallback } from "react";
 import {
   CONNECTION_GROUPS,
-  AUTOTILE_VARIANT_COUNT,
-  AUTOTILE_GRID_COLS,
-  AUTOTILE_GRID_ROWS,
-  getVariantInfo,
   type ConnectionGroup,
 } from "../data/autotile-groups.ts";
-import { TILE_SIZE } from "../data/tile-types.ts";
-import { useAssignments, useAssignmentHelpers } from "../state/assignments.ts";
+import {
+  useAssignments,
+  useAssignmentHelpers,
+  type AutotileGroupConfig,
+} from "../state/assignments.ts";
 import { useApp } from "../state/app-state.ts";
 import type { TilesetManifest } from "../data/sheet-manifest.ts";
 
-const CELL_SIZE = 40;
-const GAP = 2;
+interface SheetOption {
+  label: string;
+  path: string;
+}
 
-function allSheetKeys(manifest: TilesetManifest | null): string[] {
+function collectSheetOptions(manifest: TilesetManifest | null): SheetOption[] {
   if (!manifest) return [];
-  const keys: string[] = [];
+  const opts: SheetOption[] = [];
   for (const ts of manifest.tilesets) {
-    for (const s of ts.sheets) keys.push(s.key);
+    for (const s of ts.sheets) {
+      opts.push({ label: `${s.key} (${ts.name})`, path: s.path });
+    }
   }
-  return keys;
+  opts.sort((a, b) => a.label.localeCompare(b.label));
+  return opts;
 }
 
 export function AutotilePanel() {
-  const [group, setGroup] = useState<ConnectionGroup>("WALL");
-  const [showWangImport, setShowWangImport] = useState(false);
   const { state, showToast } = useApp();
-  const { selectedTile, manifest, currentSheetKey } = state;
   const assignments = useAssignments();
-  const { assignVariant, unassignVariant, resetGroup, importWangBlob } = useAssignmentHelpers();
+  const { setAutotileGroup, removeAutotileGroup } = useAssignmentHelpers();
+  const sheetOptions = collectSheetOptions(state.manifest);
 
-  const variants = assignments.autotile[group] ?? [];
-  const assignedCount = variants.filter((v) => v !== null).length;
-
-  const handleSlotClick = useCallback(
-    (index: number) => {
-      if (!selectedTile) return;
-      assignVariant(group, index, {
-        sheet: selectedTile.sheet,
-        x: selectedTile.x,
-        y: selectedTile.y,
-      });
-      showToast(`Variant ${index} → ${selectedTile.sheet} (${selectedTile.x}, ${selectedTile.y})`);
+  const handleSheetChange = useCallback(
+    (group: ConnectionGroup, path: string) => {
+      if (!path) {
+        removeAutotileGroup(group);
+        showToast(`Cleared ${group} autotile sheet`);
+        return;
+      }
+      const existing = assignments.autotile[group];
+      setAutotileGroup(group, { sheet: path, format: existing?.format ?? "grid" });
+      showToast(`${group} → ${path}`);
     },
-    [group, selectedTile, assignVariant, showToast],
+    [assignments.autotile, setAutotileGroup, removeAutotileGroup, showToast],
   );
 
-  const handleUnassign = useCallback(
-    (index: number) => {
-      unassignVariant(group, index);
+  const handleFormatChange = useCallback(
+    (group: ConnectionGroup, format: string) => {
+      const existing = assignments.autotile[group];
+      if (!existing) return;
+      setAutotileGroup(group, { ...existing, format });
+      showToast(`${group} format → ${format}`);
     },
-    [group, unassignVariant],
-  );
-
-  const handleReset = useCallback(() => {
-    if (!confirm(`Reset all ${group} autotile variants?`)) return;
-    resetGroup(group);
-    showToast(`Reset ${group} autotile variants`);
-  }, [group, resetGroup, showToast]);
-
-  const handleWangBlobImport = useCallback(
-    (sheetKey: string) => {
-      importWangBlob(group, sheetKey);
-      showToast(`Imported Wang Blob sheet "${sheetKey}" → ${group} (47 variants)`);
-      setShowWangImport(false);
-    },
-    [group, importWangBlob, showToast],
+    [assignments.autotile, setAutotileGroup, showToast],
   );
 
   return (
     <div className="autotile-panel">
       <div className="autotile-header">
-        <select
-          value={group}
-          onChange={(e) => setGroup(e.target.value as ConnectionGroup)}
-        >
-          {CONNECTION_GROUPS.map((g) => (
-            <option key={g} value={g}>{g}</option>
-          ))}
-        </select>
+        <span style={{ fontWeight: 600 }}>Autotile Groups</span>
         <span className="autotile-stats">
-          {assignedCount}/{AUTOTILE_VARIANT_COUNT}
+          {Object.keys(assignments.autotile).length}/{CONNECTION_GROUPS.length}
         </span>
-        <button onClick={handleReset} title="Reset group">Reset</button>
-        <button
-          onClick={() => setShowWangImport(!showWangImport)}
-          title="Import a 7×7 Wang Blob spritesheet"
-          className={showWangImport ? "active" : ""}
-        >
-          Wang Blob
-        </button>
       </div>
-      {showWangImport && (
-        <WangBlobImportBar
-          sheetKeys={allSheetKeys(manifest)}
-          defaultSheet={currentSheetKey}
-          onImport={handleWangBlobImport}
-          onCancel={() => setShowWangImport(false)}
-        />
-      )}
-      <div className="autotile-grid-scroll">
-        <div
-          className="autotile-grid"
-          style={{
-            gridTemplateColumns: `repeat(${AUTOTILE_GRID_COLS}, ${CELL_SIZE}px)`,
-            gap: `${GAP}px`,
-          }}
-        >
-          {Array.from({ length: AUTOTILE_GRID_COLS * AUTOTILE_GRID_ROWS }, (_, i) => {
-            if (i >= AUTOTILE_VARIANT_COUNT) {
-              return <div key={i} className="autotile-slot unused" />;
-            }
-            const ref = variants[i] ?? null;
-            return (
-              <AutotileSlot
-                key={i}
-                index={i}
-                ref_={ref}
-                isSelected={
-                  selectedTile != null &&
-                  ref != null &&
-                  ref.sheet === selectedTile.sheet &&
-                  ref.x === selectedTile.x &&
-                  ref.y === selectedTile.y
-                }
-                onAssign={() => handleSlotClick(i)}
-                onUnassign={() => handleUnassign(i)}
-              />
-            );
-          })}
-        </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "8px 12px" }}>
+        {CONNECTION_GROUPS.map((group) => (
+          <AutotileGroupRow
+            key={group}
+            group={group}
+            config={assignments.autotile[group]}
+            sheetOptions={sheetOptions}
+            onSheetChange={(path) => handleSheetChange(group, path)}
+            onFormatChange={(fmt) => handleFormatChange(group, fmt)}
+            onClear={() => { removeAutotileGroup(group); showToast(`Cleared ${group}`); }}
+          />
+        ))}
       </div>
     </div>
   );
 }
 
-interface AutotileSlotProps {
-  index: number;
-  ref_: { sheet: string; x: number; y: number } | null;
-  isSelected: boolean;
-  onAssign: () => void;
-  onUnassign: () => void;
-}
-
-function AutotileSlot({ index, ref_, isSelected, onAssign, onUnassign }: AutotileSlotProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { loadImage } = useApp();
-  const info = getVariantInfo(index);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, CELL_SIZE, CELL_SIZE);
-
-    if (ref_) {
-      let cancelled = false;
-      loadImage(ref_.sheet).then((img) => {
-        if (cancelled || !img) return;
-        ctx.imageSmoothingEnabled = false;
-        ctx.clearRect(0, 0, CELL_SIZE, CELL_SIZE);
-        ctx.drawImage(
-          img,
-          ref_.x * TILE_SIZE,
-          ref_.y * TILE_SIZE,
-          TILE_SIZE,
-          TILE_SIZE,
-          4, 4, CELL_SIZE - 8, CELL_SIZE - 8,
-        );
-      });
-      return () => { cancelled = true; };
-    } else {
-      drawMiniDiagram(ctx, info.neighbors, CELL_SIZE);
-    }
-  }, [ref_, loadImage, info]);
-
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    onUnassign();
-  };
+function AutotileGroupRow({
+  group,
+  config,
+  sheetOptions,
+  onSheetChange,
+  onFormatChange,
+  onClear,
+}: {
+  group: ConnectionGroup;
+  config?: AutotileGroupConfig;
+  sheetOptions: SheetOption[];
+  onSheetChange: (path: string) => void;
+  onFormatChange: (format: string) => void;
+  onClear: () => void;
+}) {
+  const currentPath = config?.sheet ?? "";
 
   return (
-    <div
-      className={`autotile-slot${isSelected ? " selected" : ""}${ref_ ? " assigned" : ""}`}
-      onClick={onAssign}
-      onContextMenu={handleContextMenu}
-      title={`Variant ${index} — mask ${info.mask} (0b${info.mask.toString(2).padStart(8, "0")})${ref_ ? `\n${ref_.sheet} (${ref_.x}, ${ref_.y})\nRight-click to unassign` : "\nClick to assign selected tile"}`}
-    >
-      <canvas
-        ref={canvasRef}
-        width={CELL_SIZE}
-        height={CELL_SIZE}
-        className="autotile-slot-canvas"
-      />
-      <span className="autotile-slot-index">{index}</span>
-    </div>
-  );
-}
-
-interface WangBlobImportBarProps {
-  sheetKeys: string[];
-  defaultSheet: string | null;
-  onImport: (sheetKey: string) => void;
-  onCancel: () => void;
-}
-
-function WangBlobImportBar({ sheetKeys, defaultSheet, onImport, onCancel }: WangBlobImportBarProps) {
-  const [selected, setSelected] = useState(defaultSheet ?? sheetKeys[0] ?? "");
-
-  return (
-    <div className="wang-blob-import-bar">
-      <label>
-        Sheet:
-        <select value={selected} onChange={(e) => setSelected(e.target.value)}>
-          {sheetKeys.map((k) => (
-            <option key={k} value={k}>{k}</option>
-          ))}
-        </select>
-      </label>
-      <button
-        onClick={() => {
-          if (!selected) return;
-          if (!confirm(`Import Wang Blob sheet "${selected}"?\nThis will overwrite all variant assignments for this group.`)) return;
-          onImport(selected);
-        }}
-        disabled={!selected}
+    <div className={`autotile-group-row${config ? " assigned" : ""}`}>
+      <span className="autotile-group-name">{group}</span>
+      <select
+        className="autotile-sheet-select"
+        value={currentPath}
+        onChange={(e) => onSheetChange(e.target.value)}
       >
-        Import 7×7
-      </button>
-      <button onClick={onCancel}>Cancel</button>
+        <option value="">— none —</option>
+        {sheetOptions.map((opt) => (
+          <option key={opt.path} value={opt.path}>{opt.label}</option>
+        ))}
+        {currentPath && !sheetOptions.some((o) => o.path === currentPath) && (
+          <option value={currentPath}>{currentPath}</option>
+        )}
+      </select>
+      <select
+        className="autotile-format-select"
+        value={config?.format ?? "grid"}
+        onChange={(e) => onFormatChange(e.target.value)}
+        disabled={!config}
+      >
+        <option value="grid">grid (8×6)</option>
+        <option value="wang">wang (7×7)</option>
+      </select>
+      {config && (
+        <button
+          className="autotile-clear-btn"
+          onClick={onClear}
+          title={`Clear ${group} assignment`}
+        >
+          ×
+        </button>
+      )}
     </div>
   );
-}
-
-function drawMiniDiagram(
-  ctx: CanvasRenderingContext2D,
-  neighbors: (boolean | null)[][],
-  size: number,
-) {
-  const cellSize = Math.floor(size / 4);
-  const offset = Math.floor((size - cellSize * 3) / 2);
-
-  for (let r = 0; r < 3; r++) {
-    for (let c = 0; c < 3; c++) {
-      const val = neighbors[r]![c];
-      const x = offset + c * cellSize;
-      const y = offset + r * cellSize;
-
-      if (val === null) {
-        ctx.fillStyle = "#4a9eff";
-        ctx.fillRect(x + 1, y + 1, cellSize - 2, cellSize - 2);
-      } else if (val) {
-        ctx.fillStyle = "#4aff8e";
-        ctx.fillRect(x + 1, y + 1, cellSize - 2, cellSize - 2);
-      } else {
-        ctx.fillStyle = "#333345";
-        ctx.fillRect(x + 1, y + 1, cellSize - 2, cellSize - 2);
-      }
-    }
-  }
 }
