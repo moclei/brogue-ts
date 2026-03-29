@@ -1,32 +1,83 @@
+import { useCallback } from "react";
 import {
   CONNECTION_GROUPS,
   type ConnectionGroup,
 } from "../data/autotile-groups.ts";
-import { useAssignments } from "../state/assignments.ts";
+import {
+  useAssignments,
+  useAssignmentHelpers,
+  type AutotileGroupConfig,
+} from "../state/assignments.ts";
+import { useApp } from "../state/app-state.ts";
+import type { TilesetManifest } from "../data/sheet-manifest.ts";
 
-/**
- * Bridge UI for autotile — shows read-only per-group config.
- * Phase 4 replaces this with a full per-group sheet+format assignment UI.
- */
+interface SheetOption {
+  label: string;
+  path: string;
+}
+
+function collectSheetOptions(manifest: TilesetManifest | null): SheetOption[] {
+  if (!manifest) return [];
+  const opts: SheetOption[] = [];
+  for (const ts of manifest.tilesets) {
+    for (const s of ts.sheets) {
+      opts.push({ label: `${s.key} (${ts.name})`, path: s.path });
+    }
+  }
+  opts.sort((a, b) => a.label.localeCompare(b.label));
+  return opts;
+}
+
 export function AutotilePanel() {
+  const { state, showToast } = useApp();
   const assignments = useAssignments();
+  const { setAutotileGroup, removeAutotileGroup } = useAssignmentHelpers();
+  const sheetOptions = collectSheetOptions(state.manifest);
+
+  const handleSheetChange = useCallback(
+    (group: ConnectionGroup, path: string) => {
+      if (!path) {
+        removeAutotileGroup(group);
+        showToast(`Cleared ${group} autotile sheet`);
+        return;
+      }
+      const existing = assignments.autotile[group];
+      setAutotileGroup(group, { sheet: path, format: existing?.format ?? "grid" });
+      showToast(`${group} → ${path}`);
+    },
+    [assignments.autotile, setAutotileGroup, removeAutotileGroup, showToast],
+  );
+
+  const handleFormatChange = useCallback(
+    (group: ConnectionGroup, format: string) => {
+      const existing = assignments.autotile[group];
+      if (!existing) return;
+      setAutotileGroup(group, { ...existing, format });
+      showToast(`${group} format → ${format}`);
+    },
+    [assignments.autotile, setAutotileGroup, showToast],
+  );
 
   return (
     <div className="autotile-panel">
       <div className="autotile-header">
         <span style={{ fontWeight: 600 }}>Autotile Groups</span>
+        <span className="autotile-stats">
+          {Object.keys(assignments.autotile).length}/{CONNECTION_GROUPS.length}
+        </span>
       </div>
-      <div style={{ padding: "8px 12px", fontSize: 13, color: "#aaa" }}>
-        Per-group sheet assignment UI coming in Phase 4.
-        Current config is read-only here; edit assignments.json directly if needed.
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "4px 12px" }}>
-        {CONNECTION_GROUPS.map((group) => {
-          const config = assignments.autotile[group];
-          return (
-            <AutotileGroupRow key={group} group={group} sheet={config?.sheet} format={config?.format} />
-          );
-        })}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "8px 12px" }}>
+        {CONNECTION_GROUPS.map((group) => (
+          <AutotileGroupRow
+            key={group}
+            group={group}
+            config={assignments.autotile[group]}
+            sheetOptions={sheetOptions}
+            onSheetChange={(path) => handleSheetChange(group, path)}
+            onFormatChange={(fmt) => handleFormatChange(group, fmt)}
+            onClear={() => { removeAutotileGroup(group); showToast(`Cleared ${group}`); }}
+          />
+        ))}
       </div>
     </div>
   );
@@ -34,45 +85,54 @@ export function AutotilePanel() {
 
 function AutotileGroupRow({
   group,
-  sheet,
-  format,
+  config,
+  sheetOptions,
+  onSheetChange,
+  onFormatChange,
+  onClear,
 }: {
   group: ConnectionGroup;
-  sheet?: string;
-  format?: string;
+  config?: AutotileGroupConfig;
+  sheetOptions: SheetOption[];
+  onSheetChange: (path: string) => void;
+  onFormatChange: (format: string) => void;
+  onClear: () => void;
 }) {
+  const currentPath = config?.sheet ?? "";
+
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "6px 8px",
-        background: sheet ? "#1a1a2e" : "#111",
-        borderRadius: 4,
-        border: sheet ? "1px solid #333" : "1px solid #222",
-      }}
-    >
-      <span style={{ fontWeight: 600, minWidth: 60, color: sheet ? "#e0e0e0" : "#666" }}>
-        {group}
-      </span>
-      {sheet ? (
-        <>
-          <span style={{ color: "#8ab4f8", fontSize: 12, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {sheet}
-          </span>
-          <span style={{
-            fontSize: 11,
-            padding: "1px 6px",
-            borderRadius: 3,
-            background: format === "wang" ? "#2d1b4e" : "#1b3a2e",
-            color: format === "wang" ? "#c084fc" : "#6ee7b7",
-          }}>
-            {format ?? "?"}
-          </span>
-        </>
-      ) : (
-        <span style={{ color: "#555", fontSize: 12, fontStyle: "italic" }}>not assigned</span>
+    <div className={`autotile-group-row${config ? " assigned" : ""}`}>
+      <span className="autotile-group-name">{group}</span>
+      <select
+        className="autotile-sheet-select"
+        value={currentPath}
+        onChange={(e) => onSheetChange(e.target.value)}
+      >
+        <option value="">— none —</option>
+        {sheetOptions.map((opt) => (
+          <option key={opt.path} value={opt.path}>{opt.label}</option>
+        ))}
+        {currentPath && !sheetOptions.some((o) => o.path === currentPath) && (
+          <option value={currentPath}>{currentPath}</option>
+        )}
+      </select>
+      <select
+        className="autotile-format-select"
+        value={config?.format ?? "grid"}
+        onChange={(e) => onFormatChange(e.target.value)}
+        disabled={!config}
+      >
+        <option value="grid">grid (8×6)</option>
+        <option value="wang">wang (7×7)</option>
+      </select>
+      {config && (
+        <button
+          className="autotile-clear-btn"
+          onClick={onClear}
+          title={`Clear ${group} assignment`}
+        >
+          ×
+        </button>
       )}
     </div>
   );

@@ -29,10 +29,10 @@
 - [ ] Verify: Save to Disk writes correct assignments.json, game hot-reloads from it
 
 ## Phase 4: Sprite assigner autotile UI simplification
-- [ ] Replace `AutotilePanel` per-variant grid with per-group sheet+format assignment UI
-- [ ] Each connection group row: group name, sheet selector (from loaded sheets), format selector (grid/wang)
-- [ ] Remove per-variant click assignment workflow, `importWangBlob` action, Wang Blob import bar
-- [ ] Update assignment reducer: replace variant-level actions with group-level sheet assignment
+- [x] Replace `AutotilePanel` per-variant grid with per-group sheet+format assignment UI
+- [x] Each connection group row: group name, sheet selector (from loaded sheets), format selector (grid/wang)
+- [x] Remove per-variant click assignment workflow, `importWangBlob` action, Wang Blob import bar
+- [x] Update assignment reducer: replace variant-level actions with group-level sheet assignment
 - [ ] Verify: assign sheets to groups in UI, save, game loads correctly
 
 # --- handoff point ---
