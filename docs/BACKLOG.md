@@ -86,12 +86,18 @@ only if the path is genuinely not reachable in normal play.
       TS: `time/turn-processing.ts` (decrementPlayerStatus call), `items/item-handlers.ts`
       (paralysis case). **S**
 
-- [ ] **B68 — Hallucination visual slightly different from C game (needs investigation)** —
+- [x] **B68 — Hallucination visual slightly different from C game (needs investigation)** —
       Hallucination mode looks roughly correct but differs subtly from C. Likely candidates:
       wrong color range, wrong randomized-glyph set, or color randomization applied at wrong
       layer. Requires side-by-side comparison with C.
       C: `IO.c` (hallucination rendering in `getCellAppearance` / `displayLevel`).
       TS: `io/display.ts` or render pipeline. **S**
+      WAI: Side-by-side audit of `cell-appearance.ts` vs C `getCellAppearance` shows all
+      hallucination branches are faithfully ported: monster glyph+color use two separate
+      `randomAnimateMonster()` calls; item uses `getItemCategoryGlyph(getHallucinatedItemCategory())`
+      with cosmetic RNG; color randomization formula `Math.trunc(40*status/300)+20` matches C
+      integer arithmetic; all three hallucination cases (monster, revealed monster, item) are
+      correct. Visual differences are due to non-deterministic cosmetic RNG, not logic divergence.
 
 - [x] **B70 — While hallucinating, monster names show their real name on hit** — When
       hallucinating, the combat message should use a random fake monster name (as in C). The TS
