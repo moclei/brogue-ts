@@ -17,7 +17,7 @@
  */
 
 import { getGameState, gameOver as gameOverFn } from "./core.js";
-import { buildApplyInstantTileEffectsFn } from "./tile-effects-wiring.js";
+import { buildApplyInstantTileEffectsFn, buildExposeTileToFireFn } from "./tile-effects-wiring.js";
 import { zap as zapFn } from "./items/zap.js";
 import { buildCombatAttackContext, buildCombatDamageContext, buildFadeInMonsterFn } from "./combat.js";
 import { attack as attackFn } from "./combat/combat-attack.js";
@@ -308,7 +308,7 @@ export function buildMonsterZapFn() {
             flashMonster: (m, c, s) => flashMonsterFn(m, c, s, damageCtx),
             wakeUp: buildWakeUpFn(player, monsters),
             exposeCreatureToFire: buildExposeCreatureToFireFn(),
-            exposeTileToFire: () => false,
+            exposeTileToFire: buildExposeTileToFireFn(),
             exposeTileToElectricity: () => false,
             createFlare: () => {},
 

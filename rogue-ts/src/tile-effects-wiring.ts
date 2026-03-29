@@ -432,3 +432,43 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
 
     return (monst: Creature) => applyInstantFn(monst, ctx);
 }
+
+// =============================================================================
+// buildExposeTileToFireFn
+// =============================================================================
+
+/**
+ * Returns an `exposeTileToFire(x, y, alwaysIgnite)` closure wired to the
+ * current game state. Replaces `() => false` stubs in bolt/staff contexts.
+ *
+ * Builds a minimal EnvironmentContext covering the fields actually read by
+ * exposeTileToFire and its internal helper promoteTile.
+ */
+export function buildExposeTileToFireFn(): (x: number, y: number, alwaysIgnite: boolean) => boolean {
+    const { pmap, rogue, monsters, levels } = getGameState();
+    const refreshDungeonCell = buildRefreshDungeonCellFn();
+    const cellHasTerrainFlag = (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags);
+    const cellHasTMFlag = (pos: Pos, flags: number) => cellHasTMFlagFn(pmap, pos, flags);
+
+    const spawnFeature = (x: number, y: number, feat: any, v: boolean, o: boolean): void => {
+        spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat, v, o);
+    };
+
+    let exposeToFire = (_x: number, _y: number, _a: boolean): boolean => false;
+    const envCtx = {
+        pmap, rogue, tileCatalog, dungeonFeatureCatalog, DCOLS, DROWS, monsters, levels,
+        refreshDungeonCell, spawnDungeonFeature: spawnFeature,
+        cellHasTerrainFlag, cellHasTMFlag,
+        coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
+        monstersFall: () => {}, updateFloorItems: () => {}, monstersTurn: () => {}, keyOnTileAt: () => null,
+        removeCreature: () => false, prependCreature: () => {},
+        rand_range: randRange, rand_percent: randPercent,
+        max: Math.max, min: Math.min,
+        fillSequentialList: (list: number[], _len: number) => fillSequentialListFn(list),
+        shuffleList: (list: number[], _len: number) => shuffleListFn(list),
+        exposeTileToFire: (x: number, y: number, a: boolean) => exposeToFire(x, y, a),
+    } as unknown as EnvironmentContext;
+    exposeToFire = (x, y, a) => exposeTileToFireFn(x, y, a, envCtx);
+
+    return exposeToFire;
+}
