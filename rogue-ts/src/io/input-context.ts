@@ -97,6 +97,7 @@ import { buttonInputLoop as buttonInputLoopFn, initializeButton as initializeBut
 import { equip as equipFn, unequip as unequipFn, drop as dropFn, relabel as relabelFn } from "./inventory-actions.js";
 import { buildButtonContext, buildInventoryContext, buildMessageContext } from "../ui.js";
 import { displayInventory as displayInventoryFn } from "./inventory-display.js";
+import { printTextBox as printTextBoxFn } from "./inventory.js";
 import { buildThrowCommandFn, buildCallCommandFn } from "../items/item-commands.js";
 import { exploreKey as exploreKeyFn } from "./explore-wiring.js";
 import { TURNS_FOR_FULL_REGEN, REST_KEY, SEARCH_KEY, DCOLS, DROWS } from "../types/constants.js";
@@ -406,8 +407,9 @@ export function buildInputContext(): InputContext {
             return result.chosenButton;
         },
 
-        // ── Text box (stubs — wired in Phase 5) ──────────────────────────────
-        printTextBox: async () => -1,
+        // ── Text box ─────────────────────────────────────────────────────────
+        printTextBox: async (text, x, y, width, foreColor, backColor, buttons, buttonCount) =>
+            printTextBoxFn(text, x, y, width, foreColor, backColor, buildInventoryContext(), buttons, buttonCount),
         rectangularShading: () => {},
 
         // ── Events / timing ───────────────────────────────────────────────────

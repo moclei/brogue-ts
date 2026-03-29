@@ -114,7 +114,7 @@ only if the path is genuinely not reachable in normal play.
       C: `Architect.c` (machine done-check / cage promotion).
       TS: `turn.ts` (`updateEnvironment` / machine state). **M**
 
-- [ ] **B75 — `monsterBlinkToSafety` uses stubbed `updateSafetyMap`** — Monsters with a
+- [x] **B75 — `monsterBlinkToSafety` uses stubbed `updateSafetyMap`** — Monsters with a
       blink-to-safety bolt (e.g. will-o-wisps) blink to a random/suboptimal destination
       instead of the genuinely safest reachable cell, because the `blinkToSafetyCtx` in
       `turn-monster-zap-wiring.ts:549` has `updateSafetyMap: () => {}`.
@@ -171,13 +171,17 @@ only if the path is genuinely not reachable in normal play.
       C: `Time.c` (`applyInstantTileEffectsToCreature` hunger branch), `Items.c` (`eat`).
       TS: `tile-effects-wiring.ts:289`, `items/item-commands.ts`. **S**
 
-- [ ] **B92 — "Quit and abandon run" menu option does nothing** — Opening the in-game
+- [x] **B92 — "Quit and abandon run" menu option does nothing** — Opening the in-game
       menu and selecting "Quit and abandon" has no effect; the game continues. The quit path
       does not depend on persistence/recordings so it should be wireable now.
       C: `RogueMain.c` (`gameOver` / quit-without-save branch).
       TS: `menus.ts`, `lifecycle-gameover.ts`. **S**
       ⚠️ **Re-opened** — a fix was applied in PR #70 but playtesting re-confirmed the issue
       is still present. The menu option still has no effect after the fix.
+      Root cause (re-investigation): `printTextBox` in `buildInputContext` was stubbed to
+      return `-1`, so the confirm dialog ("Quit and abandon?") was invisible and always
+      returned false. Fix: wire `printTextBox` to the real `printTextBoxFn` +
+      `buildInventoryContext()` in `io/input-context.ts`.
 
 - [ ] **B93 — “You see an eel” message fires when the eel is submerged** — The message area
       says “you see an eel” when no eel is visible on the map (they are submerged). This spoils
@@ -219,7 +223,7 @@ only if the path is genuinely not reachable in normal play.
       monster whose cell has no `HAS_MONSTER`. The warning type tells you which hypothesis
       (stale flag vs. missing refresh) is the real cause.
 
-- [ ] **B96 — Explore oscillation after item pickup; item shown on floor despite being in inventory** —
+- [x] **B96 — Explore oscillation after item pickup; item shown on floor despite being in inventory** —
       After picking up a scroll (observed on Depth 2), pressing 'x' to auto-explore causes the
       character to oscillate indefinitely between the item's former square and an adjacent square.
       The sidebar shows the item as visible on the floor even though it is in inventory. Using the
