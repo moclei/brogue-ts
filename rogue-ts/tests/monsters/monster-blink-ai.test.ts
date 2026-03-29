@@ -298,6 +298,33 @@ describe("monsterBlinkToPreferenceMap", () => {
     });
 });
 
+    it("fires zap for a blink-capable monster when a clearly better cell exists", async () => {
+        // Monster at (5, 15); map value = x, so cells to the right are strictly better.
+        // Cardinal neighbours: best reachable = (6, 15) with value 6.
+        // Perimeter offset (+5, 0) produces target (10, 15); getImpactLoc reaches it
+        // unobstructed (distance 5 << maxDistance 12). Value 10 > baseline 6 and
+        // |10-5| = 5 > 1, so gotOne = true → zap must be called and return value true.
+        const monst = makeCreature(MonsterType.MK_VAMPIRE);
+        monst.loc = { x: 5, y: 15 };
+        monst.attackSpeed = 100;
+
+        const map = makeGrid(0);
+        for (let x = 0; x < DCOLS; x++) {
+            for (let y = 0; y < DROWS; y++) map[x][y] = x;
+        }
+
+        const zap = vi.fn().mockResolvedValue(false);
+        const ctx = makeBlinkCtx({
+            monsterHasBoltEffect: () => BoltType.BLINKING,
+            cellHasTerrainFlag: () => false,
+            zap,
+        });
+
+        const result = await monsterBlinkToPreferenceMap(monst, map, true, ctx);
+        expect(result).toBe(true);
+        expect(zap).toHaveBeenCalledOnce();
+    });
+
 // =============================================================================
 // monsterBlinkToSafety
 // =============================================================================

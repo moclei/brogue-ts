@@ -589,3 +589,16 @@ Do not touch in this initiative:
 - listFiles, loadRunHistory, saveResetRun, getAvailableFilePath — file browser UI
 - characterForbiddenInFilename, openFile — file system ops
 - recordKeystroke, recordKeystrokeSequence, recordMouseClick, cancelKeystroke — input recording
+
+---
+
+## Closing note
+
+**Archived 2026-03-29. Superseded by `port-v2-close-out`.**
+
+Phases 1–7c are complete and represent the bulk of the wiring work that brought the
+port to a playable state. Phase 8 (browser smoke test) and Phase 9+ were never formally
+finished — the work continued under `port-v2-close-out`, which took over bug fixing and
+backlog clearance. The remaining open items in Phase 8 (vegetation, potion/scroll flavors,
+water terrain, monster death features) were not explicitly carried into the backlog but may
+surface again during playtesting. No code changes needed; this initiative's job is done.

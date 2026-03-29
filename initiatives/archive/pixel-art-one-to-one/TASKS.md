@@ -28,4 +28,14 @@
 ## Phase 5: Populate and verify
 
 - [x] Populate TileType → sprite map for a representative set of terrain/features (e.g. water variants, lava, doors, key terrain)
-- [ ] Playtest in tile/hybrid mode: confirm one-to-one sprites where mapped, fallback elsewhere, no regressions in text mode
+- [x] Playtest in tile/hybrid mode: confirmed by owner — one-to-one sprites render correctly
+      where mapped, fallback works elsewhere, no regressions in text mode (2026-03-29)
+
+---
+
+## Closing note
+
+**Archived 2026-03-29.** All phases complete. TileType → sprite pipeline fully implemented
+and browser-verified: display buffer carries `tileType`, renderer looks up sprite by TileType
+first, falls back to glyph-based sprite for unmapped tiles. Owner confirmed correct behaviour
+during playtest.

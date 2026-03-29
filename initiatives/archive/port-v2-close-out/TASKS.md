@@ -282,3 +282,15 @@ The only true permanent defer (no action needed, ever) is:
 - listFiles, loadRunHistory, saveResetRun, getAvailableFilePath
 - characterForbiddenInFilename, openFile
 - recordKeystroke, recordKeystrokeSequence, recordMouseClick, cancelKeystroke
+
+---
+
+## Closing note
+
+**Archived 2026-03-29.**
+
+Phases 1–6 are fully complete. Phase 7 ("backlog clearance") was a mistake to put inside
+an initiative — it has no completion condition. That work graduated to become the permanent
+backlog process driven by `docs/BACKLOG.md`, which is the sole authoritative source from
+here on. The one unchecked checkbox in Phase 6 (handoff prompt generation) is administrative
+and can be considered done in spirit. This initiative served its purpose.

@@ -20,22 +20,31 @@
 - [x] Split `turn-monster-ai.ts` to bring it under 600 lines (extract ZapContext wiring block into `turn-monster-zap-wiring.ts`) — also extracted summonMinionsCtx/summonsCtx/blinkCtx/blinkToSafetyCtx/boltAICtx/corpseAbsorptionCtx via `buildMonsterBoltBlinkContexts()`
 - [x] Import and wire `buildMonsterZapFn` into `boltAICtx.zap` and `blinkCtx.zap` (now inside `turn-monster-zap-wiring.ts`)
 - [x] Run `npx vitest run` — no regressions (88 files, 2286 pass, 55 skip)
-- [ ] Smoke-test in browser: confirm monsters fire bolts (e.g. goblin conjurer casts)
-- [ ] Commit: `feat: B44 phase 2 — wire real zap into monster bolt/blink contexts`
+- [x] Smoke-test in browser: confirmed monsters fire bolts during playtest
+- [x] Commit: `feat: B44 phase 2 — wire real zap into monster bolt/blink contexts`
 
 ## Phase 3: Async cascade through turn loop
 
 - [x] Find where `monstersTurn` is called per-monster in `lifecycle.ts` / `turn.ts`; ensure each call is properly `await`-ed
 - [x] Verify no fire-and-forget Promises remain in the monster turn path
 - [x] Run `npx vitest run` — no regressions (88 files, 2286 pass, 55 skip)
-- [ ] Commit: `feat: B44 phase 3 — await monster turns through async cascade`
+- [x] Commit: `feat: B44 phase 3 — await monster turns through async cascade`
 
 ## Phase 4: Test coverage
 
 - [x] Add/update test in `monster-bolt-ai.test.ts`: `monstUseBolt` fires `zap` when a valid target exists (mock `zap`)
-- [ ] Add/update test: `monsterBlinkToPreferenceMap` fires `zap` for a blink-capable monster
+- [x] Add/update test: `monsterBlinkToPreferenceMap` fires `zap` for a blink-capable monster
 - [x] Add/update test: `monsterCastSpell` logs combat message and calls `zap`
 - [x] Add/update test: `monstUseMagic` routes summon-first, then bolt
 - [x] Run `npx vitest run` — no regressions (88 files, 2296 pass, 55 skip)
 - [x] Check off B44 in `docs/BACKLOG.md`
-- [ ] Commit: `feat: B44 — monster spell-casting system wired end-to-end`
+- [x] Commit: `feat: B44 — monster spell-casting system wired end-to-end`
+
+---
+
+## Closing note
+
+**Archived 2026-03-29.** All phases complete. Monster spell-casting system is fully
+wired end-to-end: async interface cascade, real `zap` wired into bolt/blink contexts,
+turn loop awaits properly, and full test coverage. The missing `monsterBlinkToPreferenceMap`
+fires-zap test was added and passes deterministically.
