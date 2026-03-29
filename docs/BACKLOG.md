@@ -268,12 +268,17 @@ only if the path is genuinely not reachable in normal play.
       C: `IO.c` (fire overlay rendering, status-based display).
       TS: `io/display.ts` or status rendering in the turn loop. **S**
 
-- [ ] **B103 — Potion of invisibility: monsters didn't disengage** — After drinking a potion
+- [x] **B103 — Potion of invisibility: monsters didn't disengage** — After drinking a potion
       of invisibility monsters that were tracking the player continued to pursue as if the
       player were visible. In C drinking invisibility should cause tracking monsters to lose
       the scent trail and return to wandering.
       C: `Items.c` (`drinkPotion` invisibility branch), `Monsters.c` (scent/tracking reset).
       TS: `items/item-handlers.ts`, `monsters/monster-ai.ts`. **S**
+      **WAI** — TS matches C ground truth. stealthRange=1 (invisible) reduces awareness to 2;
+      monsters beyond ~3 tiles (scentDistance > 6) immediately disengage. Nearby monsters
+      within range use randPercent(97) which is the same slow-disengage C behaviour.
+      stealthRange is updated after monster turns (1-turn delay) in both C and TS.
+      Tests added: `rogue-ts/tests/monsters/monster-awareness.test.ts`.
 
 - [ ] **B104 — Messages panel should expand on click to show scroll history** — Clicking the
       message area should open a scrollable message history overlay. Currently clicking does
