@@ -14,13 +14,14 @@
 
 ## Overview
 
-Three related features that all solve the same problem: the sprite pipeline currently
-picks one sprite per TileType, but many tiles would look better with context-sensitive
+Four related features that all solve the same problem: the sprite pipeline currently
+picks one sprite per tile or entity, but many would look better with context-sensitive
 sprite selection. Each feature addresses a different kind of "context":
 
 1. **Simplified autotiling** — neighbor topology (bridges, catwalks)
 2. **Orientation detection** — wall-run direction (doors)
 3. **Random variation** — cosmetic diversity (grass, debris, cobwebs)
+4. **Monster facing** — last-moved direction (creatures face where they're going)
 
 These features share infrastructure (the sprite manifest, the renderer's variant lookup,
 the `getCellSpriteData` layer-building pipeline) and can be developed as phases of a
@@ -293,6 +294,104 @@ already-allocated `terrainRandomValues`.
 
 ---
 
+## Feature 4: Monster Facing Direction
+
+### Problem
+
+Monster sprites are all drawn in profile view facing one static direction. When a
+monster moves left it looks correct; when it moves right, up, or down it looks wrong —
+the sprite never turns to face where it's going.
+
+### Approach
+
+**4-directional sprites per monster: right, up, down, left (mirrored from right).**
+
+- **Left / Right:** a single "right-facing" sprite per monster. Right is drawn normally;
+  left is derived at draw time by flipping the canvas horizontally (`ctx.scale(-1, 1)`).
+  No extra art required for left.
+- **Up:** back-of-creature view — the monster is walking away from the player. Short,
+  compact silhouette; details (face, weapon) hidden.
+- **Down:** front-of-creature view — the monster is approaching. Most detailed orientation;
+  should read clearly as the creature's face/front.
+
+This gives **3 sprites per monster** in the asset (right, up, down), with left derived
+by mirroring right. This is the standard 4-directional approach for profile-style pixel art.
+
+### Facing State
+
+Facing is stored on the creature as a last-moved direction, updated when the creature
+moves. It does not update during idle turns — a stationary monster holds its last facing.
+This prevents flickering when a monster is hunting but blocked.
+
+```typescript
+// On Creature (or a parallel render-state structure)
+facing: "right" | "left" | "up" | "down";  // default: "right"
+```
+
+The facing is updated in the monster movement path (and player movement path for `@`)
+immediately before or after each move resolves.
+
+### Sprite Selection
+
+In `SpriteRenderer.drawCellLayers()`, when drawing a creature layer:
+
+1. Look up the creature's current `facing`.
+2. Select the appropriate sprite variant: `right`, `up`, or `down` (left = right + hflip).
+3. Apply `ctx.scale(-1, 1)` when facing is `left`; restore after drawing.
+
+The manifest format for monsters would extend to a `facing` map:
+
+```json
+{
+  "MK_RAT": {
+    "right": { "sheet": "monsters", "x": 0, "y": 0 },
+    "up":    { "sheet": "monsters", "x": 1, "y": 0 },
+    "down":  { "sheet": "monsters", "x": 2, "y": 0 }
+  }
+}
+```
+
+Left is implicit (mirror of right) and never stored.
+
+### Art Requirements
+
+3 sprites per monster (right, up, down). For the up sprite the back-view can often be
+very simple — same silhouette, no face detail. For the down sprite the front should be
+the most expressive. Profile sprites (right) can be the existing art or redrawn if
+needed.
+
+The player character `@` is typically not a sprite in tile mode, but if a player sprite
+is ever added it follows the same 3-sprite convention.
+
+### Relationship to Animations
+
+Facing direction is a prerequisite for directional walk animations. The animation system
+(documented separately) will reference facing to select which animation to play (e.g.
+"walk-right", "walk-up"). Facing itself is not an animation concern — it is a static
+sprite selection rule that happens to be a dependency of the future animation system.
+
+### Open Questions
+
+- Does the player `@` need facing? In tile mode probably yes; text mode no.
+- Should `facing` live on `Creature` directly, or in a parallel render-state map keyed
+  by creature ID to keep render state out of game state?
+- Default facing for newly spawned monsters — `"right"` or derived from spawn direction?
+- Do summons/allies share the same facing system as enemies?
+
+### What This Reuses
+
+- `SpriteRenderer.drawCellLayers()` — extend existing creature sprite lookup
+- Canvas transform (`ctx.scale`) — already used for other transforms
+
+### What's New
+
+- `facing` field on creature or render-state structure
+- Facing update in movement path (monster and player)
+- Manifest format extension for directional monster sprites
+- Sprite assigner support for authoring directional monster sheets
+
+---
+
 ## Implementation Phases
 
 If developed as a single initiative:
@@ -322,6 +421,16 @@ If developed as a single initiative:
 - Create 2-3 grass variants as proof of concept
 - Test in Dungeon Cake with grass-heavy levels (depth 1-5)
 
+### Phase 4: Monster Facing
+
+- Add `facing` field to creature or render-state structure
+- Update facing in monster and player movement paths
+- Extend manifest format for directional monster sprites
+- Implement sprite selection + horizontal flip in renderer
+- Update sprite assigner to support directional monster sheets
+- Commission/generate 3-sprite sets (right, up, down) for a representative monster set
+- Verify in-browser: monsters turn to face movement direction; idle monsters hold last facing
+
 ---
 
 ## Relationship to Existing Initiatives
@@ -344,3 +453,9 @@ If developed as a single initiative:
 - **Interaction with future liquid layer promotion.** If `RenderLayer.LIQUID` is added
   (Initiative 9), bridge rendering might interact with liquid/chasm layers in ways that
   need testing.
+- **Art volume for facing.** 3 sprites × every monster type is a significant art
+  commitment. Should be done in batches — prioritise monsters the player encounters
+  most often (rats, goblins, jackals) before rare deep-level monsters.
+- **Game state vs. render state.** Storing `facing` on `Creature` is convenient but
+  bleeds render concern into game state. A render-state sidecar avoids this but adds
+  synchronisation complexity.
