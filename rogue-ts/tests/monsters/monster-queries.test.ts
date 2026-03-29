@@ -308,6 +308,33 @@ describe("canSeeMonster", () => {
         const ctx = makeQueryContext(player, { playerCanSee: () => false });
         expect(canSeeMonster(goblin, ctx)).toBe(true);
     });
+
+    it("submerged monster on lit cell is NOT seen (B93)", () => {
+        // A submerged eel on a visible cell should be hidden —
+        // canSeeMonster must return false even when playerCanSee returns true.
+        const player = makePlayer();
+        const eel = makeCreature(MonsterType.MK_EEL);
+        eel.bookkeepingFlags |= MonsterBookkeepingFlag.MB_SUBMERGED;
+        const ctx = makeQueryContext(player, {
+            playerCanSee: () => true,
+            // player is not in deep water
+            cellHasTerrainFlag: () => false,
+        });
+        expect(canSeeMonster(eel, ctx)).toBe(false);
+    });
+
+    it("submerged monster is visible when observer is also in deep water (B93)", () => {
+        const player = makePlayer();
+        const eel = makeCreature(MonsterType.MK_EEL);
+        eel.bookkeepingFlags |= MonsterBookkeepingFlag.MB_SUBMERGED;
+        const ctx = makeQueryContext(player, {
+            playerCanSee: () => true,
+            // player IS in deep water (T_IS_DEEP_WATER)
+            cellHasTerrainFlag: (_loc, flags) =>
+                !!(flags & TerrainFlag.T_IS_DEEP_WATER),
+        });
+        expect(canSeeMonster(eel, ctx)).toBe(true);
+    });
 });
 
 // =============================================================================

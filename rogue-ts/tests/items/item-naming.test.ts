@@ -19,6 +19,9 @@ import {
     itemValue,
     itemIsCarried,
     itemColors,
+    itemMetals,
+    itemWoods,
+    itemGems,
     itemTitles,
 } from "../../src/items/item-naming.js";
 import type { ItemNamingContext } from "../../src/items/item-naming.js";
@@ -113,20 +116,30 @@ function makeItem(overrides: Partial<Item> = {}): Item {
 }
 
 function withCleanTables(fn: () => void): void {
-    // Save identification state and restore after test
-    const savedPotions = potionTable.map(t => ({ identified: t.identified, called: t.called, callTitle: t.callTitle }));
-    const savedScrolls = scrollTable.map(t => ({ identified: t.identified, called: t.called, callTitle: t.callTitle }));
-    const savedStaffs = staffTable.map(t => ({ identified: t.identified, called: t.called, callTitle: t.callTitle }));
-    const savedWands = wandTable.map(t => ({ identified: t.identified, called: t.called, callTitle: t.callTitle }));
-    const savedRings = ringTable.map(t => ({ identified: t.identified, called: t.called, callTitle: t.callTitle }));
+    // Save identification state AND flavor (shuffleFlavors mutates flavor in-place) and restore after test
+    const savedPotions = potionTable.map(t => ({ identified: t.identified, called: t.called, callTitle: t.callTitle, flavor: t.flavor }));
+    const savedScrolls = scrollTable.map(t => ({ identified: t.identified, called: t.called, callTitle: t.callTitle, flavor: t.flavor }));
+    const savedStaffs = staffTable.map(t => ({ identified: t.identified, called: t.called, callTitle: t.callTitle, flavor: t.flavor }));
+    const savedWands = wandTable.map(t => ({ identified: t.identified, called: t.called, callTitle: t.callTitle, flavor: t.flavor }));
+    const savedRings = ringTable.map(t => ({ identified: t.identified, called: t.called, callTitle: t.callTitle, flavor: t.flavor }));
+    const savedItemColors = [...itemColors];
+    const savedItemMetals = [...itemMetals];
+    const savedItemWoods = [...itemWoods];
+    const savedItemGems = [...itemGems];
+    const savedItemTitles = [...itemTitles];
     try {
         fn();
     } finally {
-        savedPotions.forEach((s, i) => { potionTable[i].identified = s.identified; potionTable[i].called = s.called; potionTable[i].callTitle = s.callTitle; });
-        savedScrolls.forEach((s, i) => { scrollTable[i].identified = s.identified; scrollTable[i].called = s.called; scrollTable[i].callTitle = s.callTitle; });
-        savedStaffs.forEach((s, i) => { staffTable[i].identified = s.identified; staffTable[i].called = s.called; staffTable[i].callTitle = s.callTitle; });
-        savedWands.forEach((s, i) => { wandTable[i].identified = s.identified; wandTable[i].called = s.called; wandTable[i].callTitle = s.callTitle; });
-        savedRings.forEach((s, i) => { ringTable[i].identified = s.identified; ringTable[i].called = s.called; ringTable[i].callTitle = s.callTitle; });
+        savedPotions.forEach((s, i) => { potionTable[i].identified = s.identified; potionTable[i].called = s.called; potionTable[i].callTitle = s.callTitle; potionTable[i].flavor = s.flavor; });
+        savedScrolls.forEach((s, i) => { scrollTable[i].identified = s.identified; scrollTable[i].called = s.called; scrollTable[i].callTitle = s.callTitle; scrollTable[i].flavor = s.flavor; });
+        savedStaffs.forEach((s, i) => { staffTable[i].identified = s.identified; staffTable[i].called = s.called; staffTable[i].callTitle = s.callTitle; staffTable[i].flavor = s.flavor; });
+        savedWands.forEach((s, i) => { wandTable[i].identified = s.identified; wandTable[i].called = s.called; wandTable[i].callTitle = s.callTitle; wandTable[i].flavor = s.flavor; });
+        savedRings.forEach((s, i) => { ringTable[i].identified = s.identified; ringTable[i].called = s.called; ringTable[i].callTitle = s.callTitle; ringTable[i].flavor = s.flavor; });
+        savedItemColors.forEach((v, i) => { itemColors[i] = v; });
+        savedItemMetals.forEach((v, i) => { itemMetals[i] = v; });
+        savedItemWoods.forEach((v, i) => { itemWoods[i] = v; });
+        savedItemGems.forEach((v, i) => { itemGems[i] = v; });
+        savedItemTitles.forEach((v, i) => { itemTitles[i] = v; });
     }
 }
 
@@ -590,6 +603,56 @@ describe("shuffleFlavors", () => {
             const snapshot2 = { colors: [...itemColors], titles: [...itemTitles] };
 
             expect(snapshot1).toEqual(snapshot2);
+        });
+    });
+
+    // B94 — Wands always show the same unidentified appearance
+    it("assigns shuffled metals to wand table entries", () => {
+        withCleanTables(() => {
+            seedRandomGenerator(1n);
+            shuffleFlavors(makeGC(), randRange, randPercent);
+
+            // Each wand table entry's flavor should exactly match itemMetals[i]
+            // (shuffleFlavors sets wandTable[i].flavor = itemMetals[i])
+            const gc = makeGC();
+            for (let i = 0; i < gc.numberWandKinds; i++) {
+                expect(wandTable[i].flavor).toBe(itemMetals[i]);
+            }
+        });
+    });
+
+    it("shuffled wand flavors differ across two seeds", () => {
+        withCleanTables(() => {
+            seedRandomGenerator(1n);
+            shuffleFlavors(makeGC(), randRange, randPercent);
+            const flavors1 = Array.from({ length: makeGC().numberWandKinds }, (_, i) => wandTable[i].flavor);
+
+            seedRandomGenerator(12345n);
+            shuffleFlavors(makeGC(), randRange, randPercent);
+            const flavors2 = Array.from({ length: makeGC().numberWandKinds }, (_, i) => wandTable[i].flavor);
+
+            // Two different seeds should produce at least some different wand appearances
+            expect(flavors1).not.toEqual(flavors2);
+        });
+    });
+
+    it("itemName uses wandTable flavor for unidentified wand (B94)", () => {
+        withCleanTables(() => {
+            // Shuffle with a known seed
+            seedRandomGenerator(99n);
+            shuffleFlavors(makeGC(), randRange, randPercent);
+
+            const teleportWandFlavor = wandTable[WandKind.Teleport].flavor;
+
+            // The naming context uses wandTable directly (catalog reference)
+            const namingCtx = makeNamingCtx();
+            const wand = makeItem({ category: ItemCategory.WAND, kind: WandKind.Teleport });
+            const name = itemName(wand, false, false, namingCtx);
+
+            // Unidentified wand name should include the flavor from wandTable
+            expect(name).toContain(teleportWandFlavor);
+            expect(name).toContain("wand");
+            expect(name).not.toContain("teleportation");
         });
     });
 });

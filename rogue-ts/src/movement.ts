@@ -33,6 +33,7 @@ import {
     distanceBetween,
 } from "./monsters/monster-state.js";
 import {
+    canSeeMonster as canSeeMonsterFn,
     monsterRevealed as monsterRevealedFn,
     monstersAreEnemies as monstersAreEnemiesFn,
     monsterWillAttackTarget as monsterWillAttackTargetFn,
@@ -205,8 +206,15 @@ export function buildMovementContext(): PlayerMoveContext {
         cellHasTMFlagFn(pmap, pos, flags);
 
     const monsterAtLoc = buildMonsterAtLocHelper(player, monsters);
-    const canSeeMonster = (m: Creature) =>
-        !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE);
+    const mqCtx = {
+        player,
+        cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
+        cellHasGas: (loc: Pos) => !!(pmap[loc.x]?.[loc.y]?.layers[DungeonLayer.Gas]),
+        playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playbackOmniscience: rogue.playbackOmniscience,
+    };
+    const canSeeMonster = (m: Creature) => canSeeMonsterFn(m, mqCtx);
 
     const updateVision = buildUpdateVisionFn();
 
@@ -511,8 +519,15 @@ export function buildTravelContext(): TravelExploreContext {
     const cellHasTMFlag = (pos: Pos, flags: number) =>
         cellHasTMFlagFn(pmap, pos, flags);
     const monsterAtLoc = buildMonsterAtLocHelper(player, monsters);
-    const canSeeMonster = (m: Creature) =>
-        !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE);
+    const mqCtxTravel = {
+        player,
+        cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
+        cellHasGas: (loc: Pos) => !!(pmap[loc.x]?.[loc.y]?.layers[DungeonLayer.Gas]),
+        playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playbackOmniscience: rogue.playbackOmniscience,
+    };
+    const canSeeMonster = (m: Creature) => canSeeMonsterFn(m, mqCtxTravel);
     const monsterStateCtx = buildMonsterStateContext();
 
     // Minimal context for cursor-path highlighting (hilitePath, clearCursorPath)
