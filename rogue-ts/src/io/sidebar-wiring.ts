@@ -84,6 +84,7 @@ import type { MessageContext as SyncMessageContext } from "./messages-state.js";
 import type { InventoryContext } from "./inventory.js";
 import { TileFlag } from "../types/flags.js";
 import type { Color, Pos, ItemTable, Creature, ScreenDisplayBuffer } from "../types/types.js";
+import { DungeonLayer } from "../types/enums.js";
 import type { DisplayGlyph } from "../types/enums.js";
 
 // =============================================================================
@@ -118,7 +119,7 @@ export function buildSidebarContext(): SidebarContext {
     const mqCtx = {
         player,
         cellHasTerrainFlag,
-        cellHasGas: () => false as const,
+        cellHasGas: (loc: Pos) => !!(pmap[loc.x]?.[loc.y]?.layers[DungeonLayer.Gas]),
         playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
         playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
         playbackOmniscience: rogue.playbackOmniscience,
@@ -213,7 +214,7 @@ export function buildSidebarContext(): SidebarContext {
             const resolvePronounEscapes = buildResolvePronounEscapesFn(player, pmap, rogue);
             const mqCtxLocal = {
                 player, cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
-                cellHasGas: () => false as const,
+                cellHasGas: (loc: Pos) => !!(pmap[loc.x]?.[loc.y]?.layers[DungeonLayer.Gas]),
                 playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
                 playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
                 playbackOmniscience: rogue.playbackOmniscience,
@@ -302,7 +303,7 @@ export function buildPrintLocationDescriptionFn(): (x: number, y: number) => voi
         const mqCtx = {
             player,
             cellHasTerrainFlag,
-            cellHasGas: () => false as const,
+            cellHasGas: (loc: Pos) => !!(pmap[loc.x]?.[loc.y]?.layers[DungeonLayer.Gas]),
             playerCanSee: (px: number, py: number) => !!(pmap[px]?.[py]?.flags & TileFlag.VISIBLE),
             playerCanDirectlySee: (px: number, py: number) => !!(pmap[px]?.[py]?.flags & TileFlag.VISIBLE),
             playbackOmniscience: rogue.playbackOmniscience,

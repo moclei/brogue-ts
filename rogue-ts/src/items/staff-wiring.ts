@@ -17,7 +17,7 @@
  */
 
 import { getGameState, gameOver as gameOverFn } from "../core.js";
-import { buildApplyInstantTileEffectsFn } from "../tile-effects-wiring.js";
+import { buildApplyInstantTileEffectsFn, buildExposeTileToFireFn } from "../tile-effects-wiring.js";
 import { waitForEvent, commitDraws, pauseAndCheckForEvent } from "../platform.js";
 import { moveCursor as moveCursorFn } from "../io/cursor-move.js";
 import type { MoveCursorContext } from "../io/cursor-move.js";
@@ -447,7 +447,7 @@ export function buildStaffZapFn() {
             flashMonster: (m, c, s) => flashMonsterFn(m, c, s, damageCtx),
             wakeUp: buildWakeUpFn(player, monsters),
             exposeCreatureToFire: buildExposeCreatureToFireFn(),
-            exposeTileToFire: () => false,  // stub — terrain fire
+            exposeTileToFire: buildExposeTileToFireFn(),
             exposeTileToElectricity: () => false,  // stub
             createFlare: () => {},          // stub — visual only
 

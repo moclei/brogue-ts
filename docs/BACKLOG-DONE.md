@@ -996,3 +996,66 @@ Active backlog is maintained in [BACKLOG.md](./BACKLOG.md).
      TS: `io/input-context.ts:552-554`, `io/sidebar-wiring.ts`. **M**
 
 ---
+
+## Orchestrator batch — B68–B108
+
+Fixed/closed by the orchestrator session (2026-03-29). Items B49/B51/B57/B67/B85/B88/B90/B93/B97/B98/B100–B106 were archived in earlier batches; new items here are those fixed in this session.
+
+- [x] **B75 — `monsterBlinkToSafety` uses stubbed `updateSafetyMap`** — Fixed: wired real
+      `updateSafetyMap` in `blinkToSafetyCtx` in `turn-monster-zap-wiring.ts`, matching the
+      pattern used in `turn-monster-ai.ts`. Will-o-wisps and other blink-to-safety monsters
+      now use the real safety map.
+
+- [x] **B89 — Magical glyphs do nothing** — Fixed: wired real `monstersTurnFn` in the
+      `envCtx` of `tile-effects-wiring.ts` so machine guardians with
+      `MONST_GETS_TURN_ON_ACTIVATION` take their turn when glyphs are triggered.
+      Added regression test in `tests/time/creature-effects.test.ts`.
+
+- [x] **B92 — "Quit and abandon run" menu option does nothing** — Fixed: `printTextBox` in
+      `buildInputContext` was stubbed to `async () => -1`, so the confirm dialog was invisible
+      and always returned false. Wired real `printTextBoxFn` + `buildInventoryContext()` in
+      `io/input-context.ts`.
+
+- [x] **B94 — Wands always show the same unidentified appearance ("bronze")** — WAI/already
+      fixed by B82 (`numberWandKinds` wiring). `shuffleFlavors` now runs correctly for all
+      wand kinds. Added three regression tests in `tests/items/item-naming.test.ts`.
+
+- [x] **B96 — Explore oscillation after item pickup** — Fixed: `getExploreMap` in
+      `movement/travel-explore.ts` now checks `HAS_ITEM` flag before calling `itemAtLoc`,
+      preventing stale floor entries from becoming explore goals after pickup.
+
+- [x] **B99 — Play/View buttons show rectangle icon** — Fixed: changed `U_LEFT_TRIANGLE`
+      in `platform/glyph-map.ts` from `0x1F780` (missing from common fonts) to `0x25C4`
+      (◄, universally supported Black Left-Pointing Pointer).
+
+- [x] **B107 — Staff of firebolt does not ignite dry wooden barricades** — Fixed: added
+      `buildExposeTileToFireFn()` factory in `tile-effects-wiring.ts`; replaced `() => false`
+      stubs in `items/staff-wiring.ts` and `turn-monster-zap-wiring.ts`.
+
+- [x] **B68 — Hallucination visual** — WAI: full audit of `cell-appearance.ts` vs C
+      `getCellAppearance` confirms all three hallucination cases are faithfully ported.
+      Visual differences are non-deterministic cosmetic RNG, not logic divergence.
+
+- [x] **B88 — Arrow turret corner spawn** — WAI: C uses `MF_IN_VIEW_OF_ORIGIN` with
+      `cautiousOnWalls=false`; diagonal interior corners can pass the view check in both C
+      and TS. C-faithful behavior.
+
+- [x] **B70 — While hallucinating, combat messages show real monster name** — Fixed: wired
+      hallucination-aware `monsterName` helper in combat context in `combat.ts`.
+
+- [x] **B72 — Vault cage-closing animation fires immediately** — Fixed: wired `createFlareFn`
+      call after `spawnDungeonFeature` in `turn.ts` (`updateEnvironment`) and `movement.ts`
+      (`runtimeSpawnFeature`); added description message display.
+
+- [x] **B103 — Invisibility: monsters didn't disengage** — WAI: TS matches C ground truth.
+      `stealthRange=1` reduces awareness; nearby monsters use `randPercent(97)` slow-disengage
+      identical to C. Tests added: `tests/monsters/monster-awareness.test.ts`.
+
+- [x] **B104 — Messages panel click shows scroll history** — Fixed: made
+      `animateMessageArchive`/`scrollMessageArchive`/`displayMessageArchive` async; wired
+      `nextBrogueEvent`/`pauseBrogue` to real platform functions; added message-area click
+      handler in `platform.ts:handleLeftClick`.
+
+- [x] **B108 — Autotiled sprites wrong on first render** — Fixed: added
+      `refreshSpriteDataProvider()` export called from `initializeRogue()` before `startLevel`
+      fires, so `getCellSpriteDataFn` is non-null on the first `commitDraws()`.

@@ -445,6 +445,18 @@ it("shuffleTerrainColors() populates terrainRandomValues (Phase 7a)", () => {
     expect(found).toBe(true);
 });
 
+it("displayMessageArchive() returns a Promise and resolves without throwing (B104)", async () => {
+    // C: IO.c:3356 — displayMessageArchive() now async; wired via buildMessageContext() in input-context.ts.
+    // With an empty archive (length <= MESSAGE_LINES) it returns early without entering the scroll loop.
+    // In test context (platform not initialised), nextBrogueEvent/pauseBrogue fall back to no-ops.
+    initGameState();
+    const { buildInputContext } = await import("../src/io/input-context.js");
+    const ctx = buildInputContext();
+    const result = ctx.displayMessageArchive();
+    expect(result).toBeInstanceOf(Promise);
+    await expect(result).resolves.not.toThrow();
+});
+
 it("printHelpScreen() renders help overlay without throwing (Phase 7c)", async () => {
     // C: IO.c:4066 — printHelpScreen() in io/overlay-screens.ts.
     // Now async with optional waitFn; passes overlayWaitFn from input-context

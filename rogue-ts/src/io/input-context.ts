@@ -46,7 +46,7 @@ import { openPathBetween } from "../items/bolt-geometry.js";
 import { negationWillAffectMonster } from "../items/bolt-helpers.js";
 import { boltCatalog } from "../globals/bolt-catalog.js";
 import { mutationCatalog } from "../globals/mutation-catalog.js";
-import { monstersAreTeammates as monstersAreTeammatesFn, monsterRevealed as monsterRevealedFn } from "../monsters/monster-queries.js";
+import { canSeeMonster as canSeeMonsterFn, monstersAreTeammates as monstersAreTeammatesFn, monsterRevealed as monsterRevealedFn } from "../monsters/monster-queries.js";
 import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
     cellHasTMFlag as cellHasTMFlagFn,
@@ -97,12 +97,13 @@ import { buttonInputLoop as buttonInputLoopFn, initializeButton as initializeBut
 import { equip as equipFn, unequip as unequipFn, drop as dropFn, relabel as relabelFn } from "./inventory-actions.js";
 import { buildButtonContext, buildInventoryContext, buildMessageContext } from "../ui.js";
 import { displayInventory as displayInventoryFn } from "./inventory-display.js";
+import { printTextBox as printTextBoxFn } from "./inventory.js";
 import { buildThrowCommandFn, buildCallCommandFn } from "../items/item-commands.js";
 import { exploreKey as exploreKeyFn } from "./explore-wiring.js";
 import { TURNS_FOR_FULL_REGEN, REST_KEY, SEARCH_KEY, DCOLS, DROWS } from "../types/constants.js";
 import { moveCursor as moveCursorFn, nextTargetAfter as nextTargetAfterFn } from "./cursor-move.js";
 import { commitDraws, waitForEvent, getGraphicsMode, setGraphicsMode, hasGraphics } from "../platform.js";
-import { EventType, AutoTargetMode, StatusEffect, ALL_ITEMS } from "../types/enums.js";
+import { EventType, AutoTargetMode, StatusEffect, ALL_ITEMS, DungeonLayer } from "../types/enums.js";
 import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MessageFlag } from "../types/flags.js";
 import type { InputContext } from "./input-keystrokes.js";
 import type { PlayerRunContext } from "../movement/player-movement.js";
@@ -149,6 +150,15 @@ function buildMiscHelpersContext(): MiscHelpersContext {
     const spawnFeature = (x: number, y: number, feat: unknown, rc: boolean, ab: boolean) =>
         spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, rc, ab);
 
+    const mqCtx = {
+        player,
+        cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
+        cellHasGas: (loc: Pos) => !!(pmap[loc.x]?.[loc.y]?.layers[DungeonLayer.Gas]),
+        playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playbackOmniscience: rogue.playbackOmniscience,
+    };
+
     // Minimal ItemHelperContext for the search() call in manualSearch
     const searchCtx: ItemHelperContext = {
         pmap,
@@ -188,7 +198,7 @@ function buildMiscHelpersContext(): MiscHelpersContext {
                 coordinatesAreInMap,
                 playerCanSee: (x2, y2) => !!(pmap[x2]?.[y2]?.flags & TileFlag.VISIBLE),
                 monsterAtLoc,
-                canSeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+                canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
                 monsterRevealed: (m) => monsterRevealedFn(m, player),
                 spawnDungeonFeature: spawnFeature as never,
                 refreshDungeonCell,
@@ -250,7 +260,7 @@ function buildMiscHelpersContext(): MiscHelpersContext {
 
         monsterAvoids: (monst, loc) =>
             monsterAvoidsFn(monst, loc, buildMonsterStateContext()),
-        canSeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+        canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
         monsterName: () => "",                    // stub
         messageColorFromVictim: () => null,       // stub
         inflictDamage: () => false,               // stub
@@ -309,6 +319,15 @@ export function buildInputContext(): InputContext {
 
     const cellHasTMFlag = (loc: Pos, flag: number) =>
         cellHasTMFlagFn(pmap, loc, flag);
+
+    const mqCtxInput = {
+        player,
+        cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
+        cellHasGas: (loc: Pos) => !!(pmap[loc.x]?.[loc.y]?.layers[DungeonLayer.Gas]),
+        playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playbackOmniscience: rogue.playbackOmniscience,
+    };
 
     const monsterAtLoc = (loc: Pos) => {
         if (loc.x === player.loc.x && loc.y === player.loc.y) return player;
@@ -406,8 +425,9 @@ export function buildInputContext(): InputContext {
             return result.chosenButton;
         },
 
-        // ── Text box (stubs — wired in Phase 5) ──────────────────────────────
-        printTextBox: async () => -1,
+        // ── Text box ─────────────────────────────────────────────────────────
+        printTextBox: async (text, x, y, width, foreColor, backColor, buttons, buttonCount) =>
+            printTextBoxFn(text, x, y, width, foreColor, backColor, buildInventoryContext(), buttons, buttonCount),
         rectangularShading: () => {},
 
         // ── Events / timing ───────────────────────────────────────────────────
@@ -428,8 +448,7 @@ export function buildInputContext(): InputContext {
             displayLevelFn();
             io.updateMessageDisplay();
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        displayMessageArchive: () => { displayMessageArchiveFn(buildMessageContext() as any); },
+        displayMessageArchive: async () => { await displayMessageArchiveFn(buildMessageContext() as any); },
         printHelpScreen: () => printHelpScreenFn(overlayWaitFn),
         displayFeatsScreen: () => displayFeatsScreenFn(overlayWaitFn),
         printDiscoveriesScreen: () => printDiscoveriesScreenFn(overlayWaitFn),
@@ -518,7 +537,7 @@ export function buildInputContext(): InputContext {
                     processButtonInput: async () => -1,
                     refreshSideBar: () => {},
                     pmapFlagsAt: (loc) => pmap[loc.x]?.[loc.y]?.flags ?? 0,
-                    canSeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+                    canSeeMonster: (m) => canSeeMonsterFn(m, mqCtxInput),
                     monsterAtLoc: (loc) => {
                         if (loc.x === player.loc.x && loc.y === player.loc.y) return player;
                         for (const m of monsters) {
@@ -541,7 +560,7 @@ export function buildInputContext(): InputContext {
                 rogue,
                 boltCatalog,
                 monstersAreTeammates: (a, b) => monstersAreTeammatesFn(a, b, player),
-                canSeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+                canSeeMonster: (m) => canSeeMonsterFn(m, mqCtxInput),
                 openPathBetween: (from, to) => openPathBetween(from, to,
                     (loc) => cellHasTerrainFlagFn(pmap, loc, TerrainFlag.T_OBSTRUCTS_PASSABILITY)),
                 distanceBetween,

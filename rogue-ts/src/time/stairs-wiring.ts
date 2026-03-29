@@ -19,8 +19,9 @@ import { getQualifyingPathLocNear as getQualifyingPathLocNearFn } from "../movem
 import { INVALID_POS } from "../types/types.js";
 import { badMessageColor, red } from "../globals/colors.js";
 import { randClumpedRange, randRange } from "../math/rng.js";
-import { CreatureState } from "../types/enums.js";
+import { CreatureState, DungeonLayer } from "../types/enums.js";
 import { TileFlag } from "../types/flags.js";
+import { canSeeMonster as canSeeMonsterFn } from "../monsters/monster-queries.js";
 import type { Creature, Pos, Pcell } from "../types/types.js";
 
 export { monstersApproachStairs };
@@ -31,6 +32,14 @@ export function buildMonstersApproachStairsCtx(): MiscHelpersContext {
     const refreshDungeonCell = buildRefreshDungeonCellFn();
     const _ctf = (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags);
     const _pmapAt = (loc: Pos): Pcell => pmap[loc.x][loc.y];
+    const mqCtx = {
+        player,
+        cellHasTerrainFlag: _ctf,
+        cellHasGas: (loc: Pos) => !!(pmap[loc.x]?.[loc.y]?.layers[DungeonLayer.Gas]),
+        playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+        playbackOmniscience: rogue.playbackOmniscience,
+    };
 
     return {
         player,
@@ -58,7 +67,7 @@ export function buildMonstersApproachStairsCtx(): MiscHelpersContext {
         restoreMonster: () => {},
         monsterName: (m: Creature, article: boolean) =>
             m === player ? "you" : `${article ? "the " : ""}${m.info.monsterName}`,
-        canSeeMonster: (m: Creature) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+        canSeeMonster: (m: Creature) => canSeeMonsterFn(m, mqCtx),
         message: io.message,
         messageWithColor: (msg: string, c: unknown, f: number) => io.messageWithColor(msg, c as never, f),
         messageColorFromVictim: (m: Creature) =>

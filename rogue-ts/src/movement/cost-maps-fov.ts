@@ -246,8 +246,8 @@ export function populateCreatureCostMap(
                 }
             }
 
-            // Player avoids certain items
-            if (isPlayer) {
+            // Player avoids certain items — mirror C itemAtLoc() by checking HAS_ITEM first.
+            if (isPlayer && (ctx.pmap[i][j].flags & TileFlag.HAS_ITEM)) {
                 const theItem = ctx.itemAtLoc(pos);
                 if (theItem && (theItem.flags & ItemFlag.ITEM_PLAYER_AVOIDS)) {
                     costMap[i][j] += 10;

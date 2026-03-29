@@ -243,7 +243,7 @@ export function buildMonsterSpawningContext(): SpawnContext {
  * path analysis, and fire-extinguishing are stubbed — wired in port-v2-platform.
  */
 export function buildMonsterStateContext(): MonsterStateContext {
-    const { player, rogue, pmap, monsters, floorItems } = getGameState();
+    const { player, rogue, pmap, monsters, floorItems, monsterCatalog } = getGameState();
     const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn();
 
     const combatCtx = buildCombatDamageContext();
@@ -262,6 +262,8 @@ export function buildMonsterStateContext(): MonsterStateContext {
         playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
         playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
         playbackOmniscience: rogue.playbackOmniscience,
+        playerStatus: player.status,
+        monsterCatalog,
     };
 
     const stateCtx: MonsterStateContext = {
