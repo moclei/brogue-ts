@@ -328,7 +328,7 @@ only if the path is genuinely not reachable in normal play.
       C: `Time.c` (`rechargeItemsIncrementally`), `Rogue.h` (`fixpt` type).
       TS: `turn.ts:571`, `combat.ts:400`. **S**
 
-- [ ] **B107 — Staff of firebolt does not ignite dry wooden barricades** — Zapping a dry
+- [x] **B107 — Staff of firebolt does not ignite dry wooden barricades** — Zapping a dry
       wooden barricade with a staff of firebolt has no fire effect; the barricade is not
       ignited. In C a firebolt hitting a flammable terrain feature calls `exposeTileToFire`
       which sets the tile on fire and propagates to adjacent flammable cells.
