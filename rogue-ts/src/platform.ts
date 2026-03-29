@@ -25,7 +25,7 @@ import { windowToMapX, windowToMapY, coordinatesAreInMap } from "./globals/table
 import { EventType } from "./types/enums.js";
 import type { TileType } from "./types/enums.js";
 import type { RogueEvent, ScreenDisplayBuffer, ButtonState } from "./types/types.js";
-import { COLS, ROWS } from "./types/constants.js";
+import { COLS, ROWS, MESSAGE_LINES, DCOLS } from "./types/constants.js";
 import { buildInputContext } from "./io/input-context.js";
 import { executeKeystroke } from "./io/input-dispatch.js";
 import { createScreenDisplayBuffer } from "./io/display.js";
@@ -405,6 +405,15 @@ async function handleLeftClick(windowX: number, windowY: number): Promise<void> 
 
     const mapX = windowToMapX(windowX);
     const mapY = windowToMapY(windowY);
+
+    // If the click is in the message area (top MESSAGE_LINES rows, within dungeon x range),
+    // open the message history overlay.  C: IO.c executeMouseEvent() message-block branch.
+    if (mapX >= 0 && mapX < DCOLS && windowY >= 0 && windowY < MESSAGE_LINES) {
+        const ctx = buildInputContext();
+        await ctx.displayMessageArchive();
+        return;
+    }
+
     if (!coordinatesAreInMap(mapX, mapY)) return;
 
     const target = { x: mapX, y: mapY };

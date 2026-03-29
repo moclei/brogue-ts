@@ -280,7 +280,7 @@ only if the path is genuinely not reachable in normal play.
       stealthRange is updated after monster turns (1-turn delay) in both C and TS.
       Tests added: `rogue-ts/tests/monsters/monster-awareness.test.ts`.
 
-- [ ] **B104 — Messages panel should expand on click to show scroll history** — Clicking the
+- [x] **B104 — Messages panel should expand on click to show scroll history** — Clicking the
       message area should open a scrollable message history overlay. Currently clicking does
       nothing. In C pressing `M` (or clicking the message panel) opens the full log.
       C: `IO.c` (message history display).

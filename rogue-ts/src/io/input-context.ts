@@ -428,8 +428,7 @@ export function buildInputContext(): InputContext {
             displayLevelFn();
             io.updateMessageDisplay();
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        displayMessageArchive: () => { displayMessageArchiveFn(buildMessageContext() as any); },
+        displayMessageArchive: async () => { await displayMessageArchiveFn(buildMessageContext() as any); },
         printHelpScreen: () => printHelpScreenFn(overlayWaitFn),
         displayFeatsScreen: () => displayFeatsScreenFn(overlayWaitFn),
         printDiscoveriesScreen: () => printDiscoveriesScreenFn(overlayWaitFn),
