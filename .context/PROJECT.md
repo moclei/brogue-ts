@@ -20,20 +20,7 @@ Port V2 is underway. Full plan: `docs/PORT_V2.md`.
 3. Follow the session protocol described in `PLAN.md` exactly
 4. Work on one phase at a time; stop and commit when the phase is done
 
-**Current active initiative:** `port-v2-persistence`
-
-**Why this initiative:** All domain functions are wired, all stubs are classified, and a full
-browser playtest was completed. The remaining work is the persistence layer: save/load
-(.broguesave), recordings (.broguerec), playback, and file browser UI.
-
-**Previous initiatives (all complete):**
-- `port-v2-audit` — all gap files in `docs/audit/`, all stubs tracked
-- `port-v2-fix-rendering` — rendering, crash fix, item system, monster AI, power tables (Phases 1–5a)
-- `port-v2-domain-gaps` — all 72 MISSING core domain functions implemented
-- `port-v2-platform` — browser platform, IO, menus, entry point (Phases 1–6)
-- `port-v2-verify-mechanics` — NEEDS-VERIFICATION review, targeting UI, charmRechargeDelay fix
-- `port-v2-playtest` — wiring, stub classification, browser playtest (87 files, 2220 pass, 86 skip)
-- `port-v2-close-out` — threw/call wired, async cascade, stub audit, Light.c verification, playtest bugs B1–B15 filed. Phases 1–6 complete. Phase 7 (backlog clearance) ongoing via `docs/BACKLOG.md` (88 files, 2242 pass, 82 skip)
+**Current work:** Backlog clearance — see `docs/BACKLOG.md`. Pick the next unchecked item.
 
 First attempt (reference only, do not modify): `ts/`
 
@@ -69,8 +56,8 @@ src/platform/        C platform backends (SDL2, curses, web, null)
 ts/                  First port attempt — preserved for reference, do not modify
 rogue-ts/            Second port attempt — active work
 tools/               Dev tools — sprite assigner, sheet generators (see tools/CONTEXT.md)
-initiatives/         Active initiative docs (BRIEF / PLAN / TASKS)
-initiatives/archive/ Old initiatives from first attempt
+initiatives/         Active and not-yet-started initiative docs (BRIEF / PLAN / TASKS)
+initiatives/archive/ Completed and abandoned initiatives
 docs/                Reference: PORT_V2.md, FIRST_PORT_ANALYSIS.md
 .context/            PROJECT.md (this file), WORKFLOW.md
 codeql/              CodeQL databases + query library (see codeql/CONTEXT.md); databases/ gitignored
