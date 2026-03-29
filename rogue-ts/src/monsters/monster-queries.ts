@@ -14,8 +14,9 @@
  *  License, or (at your option) any later version.
  */
 
-import type { Creature, MonsterClass, Pos } from "../types/types.js";
-import { StatusEffect, CreatureState } from "../types/enums.js";
+import type { Creature, CreatureType, MonsterClass, Pos } from "../types/types.js";
+import { StatusEffect, CreatureState, MonsterType } from "../types/enums.js";
+import { cosmeticRandRange } from "../math/rng.js";
 import {
     MonsterBehaviorFlag,
     MonsterBookkeepingFlag,
@@ -43,6 +44,10 @@ export interface MonsterQueryContext {
     playerCanDirectlySee(x: number, y: number): boolean;
     /** Whether playback omniscience is enabled. */
     playbackOmniscience: boolean;
+    /** Player status array — used for hallucination check in monsterName. Optional for contexts that don't need it. */
+    playerStatus?: number[];
+    /** Monster catalog — used for hallucination random names in monsterName. Optional. */
+    monsterCatalog?: CreatureType[];
 }
 
 // ============================================================================
@@ -267,11 +272,25 @@ export function monsterName(
     includeArticle: boolean,
     ctx: MonsterQueryContext,
 ): string {
+    // C: Monsters.c:monsterName
     if (monst === ctx.player) {
         return "you";
     }
     if (canSeeMonster(monst, ctx) || ctx.playbackOmniscience) {
-        // TODO: Hallucination random name generation when cosmetic RNG is wired up
+        // Hallucination branch: C Monsters.c:263
+        const status = ctx.playerStatus ?? ctx.player.status;
+        if (
+            status[StatusEffect.Hallucinating] > 0 &&
+            !ctx.playbackOmniscience &&
+            !status[StatusEffect.Telepathic]
+        ) {
+            const catalog = ctx.monsterCatalog;
+            if (catalog && catalog.length > 1) {
+                const idx = cosmeticRandRange(1, MonsterType.NUMBER_MONSTER_KINDS - 1);
+                const fakeName = catalog[idx]?.monsterName ?? monst.info.monsterName;
+                return `${includeArticle ? "the " : ""}${fakeName}`;
+            }
+        }
         const article = includeArticle
             ? (monst.creatureState === CreatureState.Ally ? "your " : "the ")
             : "";

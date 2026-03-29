@@ -378,7 +378,7 @@ export async function executeKeystroke(
                 }
                 break;
             case MESSAGE_ARCHIVE_KEY:
-                ctx.displayMessageArchive();
+                await ctx.displayMessageArchive();
                 break;
             case BROGUE_HELP_KEY:
                 await ctx.printHelpScreen();

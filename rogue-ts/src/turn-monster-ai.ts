@@ -21,7 +21,7 @@ import {
     discoveredTerrainFlagsAtLoc as discoveredTerrainFlagsAtLocFn,
 } from "./state/helpers.js";
 import { allocGrid, copyGrid } from "./grid/grid.js";
-import { randRange, randPercent } from "./math/rng.js";
+import { randRange, randPercent, cosmeticRandRange } from "./math/rng.js";
 import { nbDirs, coordinatesAreInMap } from "./globals/tables.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
@@ -33,7 +33,7 @@ import {
     TileFlag, MonsterBookkeepingFlag, MonsterBehaviorFlag, TerrainFlag,
     TerrainMechFlag, T_HARMFUL_TERRAIN,
 } from "./types/flags.js";
-import { BoltEffect, CreatureState, DungeonLayer, StatusEffect } from "./types/enums.js";
+import { BoltEffect, CreatureState, DungeonLayer, StatusEffect, MonsterType } from "./types/enums.js";
 import { openPathBetween as openPathBetweenFn } from "./items/bolt-geometry.js";
 import {
     monstersAreTeammates as monstersAreTeammatesFn,
@@ -106,7 +106,7 @@ import {
 } from "./monsters/monster-awareness.js";
 import { burnedTerrainFlagsAtLoc as burnedTerrainFlagsAtLocFn } from "./state/helpers.js";
 import { goodMessageColor } from "./globals/colors.js";
-import type { Creature, Pos } from "./types/types.js";
+import type { Creature, CreatureType, Pos } from "./types/types.js";
 
 // =============================================================================
 // buildMonstersTurnContext
@@ -115,12 +115,40 @@ import type { Creature, Pos } from "./types/types.js";
 /** Persistent safety-map grid — allocated once, repopulated each turn. */
 let sharedSafetyMap: number[][] | null = null;
 
+// C: Monsters.c:monsterName — shared helper
+function buildMonsterNameInline(
+    player: Creature,
+    pmap: ReturnType<typeof getGameState>["pmap"],
+    playerStatus: number[],
+    playbackOmniscience: boolean,
+    monsterCatalogArg: CreatureType[],
+) {
+    return function (monst: Creature, includeArticle: boolean): string {
+        if (monst === player) return "you";
+        const canSee = !!(pmap[monst.loc.x]?.[monst.loc.y]?.flags & TileFlag.VISIBLE);
+        if (!canSee && !playbackOmniscience) return "something";
+        if (
+            playerStatus[StatusEffect.Hallucinating] > 0 &&
+            !playbackOmniscience &&
+            !playerStatus[StatusEffect.Telepathic]
+        ) {
+            if (monsterCatalogArg.length > 1) {
+                const idx = cosmeticRandRange(1, MonsterType.NUMBER_MONSTER_KINDS - 1);
+                const fakeName = monsterCatalogArg[idx]?.monsterName ?? monst.info.monsterName;
+                return `${includeArticle ? "the " : ""}${fakeName}`;
+            }
+        }
+        const pfx = includeArticle ? (monst.creatureState === CreatureState.Ally ? "your " : "the ") : "";
+        return `${pfx}${monst.info.monsterName}`;
+    };
+}
+
 /**
  * Builds the fully-wired MonstersTurnContext for monstersTurn().
  * Extracted from turn.ts so that turn.ts stays under 600 lines.
  */
 export function buildMonstersTurnContext(): MonstersTurnContext {
-    const { player, rogue, pmap, monsters } = getGameState();
+    const { player, rogue, pmap, monsters, monsterCatalog } = getGameState();
     const io = buildMessageFns();
     const refreshDungeonCell = buildRefreshDungeonCellFn();
     const resolvePronounEscapes = buildResolvePronounEscapesFn(player, pmap, rogue);
@@ -162,6 +190,8 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
         playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
         playbackOmniscience: rogue.playbackOmniscience,
+        playerStatus: player.status,
+        monsterCatalog,
     };
 
     // ── MonsterStateContext ───────────────────────────────────────────────────
@@ -452,11 +482,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         STATUS_POISONED: StatusEffect.Poisoned,
         STATUS_BURNING: StatusEffect.Burning,
         canSeeMonster: (monst) => canSeeMonsterFn(monst, queryCtx),
-        monsterName: (monst, includeArticle) => {
-            if (monst === player) return "you";
-            const pfx = includeArticle ? (monst.creatureState === CreatureState.Ally ? "your " : "the ") : "";
-            return `${pfx}${monst.info.monsterName}`;
-        },
+        monsterName: buildMonsterNameInline(player, pmap, player.status, rogue.playbackOmniscience, monsterCatalog),
         getMonsterAbsorbingText: (monst) => monsterText[monst.info.monsterID]?.absorbing ?? "",
         goodMessageColor,
         messageWithColor: io.messageWithColor,

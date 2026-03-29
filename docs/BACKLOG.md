@@ -86,21 +86,27 @@ only if the path is genuinely not reachable in normal play.
       TS: `time/turn-processing.ts` (decrementPlayerStatus call), `items/item-handlers.ts`
       (paralysis case). **S**
 
-- [ ] **B68 — Hallucination visual slightly different from C game (needs investigation)** —
+- [x] **B68 — Hallucination visual slightly different from C game (needs investigation)** —
       Hallucination mode looks roughly correct but differs subtly from C. Likely candidates:
       wrong color range, wrong randomized-glyph set, or color randomization applied at wrong
       layer. Requires side-by-side comparison with C.
       C: `IO.c` (hallucination rendering in `getCellAppearance` / `displayLevel`).
       TS: `io/display.ts` or render pipeline. **S**
+      WAI: Side-by-side audit of `cell-appearance.ts` vs C `getCellAppearance` shows all
+      hallucination branches are faithfully ported: monster glyph+color use two separate
+      `randomAnimateMonster()` calls; item uses `getItemCategoryGlyph(getHallucinatedItemCategory())`
+      with cosmetic RNG; color randomization formula `Math.trunc(40*status/300)+20` matches C
+      integer arithmetic; all three hallucination cases (monster, revealed monster, item) are
+      correct. Visual differences are due to non-deterministic cosmetic RNG, not logic divergence.
 
-- [ ] **B70 — While hallucinating, monster names show their real name on hit** — When
+- [x] **B70 — While hallucinating, monster names show their real name on hit** — When
       hallucinating, the combat message should use a random fake monster name (as in C). The TS
       `monsterName` helper likely does not check `player.status[STATUS_HALLUCINATING]` before
       deciding which name to return.
       C: `IO.c:monsterName` (hallucination branch).
       TS: wherever `monsterName` is built in item or combat contexts. **S**
 
-- [ ] **B72 — Vault cage-closing animation fires immediately on item pickup** — After picking
+- [x] **B72 — Vault cage-closing animation fires immediately on item pickup** — After picking
       up an item from a vault, the remaining items immediately change color to show they are
       caged. In C the cage-close effect is deferred: it fires on the turn after the player steps
       off the pickup square, with a brief per-item animation. Fix requires the cage-close
@@ -136,15 +142,14 @@ only if the path is genuinely not reachable in normal play.
      ⚠️ **Needs playtest confirmation** — stubs wired in PR #72, but these rooms are
      rare so the fix hasn't been verified in-game yet.
 
-- [ ] **B88 — Arrow turret can spawn inside an unreachable interior corner** — An arrow
-      turret spawned at a diagonal interior corner where neither the player nor the turret
-      could draw line-of-sight through the adjacent walls. Neither party could attack the
-      other, making it an unblockable obstacle with no gameplay effect.
-      ⚠️ **Confirm against C game first:** this may be a known edge-case in the base C game
-      rather than a TS regression. Reproduce in BrogueCE C build with the same seed; if the
-      C game places the turret identically, this is WAI and should be closed.
-      C: `Architect.c` (turret placement validation).
-      TS: dungeon generation wiring. **S**
+- [x] **B88 — Arrow turret can spawn inside an unreachable interior corner** — WAI.
+      Investigated C source: all turret machine features in `GlobalsBrogue.c` use
+      `MF_BUILD_IN_WALLS | MF_IN_VIEW_OF_ORIGIN`. The `MF_IN_VIEW_OF_ORIGIN` check uses
+      `getFOVMask` with `cautiousOnWalls=false`, which illuminates wall cells that terminate
+      a ray — so a wall cell at a diagonal interior corner can pass the view check even if
+      the effective bolt path is blocked by adjacent walls. The TS port implements
+      `MF_IN_VIEW_OF_ORIGIN` and the FOV computation identically to C (`machines.ts` lines
+      1471–1484, `cellIsFeatureCandidate` line 323). This edge case is C-faithful behavior.
 
 - [ ] **B89 — Magical glyphs do nothing** — Rooms containing "magical glyphs" surrounding
       candle-lit altars with staffs produce no effect when the player walks over the glyphs or
@@ -268,14 +273,19 @@ only if the path is genuinely not reachable in normal play.
       C: `IO.c` (fire overlay rendering, status-based display).
       TS: `io/display.ts` or status rendering in the turn loop. **S**
 
-- [ ] **B103 — Potion of invisibility: monsters didn't disengage** — After drinking a potion
+- [x] **B103 — Potion of invisibility: monsters didn't disengage** — After drinking a potion
       of invisibility monsters that were tracking the player continued to pursue as if the
       player were visible. In C drinking invisibility should cause tracking monsters to lose
       the scent trail and return to wandering.
       C: `Items.c` (`drinkPotion` invisibility branch), `Monsters.c` (scent/tracking reset).
       TS: `items/item-handlers.ts`, `monsters/monster-ai.ts`. **S**
+      **WAI** — TS matches C ground truth. stealthRange=1 (invisible) reduces awareness to 2;
+      monsters beyond ~3 tiles (scentDistance > 6) immediately disengage. Nearby monsters
+      within range use randPercent(97) which is the same slow-disengage C behaviour.
+      stealthRange is updated after monster turns (1-turn delay) in both C and TS.
+      Tests added: `rogue-ts/tests/monsters/monster-awareness.test.ts`.
 
-- [ ] **B104 — Messages panel should expand on click to show scroll history** — Clicking the
+- [x] **B104 — Messages panel should expand on click to show scroll history** — Clicking the
       message area should open a scrollable message history overlay. Currently clicking does
       nothing. In C pressing `M` (or clicking the message panel) opens the full log.
       C: `IO.c` (message history display).
@@ -312,7 +322,7 @@ only if the path is genuinely not reachable in normal play.
       C: `Items.c` (bolt impact → `exposeTileToFire`), `Time.c` (`exposeTileToFire`).
       TS: `tile-effects-wiring.ts` (`exposeTileToFire` stub), `items/staff-wiring.ts`. **S**
 
-- [ ] **B108 — Autotiled sprites show wrong on first dungeon render (pixel art mode)** —
+- [x] **B108 — Autotiled sprites show wrong on first dungeon render (pixel art mode)** —
       When loading a new game with pixel art (Tiles) mode enabled, autotiled sprites (walls,
       floors — the only two currently using autotile sheets) display incorrectly on the
       initial frame. They appear to show only the background/tint color rather than the

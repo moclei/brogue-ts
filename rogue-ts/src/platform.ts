@@ -25,7 +25,7 @@ import { windowToMapX, windowToMapY, coordinatesAreInMap } from "./globals/table
 import { EventType } from "./types/enums.js";
 import type { TileType } from "./types/enums.js";
 import type { RogueEvent, ScreenDisplayBuffer, ButtonState } from "./types/types.js";
-import { COLS, ROWS } from "./types/constants.js";
+import { COLS, ROWS, MESSAGE_LINES, DCOLS } from "./types/constants.js";
 import { buildInputContext } from "./io/input-context.js";
 import { executeKeystroke } from "./io/input-dispatch.js";
 import { createScreenDisplayBuffer } from "./io/display.js";
@@ -96,6 +96,24 @@ let _forceFullRedraw = false;
 /** Schedule a full redraw on the next commitDraws() cycle. */
 export function forceFullRedraw(): void {
     _forceFullRedraw = true;
+}
+
+/**
+ * Build a fresh CellSpriteDataProvider (capturing the current pmap/tmap
+ * references from getGameState()) and wire it into the browser renderer.
+ * Must be called after initializeRogue() — which replaces pmap/tmap — and
+ * before the first commitDraws() of a new game, so the autotile pipeline
+ * is active on the very first frame.
+ *
+ * Also schedules a full redraw so no stale cells remain from a previous session.
+ *
+ * No-op in test environments (setCellSpriteDataProvider not present).
+ */
+export function refreshSpriteDataProvider(): void {
+    if (_setCellSpriteDataProvider) {
+        _setCellSpriteDataProvider(buildCellSpriteDataProvider());
+        _forceFullRedraw = true;
+    }
 }
 
 /**
@@ -387,6 +405,15 @@ async function handleLeftClick(windowX: number, windowY: number): Promise<void> 
 
     const mapX = windowToMapX(windowX);
     const mapY = windowToMapY(windowY);
+
+    // If the click is in the message area (top MESSAGE_LINES rows, within dungeon x range),
+    // open the message history overlay.  C: IO.c executeMouseEvent() message-block branch.
+    if (mapX >= 0 && mapX < DCOLS && windowY >= 0 && windowY < MESSAGE_LINES) {
+        const ctx = buildInputContext();
+        await ctx.displayMessageArchive();
+        return;
+    }
+
     if (!coordinatesAreInMap(mapX, mapY)) return;
 
     const target = { x: mapX, y: mapY };
@@ -440,9 +467,6 @@ export async function mainGameLoop(): Promise<void> {
     _hoverHandler = buildHoverHandlerFn();
     _clearHoverPath = buildClearHoverPathFn();
 
-    if (_setCellSpriteDataProvider) {
-        _setCellSpriteDataProvider(buildCellSpriteDataProvider());
-    }
     while (!rogue.gameHasEnded) {
         // Defect 3 fix: idle animation loop — animate dancing terrain between inputs.
         // C: mainInputLoop calls displayLevel/refreshDungeonCell on a ~25ms timer.
