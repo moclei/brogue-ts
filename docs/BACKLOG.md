@@ -73,7 +73,7 @@ Resolved items: see `docs/BACKLOG-DONE.md`.
       ticks). Initial potion value is 300 (matching C `GlobalsBrogue.c`). No double-decrement
       path found. WAI. Added three parity tests in `tests/time/creature-effects.test.ts`.
 
-- [ ] **B115 — Staff of obstruction** — obstructions created by the staff of obstruction behave differently than the C game - shorter life, strange spread pattern, not sure exactly. Needs comparison with C game for parity.
+- [x] **B115 — Staff of obstruction** — obstructions created by the staff of obstruction behave differently than the C game - shorter life, strange spread pattern, not sure exactly. Needs comparison with C game for parity.
 
 - [ ] **B116 — Goblin mystic's spell behavior** — Goblin mystics don't cast spells. Maybe other spell-casting monsters and allies too, not sure.
 
