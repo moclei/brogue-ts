@@ -74,6 +74,10 @@ let _menuState: ButtonState | null = null;
 let _hoverHandler: ((mapX: number, mapY: number) => void) | null = null;
 let _clearHoverPath: (() => void) | null = null;
 
+/** Last hovered map cell, or null if no hover is active. Used to re-apply the
+ *  highlight after idle displayLevel() redraws overwrite it. */
+let _lastHoverPos: { x: number; y: number } | null = null;
+
 /** Optional plotChar from the browser console (absent in test mocks). */
 type PlotCharFn = (
     inputChar: number, x: number, y: number,
@@ -402,6 +406,7 @@ async function handleLeftClick(windowX: number, windowY: number): Promise<void> 
     }
 
     _clearHoverPath?.();
+    _lastHoverPos = null;
 
     const mapX = windowToMapX(windowX);
     const mapY = windowToMapY(windowY);
@@ -438,6 +443,7 @@ function handleHover(windowX: number, windowY: number): void {
     const mapX = windowToMapX(windowX);
     const mapY = windowToMapY(windowY);
     _hoverHandler(mapX, mapY);
+    _lastHoverPos = { x: mapX, y: mapY };
 }
 
 /**
@@ -447,6 +453,7 @@ function handleHover(windowX: number, windowY: number): void {
  */
 async function handleKeystroke(event: RogueEvent): Promise<void> {
     _clearHoverPath?.();
+    _lastHoverPos = null;
     const ctx = buildInputContext();
     await executeKeystroke(ctx, event.param1, event.controlKey, event.shiftKey);
 }
@@ -474,6 +481,12 @@ export async function mainGameLoop(): Promise<void> {
         if (!interrupted) {
             shuffleTerrainColors(35, false, pmap);
             buildInputContext().displayLevel();
+            // B109: re-apply hover highlight after displayLevel() redraws the dungeon.
+            // C: mainInputLoop inner do-loop re-runs hilitePath + hiliteCell before
+            // every getEvent() call, so the highlight persists through terrain animation.
+            if (_hoverHandler !== null && _lastHoverPos !== null) {
+                _hoverHandler(_lastHoverPos.x, _lastHoverPos.y);
+            }
             drawGameMenuButtons(_menuState);
             commitDraws();
         } else {
@@ -486,5 +499,6 @@ export async function mainGameLoop(): Promise<void> {
     _menuState = null;
     _hoverHandler = null;
     _clearHoverPath = null;
+    _lastHoverPos = null;
     console.log("[mainGameLoop] ended");
 }

@@ -46,7 +46,7 @@ only if the path is genuinely not reachable in normal play.
 
 Resolved items: see `docs/BACKLOG-DONE.md`.
 
-- [ ] **B109 — Hover highlight flashes but doesn't stay** — The white highlight on the
+- [x] **B109 — Hover highlight flashes but doesn't stay** — The white highlight on the
       currently hovered square flashes briefly but does not remain visible while the mouse
       is stationary over the cell.
 
