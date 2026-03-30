@@ -50,7 +50,7 @@ Resolved items: see `docs/BACKLOG-DONE.md`.
       currently hovered square flashes briefly but does not remain visible while the mouse
       is stationary over the cell.
 
-- [ ] **B110 — Chasm fall requires player move + confirmation instead of "more" prompt** —
+- [x] **B110 — Chasm fall requires player move + confirmation instead of "more" prompt** —
       When the floor collapses or the player drinks a potion of descent, the game should
       force a "more" prompt before falling. Instead the player must manually move, which
       triggers an "are you sure?" confirmation screen requiring Yes/No before the fall occurs.
