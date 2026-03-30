@@ -55,7 +55,7 @@ Resolved items: see `docs/BACKLOG-DONE.md`.
       force a "more" prompt before falling. Instead the player must manually move, which
       triggers an "are you sure?" confirmation screen requiring Yes/No before the fall occurs.
 
-- [ ] **B111 — No way to open the top messages overlay to scroll history** — Cannot find
+- [x] **B111 — No way to open the top messages overlay to scroll history** — Cannot find
       a mechanism to open/scroll the top message log overlay. The C game allows scrolling
       through past messages; the TS port appears to have no working entry point for this.
 

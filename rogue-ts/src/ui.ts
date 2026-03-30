@@ -303,10 +303,14 @@ export function buildMessageContext(): MessageContext {
             }
         },
         pauseBrogue: async (ms) => {
-            try { return await pauseAndCheckForEvent(ms); } catch { return false; }
+            // C: pauseBrogue() calls commitDraws() before waiting (IO.c:2368).
+            // Without this flush the message archive overlay is never rendered.
+            try { commitDraws(); return await pauseAndCheckForEvent(ms); } catch { return false; }
         },
         nextBrogueEvent: async () => {
-            try { return await waitForEvent(); } catch { return fakeEvent(); }
+            // C: nextBrogueEvent() calls commitDraws() in the non-playback path (IO.c:2415).
+            // Without this flush the message archive scroll loop shows nothing.
+            try { commitDraws(); return await waitForEvent(); } catch { return fakeEvent(); }
         },
         flashTemporaryAlert: async (msg: string, ms: number) => {
             const fCtx = {
