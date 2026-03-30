@@ -154,7 +154,7 @@ export interface ItemHandlerContext {
     zap(originLoc: Pos, targetLoc: Pos, theBolt: Bolt, hideDetails: boolean, reverseBoltDir: boolean): Promise<boolean>;
 
     // ── Turn management ──
-    playerTurnEnded(): void;
+    playerTurnEnded(): void | Promise<void>;
 
     // ── Map helpers ──
     mapToWindowX(x: number): number;
@@ -1113,7 +1113,7 @@ export async function useStaffOrWand(theItem: Item, ctx: ItemHandlerContext): Pr
             : `Your ${buf2} fizzles; it must be depleted.`;
         ctx.messageWithColor(depletedMsg, ctx.itemMessageColor, 0);
         theItem.flags |= ItemFlag.ITEM_MAX_CHARGES_KNOWN;
-        ctx.playerTurnEnded();
+        await ctx.playerTurnEnded();
         return false;
     }
 
@@ -1288,5 +1288,5 @@ export async function apply(theItem: Item | null, ctx: ItemHandlerContext): Prom
         }
     }
 
-    ctx.playerTurnEnded();
+    await ctx.playerTurnEnded();
 }
