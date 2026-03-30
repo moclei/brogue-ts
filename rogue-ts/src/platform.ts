@@ -197,6 +197,23 @@ export function waitForEvent(): Promise<RogueEvent> {
 }
 
 /**
+ * Discard any event buffered by pauseAndCheckForEvent().
+ *
+ * Animation loops (e.g. colorFlash) call pauseAndCheckForEvent() so they can
+ * be interrupted by user input.  The interrupting event is stored in
+ * _lookaheadEvent and would otherwise be returned immediately by the next
+ * waitForEvent() call — prematurely dismissing a "--MORE--" acknowledgment
+ * prompt that the player hasn't even seen yet.
+ *
+ * Call drainLookahead() after commitDraws() but before awaiting fresh user
+ * input whenever you need to ensure the prompt is acknowledged by a new
+ * keystroke rather than a stale one from a preceding animation.
+ */
+export function drainLookahead(): void {
+    _lookaheadEvent = null;
+}
+
+/**
  * Sleep for up to `ms` milliseconds, but resolve early if a user input event
  * arrives. Returns true if interrupted by input, false if the timeout elapsed.
  *

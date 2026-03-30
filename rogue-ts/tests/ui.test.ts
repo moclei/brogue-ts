@@ -9,6 +9,7 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { initGameState, getGameState } from "../src/core.js";
+import { initPlatform } from "../src/platform.js";
 import { shuffleTerrainColors, terrainRandomValues } from "../src/render-state.js";
 import { seedRandomGenerator } from "../src/math/rng.js";
 import {
@@ -317,6 +318,48 @@ it("waitForAcknowledgment() is wired — resolves immediately when platform not 
     // In-browser it awaits space/escape/click before returning.
     const ctx = buildMessageContext();
     await expect(ctx.waitForAcknowledgment()).resolves.toBeUndefined();
+});
+
+it("B110 (part 3): waitForAcknowledgment() waits for space/escape/click — ignores other keys", async () => {
+    // Root cause: colorFlash() calls pauseAndCheckForEvent(50) which stores any
+    // interrupting keystroke (e.g. space) in _lookaheadEvent.  Without drainLookahead(),
+    // the next waitForEvent() call inside waitForAcknowledgment() immediately returns
+    // that stale space event — dismissing the "--MORE--" prompt before the player sees it.
+    //
+    // Fix: waitForAcknowledgment() calls drainLookahead() after commitDraws(), so any
+    // animation-buffered event is discarded before entering the acknowledgment wait loop.
+    //
+    // This test verifies the core acknowledgment contract: non-ack keys (e.g. 'd')
+    // are ignored and the loop continues until space/escape/click arrives.
+    // A mock platform queues 'd' then space (then space for all further calls so
+    // subsequent tests in this file that share the platform state don't hang).
+    const dKeyEvent = {
+        eventType: EventType.Keystroke,
+        param1: 100, // 'd' — not an acknowledgment key
+        param2: 0,
+        controlKey: false,
+        shiftKey: false,
+    };
+    const spaceEvent = {
+        eventType: EventType.Keystroke,
+        param1: 32, // space = ACKNOWLEDGE_KEY
+        param2: 0,
+        controlKey: false,
+        shiftKey: false,
+    };
+    let callCount = 0;
+    initPlatform({
+        waitForEvent(): Promise<typeof dKeyEvent | typeof spaceEvent> {
+            callCount++;
+            // First call: 'd' key (non-ack, should be ignored by the loop).
+            // All subsequent calls: space (acknowledges).
+            return Promise.resolve(callCount === 1 ? dKeyEvent : spaceEvent);
+        },
+    });
+    const ctx = buildMessageContext();
+    await ctx.waitForAcknowledgment();
+    // Must have consumed 'd' (ignored) then 'space' (acknowledged) = 2 calls.
+    expect(callCount).toBe(2);
 });
 
 it("flashTemporaryAlert() — wired, does not throw in test environment", () => {
