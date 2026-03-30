@@ -18,6 +18,14 @@ Standalone Vite + React dev tool for evaluating sprites in the context of real d
 
 See `dungeon-cake/CONTEXT.md` for architecture, features, roadmap, and how the tool connects to the game.
 
+## Code Analysis (`analysis/`)
+
+CLI tools for codebase analysis: a pre-computed C function manifest (818 functions with full call graphs), an on-demand TS stub scanner using the TypeScript compiler API, and a cross-reference layer that maps stubs to C functions and identifies critical-path gaps.
+
+**Quick start:** `cd tools/analysis && npm install && npx tsx scan-stubs.ts && npx tsx port-health.ts`
+
+See `analysis/CONTEXT.md` for full documentation, file layout, and example queries.
+
 ## Master Spritesheet Generator (`generate-master-spritesheet.mjs`)
 
 Standalone Node CLI that builds `master-spritesheet.png` + `sprite-manifest.json` from hardcoded sprite assignments. Predates the sprite-assigner-v2's server-side generation and is largely superseded by it — the assigner does the same compositing via its "Save to Disk" button. Kept as a CLI fallback for scripted builds.

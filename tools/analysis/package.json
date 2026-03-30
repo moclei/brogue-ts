@@ -1,0 +1,15 @@
+{
+  "name": "brogue-analysis",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "scan-stubs": "tsx scan-stubs.ts",
+    "port-health": "tsx port-health.ts",
+    "generate-c-manifest": "./generate-c-manifest.sh"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "tsx": "^4.0.0"
+  }
+}

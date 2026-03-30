@@ -1,6 +1,33 @@
 # BrogueCE TypeScript Port
 
-> **Workflow:** See [WORKFLOW.md](./WORKFLOW.md) for initiative conventions and AI agent instructions.
+## System
+
+This project uses a structured agent workflow. Read these before working:
+
+- `.context/WORKFLOW.md` — initiative and document structure
+- `.context/AGENTS.md` — roles, protocols, escalations
+
+### Role Activation
+
+By default, respond without a role. Be helpful, answer questions, assist naturally.
+
+If the user begins their message with a role prefix, adopt that role fully for the session:
+
+| Prefix              | Role         | Behaviour                                                                   |
+| ------------------- | ------------ | --------------------------------------------------------------------------- |
+| `role:planner`      | Planner      | Create or revise initiative docs. See AGENTS.md.                            |
+| `role:orchestrator` | Orchestrator | Run the Task tool loop for the named initiative. Unattended. See AGENTS.md. |
+
+`role:orchestrator` always means unattended execution via the Task tool loop. It does not pause for confirmation between tasks. It stops only when all tasks are complete or an escalation condition is met.
+
+The Worker role is never invoked by the user. Only the Orchestrator spawns Workers via the Task tool.
+
+When a role is active:
+
+- Announce it once at the start: _"Acting as [Role]."_
+- Operate strictly within that role's responsibilities as defined in AGENTS.md
+- Escalate according to the escalation paths in AGENTS.md
+- When the role's work is complete, say so explicitly and stop
 
 ## Purpose
 
@@ -14,23 +41,14 @@ A TypeScript port of [Brogue: Community Edition](https://github.com/tmewett/Brog
 
 Port V2 is underway. Full plan: `docs/PORT_V2.md`.
 
-**Start here each session:**
-1. Read the active initiative's `BRIEF.md`, `PLAN.md`, `TASKS.md` — these are your full context
-2. Find the first unchecked task in `TASKS.md` — that is the session's goal
-3. Follow the session protocol described in `PLAN.md` exactly
-4. Work on one phase at a time; stop and commit when the phase is done
-
-**Current work:** Backlog clearance — see `docs/BACKLOG.md`. Pick the next unchecked item.
-
-First attempt (reference only, do not modify): `ts/`
-
 ---
 
-## Session Protocol
+## Initiative Protocol
 
 **During a session:** check off tasks in `TASKS.md` as completed. Update `PLAN.md` if the approach changes.
 
 **When ending a session** — whether you finished a phase or the session is getting long:
+
 1. Commit completed work to git
 2. Update `TASKS.md` to reflect what is and isn't done
 3. Update `PLAN.md` if any decisions changed
@@ -69,15 +87,16 @@ This file is the root context document — it provides orientation and reference
 to deeper context. Key subdirectories have their own `CONTEXT.md` files that
 cover domain-specific details. Load them on demand, not by default.
 
-| Path | Scope |
-|---|---|
-| `.context/PROJECT.md` | This file — project overview, layout, conventions |
-| `docs/CONTEXT.md` | Feature docs, audits, investigations — see its own CONTEXT.md for full listing |
-| `tools/CONTEXT.md` | Listing of all dev tools (sprite assigner, generators, build scripts) |
-| `tools/sprite-assigner-v2/CONTEXT.md` | Full architecture and feature docs for the sprite assigner |
-| `tools/dungeon-cake/CONTEXT.md` | Dungeon Cake — standalone sprite evaluation tool with debug controls |
-| `codeql/CONTEXT.md` | CodeQL databases, query reference, shell workflow |
-| `.context/research/INDEX.md` | Pre-computed mechanic/system research — load before investigating |
+| Path                                  | Scope                                                                          |
+| ------------------------------------- | ------------------------------------------------------------------------------ |
+| `.context/PROJECT.md`                 | This file — project overview, layout, conventions                              |
+| `docs/CONTEXT.md`                     | Feature docs, audits, investigations — see its own CONTEXT.md for full listing |
+| `tools/CONTEXT.md`                    | Listing of all dev tools (sprite assigner, generators, build scripts)          |
+| `tools/sprite-assigner-v2/CONTEXT.md` | Full architecture and feature docs for the sprite assigner                     |
+| `tools/dungeon-cake/CONTEXT.md`       | Dungeon Cake — standalone sprite evaluation tool with debug controls           |
+| `codeql/CONTEXT.md`                   | CodeQL databases, query reference, shell workflow                              |
+| `tools/analysis/CONTEXT.md`           | Code analysis tools — C manifest, TS stub scanner, port health reporter       |
+| `.context/research/INDEX.md`          | Pre-computed mechanic/system research — load before investigating              |
 
 When working in a subdirectory, read its `CONTEXT.md` first. When adding a new
 tool or subsystem, add a `CONTEXT.md` if it would save a future reader from
@@ -97,13 +116,13 @@ The C codebase is ~49K lines, split across three layers:
 
 **Key C patterns and their TypeScript equivalents:**
 
-| C | TypeScript |
-|---|-----------|
-| `rogue` global struct | Shared state in `core.ts`, closed over by context builders |
+| C                             | TypeScript                                                             |
+| ----------------------------- | ---------------------------------------------------------------------- |
+| `rogue` global struct         | Shared state in `core.ts`, closed over by context builders             |
 | Linked lists (`nextCreature`) | Arrays (`Creature[]`) with deferred cleanup via `removeDeadMonsters()` |
-| `fixpt` (64-bit fixed-point) | `number` (53-bit mantissa, validated safe for Brogue's range) |
-| `Fl(N)` bitfield flags | `number` with bitwise ops, flag enums in `types/flags.ts` |
-| Blocking `getEvent()` | `async/await` with `waitForEvent()` |
+| `fixpt` (64-bit fixed-point)  | `number` (53-bit mantissa, validated safe for Brogue's range)          |
+| `Fl(N)` bitfield flags        | `number` with bitwise ops, flag enums in `types/flags.ts`              |
+| Blocking `getEvent()`         | `async/await` with `waitForEvent()`                                    |
 
 ---
 
@@ -113,12 +132,17 @@ The C codebase is ~49K lines, split across three layers:
 
 1. **Check `.context/research/INDEX.md`** — if a research doc exists for the topic, read
    it and skip everything below. This is pre-computed understanding.
-2. **CodeQL** — for call chains, field access tracing, type usage, function listings.
+2. **Check `.context/analysis/`** — pre-computed data indexes (file reads, not scans):
+   - `c-manifest.json`: C function callers, callees, params, system classification (818 functions)
+   - `stub-report.json`: current TS stub status by file, function, and context builder
+   - `port-health.json` / `PORT_HEALTH.md`: cross-referenced port health by system
+   - Regenerate TS data: `cd tools/analysis && npx tsx scan-stubs.ts && npx tsx port-health.ts`
+3. **CodeQL** — for call chains, field access tracing, type usage, function listings.
    Available via MCP tools (`codeql_run_query_text`) or shell (`codeql/run-query.sh`).
    Full instructions: `codeql/CONTEXT.md`. Query syntax: `codeql/QUERY_REFERENCE.md`.
-3. **Grep** — for string patterns, comment searches, cross-language `// C: FuncName()` lookups.
-4. **Glob** — for finding files by name.
-5. **Read** — for reading specific lines of a file already located by steps 1–4.
+4. **Grep** — for string patterns, comment searches, cross-language `// C: FuncName()` lookups.
+5. **Glob** — for finding files by name.
+6. **Read** — for reading specific lines of a file already located by steps 1–5.
 
 **Goal:** identify exact file + line targets before reading code. Never read an entire
 large file hoping to find the relevant function.
@@ -134,4 +158,4 @@ large file hoping to find the relevant function.
 
 ---
 
-*Update this file when project scope, architecture, or key decisions change materially.*
+_Update this file when project scope, architecture, or key decisions change materially._
