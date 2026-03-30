@@ -48,7 +48,7 @@ import { monsterAvoids as monsterAvoidsFn } from "../monsters/monster-state.js";
 import { canPass as canPassFn } from "../monsters/monster-movement.js";
 import { monstersAreEnemies as monstersAreEnemiesFn } from "../monsters/monster-queries.js";
 import { buildMonsterStateContext } from "../monsters.js";
-import { TileFlag, TerrainFlag, TerrainMechFlag } from "../types/flags.js";
+import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBookkeepingFlag } from "../types/flags.js";
 import type { Creature, Pos, Pcell } from "../types/types.js";
 
 // =============================================================================
@@ -86,9 +86,13 @@ function buildPathTracingCtx(
     const terrainFlagCheck = (pos: Pos, flags: number): boolean =>
         !!(terrainFlagsFn(pmap, pos) & flags);
 
+    // Skip MB_HAS_DIED — matches C iterateCreatures() (B112)
     const monsterAtLoc = (loc: Pos): Creature | null => {
         if (loc.x === player.loc.x && loc.y === player.loc.y) return player;
-        return monsters.find(m => m.loc.x === loc.x && m.loc.y === loc.y) ?? null;
+        return monsters.find(
+            m => m.loc.x === loc.x && m.loc.y === loc.y &&
+                !(m.bookkeepingFlags & MonsterBookkeepingFlag.MB_HAS_DIED),
+        ) ?? null;
     };
 
     const monsterStateCtx = buildMonsterStateContext();

@@ -320,6 +320,40 @@ it("exposeCreatureToFire() sets Burning status on a monster", () => {
 });
 
 
+it("B110: drinkPotion(Descent) sets MB_IS_FALLING on non-levitating player", async () => {
+    // C: Items.c:7297 — player.bookkeepingFlags |= MB_IS_FALLING
+    // TS bug: item-handlers.ts had `|= 0` (no-op) instead of |= MB_IS_FALLING.
+    // Fix: import and use MonsterBookkeepingFlag.MB_IS_FALLING.
+    setupPlayer();
+    const { player, packItems } = getGameState();
+
+    player.status[StatusEffect.Levitating] = 0;
+
+    const potion = makePotion(PotionKind.Descent);
+    packItems.push(potion);
+
+    const ctx = buildItemHandlerContext();
+    await drinkPotion(potion, ctx);
+
+    expect(player.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_FALLING).toBeTruthy();
+});
+
+it("B110: drinkPotion(Descent) does NOT set MB_IS_FALLING when player is levitating", async () => {
+    // C: Items.c:7296 — if (!player.status[STATUS_LEVITATING]) MB_IS_FALLING
+    setupPlayer();
+    const { player, packItems } = getGameState();
+
+    player.status[StatusEffect.Levitating] = 10;
+
+    const potion = makePotion(PotionKind.Descent);
+    packItems.push(potion);
+
+    const ctx = buildItemHandlerContext();
+    await drinkPotion(potion, ctx);
+
+    expect(player.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_FALLING).toBeFalsy();
+});
+
 // =============================================================================
 // Stub registry — Items.c domain stubs (Phase 3b, port-v2-audit)
 // =============================================================================

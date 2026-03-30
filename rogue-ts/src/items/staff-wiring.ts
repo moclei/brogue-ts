@@ -322,6 +322,8 @@ export function buildStaffZapFn() {
 
         const damageCtx = buildCombatDamageContext();
         const attackCtx = buildCombatAttackContext();
+        const refreshDungeonCellFn = buildRefreshDungeonCellFn();
+        const applyInstantFn = buildApplyInstantTileEffectsFn();
 
         // ── TeleportContext (for blinking staff) ────────────────────────────
         const calcDistCtx = {
@@ -490,7 +492,26 @@ export function buildStaffZapFn() {
                 const f = probabilityDecrement !== undefined
                     ? { ...feat, probabilityDecrement }
                     : feat;
-                spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x2, y2, f as never, refreshCell, abortIfBlocking);
+                // Pass refreshDungeonCellFn so placed tiles are rendered immediately.
+                // C: Architect.c fillSpawnMap calls refreshDungeonCell for each placed tile
+                // when the refresh flag is true (Items.c detonateBolt passes refresh=true).
+                spawnDungeonFeatureFn(
+                    pmap, tileCatalog, dungeonFeatureCatalog,
+                    x2, y2, f as never, refreshCell, abortIfBlocking,
+                    refreshCell ? refreshDungeonCellFn : undefined,
+                );
+                // Apply instant tile effects to any creature on the newly spawned tiles.
+                // C: Architect.c fillSpawnMap calls applyInstantTileEffectsToCreature
+                // for any monster/player found on a just-placed tile (refresh=true path).
+                // This handles TM_PROMOTES_ON_CREATURE for FORCEFIELD tiles — a crystal
+                // that spawned on a creature immediately promotes to FORCEFIELD_MELT.
+                if (refreshCell) {
+                    for (const monst of [player, ...monsters]) {
+                        if (cellHasTMFlagFn(pmap, monst.loc, TerrainMechFlag.TM_PROMOTES_ON_CREATURE)) {
+                            applyInstantFn(monst);
+                        }
+                    }
+                }
             },
 
             // ── Teleport / blink ──

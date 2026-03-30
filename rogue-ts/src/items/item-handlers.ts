@@ -26,7 +26,7 @@ import {
     RingKind, FoodKind, StatusEffect, DungeonLayer, BoltEffect, TileType,
     ALL_ITEMS, HAS_INTRINSIC_POLARITY, CAN_BE_DETECTED,
 } from "../types/enums.js";
-import { ItemFlag, TileFlag, TerrainFlag, TerrainMechFlag } from "../types/flags.js";
+import { ItemFlag, TileFlag, TerrainFlag, TerrainMechFlag, MonsterBookkeepingFlag } from "../types/flags.js";
 import { DCOLS, DROWS, APPLY_KEY, STOMACH_SIZE } from "../types/constants.js";
 import { getTableForCategory } from "./item-generation.js";
 import { itemName, identify, identifyItemKind as identifyItemKindNaming, tryIdentifyLastItemKinds } from "./item-naming.js";
@@ -154,7 +154,7 @@ export interface ItemHandlerContext {
     zap(originLoc: Pos, targetLoc: Pos, theBolt: Bolt, hideDetails: boolean, reverseBoltDir: boolean): Promise<boolean>;
 
     // ── Turn management ──
-    playerTurnEnded(): void;
+    playerTurnEnded(): void | Promise<void>;
 
     // ── Map helpers ──
     mapToWindowX(x: number): number;
@@ -873,7 +873,7 @@ export async function drinkPotion(theItem: Item, ctx: ItemHandlerContext): Promi
                 true, false,
             );
             if (!ctx.player.status[StatusEffect.Levitating]) {
-                ctx.player.bookkeepingFlags |= 0; // MB_IS_FALLING — use proper flag
+                ctx.player.bookkeepingFlags |= MonsterBookkeepingFlag.MB_IS_FALLING;
             }
             break;
 
@@ -1113,7 +1113,7 @@ export async function useStaffOrWand(theItem: Item, ctx: ItemHandlerContext): Pr
             : `Your ${buf2} fizzles; it must be depleted.`;
         ctx.messageWithColor(depletedMsg, ctx.itemMessageColor, 0);
         theItem.flags |= ItemFlag.ITEM_MAX_CHARGES_KNOWN;
-        ctx.playerTurnEnded();
+        await ctx.playerTurnEnded();
         return false;
     }
 
@@ -1288,5 +1288,5 @@ export async function apply(theItem: Item | null, ctx: ItemHandlerContext): Prom
         }
     }
 
-    ctx.playerTurnEnded();
+    await ctx.playerTurnEnded();
 }

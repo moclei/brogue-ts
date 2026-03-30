@@ -162,8 +162,17 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
     // ── Shared helpers ────────────────────────────────────────────────────────
     function monsterAtLoc(loc: Pos): Creature | null {
         if (loc.x === player.loc.x && loc.y === player.loc.y) return player;
+        // Match C iterateCreatures() which skips MB_HAS_DIED monsters.  Without
+        // this filter a dead creature sharing a cell with a live one (which can
+        // happen between killCreature() and removeDeadMonsters()) would be
+        // returned first, causing moveMonster/combat to act on the wrong target. (B112)
         for (const m of monsters) {
-            if (m.loc.x === loc.x && m.loc.y === loc.y) return m;
+            if (
+                m.loc.x === loc.x && m.loc.y === loc.y &&
+                !(m.bookkeepingFlags & MonsterBookkeepingFlag.MB_HAS_DIED)
+            ) {
+                return m;
+            }
         }
         return null;
     }

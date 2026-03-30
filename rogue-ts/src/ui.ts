@@ -21,7 +21,7 @@
  */
 
 import { getGameState } from "./core.js";
-import { waitForEvent, commitDraws, pauseAndCheckForEvent } from "./platform.js";
+import { waitForEvent, commitDraws, pauseAndCheckForEvent, drainLookahead } from "./platform.js";
 import { buttonInputLoop as buttonInputLoopFn, drawButton as drawButtonFn, initializeButton as initializeButtonFn } from "./io/buttons.js";
 import { equip as equipFn, unequip as unequipFn, drop as dropFn, relabel as relabelFn } from "./io/inventory-actions.js";
 import { itemName as itemNameFn } from "./items/item-naming.js";
@@ -290,6 +290,13 @@ export function buildMessageContext(): MessageContext {
             }
             try {
                 commitDraws();
+                // Drain any event buffered by a preceding animation loop
+                // (e.g. colorFlash's pauseAndCheckForEvent).  Without this,
+                // a space/click pressed to skip the animation would
+                // immediately dismiss the "--MORE--" prompt the player
+                // hasn't even seen yet.  C never has this issue because its
+                // blocking nextBrogueEvent() always reads a fresh event.
+                drainLookahead();
                 let event = await waitForEvent();
                 while (!(
                     (event.eventType === EventType.Keystroke &&
@@ -303,10 +310,14 @@ export function buildMessageContext(): MessageContext {
             }
         },
         pauseBrogue: async (ms) => {
-            try { return await pauseAndCheckForEvent(ms); } catch { return false; }
+            // C: pauseBrogue() calls commitDraws() before waiting (IO.c:2368).
+            // Without this flush the message archive overlay is never rendered.
+            try { commitDraws(); return await pauseAndCheckForEvent(ms); } catch { return false; }
         },
         nextBrogueEvent: async () => {
-            try { return await waitForEvent(); } catch { return fakeEvent(); }
+            // C: nextBrogueEvent() calls commitDraws() in the non-playback path (IO.c:2415).
+            // Without this flush the message archive scroll loop shows nothing.
+            try { commitDraws(); return await waitForEvent(); } catch { return fakeEvent(); }
         },
         flashTemporaryAlert: async (msg: string, ms: number) => {
             const fCtx = {

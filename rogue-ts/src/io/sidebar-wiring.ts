@@ -82,7 +82,7 @@ import { printTextBox as printTextBoxFn } from "./inventory.js";
 import { flavorMessage as flavorMessageFn } from "./messages.js";
 import type { MessageContext as SyncMessageContext } from "./messages-state.js";
 import type { InventoryContext } from "./inventory.js";
-import { TileFlag } from "../types/flags.js";
+import { TileFlag, MonsterBookkeepingFlag } from "../types/flags.js";
 import type { Color, Pos, ItemTable, Creature, ScreenDisplayBuffer } from "../types/types.js";
 import { DungeonLayer } from "../types/enums.js";
 import type { DisplayGlyph } from "../types/enums.js";
@@ -170,7 +170,11 @@ export function buildSidebarContext(): SidebarContext {
 
         monsterAtLoc(loc) {
             if (loc.x === player.loc.x && loc.y === player.loc.y) return player;
-            return monsters.find(m => m.loc.x === loc.x && m.loc.y === loc.y) ?? null;
+            // Skip MB_HAS_DIED — matches C iterateCreatures() (B112)
+            return monsters.find(
+                m => m.loc.x === loc.x && m.loc.y === loc.y &&
+                    !(m.bookkeepingFlags & MonsterBookkeepingFlag.MB_HAS_DIED),
+            ) ?? null;
         },
         itemAtLoc: (loc) => itemAtLocFn(loc, floorItems),
         canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
@@ -294,9 +298,13 @@ export function buildPrintLocationDescriptionFn(): (x: number, y: number) => voi
         const plotChar = (ch: number, pos: { windowX: number; windowY: number }, fg: Readonly<Color>, bg: Readonly<Color>) =>
             plotCharWithColorFn(ch as DisplayGlyph, pos, fg, bg, displayBuffer);
         const msgCtx = { displayBuffer, plotCharWithColor: plotChar } as unknown as SyncMessageContext;
+        // Skip MB_HAS_DIED — matches C iterateCreatures() (B112)
         const monsterAtLoc = (loc: Pos): Creature | null => {
             if (loc.x === player.loc.x && loc.y === player.loc.y) return player;
-            return monsters.find(m => m.loc.x === loc.x && m.loc.y === loc.y) ?? null;
+            return monsters.find(
+                m => m.loc.x === loc.x && m.loc.y === loc.y &&
+                    !(m.bookkeepingFlags & MonsterBookkeepingFlag.MB_HAS_DIED),
+            ) ?? null;
         };
         const cellHasTerrainFlag = (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags);
         const cellHasTMFlag = (pos: Pos, flags: number) => cellHasTMFlagFn(pmap, pos, flags);

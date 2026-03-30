@@ -104,7 +104,7 @@ import { TURNS_FOR_FULL_REGEN, REST_KEY, SEARCH_KEY, DCOLS, DROWS } from "../typ
 import { moveCursor as moveCursorFn, nextTargetAfter as nextTargetAfterFn } from "./cursor-move.js";
 import { commitDraws, waitForEvent, getGraphicsMode, setGraphicsMode, hasGraphics } from "../platform.js";
 import { EventType, AutoTargetMode, StatusEffect, ALL_ITEMS, DungeonLayer } from "../types/enums.js";
-import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MessageFlag } from "../types/flags.js";
+import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MessageFlag, MonsterBookkeepingFlag } from "../types/flags.js";
 import type { InputContext } from "./input-keystrokes.js";
 import type { PlayerRunContext } from "../movement/player-movement.js";
 import type { Pos, RogueEvent, Color } from "../types/types.js";
@@ -143,9 +143,13 @@ function buildMiscHelpersContext(): MiscHelpersContext {
         cellHasTerrainFlagFn(pmap, pos, flags);
     const cellHasTMFlag = (pos: Pos, flags: number) =>
         cellHasTMFlagFn(pmap, pos, flags);
+    // Skip MB_HAS_DIED — matches C iterateCreatures() (B112)
     const monsterAtLoc = (loc: Pos) => {
         if (loc.x === player.loc.x && loc.y === player.loc.y) return player;
-        return monsters.find(m => m.loc.x === loc.x && m.loc.y === loc.y) ?? null;
+        return monsters.find(
+            m => m.loc.x === loc.x && m.loc.y === loc.y &&
+                !(m.bookkeepingFlags & MonsterBookkeepingFlag.MB_HAS_DIED),
+        ) ?? null;
     };
     const spawnFeature = (x: number, y: number, feat: unknown, rc: boolean, ab: boolean) =>
         spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, rc, ab);

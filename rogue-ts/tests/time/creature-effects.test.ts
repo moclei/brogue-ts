@@ -887,6 +887,41 @@ describe("decrementPlayerStatus", () => {
         decrementPlayerStatus(ctx);
         expect(ctx.player.status[StatusEffect.Stuck]).toBe(0);
     });
+
+    // B114 parity check: hallucination decrements by exactly 1 per call (matching C Time.c:1994).
+    // Initial potion duration is 300 (GlobalsBrogue.c potionTable range 300–300).
+    it("decrements hallucinating by 1 per call (B114 parity check)", () => {
+        const ctx = makeCtx();
+        ctx.player.status[StatusEffect.Hallucinating] = 300;
+        ctx.player.maxStatus[StatusEffect.Hallucinating] = 300;
+        decrementPlayerStatus(ctx);
+        expect(ctx.player.status[StatusEffect.Hallucinating]).toBe(299);
+        expect(ctx.message).not.toHaveBeenCalledWith("your hallucinations fade.", 0);
+    });
+
+    it("emits fade message and calls displayLevel when hallucination expires (B114 parity check)", () => {
+        const ctx = makeCtx();
+        ctx.player.status[StatusEffect.Hallucinating] = 1;
+        ctx.player.maxStatus[StatusEffect.Hallucinating] = 300;
+        decrementPlayerStatus(ctx);
+        expect(ctx.player.status[StatusEffect.Hallucinating]).toBe(0);
+        expect(ctx.displayLevel).toHaveBeenCalled();
+        expect(ctx.message).toHaveBeenCalledWith("your hallucinations fade.", 0);
+    });
+
+    it("hallucination lasts exactly 300 decrements from full potion (B114 parity check)", () => {
+        const ctx = makeCtx();
+        ctx.player.status[StatusEffect.Hallucinating] = 300;
+        ctx.player.maxStatus[StatusEffect.Hallucinating] = 300;
+        for (let i = 0; i < 299; i++) {
+            decrementPlayerStatus(ctx);
+        }
+        expect(ctx.player.status[StatusEffect.Hallucinating]).toBe(1);
+        expect(ctx.message).not.toHaveBeenCalledWith("your hallucinations fade.", 0);
+        decrementPlayerStatus(ctx);
+        expect(ctx.player.status[StatusEffect.Hallucinating]).toBe(0);
+        expect(ctx.message).toHaveBeenCalledWith("your hallucinations fade.", 0);
+    });
 });
 
 // =============================================================================

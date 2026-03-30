@@ -19,7 +19,7 @@ import type {
 } from "../types/types.js";
 import type { TileType, DisplayGlyph } from "../types/enums.js";
 import { DungeonLayer } from "../types/enums.js";
-import { TileFlag } from "../types/flags.js";
+import { TileFlag, MonsterBookkeepingFlag } from "../types/flags.js";
 import { cellHasTerrainFlag } from "../state/helpers.js";
 import { storeColorComponents } from "./color.js";
 import type { MonsterQueryContext } from "../monsters/monster-queries.js";
@@ -105,6 +105,13 @@ export function classifyVisibility(cellFlags: number, playbackOmniscience: boole
 /**
  * Find the creature occupying cell (x, y), checking active monsters first
  * then dormant monsters based on cell flags.
+ *
+ * Mirrors C `iterateCreatures()` which skips MB_HAS_DIED monsters. A dead
+ * monster's HAS_MONSTER flag is cleared by killCreature before MB_HAS_DIED is
+ * set, but during multi-monster turns another creature may move into the
+ * vacated cell before removeDeadMonsters() runs.  Without this filter,
+ * the dead creature is returned instead of the live one, causing the live
+ * monster to appear invisible (B112).
  */
 export function lookupCreatureAt(
     x: number,
@@ -114,7 +121,10 @@ export function lookupCreatureAt(
     dormantMonsters: readonly Creature[],
 ): Creature | null {
     if (cellFlags & TileFlag.HAS_MONSTER) {
-        return monsters.find(m => m.loc.x === x && m.loc.y === y) ?? null;
+        return monsters.find(
+            m => m.loc.x === x && m.loc.y === y &&
+                !(m.bookkeepingFlags & MonsterBookkeepingFlag.MB_HAS_DIED),
+        ) ?? null;
     }
     if (cellFlags & TileFlag.HAS_DORMANT_MONSTER) {
         return dormantMonsters.find(m => m.loc.x === x && m.loc.y === y) ?? null;

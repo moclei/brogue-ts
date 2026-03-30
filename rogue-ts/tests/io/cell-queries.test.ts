@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { TileFlag } from "../../src/types/flags.js";
+import { TileFlag, MonsterBookkeepingFlag } from "../../src/types/flags.js";
 import { TileType, DisplayGlyph, DungeonLayer, StatusEffect } from "../../src/types/enums.js";
 import type { Pcell, Creature, Color } from "../../src/types/types.js";
 import { DCOLS, DROWS } from "../../src/types/constants.js";
@@ -180,6 +180,23 @@ describe("lookupCreatureAt", () => {
     it("returns null for dormant when only HAS_MONSTER flag is set and no active match", () => {
         const dormant = makeCreature(5, 5);
         const result = lookupCreatureAt(5, 5, TileFlag.HAS_MONSTER, [], [dormant]);
+        expect(result).toBeNull();
+    });
+
+    // B112: dead monster (MB_HAS_DIED) shares cell with live monster between
+    // killCreature() and removeDeadMonsters().  lookupCreatureAt must skip
+    // dead monsters so the live one is returned instead.
+    it("skips MB_HAS_DIED monster and returns the live monster at same cell (B112)", () => {
+        const dead = makeCreature(5, 5, { bookkeepingFlags: MonsterBookkeepingFlag.MB_HAS_DIED });
+        const alive = makeCreature(5, 5);
+        // dead precedes alive in array — matches C iterateCreatures() which skips MB_HAS_DIED
+        const result = lookupCreatureAt(5, 5, TileFlag.HAS_MONSTER, [dead, alive], []);
+        expect(result).toBe(alive);
+    });
+
+    it("returns null when HAS_MONSTER is set but all candidates have MB_HAS_DIED (B112)", () => {
+        const dead = makeCreature(5, 5, { bookkeepingFlags: MonsterBookkeepingFlag.MB_HAS_DIED });
+        const result = lookupCreatureAt(5, 5, TileFlag.HAS_MONSTER, [dead], []);
         expect(result).toBeNull();
     });
 });
