@@ -84,7 +84,7 @@ import {
 } from "./globals/item-catalog.js";
 import { charmRechargeDelay as charmRechargeDelayFn } from "./power/power-tables.js";
 import type { MessageContext as SyncMessageContext } from "./io/messages-state.js";
-import { TileFlag, ButtonFlag } from "./types/flags.js";
+import { TileFlag, ButtonFlag, MonsterBookkeepingFlag } from "./types/flags.js";
 import { hitProbability, monsterDamageAdjustmentAmount } from "./combat/combat-math.js";
 import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
 import { randPercent } from "./math/rng.js";
@@ -212,7 +212,11 @@ export function buildRefreshSideBarFn(): () => void {
 
         monsterAtLoc(loc) {
             if (loc.x === player.loc.x && loc.y === player.loc.y) return player;
-            return monsters.find(m => m.loc.x === loc.x && m.loc.y === loc.y) ?? null;
+            // Skip MB_HAS_DIED — matches C iterateCreatures() (B112)
+            return monsters.find(
+                m => m.loc.x === loc.x && m.loc.y === loc.y &&
+                    !(m.bookkeepingFlags & MonsterBookkeepingFlag.MB_HAS_DIED),
+            ) ?? null;
         },
         itemAtLoc: (loc) => itemAtLocFn(loc, floorItems),
         canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),

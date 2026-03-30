@@ -59,7 +59,7 @@ Resolved items: see `docs/BACKLOG-DONE.md`.
       a mechanism to open/scroll the top message log overlay. The C game allows scrolling
       through past messages; the TS port appears to have no working entry point for this.
 
-- [ ] **B112 — Monster disappear-on-kill recurring** — After killing a monster in a group,
+- [x] **B112 — Monster disappear-on-kill recurring** — After killing a monster in a group,
       the monster behind moves into the vacated square and disappears visually, though it
       can still attack and be attacked. This has been "fixed" multiple times (B97 etc.) —
       need to audit all prior fixes and understand why the root cause keeps reasserting.

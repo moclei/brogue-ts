@@ -168,9 +168,13 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
     exposeToFire = (x, y, a) => exposeTileToFireFn(x, y, a, envCtx);
 
     // ── ItemHelperContext for keyOnTileAt / useKeyAt ───────────────────────────
+    // Skip MB_HAS_DIED monsters — matches C iterateCreatures() (B112)
     const monsterAtLoc = (loc: Pos): Creature | null => {
         if (loc.x === player.loc.x && loc.y === player.loc.y) return player;
-        return monsters.find(m => m.loc.x === loc.x && m.loc.y === loc.y) ?? null;
+        return monsters.find(
+            m => m.loc.x === loc.x && m.loc.y === loc.y &&
+                !(m.bookkeepingFlags & MonsterBookkeepingFlag.MB_HAS_DIED),
+        ) ?? null;
     };
 
     const keyOnTileAt = (loc: Pos) => {

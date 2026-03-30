@@ -64,7 +64,7 @@ import {
 import { commitDraws as commitDrawsFn, pauseAndCheckForEvent } from "./platform.js";
 import { backgroundMessageColor, itemMessageColor } from "./globals/colors.js";
 import { ItemCategory, DungeonLayer } from "./types/enums.js";
-import { TileFlag } from "./types/flags.js";
+import { TileFlag, MonsterBookkeepingFlag } from "./types/flags.js";
 import { DCOLS, DROWS } from "./types/constants.js";
 import { FP_FACTOR } from "./math/fixpt.js";
 import type { Pos, LightSource } from "./types/types.js";
@@ -155,7 +155,11 @@ export function buildUpdateVisionFn(): (refreshDisplay: boolean) => void {
                     isPosInMap: (loc: Pos) => loc.x >= 0 && loc.x < DCOLS && loc.y >= 0 && loc.y < DROWS,
                     downLoc: rogue.downLoc,
                     upLoc: rogue.upLoc,
-                    monsterAtLoc: (loc: Pos) => monsters.find(m => m.loc.x === loc.x && m.loc.y === loc.y) ?? null,
+                    // Skip MB_HAS_DIED — matches C iterateCreatures() (B112)
+                    monsterAtLoc: (loc: Pos) => monsters.find(
+                        m => m.loc.x === loc.x && m.loc.y === loc.y &&
+                            !(m.bookkeepingFlags & MonsterBookkeepingFlag.MB_HAS_DIED),
+                    ) ?? null,
                     waypointCount: 0, maxWaypointCount: 0,
                     closestWaypointIndex: () => -1, closestWaypointIndexTo: () => -1,
                     burnedTerrainFlagsAtLoc: () => 0, discoveredTerrainFlagsAtLoc: () => 0,
@@ -242,7 +246,11 @@ export function buildUpdateVisionFn(): (refreshDisplay: boolean) => void {
                     return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
                 },
             ),
-            monsterAtLoc: (loc) => monsters.find(m => m.loc.x === loc.x && m.loc.y === loc.y) ?? null,
+            // Skip MB_HAS_DIED — matches C iterateCreatures() (B112)
+            monsterAtLoc: (loc) => monsters.find(
+                m => m.loc.x === loc.x && m.loc.y === loc.y &&
+                    !(m.bookkeepingFlags & MonsterBookkeepingFlag.MB_HAS_DIED),
+            ) ?? null,
             monstersAreEnemies: (m1, m2) => monstersAreEnemiesFn(m1, m2, player, (loc, f) => cellHasTerrainFlagFn(pmap, loc, f)),
             monsterRevealed: (monst) => monsterRevealedFn(monst, player),
 
@@ -464,7 +472,11 @@ export function buildBoltLightingFns(): BoltLightingFns {
                 isPosInMap: (loc: Pos) => loc.x >= 0 && loc.x < DCOLS && loc.y >= 0 && loc.y < DROWS,
                 downLoc: rogue.downLoc,
                 upLoc: rogue.upLoc,
-                monsterAtLoc: (loc: Pos) => monsters.find(m2 => m2.loc.x === loc.x && m2.loc.y === loc.y) ?? null,
+                // Skip MB_HAS_DIED — matches C iterateCreatures() (B112)
+                monsterAtLoc: (loc: Pos) => monsters.find(
+                    m2 => m2.loc.x === loc.x && m2.loc.y === loc.y &&
+                        !(m2.bookkeepingFlags & MonsterBookkeepingFlag.MB_HAS_DIED),
+                ) ?? null,
                 waypointCount: 0, maxWaypointCount: 0,
                 closestWaypointIndex: () => -1, closestWaypointIndexTo: () => -1,
                 burnedTerrainFlagsAtLoc: () => 0, discoveredTerrainFlagsAtLoc: () => 0,
