@@ -75,7 +75,7 @@ Resolved items: see `docs/BACKLOG-DONE.md`.
 
 - [x] **B115 — Staff of obstruction** — obstructions created by the staff of obstruction behave differently than the C game - shorter life, strange spread pattern, not sure exactly. Needs comparison with C game for parity.
 
-- [ ] **B116 — Goblin mystic's spell behavior** — Goblin mystics don't cast spells. Maybe other spell-casting monsters and allies too, not sure.
+- [x] **B116 — Goblin mystic's spell behavior** — WAI. Full pipeline audit: `monstUseBolt` → `generallyValidBoltTarget` → `specificallyValidBoltTarget` → `targetEligibleForCombatBuff` → `monsterCastSpell` → `zap` all correctly wired. Goblin mystic casts `BOLT_SHIELDING` (BF_TARGET_ALLIES) at 30% chance when an unshielded teammate has line-of-sight and is in TrackingScent state. The behavior appears absent because: (1) 30% chance, (2) all conditions must align simultaneously, (3) visual feedback of shielding a non-player creature is minimal from the player's perspective. Ally spell-casters are similarly WAI — they require a directly-visible caster and a player-visible enemy in FOV before buffing. No code change needed; matches C game parity.
 
 ---
 
