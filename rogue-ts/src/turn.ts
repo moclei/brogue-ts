@@ -31,7 +31,7 @@ import {
 } from "./state/helpers.js";
 import { anyoneWantABite as anyoneWantABiteFn } from "./combat/combat-helpers.js";
 import type { CombatHelperContext } from "./combat/combat-helpers.js";
-import { allocGrid } from "./grid/grid.js";
+import { allocGrid, fillGrid, findReplaceGrid, randomLocationInGrid } from "./grid/grid.js";
 import { zeroOutGrid } from "./architect/helpers.js";
 import { FP_FACTOR } from "./math/fixpt.js";
 import { randRange, randPercent, randClumpedRange, clamp, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "./math/rng.js";
@@ -45,7 +45,7 @@ import {
     white, minersLightColor,
 } from "./globals/colors.js";
 import { DCOLS, DROWS, HUNGER_THRESHOLD, WEAK_THRESHOLD, FAINT_THRESHOLD } from "./types/constants.js";
-import { TileFlag, ItemFlag, MessageFlag, MonsterBookkeepingFlag, TerrainFlag, TerrainMechFlag, T_OBSTRUCTS_SCENT, IS_IN_MACHINE } from "./types/flags.js";
+import { TileFlag, ItemFlag, MessageFlag, MonsterBookkeepingFlag, TerrainFlag, TerrainMechFlag, T_OBSTRUCTS_SCENT, IS_IN_MACHINE, T_PATHING_BLOCKER, T_DIVIDES_LEVEL, T_HARMFUL_TERRAIN } from "./types/flags.js";
 import { refreshWaypoint as refreshWaypointFn } from "./architect/architect.js";
 import { populateGenericCostMap } from "./movement/cost-maps-fov.js";
 import { CreatureState, GameMode, ALL_ITEMS, LightType, ItemCategory, FoodKind, DungeonLayer } from "./types/enums.js";
@@ -82,7 +82,8 @@ import { layerWithFlag as layerWithFlagFn } from "./movement/map-queries.js";
 import { teleport as teleportFn, disentangle as disentangleFn } from "./monsters/monster-teleport.js";
 import { createFlare as createFlareFn } from "./light/flares.js";
 import { calculateDistances } from "./dijkstra/dijkstra.js";
-import { forbiddenFlagsForMonster as forbiddenFlagsForMonsterFn, avoidedFlagsForMonster as avoidedFlagsForMonsterFn, monsterCanSubmergeNow as monsterCanSubmergeNowFn } from "./monsters/monster-spawning.js";
+import { forbiddenFlagsForMonster as forbiddenFlagsForMonsterFn, avoidedFlagsForMonster as avoidedFlagsForMonsterFn, monsterCanSubmergeNow as monsterCanSubmergeNowFn, spawnPeriodicHorde as spawnPeriodicHordeFn } from "./monsters/monster-spawning.js";
+import { buildMonsterSpawningContext } from "./monsters.js";
 import {
     canSeeMonster as canSeeMonsterFn,
     canDirectlySeeMonster as canDirectlySeeMonsterFn,
@@ -100,6 +101,71 @@ import type { ItemTable } from "./types/types.js";
 import { buildMonstersApproachStairsCtx, monstersApproachStairs as monstersApproachStairsFn } from "./time/stairs-wiring.js";
 import { commitDraws } from "./platform.js";
 import { platformPauseIgnoringHover } from "./platform-bridge.js";
+
+// =============================================================================
+// buildGetRandomMonsterSpawnLocationFn
+// Ported from getRandomMonsterSpawnLocation() in Monsters.c:1086
+// Returns a closure that finds a spawn position far from the player.
+// =============================================================================
+
+function buildGetRandomMonsterSpawnLocationFn(
+    player: Creature,
+    pmap: Pcell[][],
+): () => Pos | null {
+    const ctf = (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags);
+    const ctmf = (pos: Pos, flags: number) => cellHasTMFlagFn(pmap, pos, flags);
+    const calcDistCtx = {
+        cellHasTerrainFlag: ctf,
+        cellHasTMFlag: ctmf,
+        monsterAtLoc: (loc: Pos): Creature | null => {
+            if (loc.x === player.loc.x && loc.y === player.loc.y) return player;
+            return null; // conservative: only block player tile
+        },
+        monsterAvoids: () => false as const,
+        discoveredTerrainFlagsAtLoc: () => 0,
+        isPlayer: (m: Creature) => m === player,
+        getCellFlags: (x: number, y: number) => pmap[x]?.[y]?.flags ?? 0,
+    };
+
+    return function getRandomMonsterSpawnLocation(): Pos | null {
+        const grid = allocGrid();
+        fillGrid(grid, 0);
+        calculateDistances(grid, player.loc.x, player.loc.y, T_DIVIDES_LEVEL, null, true, true, calcDistCtx);
+        // Zero out tiles that are blocked, occupied, or visible
+        const blockMapFlags = TileFlag.HAS_PLAYER | TileFlag.HAS_MONSTER | TileFlag.HAS_STAIRS | TileFlag.IN_FIELD_OF_VIEW;
+        for (let i = 0; i < DCOLS; i++) {
+            for (let j = 0; j < DROWS; j++) {
+                if (ctf({ x: i, y: j }, T_PATHING_BLOCKER | T_HARMFUL_TERRAIN) ||
+                    (pmap[i]?.[j]?.flags & blockMapFlags)) {
+                    grid[i][j] = 0;
+                }
+            }
+        }
+        // Only keep cells at distance >= DCOLS/2
+        findReplaceGrid(grid, -30000, Math.floor(DCOLS / 2) - 1, 0);
+        findReplaceGrid(grid, 30000, 30000, 0);
+        findReplaceGrid(grid, Math.floor(DCOLS / 2), 30000 - 1, 1);
+        let loc = randomLocationInGrid(grid, 1);
+        if (loc.x < 0 || loc.y < 0) {
+            // Fallback: any open, unoccupied tile not in a machine
+            fillGrid(grid, 1);
+            const blockMapFlagsFallback = TileFlag.HAS_PLAYER | TileFlag.HAS_MONSTER | TileFlag.HAS_STAIRS | TileFlag.IN_FIELD_OF_VIEW | IS_IN_MACHINE;
+            for (let i = 0; i < DCOLS; i++) {
+                for (let j = 0; j < DROWS; j++) {
+                    if (ctf({ x: i, y: j }, T_PATHING_BLOCKER | T_HARMFUL_TERRAIN) ||
+                        (pmap[i]?.[j]?.flags & blockMapFlagsFallback)) {
+                        grid[i][j] = 0;
+                    }
+                }
+            }
+            loc = randomLocationInGrid(grid, 1);
+        }
+        if (loc.x < 0 || loc.y < 0) {
+            return null;
+        }
+        return loc;
+    };
+}
 
 // =============================================================================
 // Minimal combat context — used by inflictDamage/killCreature/addPoison calls
@@ -298,7 +364,10 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         confirmMessages: () => {},      // stub — complex UI sequencing
         eat: () => {},                  // stub — emergency eating deferred
         playerTurnEnded: () => {},      // stub — avoid re-entry
-        spawnPeriodicHorde: () => {},   // stub — separate wiring
+        spawnPeriodicHorde: () => spawnPeriodicHordeFn(
+            buildMonsterSpawningContext(),
+            buildGetRandomMonsterSpawnLocationFn(player, pmap),
+        ),
     } as unknown as CreatureEffectsContext;
 
     function pmapAt(loc: Pos): Pcell { return pmap[loc.x][loc.y]; }

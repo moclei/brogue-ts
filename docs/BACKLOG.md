@@ -64,7 +64,7 @@ Resolved items: see `docs/BACKLOG-DONE.md`.
       can still attack and be attacked. This has been "fixed" multiple times (B97 etc.) —
       need to audit all prior fixes and understand why the root cause keeps reasserting.
 
-- [ ] **B113 — Monsters don't spawn mid-level** — No new monsters appear on levels during
+- [x] **B113 — Monsters don't spawn mid-level** — No new monsters appear on levels during
       play. The C game periodically spawns monsters as the player lingers; the TS port does
       not appear to trigger mid-level monster spawning.
 
