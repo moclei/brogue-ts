@@ -68,8 +68,10 @@ Resolved items: see `docs/BACKLOG-DONE.md`.
       play. The C game periodically spawns monsters as the player lingers; the TS port does
       not appear to trigger mid-level monster spawning.
 
-- [ ] **B114 — Hallucination duration shorter than C game?** — Hallucination seems to wear
-      off faster than in the base game. Needs comparison of status-tick logic against C source.
+- [x] **B114 — Hallucination duration shorter than C game?** — Investigated: decrement
+      logic in `decrementPlayerStatus` matches C `Time.c:1994` exactly (once per 100 game
+      ticks). Initial potion value is 300 (matching C `GlobalsBrogue.c`). No double-decrement
+      path found. WAI. Added three parity tests in `tests/time/creature-effects.test.ts`.
 
 - [ ] **B115 — Staff of obstruction** — obstructions created by the staff of obstruction behave differently than the C game - shorter life, strange spread pattern, not sure exactly. Needs comparison with C game for parity.
 
