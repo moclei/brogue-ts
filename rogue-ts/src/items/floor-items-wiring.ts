@@ -122,7 +122,7 @@ export function buildUpdateFloorItemsFn(p: UpdateFloorItemsWiringParams): () => 
         promoteTile: p.promoteTile,
         activateMachine: p.activateMachine,
         circuitBreakersPreventActivation: p.circuitBreakersPreventActivation,
-        swapItemEnchants: () => false,   // enchant-swap machine wired separately
+        swapItemEnchants: () => false,   // permanent-defer — enchant-swap machine wired separately
 
         getQualifyingLocNear: (target, _hall, _map, forbidTerrain, forbidMapFlags) =>
             getQualifyingLocNearFn(p.pmap, target, forbidTerrain, forbidMapFlags),

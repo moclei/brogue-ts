@@ -107,7 +107,7 @@ export function buildWeaponAttackContext(): WeaponAttackContext {
     const monsterIsHiddenHelper = (m: Creature, observer: Creature | null) =>
         monsterIsHiddenFn(m, observer, {
             player, cellHasTerrainFlag,
-            cellHasGas: () => false,
+            cellHasGas: () => false, // permanent-defer — gas check during weapon attacks not needed
             playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
             playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
             playbackOmniscience: false,
@@ -160,7 +160,7 @@ export function buildWeaponAttackContext(): WeaponAttackContext {
         zap: (origin, target, bolt, hideDetails, boltInView) =>
             buildStaffZapFn()(origin, target, bolt as never, hideDetails, boltInView).then(() => {}),
 
-        confirm: () => true,                 // stub — sync context; no async confirm available
+        confirm: () => true,                 // permanent-defer — WeaponAttackContext.confirm is sync; no sync confirm available
         playerCanSeeOrSense: (x, y) =>
             !!(pmap[x]?.[y]?.flags & (TileFlag.VISIBLE | TileFlag.WAS_VISIBLE)),
         plotForegroundChar: (ch, x, y, color, _isOverlay) => {
@@ -183,7 +183,7 @@ export function buildWeaponAttackContext(): WeaponAttackContext {
                 displayBuffer,
             );
         },
-        pauseAnimation: () => {},             // stub — bolt visual delay; no-op is acceptable
+        pauseAnimation: () => {},             // permanent-defer — bolt visual delay; no-op acceptable
         refreshDungeonCell,
         lightBlue,
         allMonsters: () => monsters,

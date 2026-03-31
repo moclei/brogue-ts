@@ -29,7 +29,7 @@ import type {
     DungeonFeature,
     FloorTileType,
 } from "../types/types.js";
-import { StatusEffect, CreatureState, DungeonLayer, TileType, ArmorEnchant } from "../types/enums.js";
+import { StatusEffect, CreatureState, DungeonLayer, TileType, ArmorEnchant, DungeonFeatureType } from "../types/enums.js";
 import {
     TileFlag,
     TerrainFlag,
@@ -923,6 +923,7 @@ export function applyInstantTileEffectsToCreature(
                 );
             }
             ctx.killCreature(monst, false);
+            ctx.spawnDungeonFeature(x, y, ctx.dungeonFeatureCatalog[DungeonFeatureType.DF_CREATURE_FIRE], true, false);
             ctx.refreshDungeonCell(pos);
             return;
         }

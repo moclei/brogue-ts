@@ -17,7 +17,7 @@ import { getGameState, getScentMap } from "./core.js";
 import { EventType, DisplayGlyph, ItemCategory, GameMode, ALL_ITEMS } from "./types/enums.js";
 import { DCOLS, DROWS, COLS, ROWS, MESSAGE_LINES, ACKNOWLEDGE_KEY, ESCAPE_KEY, INVENTORY_KEY } from "./types/constants.js";
 import { ItemFlag } from "./types/flags.js";
-import type { ScreenDisplayBuffer } from "./types/types.js";
+import type { ScreenDisplayBuffer, ItemTable } from "./types/types.js";
 import { featCatalog } from "./globals/feat-catalog.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
@@ -33,7 +33,7 @@ import {
 } from "./io/display.js";
 import { strLenWithoutEscapes, printString } from "./io/text.js";
 import { waitForEvent, commitDraws, pauseAndCheckForEvent } from "./platform.js";
-import { buildInventoryContext } from "./ui.js";
+import { buildInventoryContext, buildMessageContext } from "./ui.js";
 import { displayInventory } from "./io/inventory-display.js";
 import { encodeMessageColor } from "./io/color.js";
 import {
@@ -41,7 +41,13 @@ import {
     refreshDungeonCell as refreshDungeonCellFn,
     displayLevel as displayLevelFn,
 } from "./io/cell-appearance.js";
-import { identify } from "./items/item-naming.js";
+import {
+    deleteMessages as deleteMessagesFn,
+    displayMoreSignWithoutWaitingForAcknowledgment as displayMoreSignWithoutFn,
+} from "./io/messages.js";
+import type { MessageContext as SyncMessageContext } from "./io/messages-state.js";
+import { identify, isVowelish, itemName as itemNameFn, itemValue as itemValueFn } from "./items/item-naming.js";
+import { ringTable, wandTable, staffTable, charmTable } from "./globals/item-catalog.js";
 import { numberOfMatchingPackItems as packCount } from "./items/item-inventory.js";
 import { buildMessageFns, buildRefreshSideBarFn } from "./io-wiring.js";
 import type { LifecycleContext } from "./game/game-lifecycle.js";
@@ -52,12 +58,29 @@ import type { LifecycleContext } from "./game/game-lifecycle.js";
 
 export function buildLifecycleContext(): LifecycleContext {
     const { rogue, player, gameConst, pmap, tmap, monsters, dormantMonsters,
-        floorItems, packItems, displayBuffer, monsterCatalog, messageState } = getGameState();
+        floorItems, packItems, displayBuffer, monsterCatalog, messageState,
+        mutableScrollTable, mutablePotionTable } = getGameState();
     const { message, messageWithColor, confirmMessages } = buildMessageFns();
     const refreshSideBar = buildRefreshSideBarFn();
     const getCellApp = (loc: { x: number; y: number }) => getCellAppearance(
         loc, pmap, tmap, displayBuffer, rogue, player, monsters, dormantMonsters, floorItems,
         tileCatalog, dungeonFeatureCatalog, monsterCatalog, terrainRandomValues, displayDetail, getScentMap() ?? []);
+    const msgCtx = buildMessageContext() as unknown as SyncMessageContext;
+
+    // ItemNamingContext — uses mutable tables so shuffled flavor/identification state is visible
+    const namingCtx = {
+        gameConstants: gameConst,
+        depthLevel: rogue.depthLevel,
+        potionTable: mutablePotionTable as ItemTable[],
+        scrollTable: mutableScrollTable as ItemTable[],
+        wandTable: wandTable as unknown as ItemTable[],
+        staffTable: staffTable as unknown as ItemTable[],
+        ringTable: ringTable as unknown as ItemTable[],
+        charmTable: charmTable as unknown as ItemTable[],
+        playbackOmniscience: rogue.playbackOmniscience,
+        monsterClassName: (classId: number) => monsterCatalog[classId]?.monsterName ?? "creature",
+    };
+
     return {
         rogue, player, gameConst, packItems, featTable: featCatalog,
         serverMode: false, nonInteractivePlayback: false,
@@ -68,23 +91,38 @@ export function buildLifecycleContext(): LifecycleContext {
             displayLevelFn(DCOLS, DROWS, (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer));
         },
         refreshSideBar,
-        printString: () => {},
+        printString: (str, x, y, fg, bg, dbuf) => printString(str, x, y, fg, bg, dbuf ?? displayBuffer),
         plotCharToBuffer: (ch, pos, fg, bg, dbuf) => plotCharToBuffer(ch, pos.windowX, pos.windowY, fg, bg, dbuf),
-        funkyFade: () => {}, strLenWithoutEscapes: () => 0,
+        // funkyFade: the sync C-port path (gameOver/victory in game-lifecycle.ts) calls this
+        // synchronously; the real effects.ts:funkyFade requires a full EffectsContext with
+        // pathfinding deps. The death path uses runDeathScreen (async) which calls
+        // deathFadeAsync directly and never reaches this. Keep as no-op for the sync port path.
+        funkyFade: () => {},
+        strLenWithoutEscapes: (s) => strLenWithoutEscapes(s),
         mapToWindowX, mapToWindowY,
         message, messageWithColor, confirmMessages,
-        deleteMessages: () => {}, displayMoreSign: () => {},
-        displayMoreSignWithoutWaitingForAcknowledgment: () => {},
+        deleteMessages: () => deleteMessagesFn(msgCtx),
+        // displayMoreSign is async in TS but the LifecycleContext interface expects void.
+        // The real death path uses runDeathScreen which handles --MORE-- directly.
+        // Keep as no-op for the sync gameOver/victory C-port path.
+        displayMoreSign: () => {},
+        displayMoreSignWithoutWaitingForAcknowledgment: () => displayMoreSignWithoutFn(msgCtx),
         flashTemporaryAlert: () => {}, confirm: () => false,
         nextBrogueEvent(ev) { ev.eventType = EventType.MouseUp; }, // stub: exits sync event loops
         identify: (item) => identify(item, gameConst),
-        itemName: () => "", upperCase: (s) => s.toUpperCase(), itemValue: () => 0,
+        itemName: (item, includeDetails, includeArticle, _color) =>
+            itemNameFn(item, includeDetails, includeArticle, namingCtx),
+        upperCase: (s) => s.toUpperCase(), itemValue: (item) => itemValueFn(item),
         numberOfMatchingPackItems: (cat, fl, fl2, _uf) => packCount(packItems, cat, fl, fl2),
-        isVowelish: () => false, displayInventory: () => 0,
-        flushBufferToFile: () => {}, saveHighScore: () => false, printHighScores: () => {},
-        saveRecording: (_f) => {},              // stub — persistence layer not implemented
-        saveRecordingNoPrompt: (_f) => {},      // stub — persistence layer not implemented
-        notifyEvent: () => {}, saveRunHistory: () => {}, recordKeystroke: () => {},
+        isVowelish: (word) => isVowelish(word),
+        // displayInventory — interface is sync (returns number); real function is async.
+        // The real death path uses runDeathScreen which handles inventory directly.
+        // Keep as no-op for the sync game-lifecycle.ts C-port path.
+        displayInventory: () => 0,
+        flushBufferToFile: () => {}, saveHighScore: () => false, printHighScores: () => {}, // DEFER: port-v2-persistence
+        saveRecording: (_f) => {},              // DEFER: port-v2-persistence
+        saveRecordingNoPrompt: (_f) => {},      // DEFER: port-v2-persistence
+        notifyEvent: () => {}, saveRunHistory: () => {}, recordKeystroke: () => {}, // DEFER: port-v2-persistence
         refreshDungeonCell: (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer),
         encodeMessageColor,
         black, white, gray, yellow, lightBlue, badMessageColor,

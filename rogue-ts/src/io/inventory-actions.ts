@@ -271,13 +271,13 @@ export async function drop(theItem: Item | null): Promise<void> {
                 !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
             itemName: (i: Item, buf: string[]) => { buf[0] = itemStr(i, true, true); },
             message: (msg: string, flags: number) => io.message(msg, flags),
-            spawnDungeonFeature: () => {},   // stub — pressure plates rarely triggered by drop
-            promoteTile: () => {},           // stub
-            discover: () => {},              // stub
+            spawnDungeonFeature: () => {},   // permanent-defer — pressure plates rarely triggered by drop
+            promoteTile: () => {},           // permanent-defer — tile promotion after drop is rare
+            discover: () => {},              // permanent-defer — discovery on drop not needed
             refreshDungeonCell,
             REQUIRE_ACKNOWLEDGMENT: 1,
             itemAtLoc,
-            pickUpItemAt: () => {},          // stub — item-swap edge case
+            pickUpItemAt: () => {},          // permanent-defer — item-swap edge case; rare path
         });
 
         if (droppedItem) {

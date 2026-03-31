@@ -12,6 +12,8 @@
  */
 
 import { getGameState } from "./core.js";
+import { getRNG, setRNG } from "./math/rng.js";
+import { RNG } from "./types/enums.js";
 import { buildMonsterStateContext } from "./monsters.js";
 import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
@@ -72,6 +74,7 @@ export function buildCostMapFovContext(): CostMapFovContext {
         cellHasTMFlagFn(pmap, pos, flags);
 
     const monsterStateCtx = buildMonsterStateContext();
+    let cosmeticSavedRNG: RNG = RNG.Cosmetic;
 
     return {
         // ── Map state ─────────────────────────────────────────────────────────
@@ -138,9 +141,9 @@ export function buildCostMapFovContext(): CostMapFovContext {
         // ── Item category constant ────────────────────────────────────────────
         KEY: ItemCategory.KEY,
 
-        // ── Cosmetic RNG (stubs — wired in port-v2-platform) ─────────────────
-        assureCosmeticRNG: () => {},
-        restoreRNG: () => {},
+        // ── Cosmetic RNG ─────────────────────────────────────────────────────
+        assureCosmeticRNG: () => { cosmeticSavedRNG = getRNG(); setRNG(RNG.Cosmetic); },
+        restoreRNG: () => { setRNG(cosmeticSavedRNG); },
 
         // ── getLocationFlags ──────────────────────────────────────────────────
         getLocationFlags(x, y, limitToPlayerKnowledge) {

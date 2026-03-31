@@ -47,8 +47,8 @@ import { tileCatalog } from "./globals/tile-catalog.js";
 import { randRange, randPercent } from "./math/rng.js";
 import { coordinatesAreInMap, posNeighborInDirection } from "./globals/tables.js";
 import { DCOLS, DROWS, MAX_WAYPOINT_COUNT } from "./types/constants.js";
-import { TileFlag, MonsterBookkeepingFlag, TerrainFlag } from "./types/flags.js";
-import { GameMode, DungeonLayer, TileType } from "./types/enums.js";
+import { TileFlag, MonsterBookkeepingFlag, TerrainFlag, ItemFlag } from "./types/flags.js";
+import { GameMode, DungeonLayer, TileType, ArmorEnchant } from "./types/enums.js";
 import { extinguishFireOnCreature as extinguishFireOnCreatureFn } from "./time/creature-effects.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
 import { white, minersLightColor } from "./globals/colors.js";
@@ -341,7 +341,7 @@ export function buildMonsterStateContext(): MonsterStateContext {
                 minersLightColor,
                 rogue,
                 refreshDungeonCell,
-                updateVision: () => {},  // monster-only path; player handled in turn-processing.ts
+                updateVision: () => {},  // permanent-defer — monster-only path; player handled in turn-processing.ts
                 message: io.message,
             } as unknown as CreatureEffectsContext),
         makeMonsterDropItem: (monst) =>
@@ -355,7 +355,11 @@ export function buildMonsterStateContext(): MonsterStateContext {
         playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
 
         // ── Player equipment stubs ────────────────────────────────────────────
-        playerHasRespirationArmor: () => false,
+        playerHasRespirationArmor: () =>
+            !!(rogue.armor &&
+               (rogue.armor.flags & ItemFlag.ITEM_RUNIC) &&
+               (rogue.armor.flags & ItemFlag.ITEM_RUNIC_IDENTIFIED) &&
+               rogue.armor.enchant2 === ArmorEnchant.Respiration),
         mapToShore: rogue.mapToShore,
 
         // ── Flag constants ────────────────────────────────────────────────────

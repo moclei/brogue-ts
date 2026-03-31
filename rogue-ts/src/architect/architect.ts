@@ -762,26 +762,6 @@ export function initializeLevel(
     // once the full item/monster systems are ported.
 }
 
-/**
- * Restore a monster to the level (stub).
- *
- * C equivalent: `restoreMonster(monst, mapToStairs, mapToPit)` in Architect.c line 3501
- *
- * Full implementation depends on creature system, pathfinding through
- * occupied cells (nextStep), and getQualifyingPathLocNear — all not yet ported.
- */
-export function restoreMonster(): void {
-    // Stub — will be implemented when Monsters module is ported
-}
-
-/**
- * Restore items that fell from the previous depth (stub).
- *
- * C equivalent: `restoreItems()` in Architect.c line 3573
- *
- * Full implementation depends on item chain management, getQualifyingLocNear
- * with creature awareness, and placeItemAt.
- */
-export function restoreItems(): void {
-    // Stub — will be implemented when Items module is ported
-}
+// restoreMonster and restoreItems are implemented in restore.ts
+export { restoreMonster, restoreItems } from "./restore.js";
+export type { RestoreMonsterContext, RestoreItemsContext } from "./restore.js";

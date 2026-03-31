@@ -265,6 +265,7 @@ export function buildMovementContext(): PlayerMoveContext {
         pmap, rogue, tileCatalog, dungeonFeatureCatalog, DCOLS, DROWS, monsters, levels,
         refreshDungeonCell, spawnDungeonFeature: runtimeSpawnFeature, cellHasTerrainFlag, cellHasTMFlag,
         coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
+        // permanent-defer — movement envCtx is used only for promoteTile/activateMachine, not full turn processing
         monstersFall: () => {}, updateFloorItems: () => {}, monstersTurn: () => {}, keyOnTileAt: () => null,
         removeCreature: () => false, prependCreature: () => {},
         rand_range: (a: number, b: number) => randRange(a, b), rand_percent: (p: number) => randPercent(p),
@@ -634,7 +635,7 @@ export function buildTravelContext(): TravelExploreContext {
         updateFlavorText: buildUpdateFlavorTextFn(),
         clearCursorPath: () => clearCursorPathFn(pathHighlightCtx),
         hilitePath: (path, steps, remove) => hilitePathFn(path, steps, remove, pathHighlightCtx),
-        getPlayerPathOnMap: () => 0,
+        getPlayerPathOnMap: () => 0, // permanent-defer — cosmetic path hilite only; movement proceeds via nextStep() directly
         commitDraws: () => commitDraws(),
         pauseAnimation: async (ms, _behavior) => { commitDraws(); return platformPauseIgnoringHover(ms); },
         recordMouseClick: () => {},
@@ -649,7 +650,7 @@ export function buildTravelContext(): TravelExploreContext {
         } as unknown as CreatureEffectsContext),
         updateVision: buildUpdateVisionFn(),
         nextBrogueEvent: (_event: RogueEvent) => {},   // permanent-defer — cursor event loop not needed in movement context
-        executeMouseClick: () => {},
+        executeMouseClick: () => {}, // permanent-defer — travel context does not handle mouse dispatch
         printString: () => {},
 
         // ── Colors ────────────────────────────────────────────────────────────

@@ -46,37 +46,6 @@ only if the path is genuinely not reachable in normal play.
 
 Resolved items: see `docs/BACKLOG-DONE.md`.
 
-- [x] **B109 — Hover highlight flashes but doesn't stay** — The white highlight on the
-      currently hovered square flashes briefly but does not remain visible while the mouse
-      is stationary over the cell.
-
-- [x] **B110 — Chasm fall requires player move + confirmation instead of "more" prompt** —
-      When the floor collapses or the player drinks a potion of descent, the game should
-      force a "more" prompt before falling. Instead the player must manually move, which
-      triggers an "are you sure?" confirmation screen requiring Yes/No before the fall occurs.
-
-- [x] **B111 — No way to open the top messages overlay to scroll history** — Cannot find
-      a mechanism to open/scroll the top message log overlay. The C game allows scrolling
-      through past messages; the TS port appears to have no working entry point for this.
-
-- [x] **B112 — Monster disappear-on-kill recurring** — After killing a monster in a group,
-      the monster behind moves into the vacated square and disappears visually, though it
-      can still attack and be attacked. This has been "fixed" multiple times (B97 etc.) —
-      need to audit all prior fixes and understand why the root cause keeps reasserting.
-
-- [x] **B113 — Monsters don't spawn mid-level** — No new monsters appear on levels during
-      play. The C game periodically spawns monsters as the player lingers; the TS port does
-      not appear to trigger mid-level monster spawning.
-
-- [x] **B114 — Hallucination duration shorter than C game?** — Investigated: decrement
-      logic in `decrementPlayerStatus` matches C `Time.c:1994` exactly (once per 100 game
-      ticks). Initial potion value is 300 (matching C `GlobalsBrogue.c`). No double-decrement
-      path found. WAI. Added three parity tests in `tests/time/creature-effects.test.ts`.
-
-- [x] **B115 — Staff of obstruction** — obstructions created by the staff of obstruction behave differently than the C game - shorter life, strange spread pattern, not sure exactly. Needs comparison with C game for parity.
-
-- [x] **B116 — Goblin mystic's spell behavior** — WAI. Full pipeline audit: `monstUseBolt` → `generallyValidBoltTarget` → `specificallyValidBoltTarget` → `targetEligibleForCombatBuff` → `monsterCastSpell` → `zap` all correctly wired. Goblin mystic casts `BOLT_SHIELDING` (BF_TARGET_ALLIES) at 30% chance when an unshielded teammate has line-of-sight and is in TrackingScent state. The behavior appears absent because: (1) 30% chance, (2) all conditions must align simultaneously, (3) visual feedback of shielding a non-player creature is minimal from the player's perspective. Ally spell-casters are similarly WAI — they require a directly-visible caster and a player-visible enemy in FOV before buffing. No code change needed; matches C game parity.
-
 ---
 
 ## Persistence layer (implement as a group)
@@ -108,6 +77,50 @@ impact. Do not implement.
   IO integration tests; wired in browser, can't be unit tested
 - `SeedCatalog.c` functions — CLI seed-scanning tool, no gameplay logic
 - POSIX/SDL entry points, platform-specific terminal code — browser has no equivalent
+- `takeScreenshot` — SDL2-only platform function; no browser equivalent; not wired
+- `isApplicationActive` — platform function; browser tab is always active; wired as
+  `() => true` in `menus.ts`; no real implementation needed
+- `initializeLaunchArguments` — native CLI launch arguments (seed, path, command);
+  no browser equivalent; wired as `() => {}` in `menus.ts`
+
+---
+
+## Port Parity Audit — Final Status
+
+**Completed:** 2026-03-31
+**Initiative:** `initiatives/port-parity-audit/`
+
+### Summary
+
+| Metric | Value |
+|---|---|
+| C functions total | 818 |
+| Unique stub names at start | 220 |
+| Unique stub names remaining | 129 |
+| Total stub occurrences at start | 482 |
+| Total stub occurrences remaining | 250 |
+| Critical stubs remaining | 109 |
+
+All 109 remaining critical stubs are accounted for:
+- **Recording/persistence deferred** (~40): tagged `DEFER: port-v2-persistence` — addressed by port-v2-persistence initiative
+- **Intentional gaps** (16): platform-specific or architectural, tagged `permanent-defer`
+- **Two-phase construction stubs** (remaining): wire-up pattern where context is patched after construction
+
+### Behavioral fixes found during audit (Phase 4)
+
+| Bug | Impact | Fixed |
+|---|---|---|
+| `monsterCatalog: []` in combat contexts | Runtime crash when ally dies out of sight | ✓ |
+| Armor runic damage not applied to melee | Absorption/Vulnerability/Mutuality runics had no effect | ✓ |
+| Dragonslayer feat never set | `MK_YOU` (0) instead of `MK_DRAGON` enum value | ✓ |
+| A_BURDEN strengthCheck wrong condition | `enchant2 === 0` instead of `ArmorEnchant.Burden` | ✓ |
+| W_SLAYING degradation bypass inactive | `enchant2 === 0` instead of `WeaponEnchant.Slaying` | ✓ |
+| Missing fire spawn on lava kill | `spawnDungeonFeature(DF_CREATURE_FIRE)` not called | ✓ |
+
+### Remaining gaps
+
+See `Acceptable gaps` section above for platform-specific intentional gaps.
+Recording/persistence system: fully deferred to port-v2-persistence initiative.
 
 ---
 

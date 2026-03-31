@@ -52,6 +52,10 @@ import { layerWithTMFlag as layerWithTMFlagFn } from "./movement/map-queries.js"
 import { storeMemories as storeMemoriesFn } from "./movement/map-queries.js";
 import { monsterAvoids as monsterAvoidsFn } from "./monsters/monster-state.js";
 import { canPass as canPassFn } from "./monsters/monster-movement.js";
+import { buildMonsterStateContext } from "./monsters.js";
+import { buildMessageFns } from "./io-wiring.js";
+import { setRNG, getRNG } from "./math/rng.js";
+import { RNG } from "./types/enums.js";
 import { itemAtLoc as itemAtLocFn } from "./items/item-inventory.js";
 import {
     getCellAppearance,
@@ -62,6 +66,7 @@ import {
     type FlareAnimationCallbacks,
 } from "./light/flares.js";
 import { commitDraws as commitDrawsFn, pauseAndCheckForEvent } from "./platform.js";
+import { dijkstraScan as dijkstraScanFn } from "./dijkstra/dijkstra.js";
 import { backgroundMessageColor, itemMessageColor } from "./globals/colors.js";
 import { ItemCategory, DungeonLayer } from "./types/enums.js";
 import { TileFlag, MonsterBookkeepingFlag } from "./types/flags.js";
@@ -118,6 +123,9 @@ export function buildUpdateVisionFn(): (refreshDisplay: boolean) => void {
             terrainRandomValues, displayDetail, scentMap,
         );
 
+        const { messageWithColor: messageWithColorIo } = buildMessageFns();
+        let fovSavedRNG: RNG = RNG.Substantive;
+
         const fovDisplayCtx: CostMapFovContext = {
             pmap,
             tmap,
@@ -142,31 +150,7 @@ export function buildUpdateVisionFn(): (refreshDisplay: boolean) => void {
                     return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
                 },
             ),
-            monsterAvoids: (m, pos) => {
-                // Minimal MonsterStateContext for monsterAvoids
-                const minCtx = {
-                    player, monsters,
-                    rng: { randRange: () => 0, randPercent: () => false },
-                    queryCtx: {} as never,
-                    cellHasTerrainFlag: (loc: Pos, f: number) => cellHasTerrainFlagFn(pmap, loc, f),
-                    cellHasTMFlag: (loc: Pos, f: number) => cellHasTMFlagFn(pmap, loc, f),
-                    terrainFlags: (loc: Pos) => terrainFlagsFn(pmap, loc),
-                    cellFlags: (loc: Pos) => pmap[loc.x][loc.y].flags,
-                    isPosInMap: (loc: Pos) => loc.x >= 0 && loc.x < DCOLS && loc.y >= 0 && loc.y < DROWS,
-                    downLoc: rogue.downLoc,
-                    upLoc: rogue.upLoc,
-                    // Skip MB_HAS_DIED — matches C iterateCreatures() (B112)
-                    monsterAtLoc: (loc: Pos) => monsters.find(
-                        m => m.loc.x === loc.x && m.loc.y === loc.y &&
-                            !(m.bookkeepingFlags & MonsterBookkeepingFlag.MB_HAS_DIED),
-                    ) ?? null,
-                    waypointCount: 0, maxWaypointCount: 0,
-                    closestWaypointIndex: () => -1, closestWaypointIndexTo: () => -1,
-                    burnedTerrainFlagsAtLoc: () => 0, discoveredTerrainFlagsAtLoc: () => 0,
-                    passableArcCount: () => 0,
-                } as never;
-                return monsterAvoidsFn(m, pos, minCtx);
-            },
+            monsterAvoids: (m, pos) => monsterAvoidsFn(m, pos, buildMonsterStateContext()),
             canPass: (mover, blocker) => canPassFn(mover, blocker, player, (pos, flags) => cellHasTerrainFlagFn(pmap, pos, flags)),
             distanceBetween: (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)),
 
@@ -179,7 +163,7 @@ export function buildUpdateVisionFn(): (refreshDisplay: boolean) => void {
             itemAtLoc: (loc) => itemAtLocFn(loc, floorItems),
             itemName: (_item, buf) => { buf[0] = "item"; },
 
-            messageWithColor: () => {},
+            messageWithColor: (msg, color, flags) => { void messageWithColorIo(msg, color ?? backgroundMessageColor, flags); },
             refreshDungeonCell: (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer),
             discoverCell: (x, y) => {
                 pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY;
@@ -198,8 +182,8 @@ export function buildUpdateVisionFn(): (refreshDisplay: boolean) => void {
             backgroundMessageColor,
             KEY: ItemCategory.KEY,
 
-            assureCosmeticRNG: () => {},
-            restoreRNG: () => {},
+            assureCosmeticRNG: () => { fovSavedRNG = getRNG(); setRNG(RNG.Cosmetic); },
+            restoreRNG: () => { setRNG(fovSavedRNG); },
 
             getLocationFlags(x, y, limitToPlayerKnowledge) {
                 const cell = pmap[x][y];
@@ -277,8 +261,8 @@ export function buildUpdateVisionFn(): (refreshDisplay: boolean) => void {
                 for (let i = 0; i < DCOLS; i++) g[i] = new Array(DROWS).fill(0);
                 return g;
             },
-            freeGrid: () => {},
-            dijkstraScan: () => {},
+            freeGrid: () => {},              // permanent-defer — GC handles deallocation in TS
+            dijkstraScan: dijkstraScanFn,
 
             max: Math.max,
             min: Math.min,
@@ -437,6 +421,9 @@ export function buildBoltLightingFns(): BoltLightingFns {
         terrainRandomValues, displayDetail, scentMap,
     );
 
+    const { messageWithColor: boltMessageWithColorIo } = buildMessageFns();
+    let boltSavedRNG: RNG = RNG.Substantive;
+
     const fovDisplayCtx: CostMapFovContext = {
         pmap,
         tmap,
@@ -460,30 +447,7 @@ export function buildBoltLightingFns(): BoltLightingFns {
                 return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
             },
         ),
-        monsterAvoids: (m, pos) => {
-            const minCtx = {
-                player, monsters,
-                rng: { randRange: () => 0, randPercent: () => false },
-                queryCtx: {} as never,
-                cellHasTerrainFlag: (loc: Pos, f: number) => cellHasTerrainFlagFn(pmap, loc, f),
-                cellHasTMFlag: (loc: Pos, f: number) => cellHasTMFlagFn(pmap, loc, f),
-                terrainFlags: (loc: Pos) => terrainFlagsFn(pmap, loc),
-                cellFlags: (loc: Pos) => pmap[loc.x][loc.y].flags,
-                isPosInMap: (loc: Pos) => loc.x >= 0 && loc.x < DCOLS && loc.y >= 0 && loc.y < DROWS,
-                downLoc: rogue.downLoc,
-                upLoc: rogue.upLoc,
-                // Skip MB_HAS_DIED — matches C iterateCreatures() (B112)
-                monsterAtLoc: (loc: Pos) => monsters.find(
-                    m2 => m2.loc.x === loc.x && m2.loc.y === loc.y &&
-                        !(m2.bookkeepingFlags & MonsterBookkeepingFlag.MB_HAS_DIED),
-                ) ?? null,
-                waypointCount: 0, maxWaypointCount: 0,
-                closestWaypointIndex: () => -1, closestWaypointIndexTo: () => -1,
-                burnedTerrainFlagsAtLoc: () => 0, discoveredTerrainFlagsAtLoc: () => 0,
-                passableArcCount: () => 0,
-            } as never;
-            return monsterAvoidsFn(m, pos, minCtx);
-        },
+        monsterAvoids: (m, pos) => monsterAvoidsFn(m, pos, buildMonsterStateContext()),
         canPass: (mover, blocker) => canPassFn(mover, blocker, player, (pos, flags) => cellHasTerrainFlagFn(pmap, pos, flags)),
         distanceBetween: (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)),
         monsterAtLoc: (loc) =>
@@ -493,7 +457,7 @@ export function buildBoltLightingFns(): BoltLightingFns {
             !!(pmap[x]?.[y]?.flags & (TileFlag.VISIBLE | TileFlag.WAS_VISIBLE)),
         itemAtLoc: (loc) => itemAtLocFn(loc, floorItems),
         itemName: (_item, buf) => { buf[0] = "item"; },
-        messageWithColor: () => {},
+        messageWithColor: (msg, color, flags) => { void boltMessageWithColorIo(msg, color ?? backgroundMessageColor, flags); },
         refreshDungeonCell: (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer),
         discoverCell: (x, y) => {
             pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY;
@@ -510,8 +474,8 @@ export function buildBoltLightingFns(): BoltLightingFns {
         itemMessageColor,
         backgroundMessageColor,
         KEY: ItemCategory.KEY,
-        assureCosmeticRNG: () => {},
-        restoreRNG: () => {},
+        assureCosmeticRNG: () => { boltSavedRNG = getRNG(); setRNG(RNG.Cosmetic); },
+        restoreRNG: () => { setRNG(boltSavedRNG); },
         getLocationFlags(x, y, limitToPlayerKnowledge) {
             const cell = pmap[x][y];
             if (limitToPlayerKnowledge && (cell.flags & (TileFlag.DISCOVERED | TileFlag.MAGIC_MAPPED)) && !(pmap[x][y].flags & TileFlag.VISIBLE)) {

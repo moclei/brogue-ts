@@ -11,17 +11,21 @@
  */
 
 import { getGameState } from "../core.js";
-import { cellHasTerrainFlag as cellHasTerrainFlagFn, terrainFlags as terrainFlagsFn } from "../state/helpers.js";
+import { cellHasTerrainFlag as cellHasTerrainFlagFn, cellHasTMFlag as cellHasTMFlagFn, terrainFlags as terrainFlagsFn } from "../state/helpers.js";
 import { monstersApproachStairs, type MiscHelpersContext } from "./misc-helpers.js";
 import { buildMessageFns, buildRefreshDungeonCellFn } from "../io-wiring.js";
 import { avoidedFlagsForMonster as avoidedFlagsForMonsterFn } from "../monsters/monster-spawning.js";
 import { getQualifyingPathLocNear as getQualifyingPathLocNearFn } from "../movement/path-qualifying.js";
+import { restoreMonster as restoreMonsterFn, getQualifyingLocNear as getQualifyingLocNearFn } from "../architect/architect.js";
 import { INVALID_POS } from "../types/types.js";
 import { badMessageColor, red } from "../globals/colors.js";
 import { randClumpedRange, randRange } from "../math/rng.js";
 import { CreatureState, DungeonLayer } from "../types/enums.js";
-import { TileFlag } from "../types/flags.js";
+import { TileFlag, TerrainFlag, TerrainMechFlag, IS_IN_MACHINE } from "../types/flags.js";
 import { canSeeMonster as canSeeMonsterFn } from "../monsters/monster-queries.js";
+import { inflictDamage as inflictDamageFn, killCreature as killCreatureFn } from "../combat/combat-damage.js";
+import { buildMinimalCombatContext } from "../turn-combat-helpers.js";
+import { nbDirs, coordinatesAreInMap } from "../globals/tables.js";
 import type { Creature, Pos, Pcell } from "../types/types.js";
 
 export { monstersApproachStairs };
@@ -60,11 +64,40 @@ export function buildMonstersApproachStairsCtx(): MiscHelpersContext {
                 pmap,
                 cellHasTerrainFlag: _ctf,
                 cellFlags: (pos: Pos) => pmap[pos.x]?.[pos.y]?.flags ?? 0,
-                getQualifyingLocNear: () => null,
+                getQualifyingLocNear: (t, _ha, forbTerrF, forbMapF) =>
+                    getQualifyingLocNearFn(pmap, t, forbTerrF, forbMapF),
                 rng: { randRange },
             });
         },
-        restoreMonster: () => {},
+        restoreMonster: (monst: Creature) => restoreMonsterFn(monst, null, null, {
+            pmap, monsters, nbDirs, coordinatesAreInMap,
+            cellHasTMFlag: (pos: Pos, flags: number) => cellHasTMFlagFn(pmap, pos, flags),
+            cellHasTerrainFlag: _ctf,
+            avoidedFlagsForMonster: (info: Creature["info"]) => avoidedFlagsForMonsterFn(info),
+            knownToPlayerAsPassableOrSecretDoor: (pos: Pos) => {
+                const cell = pmap[pos.x]?.[pos.y];
+                if (!cell) return false;
+                const discovered = !!(cell.flags & (TileFlag.DISCOVERED | TileFlag.MAGIC_MAPPED));
+                const visible = !!(cell.flags & TileFlag.VISIBLE);
+                const obstructs = (discovered && !visible)
+                    ? !!(cell.rememberedTerrainFlags & TerrainFlag.T_OBSTRUCTS_PASSABILITY)
+                    : _ctf(pos, TerrainFlag.T_OBSTRUCTS_PASSABILITY);
+                return !obstructs || cellHasTMFlagFn(pmap, pos, TerrainMechFlag.TM_IS_SECRET);
+            },
+            getQualifyingPathLocNear: (loc, diags, bTerrain, bMap, fTerrain, fMap, forbid) =>
+                getQualifyingPathLocNearFn(loc, diags, bTerrain, bMap, fTerrain, fMap, forbid, {
+                    pmap,
+                    cellHasTerrainFlag: _ctf,
+                    cellFlags: (pos: Pos) => pmap[pos.x]?.[pos.y]?.flags ?? 0,
+                    getQualifyingLocNear: (t, _ha, forbTerrF, forbMapF, _det) =>
+                        getQualifyingLocNearFn(pmap, t, forbTerrF, forbMapF),
+                    rng: { randRange },
+                }),
+            HAS_PLAYER: TileFlag.HAS_PLAYER,
+            HAS_MONSTER: TileFlag.HAS_MONSTER,
+            HAS_STAIRS: TileFlag.HAS_STAIRS,
+            IS_IN_MACHINE,
+        }),
         monsterName: (m: Creature, article: boolean) =>
             m === player ? "you" : `${article ? "the " : ""}${m.info.monsterName}`,
         canSeeMonster: (m: Creature) => canSeeMonsterFn(m, mqCtx),
@@ -72,8 +105,16 @@ export function buildMonstersApproachStairsCtx(): MiscHelpersContext {
         messageWithColor: (msg: string, c: unknown, f: number) => io.messageWithColor(msg, c as never, f),
         messageColorFromVictim: (m: Creature) =>
             m === player || m.creatureState === CreatureState.Ally ? badMessageColor : badMessageColor,
-        inflictDamage: () => false,  // pit falls only — stub
-        killCreature: () => {},      // pit falls only — stub
+        inflictDamage: (attacker: Creature | null, defender: Creature, damage: number, color: unknown, ignoreArmor: boolean) => {
+            const { floorItems } = getGameState();
+            const ctx = buildMinimalCombatContext(player, rogue, pmap, monsters, floorItems);
+            return inflictDamageFn(attacker, defender, damage, color as never, ignoreArmor, ctx);
+        },
+        killCreature: (monst: Creature, maintainCorpse: boolean) => {
+            const { floorItems } = getGameState();
+            const ctx = buildMinimalCombatContext(player, rogue, pmap, monsters, floorItems);
+            void killCreatureFn(monst, maintainCorpse, ctx);
+        },
         red,
         randClumpedRange,
         terrainFlags: (pos: Pos) => terrainFlagsFn(pmap, pos),
