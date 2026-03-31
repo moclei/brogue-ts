@@ -75,7 +75,7 @@ reference a function that doesn't exist yet. Skip all 18 defer-tier functions
       Read C source for each, implement in `rogue-ts/src/`, wire into relevant builders.
       Run tests. Commit.
 
-- [ ] Port remaining medium-effort needs-porting functions.
+- [x] Port remaining medium-effort needs-porting functions.
       Monsters: `dormantMonsterAtLoc` (2 callers), `findAlternativeHomeFor` (1 caller).
       UI: `initializeButtonState` (3 callers — `buttonInputLoop`, `initializeMenu`,
       `initializeMenuButtons`).

@@ -32,9 +32,9 @@ import { monsterText } from "./globals/monster-text.js";
 import { DCOLS, DROWS } from "./types/constants.js";
 import {
     TileFlag, MonsterBookkeepingFlag, MonsterBehaviorFlag, TerrainFlag,
-    TerrainMechFlag, T_HARMFUL_TERRAIN,
+    TerrainMechFlag, T_HARMFUL_TERRAIN, ItemFlag,
 } from "./types/flags.js";
-import { BoltEffect, CreatureState, DungeonLayer, StatusEffect, MonsterType } from "./types/enums.js";
+import { BoltEffect, CreatureState, DungeonLayer, StatusEffect, MonsterType, ArmorEnchant } from "./types/enums.js";
 import { openPathBetween as openPathBetweenFn } from "./items/bolt-geometry.js";
 import {
     monstersAreTeammates as monstersAreTeammatesFn,
@@ -245,7 +245,11 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         messageWithColor: (text, flags) => io.message(text, flags),
         combatMessage: (text) => io.combatMessage(text, null),
         playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-        playerHasRespirationArmor: () => false,
+        playerHasRespirationArmor: () =>
+            !!(rogue.armor &&
+               (rogue.armor.flags & ItemFlag.ITEM_RUNIC) &&
+               (rogue.armor.flags & ItemFlag.ITEM_RUNIC_IDENTIFIED) &&
+               rogue.armor.enchant2 === ArmorEnchant.Respiration),
         mapToShore: rogue.mapToShore,
         PRESSURE_PLATE_DEPRESSED: TileFlag.PRESSURE_PLATE_DEPRESSED,
         HAS_MONSTER: TileFlag.HAS_MONSTER,

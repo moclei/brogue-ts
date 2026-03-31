@@ -218,9 +218,13 @@ function buildMinimalCombatContext(
         deleteItem: deleteItemFn,
         makeMonsterDropItem: (monst: Creature) =>
             doMakeMonsterDropItem(monst, pmap, floorItems, (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags), refreshDungeonCell),
-        clearLastTarget: () => {},                  // stub
-        clearYendorWarden: () => {},                // stub
-        clearCellMonsterFlag: () => {},             // stub
+        clearLastTarget(monst) { if (rogue.lastTarget === monst) rogue.lastTarget = null; },
+        clearYendorWarden(monst) { if (rogue.yendorWarden === monst) rogue.yendorWarden = null; },
+        clearCellMonsterFlag(loc, isDormant) {
+            if (coordinatesAreInMap(loc.x, loc.y)) {
+                pmap[loc.x][loc.y].flags &= ~(isDormant ? TileFlag.HAS_DORMANT_MONSTER : TileFlag.HAS_MONSTER);
+            }
+        },
         prependCreature: () => {},                  // stub
         applyInstantTileEffectsToCreature: () => {},// stub
         fadeInMonster: buildFadeInMonsterFn(),

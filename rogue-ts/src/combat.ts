@@ -318,7 +318,11 @@ export function buildCombatAttackContext(): RunicContext {
         HAS_PLAYER: TileFlag.HAS_PLAYER,
         PRESSURE_PLATE_DEPRESSED: TileFlag.PRESSURE_PLATE_DEPRESSED,
         mapToShore: rogue.mapToShore,
-        playerHasRespirationArmor: () => false,
+        playerHasRespirationArmor: () =>
+            !!(rogue.armor &&
+               (rogue.armor.flags & ItemFlag.ITEM_RUNIC) &&
+               (rogue.armor.flags & ItemFlag.ITEM_RUNIC_IDENTIFIED) &&
+               rogue.armor.enchant2 === ArmorEnchant.Respiration),
         burnedTerrainFlagsAtLoc: (p: Pos) => burnedTerrainFlagsAtLocFn(pmap, p),
     } as unknown as MonsterStateContext;
 
@@ -459,10 +463,10 @@ export function buildCombatAttackContext(): RunicContext {
         strengthCheck: doStrengthCheck,
         itemMessageColor,
 
-        // ── Feat tracking stubs ───────────────────────────────────────────────
+        // ── Feat tracking ─────────────────────────────────────────────────────
         handlePaladinFeat: () => {}, // wired below — needs splitHelperCtx
-        setPureMageFeatFailed: () => {},
-        setDragonslayerFeatAchieved: () => {},
+        setPureMageFeatFailed() { rogue.featRecord[FeatType.PureMage] = false; },
+        setDragonslayerFeatAchieved() { rogue.featRecord[FeatType.DragonSlayer] = true; },
         reportHeardCombat() {
             const already = rogue.heardCombatThisTurn;
             rogue.heardCombatThisTurn = true;
@@ -476,7 +480,7 @@ export function buildCombatAttackContext(): RunicContext {
         gameOverFromMonster(monName) { gameOver(`Killed by a ${monName}`); },
         unAlly: (monst) => unAllyFn(monst),
         alertMonster: (monst) => alertMonsterFn(monst, player),
-        armorRunicIdentified: () => false,
+        armorRunicIdentified: () => !!(rogue.armor && (rogue.armor.flags & ItemFlag.ITEM_RUNIC_IDENTIFIED)),
         autoIdentify: () => {},
         createFlare: () => {},
         cloneMonster: (monst, selfClone, maintainCorpse) => cloneMonsterFn(monst, selfClone, maintainCorpse, cloneMonsterCtx),

@@ -249,9 +249,13 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
         setCreaturesWillFlash: () => { (rogue as any).creaturesWillFlashThisTurn = true; },
         deleteItem: deleteItemFn,
         makeMonsterDropItem: () => {},
-        clearLastTarget: () => {},
-        clearYendorWarden: () => {},
-        clearCellMonsterFlag: () => {},
+        clearLastTarget(monst) { if (rogue.lastTarget === monst) rogue.lastTarget = null; },
+        clearYendorWarden(monst) { if (rogue.yendorWarden === monst) rogue.yendorWarden = null; },
+        clearCellMonsterFlag(loc, isDormant) {
+            if (coordinatesAreInMap(loc.x, loc.y)) {
+                pmap[loc.x][loc.y].flags &= ~(isDormant ? TileFlag.HAS_DORMANT_MONSTER : TileFlag.HAS_MONSTER);
+            }
+        },
         prependCreature: () => {},
         applyInstantTileEffectsToCreature: () => {},  // no recursion in this sub-ctx
         fadeInMonster: (monst: Creature) => {
