@@ -116,6 +116,45 @@ impact. Do not implement.
 
 ---
 
+## Port Parity Audit — Final Status
+
+**Completed:** 2026-03-31
+**Initiative:** `initiatives/port-parity-audit/`
+
+### Summary
+
+| Metric | Value |
+|---|---|
+| C functions total | 818 |
+| Unique stub names at start | 220 |
+| Unique stub names remaining | 129 |
+| Total stub occurrences at start | 482 |
+| Total stub occurrences remaining | 250 |
+| Critical stubs remaining | 109 |
+
+All 109 remaining critical stubs are accounted for:
+- **Recording/persistence deferred** (~40): tagged `DEFER: port-v2-persistence` — addressed by port-v2-persistence initiative
+- **Intentional gaps** (16): platform-specific or architectural, tagged `permanent-defer`
+- **Two-phase construction stubs** (remaining): wire-up pattern where context is patched after construction
+
+### Behavioral fixes found during audit (Phase 4)
+
+| Bug | Impact | Fixed |
+|---|---|---|
+| `monsterCatalog: []` in combat contexts | Runtime crash when ally dies out of sight | ✓ |
+| Armor runic damage not applied to melee | Absorption/Vulnerability/Mutuality runics had no effect | ✓ |
+| Dragonslayer feat never set | `MK_YOU` (0) instead of `MK_DRAGON` enum value | ✓ |
+| A_BURDEN strengthCheck wrong condition | `enchant2 === 0` instead of `ArmorEnchant.Burden` | ✓ |
+| W_SLAYING degradation bypass inactive | `enchant2 === 0` instead of `WeaponEnchant.Slaying` | ✓ |
+| Missing fire spawn on lava kill | `spawnDungeonFeature(DF_CREATURE_FIRE)` not called | ✓ |
+
+### Remaining gaps
+
+See `Acceptable gaps` section above for platform-specific intentional gaps.
+Recording/persistence system: fully deferred to port-v2-persistence initiative.
+
+---
+
 ## Stub audit
 
 Full list of context-property stubs (CodeQL-generated, 2026-03-16) lives in
