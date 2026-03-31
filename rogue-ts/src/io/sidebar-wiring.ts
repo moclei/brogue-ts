@@ -41,7 +41,7 @@ import {
     describeHallucinatedItem as describeHallucinatedItemFn,
     type SidebarContext,
 } from "./sidebar-player.js";
-import { displayedArmorValue } from "../items/item-usage.js";
+import { displayedArmorValue, estimatedArmorValue } from "../items/item-usage.js";
 import { itemAtLoc as itemAtLocFn } from "../items/item-inventory.js";
 import { itemName as itemNameFn } from "../items/item-naming.js";
 import {
@@ -209,7 +209,13 @@ export function buildSidebarContext(): SidebarContext {
                 weapon: rogue.weapon,
                 strength: rogue.strength,
             } as unknown as import("../items/item-usage.js").EquipmentState),
-        estimatedArmorValue: () => 0,
+        estimatedArmorValue: () =>
+            estimatedArmorValue({
+                player,
+                armor: rogue.armor,
+                weapon: rogue.weapon,
+                strength: rogue.strength,
+            } as unknown as import("../items/item-usage.js").EquipmentState),
 
         cellHasTMFlag,
         layerWithTMFlag: (x, y, flag) => layerWithTMFlagFn(pmap, x, y, flag),

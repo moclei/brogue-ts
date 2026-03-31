@@ -77,7 +77,7 @@ import {
     printProgressBar,
     describeHallucinatedItem as describeHallucinatedItemFn,
 } from "./io/sidebar-player.js";
-import { displayedArmorValue } from "./items/item-usage.js";
+import { displayedArmorValue, estimatedArmorValue } from "./items/item-usage.js";
 import { itemAtLoc as itemAtLocFn, numberOfMatchingPackItems as numberOfMatchingPackItemsFn } from "./items/item-inventory.js";
 import {
     wandTable, staffTable, ringTable, charmTable, charmEffectTable,
@@ -251,7 +251,13 @@ export function buildRefreshSideBarFn(): () => void {
                 weapon: rogue.weapon,
                 strength: rogue.strength,
             } as unknown as import("./items/item-usage.js").EquipmentState),
-        estimatedArmorValue: () => 0,           // stub — Phase 5
+        estimatedArmorValue: () =>
+            estimatedArmorValue({
+                player,
+                armor: rogue.armor,
+                weapon: rogue.weapon,
+                strength: rogue.strength,
+            } as unknown as import("./items/item-usage.js").EquipmentState),
 
         cellHasTMFlag,
         layerWithTMFlag: (x, y, flag) => layerWithTMFlagFn(pmap, x, y, flag),

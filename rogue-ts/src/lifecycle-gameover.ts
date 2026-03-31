@@ -33,7 +33,7 @@ import {
 } from "./io/display.js";
 import { strLenWithoutEscapes, printString } from "./io/text.js";
 import { waitForEvent, commitDraws, pauseAndCheckForEvent } from "./platform.js";
-import { buildInventoryContext } from "./ui.js";
+import { buildInventoryContext, buildMessageContext } from "./ui.js";
 import { displayInventory } from "./io/inventory-display.js";
 import { encodeMessageColor } from "./io/color.js";
 import {
@@ -41,6 +41,11 @@ import {
     refreshDungeonCell as refreshDungeonCellFn,
     displayLevel as displayLevelFn,
 } from "./io/cell-appearance.js";
+import {
+    deleteMessages as deleteMessagesFn,
+    displayMoreSignWithoutWaitingForAcknowledgment as displayMoreSignWithoutFn,
+} from "./io/messages.js";
+import type { MessageContext as SyncMessageContext } from "./io/messages-state.js";
 import { identify } from "./items/item-naming.js";
 import { numberOfMatchingPackItems as packCount } from "./items/item-inventory.js";
 import { buildMessageFns, buildRefreshSideBarFn } from "./io-wiring.js";
@@ -58,6 +63,7 @@ export function buildLifecycleContext(): LifecycleContext {
     const getCellApp = (loc: { x: number; y: number }) => getCellAppearance(
         loc, pmap, tmap, displayBuffer, rogue, player, monsters, dormantMonsters, floorItems,
         tileCatalog, dungeonFeatureCatalog, monsterCatalog, terrainRandomValues, displayDetail, getScentMap() ?? []);
+    const msgCtx = buildMessageContext() as unknown as SyncMessageContext;
     return {
         rogue, player, gameConst, packItems, featTable: featCatalog,
         serverMode: false, nonInteractivePlayback: false,
@@ -68,13 +74,22 @@ export function buildLifecycleContext(): LifecycleContext {
             displayLevelFn(DCOLS, DROWS, (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer));
         },
         refreshSideBar,
-        printString: () => {},
+        printString: (str, x, y, fg, bg, dbuf) => printString(str, x, y, fg, bg, dbuf ?? displayBuffer),
         plotCharToBuffer: (ch, pos, fg, bg, dbuf) => plotCharToBuffer(ch, pos.windowX, pos.windowY, fg, bg, dbuf),
-        funkyFade: () => {}, strLenWithoutEscapes: () => 0,
+        // funkyFade: the sync C-port path (gameOver/victory in game-lifecycle.ts) calls this
+        // synchronously; the real effects.ts:funkyFade requires a full EffectsContext with
+        // pathfinding deps. The death path uses runDeathScreen (async) which calls
+        // deathFadeAsync directly and never reaches this. Keep as no-op for the sync port path.
+        funkyFade: () => {},
+        strLenWithoutEscapes: (s) => strLenWithoutEscapes(s),
         mapToWindowX, mapToWindowY,
         message, messageWithColor, confirmMessages,
-        deleteMessages: () => {}, displayMoreSign: () => {},
-        displayMoreSignWithoutWaitingForAcknowledgment: () => {},
+        deleteMessages: () => deleteMessagesFn(msgCtx),
+        // displayMoreSign is async in TS but the LifecycleContext interface expects void.
+        // The real death path uses runDeathScreen which handles --MORE-- directly.
+        // Keep as no-op for the sync gameOver/victory C-port path.
+        displayMoreSign: () => {},
+        displayMoreSignWithoutWaitingForAcknowledgment: () => displayMoreSignWithoutFn(msgCtx),
         flashTemporaryAlert: () => {}, confirm: () => false,
         nextBrogueEvent(ev) { ev.eventType = EventType.MouseUp; }, // stub: exits sync event loops
         identify: (item) => identify(item, gameConst),

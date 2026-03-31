@@ -254,6 +254,24 @@ export function displayedArmorValue(state: EquipmentState): number {
 }
 
 // =============================================================================
+// estimatedArmorValue — from IO.c:4475
+// =============================================================================
+
+/**
+ * Estimate the armor value shown while the armor is still being donned.
+ * Subtracts the remaining donning turns from the unenchanted armor value.
+ * Returns at least 0.
+ *
+ * C: static short estimatedArmorValue()
+ */
+export function estimatedArmorValue(state: EquipmentState): number {
+    if (!state.armor) return 0;
+    const base = armorValueIfUnenchanted(state.armor, state.strength, state.player.weaknessAmount);
+    const donning = state.player.status[StatusEffect.Donning] ?? 0;
+    return Math.max(0, base - donning);
+}
+
+// =============================================================================
 // recalculateEquipmentBonuses — from Items.c:7687
 // =============================================================================
 

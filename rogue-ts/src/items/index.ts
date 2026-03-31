@@ -90,6 +90,7 @@ export {
     enchantMagnitude,
     armorValueIfUnenchanted,
     displayedArmorValue,
+    estimatedArmorValue,
     recalculateEquipmentBonuses,
     updateRingBonuses,
     updateEncumbrance,

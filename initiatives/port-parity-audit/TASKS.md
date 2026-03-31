@@ -43,7 +43,7 @@ reference a function that doesn't exist yet. Skip all 18 defer-tier functions
       builders (primarily `buildCombatAttackContext`, `buildMonsterZapFn`,
       `buildThrowCommandFn`). Run tests. Commit.
 
-- [ ] Port io system needs-porting functions: `displayMoreSign` (5 callers),
+- [x] Port io system needs-porting functions: `displayMoreSign` (5 callers),
       `printProgressBar` (4 callers), `hideCursor` (4 callers),
       `flashMessage` (2 callers), `funkyFade` (2 callers), `deleteMessages` (2 callers),
       `executeMouseClick` (2 callers), `getPlayerPathOnMap` (2 callers),
