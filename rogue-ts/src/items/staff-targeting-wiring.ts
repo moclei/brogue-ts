@@ -39,7 +39,20 @@ import {
 } from "../io-wiring.js";
 import { buildRefreshSideBarWithFocusFn, buildPrintLocationDescriptionFn } from "../io/sidebar-wiring.js";
 import { buildBoltLightingFns } from "../vision-wiring.js";
-import { plotCharWithColor as plotCharWithColorFn, mapToWindow } from "../io/display.js";
+import {
+    plotCharWithColor as plotCharWithColorFn,
+    mapToWindow,
+    createScreenDisplayBuffer as createScreenDisplayBufferFn,
+    clearDisplayBuffer as clearDisplayBufferFn,
+    saveDisplayBuffer as saveDisplayBufferFn,
+    restoreDisplayBuffer as restoreDisplayBufferFn,
+    applyOverlay as applyOverlayFn,
+} from "../io/display.js";
+import {
+    drawButtonsInState as drawButtonsInStateFn,
+    processButtonInput as processButtonInputFn,
+} from "../io/buttons.js";
+import { buildButtonContext, buildMessageContext } from "../ui.js";
 import { black } from "../globals/colors.js";
 import { boltCatalog } from "../globals/bolt-catalog.js";
 import { mutationCatalog } from "../globals/mutation-catalog.js";
@@ -52,6 +65,8 @@ import {
 import { negationWillAffectMonster as negationWillAffectMonsterFn } from "./bolt-helpers.js";
 import { distanceBetween } from "../monsters/monster-state.js";
 import { coordinatesAreInMap, mapToWindowX, windowToMapX, windowToMapY } from "../globals/tables.js";
+import { displayCombatText as displayCombatTextFn } from "../io/messages.js";
+import type { MessageContext as SyncMessageContext } from "../io/messages-state.js";
 import { TileFlag, TerrainFlag } from "../types/flags.js";
 import { AutoTargetMode, BoltType } from "../types/enums.js";
 import type { Item, Pos, RogueEvent, Creature } from "../types/types.js";
@@ -83,7 +98,7 @@ export function buildMonsterAtLocFn(player: Creature, monsters: Creature[]) {
  */
 export function buildStaffChooseTargetFn() {
     return async (maxDistance: number, autoTargetMode: number, theItem: Item) => {
-        const { rogue, player, pmap, monsters, floorItems } = getGameState();
+        const { rogue, player, pmap, monsters, floorItems, displayBuffer } = getGameState();
         const monsterAtLoc = buildMonsterAtLocFn(player, monsters);
         const cellHasTerrainFlag = (loc: Pos, flags: number) =>
             cellHasTerrainFlagFn(pmap, loc, flags);
@@ -123,9 +138,10 @@ export function buildStaffChooseTargetFn() {
             hiliteCell: buildHiliteCellFn(),
             refreshDungeonCell: buildRefreshDungeonCellFn(),
             playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-            monsterIsHidden: () => false,
+            monsterIsHidden: () => false,  // permanent-defer — targeting cursor; all visible monsters are valid targets
             cellHasTerrainFlag,
-            playerCanSeeOrSense: () => false,
+            playerCanSeeOrSense: (x: number, y: number) =>
+                !!(pmap[x]?.[y]?.flags & (TileFlag.VISIBLE | TileFlag.WAS_VISIBLE)),
             cellHasTMFlag,
             refreshSideBar: refreshSideBarFn,
             printLocationDescription: printLocDescFn,
@@ -144,22 +160,27 @@ export function buildStaffChooseTargetFn() {
                     ca.value = true;
                     return true;
                 }
+                const btnCtx = buildButtonContext();
                 const movCtx: MoveCursorContext = {
                     rogue,
                     nextKeyOrMouseEvent: () => event,
-                    createScreenDisplayBuffer: () => ({ cells: [] } as never),
-                    clearDisplayBuffer: () => {},
-                    saveDisplayBuffer: () => ({ savedScreen: {} } as never),
-                    overlayDisplayBuffer: () => {},
-                    restoreDisplayBuffer: () => {},
-                    drawButtonsInState: () => {},
-                    processButtonInput: async () => -1,
-                    refreshSideBar: () => {},
+                    createScreenDisplayBuffer: () => createScreenDisplayBufferFn(),
+                    clearDisplayBuffer: (dbuf) => clearDisplayBufferFn(dbuf),
+                    saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
+                    overlayDisplayBuffer: (dbuf) => { applyOverlayFn(displayBuffer, dbuf); },
+                    restoreDisplayBuffer: (rbuf) => restoreDisplayBufferFn(displayBuffer, rbuf),
+                    drawButtonsInState: (st, dbuf) => drawButtonsInStateFn(st, dbuf, btnCtx),
+                    processButtonInput: async (st, ev) => {
+                        const r = await processButtonInputFn(st, ev, btnCtx);
+                        return r.chosenButton;
+                    },
+                    refreshSideBar: refreshSideBarFn,
                     pmapFlagsAt: (loc: Pos) => pmap[loc.x]?.[loc.y]?.flags ?? 0,
                     canSeeMonster: (m: Creature) =>
                         !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
                     monsterAtLoc,
-                    playerCanSeeOrSense: () => false,
+                    playerCanSeeOrSense: (x: number, y: number) =>
+                        !!(pmap[x]?.[y]?.flags & (TileFlag.VISIBLE | TileFlag.WAS_VISIBLE)),
                     cellHasTMFlag,
                     coordinatesAreInMap,
                     isPosInMap: (loc: Pos) => coordinatesAreInMap(loc.x, loc.y),
@@ -226,7 +247,7 @@ export function buildStaffZapRenderContext(): ZapRenderContext {
     const refreshDungeonCell = buildRefreshDungeonCellFn();
     return {
         refreshSideBar: () => refreshSideBar(),
-        displayCombatText: () => {},
+        displayCombatText: () => { void displayCombatTextFn(buildMessageContext() as unknown as SyncMessageContext); },
         refreshDungeonCell: (loc) => refreshDungeonCell(loc),
         backUpLighting: () => lighting.backUpLighting(),
         restoreLighting: () => lighting.restoreLighting(),

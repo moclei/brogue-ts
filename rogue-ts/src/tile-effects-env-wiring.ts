@@ -57,6 +57,7 @@ export function buildExposeTileToFireFn(): (x: number, y: number, alwaysIgnite: 
         refreshDungeonCell, spawnDungeonFeature: spawnFeature,
         cellHasTerrainFlag, cellHasTMFlag,
         coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
+        // permanent-defer — tile-exposure bolt path does not recurse into full turn pipeline
         monstersFall: () => {}, updateFloorItems: () => {}, monstersTurn: () => {}, keyOnTileAt: () => null,
         removeCreature: () => false, prependCreature: () => {},
         rand_range: randRange, rand_percent: randPercent,
@@ -97,6 +98,7 @@ export function buildExposeTileToElectricityFn(): (x: number, y: number) => bool
         refreshDungeonCell, spawnDungeonFeature: spawnFeature,
         cellHasTerrainFlag, cellHasTMFlag,
         coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
+        // permanent-defer — tile-exposure bolt path does not recurse into full turn pipeline
         monstersFall: () => {}, updateFloorItems: () => {}, monstersTurn: () => {}, keyOnTileAt: () => null,
         removeCreature: () => false, prependCreature: () => {},
         rand_range: randRange, rand_percent: randPercent,

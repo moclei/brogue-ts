@@ -88,6 +88,7 @@ import { TileFlag, ButtonFlag, MonsterBookkeepingFlag } from "./types/flags.js";
 import { hitProbability, monsterDamageAdjustmentAmount } from "./combat/combat-math.js";
 import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
 import { randPercent } from "./math/rng.js";
+import { playerInDarkness as playerInDarknessFn } from "./light/light.js";
 import { encodeMessageColor, applyColorAugment, separateColors } from "./io/color.js";
 import { buildResolvePronounEscapesFn } from "./io/text.js";
 import { boltCatalog } from "./globals/bolt-catalog.js";
@@ -175,7 +176,7 @@ export function buildRefreshSideBarFn(): () => void {
     const mqCtx = {
         player,
         cellHasTerrainFlag,
-        cellHasGas: () => false as const,
+        cellHasGas: () => false as const, // permanent-defer — gas layer not needed for visibility checks in sidebar/IO context
         playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
         playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
         playbackOmniscience: rogue.playbackOmniscience,
@@ -226,7 +227,7 @@ export function buildRefreshSideBarFn(): () => void {
             !!(pmap[x]?.[y]?.flags & (TileFlag.VISIBLE | TileFlag.WAS_VISIBLE)),
         playerCanDirectlySee: (x, y) =>
             !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-        playerInDarkness: () => false,          // stub — light state not wired yet
+        playerInDarkness: () => playerInDarknessFn(tmap, player.loc),
         iterateMonsters: () => monsters,
         floorItems: () => floorItems,
 
@@ -236,8 +237,8 @@ export function buildRefreshSideBarFn(): () => void {
             itemNameFn(theItem, includeDetails, includeArticle, namingCtx),
 
         getHallucinatedItemCategory: () => getHallucinatedItemCategory({
-            randRange: (lo: number) => lo,
-            randPercent: () => false,
+            randRange: (lo: number, hi: number) => lo + Math.floor(Math.random() * (hi - lo + 1)),
+            randPercent: (pct: number) => randPercent(pct),
             randClump: (r: { lowerBound: number }) => r.lowerBound,
         }),
         getItemCategoryGlyph: (cat) => getItemCategoryGlyph(cat),
@@ -267,7 +268,7 @@ export function buildRefreshSideBarFn(): () => void {
             const resolvePronounEscapes = buildResolvePronounEscapesFn(player, pmap, rogue);
             const mqCtxLocal = {
                 player, cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
-                cellHasGas: () => false as const,
+                cellHasGas: () => false as const, // permanent-defer — gas layer not needed for visibility checks in sidebar/IO context
                 playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
                 playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
                 playbackOmniscience: rogue.playbackOmniscience,
@@ -299,7 +300,7 @@ export function buildRefreshSideBarFn(): () => void {
             return monsterDetailsFn(monst, detailsCtx);
         },
         itemDetails: (item) => buildItemDetailsFn()(item),
-        printTextBox: () => 0,                  // stub — Phase 7
+        printTextBox: () => 0,                  // permanent-defer — UI rendering; sidebar-wiring.ts has full version
         printProgressBar: () => {},             // patched below
     };
 
@@ -405,7 +406,7 @@ export function buildExposeCreatureToFireFn(): (monst: Creature) => void {
     const mqCtxFire = {
         player,
         cellHasTerrainFlag,
-        cellHasGas: () => false as const,
+        cellHasGas: () => false as const, // permanent-defer — gas layer not needed for visibility checks in sidebar/IO context
         playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
         playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
         playbackOmniscience: rogue.playbackOmniscience,

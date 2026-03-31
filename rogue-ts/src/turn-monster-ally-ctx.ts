@@ -21,7 +21,7 @@ import type { TravelExploreContext } from "./movement/travel-explore.js";
 import type { SafetyMapsContext } from "./time/safety-maps.js";
 import {
     TerrainFlag, MonsterBehaviorFlag, MonsterBookkeepingFlag,
-    T_HARMFUL_TERRAIN,
+    T_HARMFUL_TERRAIN, TileFlag,
 } from "./types/flags.js";
 import { BoltEffect, CreatureState, StatusEffect } from "./types/enums.js";
 import { DCOLS, DROWS } from "./types/constants.js";
@@ -32,7 +32,7 @@ import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
 import { boltCatalog } from "./globals/bolt-catalog.js";
 import { monsterText } from "./globals/monster-text.js";
 import { goodMessageColor } from "./globals/colors.js";
-import { allocGrid } from "./grid/grid.js";
+import { allocGrid, freeGrid } from "./grid/grid.js";
 import { distanceBetween } from "./monsters/monster-state.js";
 import { updateSafeTerrainMap as updateSafeTerrainMapFn } from "./time/safety-maps.js";
 import { dijkstraScan as dijkstraScanFn } from "./dijkstra/dijkstra.js";
@@ -55,6 +55,9 @@ import {
 } from "./monsters/monster-blink-ai.js";
 import { nextStep as nextStepFn } from "./movement/travel-explore.js";
 import { discoveredTerrainFlagsAtLoc as discoveredTerrainFlagsAtLocFn } from "./state/helpers.js";
+import { zeroOutGrid as zeroOutGridFn } from "./architect/helpers.js";
+import { monstersAreEnemies as monstersAreEnemiesFn, monsterRevealed as monsterRevealedFn } from "./monsters/monster-queries.js";
+import { buildRefreshDungeonCellFn } from "./io-wiring.js";
 
 // =============================================================================
 // MoveAllyCtxDeps — dependencies injected from buildMonstersTurnContext
@@ -132,18 +135,16 @@ export function buildMoveAllyContext(deps: MoveAllyCtxDeps): MoveAllyContext {
                     return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
                 },
             ),
-            monsterAtLoc, allocGrid, freeGrid: () => {},
+            monsterAtLoc, allocGrid, freeGrid,
             dijkstraScan: dijkstraScanFn,
             max: Math.max, min: Math.min,
             pmapAt: (loc: Pos) => pmap[loc.x][loc.y],
-            monstersAreEnemies: () => false,
-            monsterRevealed: () => false,
-            zeroOutGrid: () => {},
-            getFOVMask: () => {},
-            updateLighting: () => {},
-            updateFieldOfViewDisplay: () => {},
-            discoverCell: () => {},
-            refreshDungeonCell: () => {},
+            monstersAreEnemies: (a: Creature, b: Creature) => monstersAreEnemiesFn(a, b, player, chTF),
+            monsterRevealed: (m: Creature) => monsterRevealedFn(m, player),
+            zeroOutGrid: (g: number[][]) => zeroOutGridFn(g),
+            getFOVMask: () => {}, updateLighting: () => {}, updateFieldOfViewDisplay: () => {}, // permanent-defer — display ops
+            discoverCell: (x: number, y: number) => { if (coordinatesAreInMap(x, y)) pmap[x][y].flags |= TileFlag.DISCOVERED; },
+            refreshDungeonCell: buildRefreshDungeonCellFn(),
         } as unknown as SafetyMapsContext;
     }
 

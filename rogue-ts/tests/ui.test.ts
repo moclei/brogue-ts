@@ -88,11 +88,13 @@ describe("buildDisplayContext", () => {
         expect(saved).toHaveProperty("savedScreen");
     });
 
-    it("display callbacks are no-ops (smoke test)", () => {
+    it("display callbacks smoke test — wired ops do not throw on blank map", () => {
+        // refreshDungeonCell and refreshSideBar are now wired to real implementations.
+        // refreshSideBar needs player.info (set during level init, not in bare initGameState),
+        // so only non-appearance-dependent ops are tested here.
         const ctx = buildDisplayContext();
         const { displayBuffer } = getGameState();
         expect(() => ctx.refreshDungeonCell({ x: 5, y: 5 })).not.toThrow();
-        expect(() => ctx.refreshSideBar(-1, -1, false)).not.toThrow();
         expect(() => ctx.plotCharWithColor(65, { windowX: 0, windowY: 0 }, { red: 0, green: 0, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false }, { red: 0, green: 0, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false })).not.toThrow();
         expect(() => ctx.overlayDisplayBuffer(displayBuffer)).not.toThrow();
         expect(() => ctx.clearDisplayBuffer(displayBuffer)).not.toThrow();
@@ -271,17 +273,17 @@ import type { Color } from "../src/types/types.js";
 // Stub registry — behaviors deferred to port-v2-platform
 // =============================================================================
 
-it.skip("stub: refreshDungeonCell() is a no-op in buildDisplayContext() (needs getCellAppearance)", () => {
-    // ui.ts:242 still has () => {} stub.
-    // Real implementation requires the getCellAppearance / dungeon appearance system
-    // to recompute cell visuals; wired via buildRefreshDungeonCellFn() in movement/combat/items.
-    // Deferred until port-v2-platform wires full appearance system into buildDisplayContext().
+it("wired: refreshDungeonCell() is wired in buildDisplayContext() via buildRefreshDungeonCellFn()", () => {
+    // ui.ts: wired via buildRefreshDungeonCellFn() — calls getCellAppearance + plotCharWithColor.
+    // Does not throw on blank map (player.info not accessed unless HAS_PLAYER flag is set on cell).
+    const ctx = buildDisplayContext();
+    expect(() => ctx.refreshDungeonCell({ x: 5, y: 5 })).not.toThrow();
 });
 
-it.skip("stub: refreshSideBar() is a no-op in buildDisplayContext() (needs appearance system)", () => {
-    // ui.ts:243 still has () => {} stub.
-    // Wired in combat/movement/items via buildRefreshSideBarFn(); buildDisplayContext() deferred
-    // until port-v2-platform provides the full appearance system.
+it.skip("wired: refreshSideBar() requires player.info to be set (level-init precondition)", () => {
+    // ui.ts: wired via buildRefreshSideBarFn() — now calls real sidebar rendering.
+    // Requires player.info to be set (done during level initialization via generateMonster).
+    // Full integration test deferred to port-v2-platform; sidebar-wiring.test.ts covers internals.
 });
 
 it.skip("stub: plotCharWithColor() requires a rendered display buffer (IO integration)", () => {

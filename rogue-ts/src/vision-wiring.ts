@@ -66,6 +66,7 @@ import {
     type FlareAnimationCallbacks,
 } from "./light/flares.js";
 import { commitDraws as commitDrawsFn, pauseAndCheckForEvent } from "./platform.js";
+import { dijkstraScan as dijkstraScanFn } from "./dijkstra/dijkstra.js";
 import { backgroundMessageColor, itemMessageColor } from "./globals/colors.js";
 import { ItemCategory, DungeonLayer } from "./types/enums.js";
 import { TileFlag, MonsterBookkeepingFlag } from "./types/flags.js";
@@ -260,8 +261,8 @@ export function buildUpdateVisionFn(): (refreshDisplay: boolean) => void {
                 for (let i = 0; i < DCOLS; i++) g[i] = new Array(DROWS).fill(0);
                 return g;
             },
-            freeGrid: () => {},
-            dijkstraScan: () => {},
+            freeGrid: () => {},              // permanent-defer — GC handles deallocation in TS
+            dijkstraScan: dijkstraScanFn,
 
             max: Math.max,
             min: Math.min,

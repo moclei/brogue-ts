@@ -23,6 +23,8 @@ import { randClumpedRange, randRange } from "../math/rng.js";
 import { CreatureState, DungeonLayer } from "../types/enums.js";
 import { TileFlag, TerrainFlag, TerrainMechFlag, IS_IN_MACHINE } from "../types/flags.js";
 import { canSeeMonster as canSeeMonsterFn } from "../monsters/monster-queries.js";
+import { inflictDamage as inflictDamageFn, killCreature as killCreatureFn } from "../combat/combat-damage.js";
+import { buildMinimalCombatContext } from "../turn-combat-helpers.js";
 import { nbDirs, coordinatesAreInMap } from "../globals/tables.js";
 import type { Creature, Pos, Pcell } from "../types/types.js";
 
@@ -62,7 +64,8 @@ export function buildMonstersApproachStairsCtx(): MiscHelpersContext {
                 pmap,
                 cellHasTerrainFlag: _ctf,
                 cellFlags: (pos: Pos) => pmap[pos.x]?.[pos.y]?.flags ?? 0,
-                getQualifyingLocNear: () => null,
+                getQualifyingLocNear: (t, _ha, forbTerrF, forbMapF) =>
+                    getQualifyingLocNearFn(pmap, t, forbTerrF, forbMapF),
                 rng: { randRange },
             });
         },
@@ -102,8 +105,16 @@ export function buildMonstersApproachStairsCtx(): MiscHelpersContext {
         messageWithColor: (msg: string, c: unknown, f: number) => io.messageWithColor(msg, c as never, f),
         messageColorFromVictim: (m: Creature) =>
             m === player || m.creatureState === CreatureState.Ally ? badMessageColor : badMessageColor,
-        inflictDamage: () => false,  // pit falls only — stub
-        killCreature: () => {},      // pit falls only — stub
+        inflictDamage: (attacker: Creature | null, defender: Creature, damage: number, color: unknown, ignoreArmor: boolean) => {
+            const { floorItems } = getGameState();
+            const ctx = buildMinimalCombatContext(player, rogue, pmap, monsters, floorItems);
+            return inflictDamageFn(attacker, defender, damage, color as never, ignoreArmor, ctx);
+        },
+        killCreature: (monst: Creature, maintainCorpse: boolean) => {
+            const { floorItems } = getGameState();
+            const ctx = buildMinimalCombatContext(player, rogue, pmap, monsters, floorItems);
+            void killCreatureFn(monst, maintainCorpse, ctx);
+        },
         red,
         randClumpedRange,
         terrainFlags: (pos: Pos) => terrainFlagsFn(pmap, pos),

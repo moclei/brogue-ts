@@ -146,7 +146,7 @@ export function buildUpdateEnvironmentFn(combatCtx: CombatDamageContext): () => 
                 prependCreature: (list: Creature[], monst: Creature) => { list.unshift(monst); },
                 refreshDungeonCell,
             } as unknown as CreatureEffectsContext),
-            monstersTurn: () => {},
+            monstersTurn: () => {},     // permanent-defer — environment update does not re-enter per-monster turn
             updateFloorItems: buildUpdateFloorItemsFn({
                 floorItems, pmap,
                 rogue: { absoluteTurnNumber: rogue.absoluteTurnNumber, depthLevel: rogue.depthLevel },
@@ -219,8 +219,8 @@ export function buildPlayerFallsFn(combatCtx: CombatDamageContext): () => Promis
             cellHasTMFlag: (pos: Pos, flags: number) => cellHasTMFlagFn(pmap, pos, flags),
             playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
             discover: (x: number, y: number) => { if (coordinatesAreInMap(x, y)) { pmap[x][y].flags |= TileFlag.DISCOVERED; } },
-            monstersFall: () => {},     // stub — separate backlog item
-            updateFloorItems: () => {}, // stub — separate backlog item
+            monstersFall: () => {},     // permanent-defer — playerFalls doesn't re-run monstersFall mid-fall
+            updateFloorItems: () => {}, // permanent-defer — playerFalls doesn't update floor items mid-fall
             layerWithFlag: (x: number, y: number, flag: number) => layerWithFlagFn(pmap, x, y, flag),
             tileCatalog,
             pmapAt: (pos: Pos) => pmap[pos.x][pos.y],

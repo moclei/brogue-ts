@@ -80,6 +80,7 @@ import { wandTable, staffTable, ringTable, charmTable, charmEffectTable } from "
 import { ringWisdomMultiplier as ringWisdomMultiplierFn, charmRechargeDelay as charmRechargeDelayFn } from "./power/power-tables.js";
 import { rechargeItemsIncrementally as rechargeItemsIncrementallyFn } from "./time/misc-helpers.js";
 import type { MiscHelpersContext } from "./time/misc-helpers.js";
+import { buildUpdateVisionFn } from "./vision-wiring.js";
 
 // =============================================================================
 // Private helpers
@@ -187,13 +188,49 @@ export function buildCombatDamageContext(): CombatDamageContext {
             }
         },
         prependCreature(monst) { monsters.unshift(monst); },
-        anyoneWantABite: (decedent) => anyoneWantABiteFn(decedent, {
-            player,
-            iterateAllies: () => monsters.filter(m => m.creatureState === CreatureState.Ally),
-            randRange: (lo: number, hi: number) => randRange(lo, hi),
-            isPosInMap: (loc: Pos) => coordinatesAreInMap(loc.x, loc.y),
-            monsterAvoids: () => false,
-        } as unknown as CombatHelperContext),
+        anyoneWantABite: (decedent) => {
+            // Minimal MonsterStateContext for monsterAvoids (same pattern as buildCombatAttackContext)
+            const monsterAtLocD = (loc: Pos): Creature | null => {
+                if (player.loc.x === loc.x && player.loc.y === loc.y) return player;
+                return monsters.find(m => m.loc.x === loc.x && m.loc.y === loc.y) ?? null;
+            };
+            const cellHasTerrainFlagD = (loc: Pos, flags: number): boolean =>
+                cellHasTerrainFlagFn(pmap, loc, flags);
+            const monsterAvoidsCtxD = {
+                player,
+                terrainFlags: (p: Pos) => terrainFlagsFn(pmap, p),
+                cellFlags: (p: Pos) => pmap[p.x]?.[p.y]?.flags ?? 0,
+                downLoc: rogue.downLoc,
+                upLoc: rogue.upLoc,
+                cellHasTMFlag: (p: Pos, flags: number) => cellHasTMFlagFn(pmap, p, flags),
+                discoveredTerrainFlagsAtLoc: (p: Pos) => discoveredTerrainFlagsAtLocFn(
+                    pmap, p, tileCatalog,
+                    (tileType: number) => {
+                        const df = tileCatalog[tileType]?.discoverType ?? 0;
+                        return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
+                    },
+                ),
+                monsterAtLoc: monsterAtLocD,
+                cellHasTerrainFlag: cellHasTerrainFlagD,
+                HAS_MONSTER: TileFlag.HAS_MONSTER,
+                HAS_PLAYER: TileFlag.HAS_PLAYER,
+                PRESSURE_PLATE_DEPRESSED: TileFlag.PRESSURE_PLATE_DEPRESSED,
+                mapToShore: rogue.mapToShore,
+                playerHasRespirationArmor: () =>
+                    !!(rogue.armor &&
+                       (rogue.armor.flags & ItemFlag.ITEM_RUNIC) &&
+                       (rogue.armor.flags & ItemFlag.ITEM_RUNIC_IDENTIFIED) &&
+                       rogue.armor.enchant2 === ArmorEnchant.Respiration),
+                burnedTerrainFlagsAtLoc: (p: Pos) => burnedTerrainFlagsAtLocFn(pmap, p),
+            } as unknown as MonsterStateContext;
+            return anyoneWantABiteFn(decedent, {
+                player,
+                iterateAllies: () => monsters.filter(m => m.creatureState === CreatureState.Ally),
+                randRange: (lo: number, hi: number) => randRange(lo, hi),
+                isPosInMap: (loc: Pos) => coordinatesAreInMap(loc.x, loc.y),
+                monsterAvoids: (m: Creature, loc: Pos) => monsterAvoidsFn(m, loc, monsterAvoidsCtxD),
+            } as unknown as CombatHelperContext);
+        },
         demoteMonsterFromLeadership: (monst) => demoteMonsterFromLeadershipFn(monst, monsters),
         checkForContinuedLeadership: (monst) => checkForContinuedLeadershipFn(monst, monsters),
         getMonsterDFMessage: (id) => getMonsterDFMessageFn(id),
@@ -201,7 +238,7 @@ export function buildCombatDamageContext(): CombatDamageContext {
         monsterCatalog,
         updateEncumbrance: () => updateEncumbranceFn(buildEquipState()),
         updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
-        updateVision: () => {},
+        updateVision: () => buildUpdateVisionFn()(true),
         badMessageColor,
         poisonColor,
     };

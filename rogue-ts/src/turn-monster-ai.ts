@@ -21,7 +21,7 @@ import {
     terrainFlags as terrainFlagsFn,
     discoveredTerrainFlagsAtLoc as discoveredTerrainFlagsAtLocFn,
 } from "./state/helpers.js";
-import { allocGrid, copyGrid } from "./grid/grid.js";
+import { allocGrid, copyGrid, freeGrid } from "./grid/grid.js";
 import { randRange, randPercent, cosmeticRandRange } from "./math/rng.js";
 import { vomit as vomitFn } from "./movement/player-movement.js";
 import { nbDirs, coordinatesAreInMap } from "./globals/tables.js";
@@ -40,6 +40,7 @@ import {
     monstersAreTeammates as monstersAreTeammatesFn,
     monstersAreEnemies as monstersAreEnemiesFn,
     monsterWillAttackTarget as monsterWillAttackTargetFn,
+    monsterRevealed as monsterRevealedFn,
 } from "./monsters/monster-queries.js";
 import type { MonsterQueryContext } from "./monsters/monster-queries.js";
 import { distanceBetween, updateMonsterState as updateMonsterStateFn, monsterAvoids as monsterAvoidsFn, chooseNewWanderDestination as chooseNewWanderDestFn } from "./monsters/monster-state.js";
@@ -97,7 +98,7 @@ import { extinguishFireOnCreature as extinguishFireOnCreatureFn } from "./time/c
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
 import { doMakeMonsterDropItem } from "./monsters/monster-drop.js";
 import { white, minersLightColor } from "./globals/colors.js";
-import { passableArcCount } from "./architect/helpers.js";
+import { passableArcCount, zeroOutGrid as zeroOutGridFn } from "./architect/helpers.js";
 import { getQualifyingPathLocNear as getQualifyingPathLocNearFn } from "./movement/path-qualifying.js";
 import { buildRefreshDungeonCellFn, buildMessageFns } from "./io-wiring.js";
 import { buildResolvePronounEscapesFn } from "./io/text.js";
@@ -318,7 +319,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         discover: (x, y) => { if (coordinatesAreInMap(x, y)) pmap[x][y].flags |= TileFlag.DISCOVERED; },
         applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
         updateVision: () => {},                         // permanent-defer — visual update (wired in turn/lifecycle)
-        pickUpItemAt: () => {},                         // stub — Phase 3a
+        pickUpItemAt: () => {},                         // permanent-defer — monster movement pickup wired in movement.ts player path
         shuffleList: (list) => {
             for (let i = list.length - 1; i > 0; i--) {
                 const j = randRange(0, i);
@@ -345,8 +346,8 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         randValidDirectionFrom: (m, x, y, a) => randValidDirShared(m, x, y, a),
         nbDirs,
         diagonalBlocked: diagBlocked,
-        handleWhipAttacks: () => false,                 // stub — Phase 3b weapon-attacks
-        handleSpearAttacks: () => false,                // stub — Phase 3b weapon-attacks
+        handleWhipAttacks: () => false,                 // permanent-defer — async fn; interface mismatch
+        handleSpearAttacks: () => false,                // permanent-defer — async fn; interface mismatch
         monsterSwarmDirection: (monst, target) => monsterSwarmDirectionFn(monst, target, swarmCtx),
         buildHitList: (hitList, attacker, defender, allAdj) => {
             const result = buildHitListFn(attacker, defender, allAdj, attackCtx);
@@ -410,16 +411,16 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
     }
     function makeSafetyStubs() {
         return {
-            monstersAreEnemies: () => false, monsterRevealed: () => false,
-            zeroOutGrid: () => {}, getFOVMask: () => {}, updateLighting: () => {},
-            updateFieldOfViewDisplay: () => {}, discoverCell: () => {}, refreshDungeonCell: () => {},
+            monstersAreEnemies: (a: Creature, b: Creature) => monstersAreEnemiesFn(a, b, player, chTF), monsterRevealed: (m: Creature) => monsterRevealedFn(m, player),
+            zeroOutGrid: (g: number[][]) => zeroOutGridFn(g), getFOVMask: () => {}, updateLighting: () => {},         // permanent-defer — display ops
+            updateFieldOfViewDisplay: () => {}, discoverCell: (x: number, y: number) => { if (coordinatesAreInMap(x, y)) pmap[x][y].flags |= TileFlag.DISCOVERED; }, refreshDungeonCell,
         };
     }
 
     // ── Shared CalculateDistancesContext factory (used by pathCtx) ───────────
     function makeCalcDistCtx(): CalculateDistancesContext {
         return { cellHasTerrainFlag: chTF, cellHasTMFlag: chTMF, monsterAtLoc,
-            monsterAvoids: () => false, discoveredTerrainFlagsAtLoc: dtfAtLoc,
+            monsterAvoids: (m: Creature, p: Pos) => monsterAvoidsImpl(m, p), discoveredTerrainFlagsAtLoc: dtfAtLoc,
             isPlayer: (m) => m === player, getCellFlags: (x, y) => pmap[x][y].flags };
     }
 
@@ -555,7 +556,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
                 cellHasTerrainFlag: chTF, cellHasTMFlag: chTMF,
                 coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
                 discoveredTerrainFlagsAtLoc: dtfAtLoc,
-                monsterAtLoc, allocGrid, freeGrid: () => {},
+                monsterAtLoc, allocGrid, freeGrid,
                 dijkstraScan: dijkstraScanFn,
                 ...makeSafetyStubs(),
             } as unknown as SafetyMapsContext),
@@ -582,7 +583,7 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
             cellHasTerrainFlag: chTF, cellHasTMFlag: chTMF,
             coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
             discoveredTerrainFlagsAtLoc: dtfAtLoc,
-            monsterAtLoc, allocGrid, freeGrid: () => {},
+            monsterAtLoc, allocGrid, freeGrid,
             dijkstraScan: dijkstraScanFn,
             max: Math.max, min: Math.min,
             pmapAt: (loc: Pos) => pmap[loc.x][loc.y],

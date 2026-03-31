@@ -341,7 +341,7 @@ export function buildMonsterStateContext(): MonsterStateContext {
                 minersLightColor,
                 rogue,
                 refreshDungeonCell,
-                updateVision: () => {},  // monster-only path; player handled in turn-processing.ts
+                updateVision: () => {},  // permanent-defer — monster-only path; player handled in turn-processing.ts
                 message: io.message,
             } as unknown as CreatureEffectsContext),
         makeMonsterDropItem: (monst) =>

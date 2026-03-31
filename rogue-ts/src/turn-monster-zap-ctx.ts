@@ -98,6 +98,9 @@ import {
 import { FeatType } from "./types/enums.js";
 import type { Color, Creature, Pos } from "./types/types.js";
 import type { ZapContext, ZapRenderContext } from "./items/zap-context.js";
+import { displayCombatText as displayCombatTextFn } from "./io/messages.js";
+import { buildMessageContext } from "./ui.js";
+import type { MessageContext as SyncMessageContext } from "./io/messages-state.js";
 
 // =============================================================================
 // ZapRenderContext — real rendering wired (mirrors buildStaffZapRenderContext)
@@ -112,7 +115,7 @@ export function buildZapRenderContext(): ZapRenderContext {
     const refreshDungeonCell = buildRefreshDungeonCellFn();
     return {
         refreshSideBar: () => refreshSideBar(),
-        displayCombatText: () => {},
+        displayCombatText: () => { void displayCombatTextFn(buildMessageContext() as unknown as SyncMessageContext); },
         refreshDungeonCell: (loc) => refreshDungeonCell(loc),
         backUpLighting: () => lighting.backUpLighting(),
         restoreLighting: () => lighting.restoreLighting(),

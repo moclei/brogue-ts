@@ -128,14 +128,14 @@ export function buildMiscHelpersContext(): MiscHelpersContext {
         player,
         rogue: { playbackOmniscience: rogue.playbackOmniscience },
         tileCatalog: tileCatalog as unknown as ItemHelperContext["tileCatalog"],
-        initializeItem: () => ({} as never),
-        itemName: () => {},
-        describeHallucinatedItem: () => {},
-        removeItemFromChain: () => false,
-        deleteItem: () => {},
+        initializeItem: () => ({} as never),              // permanent-defer — search() never calls initializeItem
+        itemName: () => {},                                // permanent-defer — search() never calls itemName
+        describeHallucinatedItem: () => {},               // permanent-defer — search() never calls describeHallucinatedItem
+        removeItemFromChain: () => false,                  // permanent-defer — search() never removes items from chain
+        deleteItem: () => {},                              // permanent-defer — search() never deletes items
         monsterAtLoc,
-        promoteTile: () => {},
-        messageWithColor: () => {},
+        promoteTile: () => {},                             // permanent-defer — search() never promotes tiles
+        messageWithColor: () => {},                        // permanent-defer — search() never sends messages (discovers use refreshDungeonCell)
         itemMessageColor: null,
         packItems,
         floorItems,
@@ -171,7 +171,7 @@ export function buildMiscHelpersContext(): MiscHelpersContext {
         },
         randPercent,
         posEq: (a, b) => a.x === b.x && a.y === b.y,
-        keyOnTileAt: () => null,
+        keyOnTileAt: () => null, // permanent-defer — search() doesn't use keys; useKeyAt is a separate code path
     };
 
     return {
@@ -325,7 +325,8 @@ export function buildMiscHelpersContext(): MiscHelpersContext {
                 pmap,
                 cellHasTerrainFlag,
                 cellFlags: (pos: Pos) => pmap[pos.x]?.[pos.y]?.flags ?? 0,
-                getQualifyingLocNear: () => null,
+                getQualifyingLocNear: (t, _ha, forbTerrF, forbMapF, _det) =>
+                    getQualifyingLocNearFn(pmap, t, forbTerrF, forbMapF),
                 rng: { randRange },
             }),
 

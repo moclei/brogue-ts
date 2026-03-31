@@ -26,8 +26,7 @@ import { buildApplyInstantTileEffectsFn } from "../tile-effects-wiring.js";
 import { waitForEvent, commitDraws, pauseAndCheckForEvent } from "../platform.js";
 import { moveCursor as moveCursorFn, type MoveCursorContext } from "../io/cursor-move.js";
 import { chooseTarget } from "./targeting.js";
-import { throwItem } from "./throw-item.js";
-import type { ThrowItemContext, HitMonsterContext } from "./throw-item.js";
+import { throwItem, type ThrowItemContext, type HitMonsterContext } from "./throw-item.js";
 import { attackHit as attackHitFn } from "../combat/combat-math.js";
 import {
     inflictDamage as inflictDamageFn,
@@ -40,21 +39,19 @@ import {
     magicWeaponHit as magicWeaponHitFn,
     applyArmorRunicEffect as applyArmorRunicEffectFn,
 } from "../combat/combat-runics.js";
-import { damageFraction } from "../power/power-tables.js";
-import { wandDominate } from "../power/power-tables.js";
-import { netEnchant as netEnchantFn } from "./item-usage.js";
+import { damageFraction, wandDominate, charmRechargeDelay as charmRechargeDelayFn } from "../power/power-tables.js";
+import { netEnchant as netEnchantFn, updateEncumbrance as updateEncumbranceFn } from "./item-usage.js";
 import { autoIdentify as autoIdentifyFn } from "./item-handlers.js";
 import { getQualifyingLocNear as getQualifyingLocNearFn } from "../architect/architect.js";
-import { placeItemAt as placeItemAtFn } from "./floor-items.js";
-import type { PlaceItemAtContext } from "./floor-items.js";
+import { placeItemAt as placeItemAtFn, type PlaceItemAtContext } from "./floor-items.js";
 import { spawnDungeonFeature as spawnDungeonFeatureFn } from "../architect/machines.js";
-import { promoteTile as promoteTileFn } from "../time/environment.js";
-import { activateMachine as activateMachineFn, circuitBreakersPreventActivation as circuitBreakersPreventActivationFn, exposeTileToFire as exposeTileToFireFn } from "../time/environment.js";
-import type { EnvironmentContext } from "../time/environment.js";
+import { promoteTile as promoteTileFn, activateMachine as activateMachineFn, circuitBreakersPreventActivation as circuitBreakersPreventActivationFn, exposeTileToFire as exposeTileToFireFn, type EnvironmentContext } from "../time/environment.js";
 import {
     highestPriorityLayer as highestPriorityLayerFn,
     cellHasTerrainFlag as cellHasTerrainFlagFn,
     cellHasTMFlag as cellHasTMFlagFn,
+    terrainFlags as terrainFlagsFn,
+    burnedTerrainFlagsAtLoc as burnedTerrainFlagsAtLocFn,
 } from "../state/helpers.js";
 import { removeItemFromArray, itemAtLoc as itemAtLocFn } from "./item-inventory.js";
 import { layerWithTMFlag as layerWithTMFlagFn } from "../movement/map-queries.js";
@@ -64,11 +61,10 @@ import {
     monsterIsHidden as monsterIsHiddenFn,
     canSeeMonster as canSeeMonsterFn,
 } from "../monsters/monster-queries.js";
-import { distanceBetween } from "../monsters/monster-state.js";
+import { distanceBetween, monsterAvoids as monsterAvoidsFn, type MonsterStateContext } from "../monsters/monster-state.js";
 import { removeCreature as removeCreatureFn } from "../monsters/monster-actions.js";
-import { demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "../monsters/monster-ally-ops.js";
-import { monstersFall as monstersFallFn } from "../time/creature-effects.js";
-import type { CreatureEffectsContext } from "../time/creature-effects.js";
+import { demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn, checkForContinuedLeadership as checkForContinuedLeadershipFn } from "../monsters/monster-ally-ops.js";
+import { monstersFall as monstersFallFn, type CreatureEffectsContext } from "../time/creature-effects.js";
 import { openPathBetween } from "./bolt-geometry.js";
 import { negationWillAffectMonster as negationWillAffectMonsterFn } from "./bolt-helpers.js";
 import {
@@ -85,24 +81,38 @@ import {
     wandTable, staffTable, ringTable, charmTable, charmEffectTable,
 } from "../globals/item-catalog.js";
 import { itemName as itemNameFn } from "./item-naming.js";
-import { charmRechargeDelay as charmRechargeDelayFn } from "../power/power-tables.js";
 import { itemMagicPolarity as itemMagicPolarityFn } from "./item-generation.js";
 import { keyMatchesLocation as keyMatchesLocationFn } from "./item-utils.js";
 import { coordinatesAreInMap, mapToWindowX, windowToMapX, windowToMapY } from "../globals/tables.js";
 import { randClump, randPercent, randRange, randClumpedRange, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "../math/rng.js";
 import { playerTurnEnded as playerTurnEndedFn } from "../turn.js";
 import { badMessageColor, goodMessageColor, clairvoyanceColor, red, white, itemMessageColor } from "../globals/colors.js";
-import { anyoneWantABite as anyoneWantABiteFn } from "../combat/combat-helpers.js";
-import type { CombatHelperContext } from "../combat/combat-helpers.js";
+import { anyoneWantABite as anyoneWantABiteFn, type CombatHelperContext } from "../combat/combat-helpers.js";
 import { AutoTargetMode, CreatureState, DungeonLayer, GameMode, StatusEffect } from "../types/enums.js";
 import { TerrainFlag, TileFlag, ItemFlag, MonsterBookkeepingFlag } from "../types/flags.js";
 import { DCOLS, DROWS } from "../types/constants.js";
-import type { Color, Creature, Item, ItemTable, Pos, RogueEvent } from "../types/types.js";
-import { INVALID_POS } from "../types/types.js";
-import { plotCharWithColor as plotCharWithColorFn, mapToWindow } from "../io/display.js";
-import { buildRefreshDungeonCellFn, buildHiliteCellFn, buildGetCellAppearanceFn, buildExposeCreatureToFireFn } from "../io-wiring.js";
+import { INVALID_POS, type Color, type Creature, type Item, type ItemTable, type Pos, type RogueEvent } from "../types/types.js";
+import {
+    plotCharWithColor as plotCharWithColorFn,
+    mapToWindow,
+    createScreenDisplayBuffer as createScreenDisplayBufferFn,
+    clearDisplayBuffer as clearDisplayBufferFn,
+    saveDisplayBuffer as saveDisplayBufferFn,
+    restoreDisplayBuffer as restoreDisplayBufferFn,
+    applyOverlay as applyOverlayFn,
+} from "../io/display.js";
+import {
+    drawButtonsInState as drawButtonsInStateFn,
+    processButtonInput as processButtonInputFn,
+} from "../io/buttons.js";
+import { buildButtonContext } from "../ui.js";
+import { buildRefreshDungeonCellFn, buildHiliteCellFn, buildGetCellAppearanceFn, buildExposeCreatureToFireFn, buildRefreshSideBarFn, buildWakeUpFn } from "../io-wiring.js";
 import { buildRefreshSideBarWithFocusFn, buildPrintLocationDescriptionFn } from "../io/sidebar-wiring.js";
 import { buildUpdateFloorItemsFn } from "./floor-items-wiring.js";
+import { getMonsterDFMessage as getMonsterDFMessageFn } from "../io/text.js";
+import { buildEquipState } from "./equip-helpers.js";
+import { updateMinersLightRadius as updateMinersLightRadiusFn } from "../light/light.js";
+import { buildUpdateVisionFn } from "../vision-wiring.js";
 export { buildCallCommandFn } from "./item-call-command.js";
 
 // =============================================================================
@@ -158,16 +168,16 @@ function buildMinCombatDamageCtx(deps: ItemCommandDeps): CombatDamageContext {
         playerTransferenceRatio: 20,
         canSeeMonster: canSee,
         canDirectlySeeMonster: canSee,
-        wakeUp: () => {},
+        wakeUp: buildWakeUpFn(player, monsters),
         spawnDungeonFeature(x, y, featureIndex, _probability, _isGas) {
             const feat = dungeonFeatureCatalog[featureIndex];
             if (feat) spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, true, false);
         },
-        refreshSideBar: () => {},
+        refreshSideBar: buildRefreshSideBarFn(),
         combatMessage: (msg, color) => deps.messageWithColor(msg, color as Readonly<Color> ?? null, 0),
         messageWithColor: (msg, color) => deps.messageWithColor(msg, color as Readonly<Color> ?? null, 0),
         message: deps.message,
-        refreshDungeonCell: () => {},
+        refreshDungeonCell: buildRefreshDungeonCellFn(),
         applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
         fadeInMonster: buildFadeInMonsterFn(),
         monsterName: (m) => (m === player ? "you" : m.info.monsterName),
@@ -194,21 +204,43 @@ function buildMinCombatDamageCtx(deps: ItemCommandDeps): CombatDamageContext {
             }
         },
         prependCreature(monst) { monsters.unshift(monst); },
-        anyoneWantABite: (decedent) => anyoneWantABiteFn(decedent, {
-            player,
-            iterateAllies: () => monsters.filter(m => m.creatureState === CreatureState.Ally),
-            randRange: (lo: number, hi: number) => randRange(lo, hi),
-            isPosInMap: (loc: Pos) => coordinatesAreInMap(loc.x, loc.y),
-            monsterAvoids: () => false,
-        } as unknown as CombatHelperContext),
-        demoteMonsterFromLeadership: () => {},
-        checkForContinuedLeadership: () => {},
-        getMonsterDFMessage: () => "",
+        anyoneWantABite: (decedent) => {
+            const monsterAtLocC = (loc: Pos): Creature | null => {
+                if (player.loc.x === loc.x && player.loc.y === loc.y) return player;
+                return monsters.find(m => m.loc.x === loc.x && m.loc.y === loc.y) ?? null;
+            };
+            const cellHasTFlagC = (loc: Pos, flags: number): boolean => cellHasTerrainFlagFn(pmap, loc, flags);
+            const avoidsCtxC = {
+                player,
+                terrainFlags: (p: Pos) => terrainFlagsFn(pmap, p),
+                cellFlags: (p: Pos) => pmap[p.x]?.[p.y]?.flags ?? 0,
+                downLoc: rogue.downLoc, upLoc: rogue.upLoc,
+                cellHasTMFlag: (p: Pos, flags: number) => cellHasTMFlagFn(pmap, p, flags),
+                discoveredTerrainFlagsAtLoc: () => 0, // permanent-defer — throw path doesn't need secret terrain discovery
+                monsterAtLoc: monsterAtLocC,
+                cellHasTerrainFlag: cellHasTFlagC,
+                HAS_MONSTER: TileFlag.HAS_MONSTER, HAS_PLAYER: TileFlag.HAS_PLAYER,
+                PRESSURE_PLATE_DEPRESSED: TileFlag.PRESSURE_PLATE_DEPRESSED,
+                mapToShore: rogue.mapToShore,
+                playerHasRespirationArmor: () => false, // permanent-defer — respiration armor doesn't affect monsterAvoids during throw
+                burnedTerrainFlagsAtLoc: (p: Pos) => burnedTerrainFlagsAtLocFn(pmap, p),
+            } as unknown as MonsterStateContext;
+            return anyoneWantABiteFn(decedent, {
+                player,
+                iterateAllies: () => monsters.filter(m => m.creatureState === CreatureState.Ally),
+                randRange: (lo: number, hi: number) => randRange(lo, hi),
+                isPosInMap: (loc: Pos) => coordinatesAreInMap(loc.x, loc.y),
+                monsterAvoids: (m: Creature, loc: Pos) => monsterAvoidsFn(m, loc, avoidsCtxC),
+            } as unknown as CombatHelperContext);
+        },
+        demoteMonsterFromLeadership: (monst) => demoteMonsterFromLeadershipFn(monst, monsters),
+        checkForContinuedLeadership: (monst) => checkForContinuedLeadershipFn(monst, monsters),
+        getMonsterDFMessage: (id) => getMonsterDFMessageFn(id),
         resolvePronounEscapes: (s) => s,
         monsterCatalog,
-        updateEncumbrance: () => {},
-        updateMinersLightRadius: () => {},
-        updateVision: () => {},
+        updateEncumbrance: () => updateEncumbranceFn(buildEquipState()),
+        updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
+        updateVision: () => buildUpdateVisionFn()(true),
         badMessageColor,
         poisonColor: badMessageColor,
     };
@@ -303,16 +335,20 @@ export function buildThrowCommandFn(
                     ca.value = true; // Platform not initialised → cancel
                     return true;
                 }
+                const btnCtx = buildButtonContext();
                 const movCtx: MoveCursorContext = {
                     rogue,
                     nextKeyOrMouseEvent: () => event,
-                    createScreenDisplayBuffer: () => ({ cells: [] } as never),
-                    clearDisplayBuffer: () => {},
-                    saveDisplayBuffer: () => ({ savedScreen: {} } as never),
-                    overlayDisplayBuffer: () => {},
-                    restoreDisplayBuffer: () => {},
-                    drawButtonsInState: () => {},
-                    processButtonInput: async () => -1,
+                    createScreenDisplayBuffer: () => createScreenDisplayBufferFn(),
+                    clearDisplayBuffer: (dbuf) => clearDisplayBufferFn(dbuf),
+                    saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
+                    overlayDisplayBuffer: (dbuf) => { applyOverlayFn(displayBuffer, dbuf); },
+                    restoreDisplayBuffer: (rbuf) => restoreDisplayBufferFn(displayBuffer, rbuf),
+                    drawButtonsInState: (st, dbuf) => drawButtonsInStateFn(st, dbuf, btnCtx),
+                    processButtonInput: async (st, ev) => {
+                        const r = await processButtonInputFn(st, ev, btnCtx);
+                        return r.chosenButton;
+                    },
                     refreshSideBar: refreshSideBarFn,
                     pmapFlagsAt: (loc: Pos) => pmap[loc.x]?.[loc.y]?.flags ?? 0,
                     canSeeMonster: (m: Creature) => canSeeMonsterFn(m, mqCtx),
@@ -458,7 +494,7 @@ export function buildThrowCommandFn(
                 activateMachine: (mn) => activateMachineFn(mn, envCtx),
                 circuitBreakersPreventActivation: (mn) => circuitBreakersPreventActivationFn(mn, envCtx),
             }),
-            monstersTurn: () => {},         // stub — cage monsters get a turn on release
+            monstersTurn: () => {},         // permanent-defer — throw item env ctx; cage monster turn not needed on item hit
             keyOnTileAt: (loc: Pos) => {
                 const machineNum = pmap[loc.x]?.[loc.y]?.machineNumber ?? 0;
                 if (player.loc.x === loc.x && player.loc.y === loc.y) {

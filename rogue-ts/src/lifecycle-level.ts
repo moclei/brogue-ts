@@ -48,7 +48,7 @@ import { populateItems } from "./items/item-population.js";
 import { populateMonsters, spawnHorde as spawnHordeFn } from "./monsters/monster-spawning.js";
 import { generateItem, itemMagicPolarity as itemMagicPolarityFn, itemIsHeavyWeapon as itemIsHeavyWeaponFn, itemIsPositivelyEnchanted as itemIsPositivelyEnchantedFn } from "./items/item-generation.js";
 import { placeItemAt as placeItemAtFn } from "./items/floor-items.js";
-import { numberOfMatchingPackItems, itemAtLoc as itemAtLocFn } from "./items/item-inventory.js";
+import { numberOfMatchingPackItems, itemAtLoc as itemAtLocFn, removeItemFromArray as removeItemFromArrayFn, deleteItem as deleteItemFn } from "./items/item-inventory.js";
 import { updateRingBonuses as updateRingBonusesFn } from "./items/item-usage.js";
 import { updatePlayerRegenerationDelay as updatePlayerRegenerationDelayFn } from "./items/item-effects.js";
 import { buildEquipState, syncEquipBonuses } from "./items/equip-helpers.js";
@@ -74,10 +74,11 @@ import type { CreatureEffectsContext } from "./time/creature-effects.js";
 import { playerInDarkness as playerInDarknessFn, updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
 import type { Creature, Color, Item } from "./types/types.js";
 import type { LevelContext } from "./game/game-level.js";
-import { buildMessageFns, buildRefreshSideBarFn } from "./io-wiring.js";
+import { buildMessageFns, buildRefreshSideBarFn, buildRefreshDungeonCellFn } from "./io-wiring.js";
 import { buildUpdateVisionFn } from "./vision-wiring.js";
 import { buildUpdateEnvironmentFn } from "./turn-env-wiring.js";
 import { buildCombatDamageContext } from "./combat.js";
+import { killCreature as killCreatureFn } from "./combat/combat-damage.js";
 import { hideCursor as hideCursorFn } from "./io/targeting.js";
 import type { TargetingContext } from "./io/targeting.js";
 import { getQualifyingPathLocNear as getQualifyingPathLocNearFn } from "./movement/path-qualifying.js";
@@ -128,7 +129,7 @@ function makeCalcDistCtx(): CalculateDistancesContext {
             if (pos.x === player.loc.x && pos.y === player.loc.y) return player;
             return monsters.find(m => m.loc.x === pos.x && m.loc.y === pos.y) ?? null;
         },
-        monsterAvoids: () => false,
+        monsterAvoids: () => false, // permanent-defer — level-build distance calc; monsters not yet spawned
         discoveredTerrainFlagsAtLoc: (pos) => discoveredTerrainFlagsAtLocFn(
             pmap, pos, tileCatalog,
             (tileType) => {
@@ -186,7 +187,9 @@ export function buildLevelContext(): LevelContext {
             if (pos.x === player.loc.x && pos.y === player.loc.y) return player;
             return monsters.find(m => m.loc.x === pos.x && m.loc.y === pos.y) ?? null;
         },
-        killCreature: () => {},
+        killCreature: (creature, quiet) => {
+            void killCreatureFn(creature as unknown as import("./types/types.js").Creature, quiet, buildCombatDamageContext());
+        },
         generateMonster(monsterID, _atDepth, _summon) {
             return generateMonster(monsterID, true, true, {
                 rng: { randRange, randPercent },
@@ -218,7 +221,7 @@ export function buildLevelContext(): LevelContext {
                     potionTable: mutablePotionTable, depthAccelerator: gameConst.depthAccelerator,
                     chooseVorpalEnemy,
                 }),
-                deleteItem: () => {},
+                deleteItem: (item: MachineItem) => deleteItemFn(item as unknown as import("./types/types.js").Item),
                 placeItemAt(item: MachineItem, loc: import("./types/types.js").Pos) {
                     placeItemAtFn(item as unknown as Item, loc, {
                         pmap, floorItems: floorItems as any,
@@ -227,17 +230,20 @@ export function buildLevelContext(): LevelContext {
                         itemMagicPolarity: (i) => itemMagicPolarityFn(i as unknown as Item),
                         cellHasTerrainFlag: (pos, flags) => ctf(pmap, pos, flags),
                         cellHasTMFlag: (pos, flags) => ctmf(pmap, pos, flags),
-                        playerCanSee: () => false,
+                        playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
                         itemName: (_i, buf) => { buf[0] = "item"; },
-                        message: () => {},
-                        spawnDungeonFeature: () => {},
-                        promoteTile: () => {},
-                        discover: () => {},
-                        refreshDungeonCell: () => {},
+                        message: (msg: string, flags: number) => void buildMessageFns().message(msg, flags),
+                        spawnDungeonFeature: () => {},   // permanent-defer — machine gen; display ops suppressed at level-build time
+                        promoteTile: () => {},           // permanent-defer — tile promotion during machine build is level-gen only
+                        discover: () => {},              // permanent-defer — discovery during machine build not needed
+                        refreshDungeonCell: buildRefreshDungeonCellFn(),
                         REQUIRE_ACKNOWLEDGMENT: 1,
                     });
                 },
-                removeItemFromArray: () => {},
+                removeItemFromArray: (item: MachineItem, arr: MachineItem[]) => removeItemFromArrayFn(
+                    item as unknown as import("./types/types.js").Item,
+                    arr as unknown as import("./types/types.js").Item[],
+                ),
                 itemIsHeavyWeapon: (i: MachineItem) => itemIsHeavyWeaponFn(i as import("./types/types.js").Item), itemIsPositivelyEnchanted: (i: MachineItem) => itemIsPositivelyEnchantedFn(i as import("./types/types.js").Item),
             },
             analyzeMap: analyzeMapWrap,

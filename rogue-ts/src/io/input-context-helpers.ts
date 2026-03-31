@@ -19,14 +19,18 @@ import type { EffectsContext } from "./effects.js";
 import type { TravelExploreContext } from "../movement/travel-explore.js";
 import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBookkeepingFlag } from "../types/flags.js";
 import { nbDirs, coordinatesAreInMap, mapToWindowX, windowToMapX, windowToMapY } from "../globals/tables.js";
-import { terrainFlags as terrainFlagsFn } from "../state/helpers.js";
+import {
+    terrainFlags as terrainFlagsFn,
+    cellHasTerrainFlag as cellHasTerrainFlagFn,
+    cellHasTMFlag as cellHasTMFlagFn,
+} from "../state/helpers.js";
 import { monsterAvoids as monsterAvoidsFn } from "../monsters/monster-state.js";
 import { canPass as canPassFn } from "../monsters/monster-movement.js";
 import { monstersAreEnemies as monstersAreEnemiesFn } from "../monsters/monster-queries.js";
 import { canSeeMonster as canSeeMonsterFn } from "../monsters/monster-queries.js";
 import { buildMonsterStateContext } from "../monsters.js";
 import { nextStep as nextStepFn } from "../movement/travel-explore.js";
-import { dijkstraScan as dijkstraScanFn } from "../dijkstra/dijkstra.js";
+import { dijkstraScan as dijkstraScanFn, calculateDistances as calculateDistancesFn } from "../dijkstra/dijkstra.js";
 import { allocGrid as allocGridFn, fillGrid as fillGridFn } from "../grid/grid.js";
 import { populateCreatureCostMap as populateCreatureCostMapFn } from "../movement/cost-maps-fov.js";
 import { buildCostMapFovContext } from "../movement-cost-map.js";
@@ -39,6 +43,8 @@ import {
 import {
     applyColorAverage as applyColorAverageFn,
     bakeColor as bakeColorFn,
+    applyColorAugment as applyColorAugmentFn,
+    separateColors as separateColorsFn,
 } from "./color.js";
 import {
     applyOverlay as applyOverlayFn,
@@ -135,8 +141,8 @@ export function buildTargetingCtx(
         refreshDungeonCell,
         // Unused by processSnapMap/getPlayerPathOnMap, stubbed:
         getCellAppearance: buildGetCellAppearanceFn(),
-        applyColorAugment: () => {},
-        separateColors: () => {},
+        applyColorAugment: applyColorAugmentFn,
+        separateColors: separateColorsFn,
         plotCharWithColor: (ch: number, wp: { windowX: number; windowY: number }, fg: unknown, bg: unknown) =>
             plotCharWithColorFn(ch as never, wp, fg as never, bg as never, displayBuffer),
         mapToWindow: mapToWindowFn,
@@ -154,9 +160,21 @@ export function buildEffectsCtx(
     s: InputContextSlice,
     mqCtx: { player: Creature; cellHasTerrainFlag: (pos: Pos, flags: number) => boolean; cellHasGas: (loc: Pos) => boolean; playerCanSee: (x: number, y: number) => boolean; playerCanDirectlySee: (x: number, y: number) => boolean; playbackOmniscience: boolean },
 ): EffectsContext {
-    const { rogue, player, monsters, displayBuffer, messageState } = s;
+    const { rogue, player, pmap, monsters, displayBuffer, messageState } = s;
     const refreshDungeonCell = buildRefreshDungeonCellFn();
     const hiliteCellFn = buildHiliteCellFn();
+    const calcDistCtx = {
+        cellHasTerrainFlag: (pos: Pos, f: number) => cellHasTerrainFlagFn(pmap, pos, f),
+        cellHasTMFlag: (pos: Pos, f: number) => cellHasTMFlagFn(pmap, pos, f),
+        monsterAtLoc: (loc: Pos): Creature | null => {
+            if (loc.x === player.loc.x && loc.y === player.loc.y) return player;
+            return monsters.find(m => m.loc.x === loc.x && m.loc.y === loc.y) ?? null;
+        },
+        monsterAvoids: (m: Creature, loc: Pos) => monsterAvoidsFn(m, loc, buildMonsterStateContext()),
+        discoveredTerrainFlagsAtLoc: () => 0,   // permanent-defer — funkyFade doesn't need secret terrain
+        isPlayer: (m: Creature) => m === player,
+        getCellFlags: (x: number, y: number) => pmap[x]?.[y]?.flags ?? 0,
+    };
     return {
         rogue: {
             playbackMode: rogue.playbackMode,
@@ -170,9 +188,9 @@ export function buildEffectsCtx(
         player,
         displayBuffer,
         applyColorAverage: applyColorAverageFn,
-        applyColorAugment: () => {},
+        applyColorAugment: applyColorAugmentFn,
         bakeColor: bakeColorFn,
-        separateColors: () => {},
+        separateColors: separateColorsFn,
         colorFromComponents: (components: readonly number[]) => ({
             r: components[0] ?? 0, g: components[1] ?? 0, b: components[2] ?? 0,
             variance: { r: 0, g: 0, b: 0 },
@@ -200,7 +218,8 @@ export function buildEffectsCtx(
         commitDraws,
         allocGrid: allocGridFn,
         fillGrid: fillGridFn,
-        calculateDistances: () => {},
+        calculateDistances: (distanceMap: number[][], x: number, y: number, blockingTerrainFlags: number, _blockingCellFlags: number, eightWay: boolean, _respectTravel: boolean) =>
+            calculateDistancesFn(distanceMap, x, y, blockingTerrainFlags, null, true, eightWay, calcDistCtx),
         iterateCreatures: () => monsters.filter(
             m => !(m.bookkeepingFlags & MonsterBookkeepingFlag.MB_HAS_DIED),
         ),

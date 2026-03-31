@@ -51,13 +51,14 @@ import { buildEquipState, syncEquipBonuses, syncEquipState } from "./items/equip
 import { generateItem } from "./items/item-generation.js";
 import { initializeGender, initializeStatus } from "./monsters/monster-creation.js";
 import { blackOutScreen } from "./io/display.js";
-import { clearMessageArchive } from "./io/messages.js";
+import { clearMessageArchive, flavorMessage as flavorMessageFn } from "./io/messages.js";
 import { deleteAllFlares } from "./light/flares.js";
 import { resetDFMessageEligibility } from "./architect/architect.js";
 import type { Creature, Color, LevelData } from "./types/types.js";
 import type { GameInitContext } from "./game/game-init.js";
 import type { CleanupContext } from "./game/game-cleanup.js";
 import { buildMessageFns } from "./io-wiring.js";
+import { buildMessageContext } from "./ui.js";
 
 // =============================================================================
 // Module-level lifecycle state (not in core.ts)
@@ -150,7 +151,7 @@ export function buildGameInitContext(): GameInitContext {
         },
         initializeGender(monst) { initializeGender(monst, { randRange, randPercent }); },
         initializeStatus(monst) { initializeStatus(monst, monst === player); },
-        initRecording: () => {},
+        initRecording: () => {},                // DEFER: port-v2-persistence
         shuffleFlavors() {
             shuffleFlavors(gameConst, randRange, randPercent);
             // itemName reads mutablePotionTable/mutableScrollTable (shallow copies of catalog
@@ -168,7 +169,7 @@ export function buildGameInitContext(): GameInitContext {
         clearMessageArchive() { clearMessageArchive(messageState); },
         blackOutScreen(dbuf) { blackOutScreen(dbuf); },
         displayBuffer,
-        message, messageWithColor, flavorMessage: () => {},
+        message, messageWithColor, flavorMessage: (msg: string) => { flavorMessageFn(buildMessageContext(), msg); },
         encodeMessageColor,
         itemMessageColor, white, backgroundMessageColor,
         initializeGameVariantBrogue() {

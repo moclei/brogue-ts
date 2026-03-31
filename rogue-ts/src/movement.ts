@@ -265,6 +265,7 @@ export function buildMovementContext(): PlayerMoveContext {
         pmap, rogue, tileCatalog, dungeonFeatureCatalog, DCOLS, DROWS, monsters, levels,
         refreshDungeonCell, spawnDungeonFeature: runtimeSpawnFeature, cellHasTerrainFlag, cellHasTMFlag,
         coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
+        // permanent-defer — movement envCtx is used only for promoteTile/activateMachine, not full turn processing
         monstersFall: () => {}, updateFloorItems: () => {}, monstersTurn: () => {}, keyOnTileAt: () => null,
         removeCreature: () => false, prependCreature: () => {},
         rand_range: (a: number, b: number) => randRange(a, b), rand_percent: (p: number) => randPercent(p),

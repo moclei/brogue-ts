@@ -27,7 +27,7 @@ import {
 import { anyoneWantABite as anyoneWantABiteFn } from "./combat/combat-helpers.js";
 import type { CombatHelperContext } from "./combat/combat-helpers.js";
 import { allocGrid, fillGrid, findReplaceGrid, randomLocationInGrid } from "./grid/grid.js";
-import { randRange } from "./math/rng.js";
+import { randRange, randPercent } from "./math/rng.js";
 import { coordinatesAreInMap } from "./globals/tables.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
@@ -35,8 +35,9 @@ import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machin
 import { badMessageColor, poisonColor } from "./globals/colors.js";
 import { DCOLS, DROWS } from "./types/constants.js";
 import {
-    TileFlag, T_PATHING_BLOCKER, T_HARMFUL_TERRAIN, IS_IN_MACHINE, T_DIVIDES_LEVEL,
+    TileFlag, T_PATHING_BLOCKER, T_HARMFUL_TERRAIN, IS_IN_MACHINE, T_DIVIDES_LEVEL, ItemFlag,
 } from "./types/flags.js";
+import { ArmorEnchant } from "./types/enums.js";
 import { CreatureState, GameMode } from "./types/enums.js";
 import type { Creature, Pcell, Pos, PlayerCharacter, Item } from "./types/types.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
@@ -48,6 +49,9 @@ import { updateEncumbrance as updateEncumbranceFn } from "./items/item-usage.js"
 import { buildEquipState } from "./items/equip-helpers.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
 import { calculateDistances } from "./dijkstra/dijkstra.js";
+import { monsterAvoids as monsterAvoidsFn } from "./monsters/monster-state.js";
+import { buildUpdateVisionFn } from "./vision-wiring.js";
+import { buildApplyInstantTileEffectsFn } from "./tile-effects-wiring.js";
 
 // =============================================================================
 // buildGetRandomMonsterSpawnLocationFn
@@ -68,8 +72,8 @@ export function buildGetRandomMonsterSpawnLocationFn(
             if (loc.x === player.loc.x && loc.y === player.loc.y) return player;
             return null; // conservative: only block player tile
         },
-        monsterAvoids: () => false as const,
-        discoveredTerrainFlagsAtLoc: () => 0,
+        monsterAvoids: () => false as const,  // permanent-defer — spawn location search only needs terrain; monsterAvoids is conservative
+        discoveredTerrainFlagsAtLoc: () => 0, // permanent-defer — spawn location search doesn't need secret terrain
         isPlayer: (m: Creature) => m === player,
         getCellFlags: (x: number, y: number) => pmap[x]?.[y]?.flags ?? 0,
     };
@@ -170,17 +174,20 @@ export function buildMinimalCombatContext(
                 pmap[loc.x][loc.y].flags &= ~(isDormant ? TileFlag.HAS_DORMANT_MONSTER : TileFlag.HAS_MONSTER);
             }
         },
-        prependCreature: () => {},                  // stub
-        applyInstantTileEffectsToCreature: () => {},// stub
+        prependCreature: (monst) => { monsters.unshift(monst); },
+        applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
         fadeInMonster: buildFadeInMonsterFn(),
         refreshDungeonCell,
-        anyoneWantABite: (decedent) => anyoneWantABiteFn(decedent, {
-            player,
-            iterateAllies: () => monsters.filter(m => m.creatureState === CreatureState.Ally),
-            randRange: (lo: number, hi: number) => randRange(lo, hi),
-            isPosInMap: (loc: Pos) => coordinatesAreInMap(loc.x, loc.y),
-            monsterAvoids: () => false,
-        } as unknown as CombatHelperContext),
+        anyoneWantABite: (decedent) => {
+            const avoidsCtx = buildMonsterAvoidsCtx(player, monsters, pmap, rogue);
+            return anyoneWantABiteFn(decedent, {
+                player,
+                iterateAllies: () => monsters.filter(m => m.creatureState === CreatureState.Ally),
+                randRange: (lo: number, hi: number) => randRange(lo, hi),
+                isPosInMap: (loc: Pos) => coordinatesAreInMap(loc.x, loc.y),
+                monsterAvoids: (m: Creature, loc: Pos) => monsterAvoidsFn(m, loc, avoidsCtx),
+            } as unknown as CombatHelperContext);
+        },
         demoteMonsterFromLeadership: (monst) => demoteMonsterFromLeadershipFn(monst, monsters),
         checkForContinuedLeadership: (monst) => checkForContinuedLeadershipFn(monst, monsters),
         getMonsterDFMessage: (id) => getMonsterDFMessageFn(id),
@@ -189,7 +196,7 @@ export function buildMinimalCombatContext(
         monsterCatalog: [],                         // stub — real catalog via core.ts
         updateEncumbrance: () => updateEncumbranceFn(buildEquipState()),
         updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
-        updateVision: () => {},                     // stub
+        updateVision: () => buildUpdateVisionFn()(true),
         badMessageColor,
         poisonColor,
     };
@@ -202,8 +209,10 @@ export { inflictDamageFn, killCreatureFn };
 import {
     burnedTerrainFlagsAtLoc as burnedTerrainFlagsAtLocFn,
     terrainFlags as terrainFlagsFn,
+    discoveredTerrainFlagsAtLoc as discoveredTerrainFlagsAtLocFn,
 } from "./state/helpers.js";
 import { passableArcCount } from "./architect/helpers.js";
+import { closestWaypointIndex as closestWaypointIndexFn, closestWaypointIndexTo as closestWaypointIndexToFn } from "./monsters/monster-awareness.js";
 import { monsterCanSubmergeNow as monsterCanSubmergeNowFn } from "./monsters/monster-spawning.js";
 import type { MonsterStateContext } from "./monsters/monster-state.js";
 
@@ -222,7 +231,7 @@ export function buildMonsterAvoidsCtx(
 ): MonsterStateContext {
     return {
         player, monsters,
-        rng: { randRange: () => 0, randPercent: () => false as boolean },
+        rng: { randRange: (lo: number, hi: number) => randRange(lo, hi), randPercent: (pct: number) => randPercent(pct) },
         queryCtx: {} as never,
         cellHasTerrainFlag: (loc: Pos, f: number) => cellHasTerrainFlagFn(pmap, loc, f),
         cellHasTMFlag: (loc: Pos, f: number) => cellHasTMFlagFn(pmap, loc, f),
@@ -238,12 +247,25 @@ export function buildMonsterAvoidsCtx(
             }
             return null;
         },
-        waypointCount: 0, maxWaypointCount: 0,
-        closestWaypointIndex: () => -1, closestWaypointIndexTo: () => -1,
+        waypointCount: rogue.wpCount, maxWaypointCount: rogue.wpCount,
+        closestWaypointIndex: (m: Creature) =>
+            closestWaypointIndexFn(m, rogue.wpCount, rogue.wpDistance, DCOLS),
+        closestWaypointIndexTo: (pos: Pos) =>
+            closestWaypointIndexToFn(pos, rogue.wpCount, rogue.wpDistance),
         burnedTerrainFlagsAtLoc: (loc: Pos) => burnedTerrainFlagsAtLocFn(pmap, loc),
-        discoveredTerrainFlagsAtLoc: () => 0,
+        discoveredTerrainFlagsAtLoc: (p: Pos) => discoveredTerrainFlagsAtLocFn(
+            pmap, p, tileCatalog,
+            (tileType: number) => {
+                const df = tileCatalog[tileType]?.discoverType ?? 0;
+                return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
+            },
+        ),
         passableArcCount: (x: number, y: number) => passableArcCount(pmap, x, y),
-        playerHasRespirationArmor: () => false,
+        playerHasRespirationArmor: () =>
+            !!(rogue.armor &&
+               (rogue.armor.flags & ItemFlag.ITEM_RUNIC) &&
+               (rogue.armor.flags & ItemFlag.ITEM_RUNIC_IDENTIFIED) &&
+               rogue.armor.enchant2 === ArmorEnchant.Respiration),
         mapToShore: rogue.mapToShore,
         PRESSURE_PLATE_DEPRESSED: TileFlag.PRESSURE_PLATE_DEPRESSED,
         HAS_MONSTER: TileFlag.HAS_MONSTER, HAS_PLAYER: TileFlag.HAS_PLAYER,

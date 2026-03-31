@@ -91,6 +91,7 @@ import { randRange, randPercent, randClump } from "./math/rng.js";
 import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
     cellHasTMFlag as cellHasTMFlagFn,
+    terrainFlags as terrainFlagsFn, terrainMechFlags as terrainMechFlagsFn,
 } from "./state/helpers.js";
 import {
     coordinatesAreInMap, mapToWindowX, mapToWindowY, nbDirs,
@@ -165,25 +166,22 @@ function buildItemDiscoverFn(
     refreshDungeonCell: (loc: Pos) => void,
     cellHasTMFlag: (loc: Pos, flags: number) => boolean,
 ): (x: number, y: number) => void {
-    return (x, y) => discoverFn(x, y, {
-        pmap,
-        rogue: rogue as unknown as MapQueryContext["rogue"],
-        scentMap: [] as number[][],
-        terrainFlags: () => 0,
-        terrainMechFlags: () => 0,
-        cellHasTerrainFlag: () => false,
-        cellHasTMFlag,
-        coordinatesAreInMap,
+    return (x, y) => {
+        const { player: _p } = getGameState();
+        const _mqCtx = { player: _p, cellHasTerrainFlag: (p: Pos, f: number) => cellHasTerrainFlagFn(pmap, p, f), cellHasGas: () => false as const, playerCanSee: (x2: number, y2: number) => !!(pmap[x2]?.[y2]?.flags & TileFlag.VISIBLE), playerCanDirectlySee: (x2: number, y2: number) => !!(pmap[x2]?.[y2]?.flags & TileFlag.VISIBLE), playbackOmniscience: rogue.playbackOmniscience };
+        return discoverFn(x, y, {
+        pmap, rogue: rogue as unknown as MapQueryContext["rogue"], scentMap: [] as number[][],
+        terrainFlags: (p: Pos) => terrainFlagsFn(pmap, p), terrainMechFlags: (p: Pos) => terrainMechFlagsFn(pmap, p),
+        cellHasTerrainFlag: (p: Pos, f: number) => cellHasTerrainFlagFn(pmap, p, f),
+        cellHasTMFlag, coordinatesAreInMap,
         playerCanSee: (x2: number, y2: number) => !!(pmap[x2]?.[y2]?.flags & TileFlag.VISIBLE),
-        monsterAtLoc,
-        canSeeMonster: () => false,
-        monsterRevealed: () => false,
+        monsterAtLoc, canSeeMonster: (m: Creature) => canSeeMonsterFn(m, _mqCtx), monsterRevealed: (m: Creature) => monsterRevealedFn(m, _p),
         spawnDungeonFeature: (fx: number, fy: number, feat: object, vol: boolean, override: boolean) =>
             spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, fx, fy, feat as never, vol, override),
         refreshDungeonCell,
         dungeonFeatureCatalog,
         nbDirs: nbDirs as [number, number][],
-    } as unknown as MapQueryContext);
+    } as unknown as MapQueryContext); };
 }
 
 function buildNamingCtx(state: ReturnType<typeof getGameState>) {
@@ -557,7 +555,10 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 updateIdentifiableItems: () => updateIdentifiableItemsFn({
                     packItems,
                     floorItems,
-                    updateIdentifiableItem: () => {},
+                    updateIdentifiableItem: (item) => updateIdentifiableItemFn(item, {
+                        scrollTable: mutableScrollTable,
+                        potionTable: mutablePotionTable,
+                    }),
                 }),
                 charmRechargeDelay: (kind, enchant) =>
                     charmRechargeDelayFn(charmEffectTable[kind], enchant),

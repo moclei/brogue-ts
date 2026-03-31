@@ -29,6 +29,8 @@ import { terrainRandomValues, displayDetail } from "../render-state.js";
 import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
     cellHasTMFlag as cellHasTMFlagFn,
+    terrainFlags as terrainFlagsFn,
+    terrainMechFlags as terrainMechFlagsFn,
 } from "../state/helpers.js";
 import {
     layerWithTMFlag as layerWithTMFlagFn,
@@ -47,6 +49,7 @@ import { itemName as itemNameFn } from "../items/item-naming.js";
 import {
     getHallucinatedItemCategory,
     getItemCategoryGlyph,
+    itemMagicPolarity as itemMagicPolarityFn,
 } from "../items/item-generation.js";
 import { wandTable, staffTable, ringTable, charmTable, charmEffectTable } from "../globals/item-catalog.js";
 import { charmRechargeDelay as charmRechargeDelayFn } from "../power/power-tables.js";
@@ -83,6 +86,7 @@ import { flavorMessage as flavorMessageFn } from "./messages.js";
 import type { MessageContext as SyncMessageContext } from "./messages-state.js";
 import type { InventoryContext } from "./inventory.js";
 import { TileFlag, MonsterBookkeepingFlag } from "../types/flags.js";
+import { playerInDarkness as playerInDarknessFn } from "../light/light.js";
 import type { Color, Pos, ItemTable, Creature, ScreenDisplayBuffer } from "../types/types.js";
 import { DungeonLayer } from "../types/enums.js";
 import type { DisplayGlyph } from "../types/enums.js";
@@ -184,7 +188,7 @@ export function buildSidebarContext(): SidebarContext {
             !!(pmap[x]?.[y]?.flags & (TileFlag.VISIBLE | TileFlag.WAS_VISIBLE)),
         playerCanDirectlySee: (x, y) =>
             !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-        playerInDarkness: () => false,
+        playerInDarkness: () => playerInDarknessFn(tmap, player.loc),
         iterateMonsters: () => monsters,
         floorItems: () => floorItems,
 
@@ -194,8 +198,8 @@ export function buildSidebarContext(): SidebarContext {
             itemNameFn(theItem, includeDetails, includeArticle, namingCtx),
 
         getHallucinatedItemCategory: () => getHallucinatedItemCategory({
-            randRange: (lo: number) => lo,
-            randPercent: () => false,
+            randRange: (lo: number, hi: number) => lo + Math.floor(Math.random() * (hi - lo + 1)),
+            randPercent: (pct: number) => randPercent(pct),
             randClump: (r: { lowerBound: number }) => r.lowerBound,
         }),
         getItemCategoryGlyph: (cat) => getItemCategoryGlyph(cat),
@@ -328,26 +332,26 @@ export function buildPrintLocationDescriptionFn(): (x: number, y: number) => voi
             player,
             rogue: { scentTurnNumber: rogue.scentTurnNumber, disturbed: rogue.disturbed, automationActive: rogue.automationActive },
             scentMap: getScentMap() ?? [],
-            terrainFlags: () => 0,
-            terrainMechFlags: () => 0,
+            terrainFlags: (pos: import("../types/types.js").Pos) => terrainFlagsFn(pmap, pos),
+            terrainMechFlags: (pos: import("../types/types.js").Pos) => terrainMechFlagsFn(pmap, pos),
             cellHasTerrainFlag,
             cellHasTMFlag,
             coordinatesAreInMap: (cx: number, cy: number) => !!(pmap[cx]?.[cy]),
             playerCanSee: (px: number, py: number) => !!(pmap[px]?.[py]?.flags & TileFlag.VISIBLE),
             monsterAtLoc,
-            dormantMonsterAtLoc: () => null,
+            dormantMonsterAtLoc: () => null,  // permanent-defer — location description only needs live monsters
             canSeeMonster: (m: Creature) => canSeeMonsterFn(m, mqCtx),
             monsterRevealed: (m: Creature) => monsterRevealedFn(m, player),
-            refreshDungeonCell: () => {},
+            refreshDungeonCell: () => {},  // permanent-defer — location description is read-only; circular import with io-wiring
             dungeonFeatureCatalog,
             itemAtLoc: (loc: Pos) => floorItems.find(i => i.loc.x === loc.x && i.loc.y === loc.y) ?? null,
             nbDirs: [],
-            spawnDungeonFeature: () => {},
+            spawnDungeonFeature: () => {},  // permanent-defer — location description is read-only
             // DescribeLocationContext extensions:
             playerCanSeeOrSense: (px: number, py: number) =>
                 !!(pmap[px]?.[py]?.flags & (TileFlag.VISIBLE | TileFlag.WAS_VISIBLE)),
             playerCanDirectlySee: (px: number, py: number) => !!(pmap[px]?.[py]?.flags & TileFlag.VISIBLE),
-            itemMagicPolarity: () => 0,
+            itemMagicPolarity: (item: import("../types/types.js").Item) => itemMagicPolarityFn(item),
             monsterName: (m: Creature, incArt: boolean) => monsterNameFn(m, incArt, mqCtx),
             monsterCanSubmergeNow: (m: Creature) => monsterCanSubmergeNowFn(m, cellHasTMFlag, cellHasTerrainFlag),
             describedItemName: (item: import("../types/types.js").Item, maxLen: number) =>
