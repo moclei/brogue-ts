@@ -302,21 +302,21 @@ export function buildMenuContext(): MenuContext {
         initializeLaunchArguments: () => {},
 
         // -- Recording stubs -------------------------------------------------
-        flushBufferToFile: () => {},
-        saveGameNoPrompt: () => {},
-        saveRecordingNoPrompt: () => "",
-        getAvailableFilePath: () => "",
+        flushBufferToFile: () => {},        // DEFER: port-v2-persistence
+        saveGameNoPrompt: () => {},         // DEFER: port-v2-persistence
+        saveRecordingNoPrompt: () => "",    // DEFER: port-v2-persistence
+        getAvailableFilePath: () => "",     // DEFER: port-v2-persistence
 
         // -- Playback stubs --------------------------------------------------
-        executeEvent: () => {},
-        displayAnnotation: () => {},
-        pausePlayback: () => {},
+        executeEvent: () => {},             // DEFER: port-v2-persistence (playback layer)
+        displayAnnotation: () => {},        // DEFER: port-v2-persistence (playback annotation display)
+        pausePlayback: () => {},            // DEFER: port-v2-persistence (playback layer)
 
         // -- Platform file ops (no browser FS yet) ---------------------------
-        listFiles: () => [],
-        loadRunHistory: () => [],
-        saveResetRun: () => {},
-        openFile: () => false,
+        listFiles: () => [],                // DEFER: port-v2-persistence (browser FS not implemented)
+        loadRunHistory: () => [],           // DEFER: port-v2-persistence
+        saveResetRun: () => {},             // DEFER: port-v2-persistence
+        openFile: () => false,              // DEFER: port-v2-persistence (browser FS not implemented)
 
         // -- Color constants -------------------------------------------------
         black,

@@ -1,0 +1,1888 @@
+{
+  "generated": "2026-03-31T14:03:21.369Z",
+  "summary": {
+    "wire-up": 132,
+    "needs-porting": 66,
+    "recording": 6,
+    "intentional-gap": 16
+  },
+  "classifications": {
+    "monsterAvoids": "wire-up",
+    "updateVision": "wire-up",
+    "playerHasRespirationArmor": "intentional-gap",
+    "becomeAllyWith": "needs-porting",
+    "magicWeaponHit": "needs-porting",
+    "applyArmorRunicEffect": "needs-porting",
+    "specialHit": "needs-porting",
+    "splitMonster": "needs-porting",
+    "decrementWeaponAutoIDTimer": "needs-porting",
+    "message": "wire-up",
+    "checkForDisenchantment": "needs-porting",
+    "strengthCheck": "needs-porting",
+    "handlePaladinFeat": "needs-porting",
+    "setPureMageFeatFailed": "needs-porting",
+    "setDragonslayerFeatAchieved": "needs-porting",
+    "armorRunicIdentified": "needs-porting",
+    "autoIdentify": "wire-up",
+    "createFlare": "wire-up",
+    "playerImmuneToMonster": "needs-porting",
+    "slow": "wire-up",
+    "weaken": "needs-porting",
+    "exposeCreatureToFire": "wire-up",
+    "monstersAreEnemies": "wire-up",
+    "forceWeaponHit": "intentional-gap",
+    "updateIdentifiableItems": "wire-up",
+    "playerInDarkness": "wire-up",
+    "randPercent": "wire-up",
+    "describeHallucinatedItem": "wire-up",
+    "estimatedArmorValue": "needs-porting",
+    "itemDetails": "needs-porting",
+    "printTextBox": "wire-up",
+    "printProgressBar": "needs-porting",
+    "itemName": "wire-up",
+    "removeItemFromChain": "wire-up",
+    "deleteItem": "wire-up",
+    "promoteTile": "wire-up",
+    "messageWithColor": "wire-up",
+    "keyOnTileAt": "wire-up",
+    "charmRechargeDelay": "wire-up",
+    "identify": "wire-up",
+    "numberOfMatchingPackItems": "wire-up",
+    "monsterName": "wire-up",
+    "messageColorFromVictim": "wire-up",
+    "inflictDamage": "wire-up",
+    "killCreature": "wire-up",
+    "demoteMonsterFromLeadership": "wire-up",
+    "restoreMonster": "needs-porting",
+    "removeCreature": "wire-up",
+    "prependCreature": "wire-up",
+    "avoidedFlagsForMonster": "wire-up",
+    "recordKeystroke": "recording",
+    "pauseAnimation": "wire-up",
+    "printString": "wire-up",
+    "initializeButtonState": "needs-porting",
+    "rectangularShading": "wire-up",
+    "pauseForMilliseconds": "wire-up",
+    "locIsInWindow": "wire-up",
+    "flashTemporaryAlert": "wire-up",
+    "displayMonsterFlashes": "needs-porting",
+    "saveGame": "needs-porting",
+    "showCursor": "needs-porting",
+    "hideCursor": "needs-porting",
+    "takeScreenshot": "intentional-gap",
+    "dialogCreateItemOrMonster": "intentional-gap",
+    "playerCanSeeOrSense": "wire-up",
+    "printFloorItemDetails": "needs-porting",
+    "clearDisplayBuffer": "wire-up",
+    "overlayDisplayBuffer": "wire-up",
+    "restoreDisplayBuffer": "wire-up",
+    "drawButtonsInState": "wire-up",
+    "processButtonInput": "wire-up",
+    "refreshSideBar": "wire-up",
+    "allocGrid": "wire-up",
+    "freeGrid": "wire-up",
+    "fillGrid": "needs-porting",
+    "populateCreatureCostMap": "wire-up",
+    "getPlayerPathOnMap": "intentional-gap",
+    "processSnapMap": "needs-porting",
+    "diagonalBlocked": "wire-up",
+    "terrainFlags": "wire-up",
+    "terrainMechFlags": "wire-up",
+    "executePlaybackInput": "needs-porting",
+    "characterForbiddenInFilename": "needs-porting",
+    "spawnDungeonFeature": "wire-up",
+    "discover": "wire-up",
+    "pickUpItemAt": "wire-up",
+    "dormantMonsterAtLoc": "intentional-gap",
+    "refreshDungeonCell": "wire-up",
+    "itemMagicPolarity": "wire-up",
+    "cellHasTerrainFlag": "wire-up",
+    "canSeeMonster": "wire-up",
+    "monsterRevealed": "wire-up",
+    "cellHasGas": "wire-up",
+    "temporaryMessage": "wire-up",
+    "recalculateEquipmentBonuses": "wire-up",
+    "recordKeystrokeSequence": "needs-porting",
+    "recordMouseClick": "recording",
+    "discoveredTerrainFlagsAtLoc": "wire-up",
+    "chooseNewWanderDestination": "wire-up",
+    "refreshWaypoint": "intentional-gap",
+    "addScentToCell": "wire-up",
+    "makeMonsterDropItem": "wire-up",
+    "updateIdentifiableItem": "needs-porting",
+    "swapItemEnchants": "intentional-gap",
+    "wakeUp": "wire-up",
+    "checkForContinuedLeadership": "wire-up",
+    "getMonsterDFMessage": "wire-up",
+    "updateEncumbrance": "wire-up",
+    "updateMinersLightRadius": "wire-up",
+    "monsterIsHidden": "wire-up",
+    "moralAttack": "needs-porting",
+    "monstersFall": "intentional-gap",
+    "updateFloorItems": "wire-up",
+    "monstersTurn": "wire-up",
+    "exposeTileToFire": "wire-up",
+    "displayCombatText": "wire-up",
+    "extinguishFireOnCreature": "wire-up",
+    "cloneMonster": "wire-up",
+    "exposeTileToElectricity": "needs-porting",
+    "checkForMissingKeys": "wire-up",
+    "findAlternativeHomeFor": "intentional-gap",
+    "beckonMonster": "needs-porting",
+    "polymorph": "needs-porting",
+    "setUpWaypoints": "needs-porting",
+    "funkyFade": "intentional-gap",
+    "strLenWithoutEscapes": "wire-up",
+    "deleteMessages": "needs-porting",
+    "displayMoreSign": "intentional-gap",
+    "displayMoreSignWithoutWaitingForAcknowledgment": "needs-porting",
+    "confirm": "wire-up",
+    "itemValue": "needs-porting",
+    "isVowelish": "wire-up",
+    "displayInventory": "wire-up",
+    "flushBufferToFile": "recording",
+    "saveHighScore": "needs-porting",
+    "printHighScores": "wire-up",
+    "saveRecording": "needs-porting",
+    "saveRecordingNoPrompt": "needs-porting",
+    "notifyEvent": "wire-up",
+    "saveRunHistory": "needs-porting",
+    "initRecording": "needs-porting",
+    "flavorMessage": "wire-up",
+    "playerCanSee": "wire-up",
+    "removeItemFromArray": "wire-up",
+    "itemIsHeavyWeapon": "needs-porting",
+    "itemIsPositivelyEnchanted": "needs-porting",
+    "updateEnvironment": "wire-up",
+    "restoreItems": "needs-porting",
+    "updateMonsterState": "wire-up",
+    "RNGCheck": "recording",
+    "isApplicationActive": "intentional-gap",
+    "setGameVariant": "wire-up",
+    "initializeGameVariant": "wire-up",
+    "initializeLaunchArguments": "intentional-gap",
+    "saveGameNoPrompt": "needs-porting",
+    "getAvailableFilePath": "needs-porting",
+    "executeEvent": "needs-porting",
+    "displayAnnotation": "needs-porting",
+    "pausePlayback": "needs-porting",
+    "listFiles": "needs-porting",
+    "loadRunHistory": "needs-porting",
+    "saveResetRun": "needs-porting",
+    "openFile": "needs-porting",
+    "assureCosmeticRNG": "recording",
+    "restoreRNG": "recording",
+    "cancelKeystroke": "needs-porting",
+    "displayLevel": "wire-up",
+    "nextBrogueEvent": "wire-up",
+    "executeMouseClick": "intentional-gap",
+    "clearLastTarget": "needs-porting",
+    "clearYendorWarden": "needs-porting",
+    "clearCellMonsterFlag": "needs-porting",
+    "applyInstantTileEffectsToCreature": "wire-up",
+    "anyoneWantABite": "wire-up",
+    "monsterIsInClass": "wire-up",
+    "dropItem": "wire-up",
+    "flashMessage": "intentional-gap",
+    "startLevel": "wire-up",
+    "teleport": "wire-up",
+    "animateFlares": "wire-up",
+    "spawnPeriodicHorde": "wire-up",
+    "synchronizePlayerTimeState": "wire-up",
+    "playerTurnEnded": "wire-up",
+    "search": "wire-up",
+    "highestPriorityLayer": "wire-up",
+    "tileFlavor": "wire-up",
+    "getQualifyingLocNear": "wire-up",
+    "heal": "wire-up",
+    "vomit": "needs-porting",
+    "handleWhipAttacks": "wire-up",
+    "handleSpearAttacks": "wire-up",
+    "waypointDistanceMap": "wire-up",
+    "nextStep": "wire-up",
+    "closestWaypointIndexTo": "wire-up",
+    "calculateDistances": "wire-up",
+    "updateSafeTerrainMap": "needs-porting",
+    "backUpLighting": "wire-up",
+    "restoreLighting": "wire-up",
+    "demoteVisibility": "wire-up",
+    "updateFieldOfViewDisplay": "wire-up",
+    "paintLight": "wire-up",
+    "updateLighting": "wire-up",
+    "hiliteCell": "wire-up",
+    "plotCharWithColor": "wire-up",
+    "updateAllySafetyMap": "needs-porting",
+    "confirmMessages": "wire-up",
+    "eat": "wire-up",
+    "updateMapToShore": "needs-porting",
+    "updateSafetyMap": "wire-up",
+    "analyzeMap": "needs-porting",
+    "storeMemories": "wire-up",
+    "processIncrementalAutoID": "needs-porting",
+    "monsterShouldFall": "wire-up",
+    "handleHealthAlerts": "needs-porting",
+    "pauseBrogue": "wire-up",
+    "randRange": "wire-up",
+    "closestWaypointIndex": "wire-up",
+    "burnedTerrainFlagsAtLoc": "wire-up",
+    "passableArcCount": "wire-up",
+    "dijkstraScan": "wire-up"
+  },
+  "byCategory": {
+    "wire-up": [
+      "monsterAvoids",
+      "updateVision",
+      "message",
+      "autoIdentify",
+      "createFlare",
+      "slow",
+      "exposeCreatureToFire",
+      "monstersAreEnemies",
+      "updateIdentifiableItems",
+      "playerInDarkness",
+      "randPercent",
+      "describeHallucinatedItem",
+      "printTextBox",
+      "itemName",
+      "removeItemFromChain",
+      "deleteItem",
+      "promoteTile",
+      "messageWithColor",
+      "keyOnTileAt",
+      "charmRechargeDelay",
+      "identify",
+      "numberOfMatchingPackItems",
+      "monsterName",
+      "messageColorFromVictim",
+      "inflictDamage",
+      "killCreature",
+      "demoteMonsterFromLeadership",
+      "removeCreature",
+      "prependCreature",
+      "avoidedFlagsForMonster",
+      "pauseAnimation",
+      "printString",
+      "rectangularShading",
+      "locIsInWindow",
+      "flashTemporaryAlert",
+      "playerCanSeeOrSense",
+      "clearDisplayBuffer",
+      "overlayDisplayBuffer",
+      "restoreDisplayBuffer",
+      "drawButtonsInState",
+      "processButtonInput",
+      "refreshSideBar",
+      "allocGrid",
+      "freeGrid",
+      "populateCreatureCostMap",
+      "diagonalBlocked",
+      "terrainFlags",
+      "terrainMechFlags",
+      "spawnDungeonFeature",
+      "discover",
+      "pickUpItemAt",
+      "refreshDungeonCell",
+      "itemMagicPolarity",
+      "cellHasTerrainFlag",
+      "canSeeMonster",
+      "monsterRevealed",
+      "cellHasGas",
+      "temporaryMessage",
+      "recalculateEquipmentBonuses",
+      "discoveredTerrainFlagsAtLoc",
+      "chooseNewWanderDestination",
+      "addScentToCell",
+      "makeMonsterDropItem",
+      "wakeUp",
+      "checkForContinuedLeadership",
+      "getMonsterDFMessage",
+      "updateEncumbrance",
+      "updateMinersLightRadius",
+      "monsterIsHidden",
+      "updateFloorItems",
+      "monstersTurn",
+      "exposeTileToFire",
+      "displayCombatText",
+      "extinguishFireOnCreature",
+      "cloneMonster",
+      "checkForMissingKeys",
+      "strLenWithoutEscapes",
+      "confirm",
+      "isVowelish",
+      "displayInventory",
+      "printHighScores",
+      "flavorMessage",
+      "playerCanSee",
+      "updateEnvironment",
+      "updateMonsterState",
+      "setGameVariant",
+      "initializeGameVariant",
+      "displayLevel",
+      "nextBrogueEvent",
+      "applyInstantTileEffectsToCreature",
+      "anyoneWantABite",
+      "monsterIsInClass",
+      "dropItem",
+      "startLevel",
+      "teleport",
+      "animateFlares",
+      "spawnPeriodicHorde",
+      "synchronizePlayerTimeState",
+      "playerTurnEnded",
+      "search",
+      "highestPriorityLayer",
+      "tileFlavor",
+      "getQualifyingLocNear",
+      "heal",
+      "handleWhipAttacks",
+      "handleSpearAttacks",
+      "waypointDistanceMap",
+      "nextStep",
+      "closestWaypointIndexTo",
+      "calculateDistances",
+      "backUpLighting",
+      "restoreLighting",
+      "demoteVisibility",
+      "updateFieldOfViewDisplay",
+      "paintLight",
+      "updateLighting",
+      "hiliteCell",
+      "plotCharWithColor",
+      "confirmMessages",
+      "eat",
+      "updateSafetyMap",
+      "storeMemories",
+      "monsterShouldFall",
+      "pauseBrogue",
+      "randRange",
+      "closestWaypointIndex",
+      "burnedTerrainFlagsAtLoc",
+      "passableArcCount",
+      "dijkstraScan",
+      "pauseForMilliseconds",
+      "notifyEvent",
+      "removeItemFromArray"
+    ],
+    "needs-porting": [
+      "becomeAllyWith",
+      "magicWeaponHit",
+      "applyArmorRunicEffect",
+      "specialHit",
+      "splitMonster",
+      "decrementWeaponAutoIDTimer",
+      "checkForDisenchantment",
+      "strengthCheck",
+      "handlePaladinFeat",
+      "setPureMageFeatFailed",
+      "setDragonslayerFeatAchieved",
+      "armorRunicIdentified",
+      "playerImmuneToMonster",
+      "weaken",
+      "estimatedArmorValue",
+      "itemDetails",
+      "printProgressBar",
+      "restoreMonster",
+      "initializeButtonState",
+      "displayMonsterFlashes",
+      "saveGame",
+      "showCursor",
+      "hideCursor",
+      "printFloorItemDetails",
+      "fillGrid",
+      "processSnapMap",
+      "executePlaybackInput",
+      "characterForbiddenInFilename",
+      "recordKeystrokeSequence",
+      "updateIdentifiableItem",
+      "moralAttack",
+      "exposeTileToElectricity",
+      "beckonMonster",
+      "polymorph",
+      "setUpWaypoints",
+      "deleteMessages",
+      "displayMoreSignWithoutWaitingForAcknowledgment",
+      "itemValue",
+      "saveHighScore",
+      "saveRecording",
+      "saveRecordingNoPrompt",
+      "saveRunHistory",
+      "initRecording",
+      "itemIsHeavyWeapon",
+      "itemIsPositivelyEnchanted",
+      "restoreItems",
+      "saveGameNoPrompt",
+      "getAvailableFilePath",
+      "executeEvent",
+      "displayAnnotation",
+      "pausePlayback",
+      "listFiles",
+      "loadRunHistory",
+      "saveResetRun",
+      "openFile",
+      "cancelKeystroke",
+      "clearLastTarget",
+      "clearYendorWarden",
+      "clearCellMonsterFlag",
+      "vomit",
+      "updateSafeTerrainMap",
+      "updateAllySafetyMap",
+      "updateMapToShore",
+      "analyzeMap",
+      "processIncrementalAutoID",
+      "handleHealthAlerts"
+    ],
+    "recording": [
+      "recordKeystroke",
+      "recordMouseClick",
+      "flushBufferToFile",
+      "RNGCheck",
+      "assureCosmeticRNG",
+      "restoreRNG"
+    ],
+    "intentional-gap": [
+      "takeScreenshot",
+      "isApplicationActive",
+      "initializeLaunchArguments",
+      "forceWeaponHit",
+      "getPlayerPathOnMap",
+      "executeMouseClick",
+      "monstersFall",
+      "findAlternativeHomeFor",
+      "funkyFade",
+      "displayMoreSign",
+      "flashMessage",
+      "dormantMonsterAtLoc",
+      "refreshWaypoint",
+      "swapItemEnchants",
+      "playerHasRespirationArmor",
+      "dialogCreateItemOrMonster"
+    ]
+  },
+  "wireUpEvidence": {
+    "monsterAvoids": [
+      "rogue-ts/src//vision-wiring.ts:145:            monsterAvoids: (m, pos) => {",
+      "rogue-ts/src//vision-wiring.ts:463:        monsterAvoids: (m, pos) => {"
+    ],
+    "updateVision": [
+      "rogue-ts/src//lifecycle.ts:534:        updateVision: buildUpdateVisionFn(),",
+      "rogue-ts/src//movement.ts:650:        updateVision: buildUpdateVisionFn(),"
+    ],
+    "message": [
+      "rogue-ts/src//items.ts:337:            equipItemFn(item, force, hint, { state: s, message: (text, req) => io.message(text, req ? 1 : 0), itemName: () ",
+      "rogue-ts/src//lifecycle.ts:223:                message: (text, _ack) => message(text, 0),"
+    ],
+    "autoIdentify": [
+      "rogue-ts/src//tile-effects-wiring.ts:324:        autoIdentify: (item: any) => autoIdentifyFn(item, {",
+      "rogue-ts/src//items/item-commands.ts:548:            autoIdentify: (i) => autoIdentifyFn(i, {"
+    ],
+    "createFlare": [
+      "rogue-ts/src//items.ts:575:        createFlare: (x, y, lightType) => createFlareFn(x, y, lightType as LightType, rogue, lightCatalog),",
+      "rogue-ts/src//tile-effects-wiring.ts:388:        createFlare: (x: number, y: number, lightType: number) => createFlareFn(x, y, lightType as LightType,"
+    ],
+    "slow": [
+      "rogue-ts/src//turn-monster-zap-wiring.ts:272:            slow: (monst, duration) => slowFn(monst, duration, {",
+      "rogue-ts/src//items/staff-wiring.ts:408:            slow: (monst, duration) => slowFn(monst, duration, {"
+    ],
+    "exposeCreatureToFire": [
+      "rogue-ts/src//items.ts:410:        exposeCreatureToFire: buildExposeCreatureToFireFn(),",
+      "rogue-ts/src//turn-monster-zap-wiring.ts:315:            exposeCreatureToFire: buildExposeCreatureToFireFn(),"
+    ],
+    "monstersAreEnemies": [
+      "rogue-ts/src//vision-wiring.ts:254:            monstersAreEnemies: (m1, m2) => monstersAreEnemiesFn(m1, m2, player, (loc, f) => cellHasTerrainFlagFn(p",
+      "rogue-ts/src//io/hover-wiring.ts:110:        monstersAreEnemies: (a: Creature, b: Creature) =>"
+    ],
+    "updateIdentifiableItems": [
+      "rogue-ts/src//items.ts:549:                updateIdentifiableItems: () => updateIdentifiableItemsFn({"
+    ],
+    "playerInDarkness": [
+      "rogue-ts/src//turn.ts:777:            playerInDarkness: () => playerInDarknessFn(tmap, player.loc),"
+    ],
+    "randPercent": [
+      "rogue-ts/src//items.ts:307:        randPercent: (pct) => randPercent(pct),",
+      "rogue-ts/src//monsters.ts:104:        rng: { randRange, randPercent: (pct) => randPercent(pct) },"
+    ],
+    "describeHallucinatedItem": [
+      "rogue-ts/src//io/sidebar-wiring.ts:159:        describeHallucinatedItem: () => string;",
+      "rogue-ts/src//io/sidebar-wiring.ts:353:            describeHallucinatedItem: () => \"something strange\","
+    ],
+    "printTextBox": [
+      "rogue-ts/src//menus.ts:245:        printTextBox: async (textBuf, x, y, width, foreColor, backColor, buttons, buttonCount) =>",
+      "rogue-ts/src//io/input-context.ts:433:        printTextBox: async (text, x, y, width, foreColor, backColor, buttons, buttonCount) =>"
+    ],
+    "itemName": [
+      "rogue-ts/src//items.ts:337:            equipItemFn(item, force, hint, { state: s, message: (text, req) => io.message(text, req ? 1 : 0), itemName: () ",
+      "rogue-ts/src//vision-wiring.ts:180:            itemName: (_item, buf) => { buf[0] = \"item\"; },"
+    ],
+    "removeItemFromChain": [
+      "rogue-ts/src//tile-effects-wiring.ts:209:        removeItemFromChain: (item: any, chain: any[]) => removeItemFromArrayFn(item, chain),",
+      "rogue-ts/src//tile-effects-wiring.ts:329:        removeItemFromChain: (item: any, chain: any[]) => removeItemFromArrayFn(item, chain),"
+    ],
+    "deleteItem": [
+      "rogue-ts/src//lifecycle.ts:580:        deleteItem: deleteItemFn,",
+      "rogue-ts/src//tile-effects-wiring.ts:210:        deleteItem: deleteItemFn,"
+    ],
+    "promoteTile": [
+      "rogue-ts/src//tile-effects-wiring.ts:205:        promoteTile: (x: number, y: number, layer: number, useFireDF: boolean) =>",
+      "rogue-ts/src//tile-effects-wiring.ts:382:        promoteTile: (x: number, y: number, layer: number, useFireDF: boolean) =>"
+    ],
+    "messageWithColor": [
+      "rogue-ts/src//io/input-context.ts:262:        messageWithColor: (msg, color, flags) =>",
+      "rogue-ts/src//io/input-context.ts:371:        messageWithColor: (msg: string, color: Readonly<Color> | null, flags: number) => io.messageWithColor(msg"
+    ],
+    "keyOnTileAt": [
+      "rogue-ts/src//movement.ts:297:        keyOnTileAt: (loc: Pos) => {",
+      "rogue-ts/src//items/item-helper-context.ts:129:        keyOnTileAt: (loc: Pos) => {"
+    ],
+    "charmRechargeDelay": [
+      "rogue-ts/src//items.ts:197:        charmRechargeDelay: (kind: number, enchant: number) =>",
+      "rogue-ts/src//items.ts:554:                charmRechargeDelay: (kind, enchant) =>"
+    ],
+    "identify": [
+      "rogue-ts/src//items.ts:547:                identify: (item) => identifyFn(item, gameConst),",
+      "rogue-ts/src//lifecycle-gameover.ts:80:        identify: (item) => identify(item, gameConst),"
+    ],
+    "numberOfMatchingPackItems": [
+      "rogue-ts/src//items.ts:320:        numberOfMatchingPackItems: (cat, req, forbidden, _err) =>",
+      "rogue-ts/src//lifecycle-gameover.ts:82:        numberOfMatchingPackItems: (cat, fl, fl2, _uf) => packCount(packItems, cat, fl, fl2),"
+    ],
+    "monsterName": [
+      "rogue-ts/src//items.ts:252:        monsterName: (m: Creature, includeArticle: boolean) =>",
+      "rogue-ts/src//items.ts:466:        monsterName: (monst, _includeArticle) =>"
+    ],
+    "messageColorFromVictim": [
+      "rogue-ts/src//items.ts:256:        messageColorFromVictim: (m: Creature) => messageColorFromVictimFn(",
+      "rogue-ts/src//time/stairs-wiring.ts:73:        messageColorFromVictim: (m: Creature) =>"
+    ],
+    "inflictDamage": [
+      "rogue-ts/src//monsters.ts:334:        inflictDamage: (attacker, defender, damage) =>",
+      "rogue-ts/src//turn-monster-ai.ts:238:        inflictDamage: (attacker, defender, damage) => inflictDamageFn(attacker, defender, damage, null, false, d"
+    ],
+    "killCreature": [
+      "rogue-ts/src//items.ts:254:        killCreature: (m: Creature) => killCreatureFn(m, false, combatCtx),",
+      "rogue-ts/src//items.ts:520:                killCreature: (monst, admin) => killCreatureFn(monst, admin, combatCtx),"
+    ],
+    "demoteMonsterFromLeadership": [
+      "rogue-ts/src//movement.ts:451:        freeCaptive: (m) => freeCaptiveFn(m, { player, pmap, refreshDungeonCell, monsterAtLoc, cellHasTerrainFlag, messa",
+      "rogue-ts/src//combat.ts:201:        demoteMonsterFromLeadership: (monst) => demoteMonsterFromLeadershipFn(monst, monsters),"
+    ],
+    "removeCreature": [
+      "rogue-ts/src//turn-monster-zap-wiring.ts:496:        removeCreature: (monst) => {",
+      "rogue-ts/src//turn.ts:581:                removeCreature: (list, m) => { const i = list.indexOf(m); if (i >= 0) { list.splice(i, 1); return true; } re"
+    ],
+    "prependCreature": [
+      "rogue-ts/src//combat.ts:341:        prependCreature: (monst) => { monsters.unshift(monst); },",
+      "rogue-ts/src//turn-monster-zap-wiring.ts:501:        prependCreature: (monst) => monsters.unshift(monst),"
+    ],
+    "avoidedFlagsForMonster": [
+      "rogue-ts/src//items.ts:380:                avoidedFlagsForMonster: (info) => avoidedFlagsForMonsterFn(info),",
+      "rogue-ts/src//time/stairs-wiring.ts:57:        avoidedFlagsForMonster: (info: Creature[\"info\"]) => avoidedFlagsForMonsterFn(info),"
+    ],
+    "pauseAnimation": [
+      "rogue-ts/src//vision-wiring.ts:371:            pauseAnimation: async (ms) => {",
+      "rogue-ts/src//io/menu-bar.ts:76:        pauseAnimation: () => Promise.resolve(false),"
+    ],
+    "printString": [
+      "rogue-ts/src//menus.ts:221:        printString: (text, x, y, foreColor, backColor, dbuf) => {"
+    ],
+    "rectangularShading": [
+      "rogue-ts/src//menus.ts:241:        rectangularShading: (x, y, width, height, backColor, opacity, dbuf) =>"
+    ],
+    "locIsInWindow": [
+      "rogue-ts/src//ui.ts:605:        locIsInWindow: locIsInWindowFn,"
+    ],
+    "flashTemporaryAlert": [
+      "rogue-ts/src//ui.ts:322:        flashTemporaryAlert: async (msg: string, ms: number) => {"
+    ],
+    "playerCanSeeOrSense": [
+      "rogue-ts/src//vision-wiring.ts:176:            playerCanSeeOrSense: (x, y) =>",
+      "rogue-ts/src//vision-wiring.ts:492:        playerCanSeeOrSense: (x, y) =>"
+    ],
+    "clearDisplayBuffer": [
+      "rogue-ts/src//lifecycle-gameover.ts:65:        clearDisplayBuffer: (d) => clearDisplayBuffer(d),",
+      "rogue-ts/src//io/input-context.ts:421:        clearDisplayBuffer: clearDisplayBufferFn,"
+    ],
+    "overlayDisplayBuffer": [
+      "rogue-ts/src//menus.ts:203:        overlayDisplayBuffer: (dbuf) => {",
+      "rogue-ts/src//io/menu-bar.ts:70:        overlayDisplayBuffer: (dbuf) => applyOverlay(displayBuffer, dbuf),"
+    ],
+    "restoreDisplayBuffer": [
+      "rogue-ts/src//menus.ts:217:        restoreDisplayBuffer: (saved) => restoreDisplayBuffer(displayBuffer, saved),",
+      "rogue-ts/src//io/menu-bar.ts:72:        restoreDisplayBuffer: (saved) => restoreDisplayBuffer(displayBuffer, saved),"
+    ],
+    "drawButtonsInState": [
+      "rogue-ts/src//menus.ts:233:        drawButtonsInState: (state, dbuf) =>"
+    ],
+    "processButtonInput": [
+      "rogue-ts/src//menus.ts:236:        processButtonInput: async (state, event) =>"
+    ],
+    "refreshSideBar": [
+      "rogue-ts/src//items.ts:577:        refreshSideBar: () => refreshSideBar(),",
+      "rogue-ts/src//io/input-context.ts:446:        refreshSideBar: (_x, _y, _justClearing) => refreshSideBarFn(),"
+    ],
+    "allocGrid": [
+      "rogue-ts/src//vision-wiring.ts:275:            allocGrid: () => {",
+      "rogue-ts/src//movement.ts:583:        allocGrid: () => allocGrid(),"
+    ],
+    "freeGrid": [
+      "rogue-ts/src//movement.ts:584:        freeGrid: (grid) => freeGrid(grid),"
+    ],
+    "populateCreatureCostMap": [
+      "rogue-ts/src//movement.ts:597:        populateCreatureCostMap: (costMap, monst) =>"
+    ],
+    "diagonalBlocked": [
+      "rogue-ts/src//io/hover-wiring.ts:112:        diagonalBlocked: (x1: number, y1: number, x2: number, y2: number, _lim: boolean) =>",
+      "rogue-ts/src//turn-monster-ai.ts:269:        diagonalBlocked: (x1: number, y1: number, x2: number, y2: number) =>"
+    ],
+    "terrainFlags": [
+      "rogue-ts/src//vision-wiring.ts:136:            terrainFlags: (pos) => terrainFlagsFn(pmap, pos),",
+      "rogue-ts/src//vision-wiring.ts:153:                    terrainFlags: (loc: Pos) => terrainFlagsFn(pmap, loc),"
+    ],
+    "terrainMechFlags": [
+      "rogue-ts/src//vision-wiring.ts:137:            terrainMechFlags: (pos) => terrainMechFlagsFn(pmap, pos),",
+      "rogue-ts/src//vision-wiring.ts:455:        terrainMechFlags: (pos) => terrainMechFlagsFn(pmap, pos),"
+    ],
+    "spawnDungeonFeature": [
+      "rogue-ts/src//items.ts:178:        spawnDungeonFeature: (fx: number, fy: number, feat: object, vol: boolean, override: boolean) =>",
+      "rogue-ts/src//items.ts:515:                spawnDungeonFeature: (x, y, feat, vol, abo) =>"
+    ],
+    "discover": [
+      "rogue-ts/src//items.ts:455:                discover: buildItemDiscoverFn(pmap, rogue, monsterAtLoc, refreshDungeonCell, cellHasTMFlag),",
+      "rogue-ts/src//items.ts:498:        discover: buildItemDiscoverFn(pmap, rogue, monsterAtLoc, refreshDungeonCell, cellHasTMFlag),"
+    ],
+    "pickUpItemAt": [
+      "rogue-ts/src//movement.ts:447:        pickUpItemAt: (loc) => pickUpItemAtFn(loc, pickupCtx),"
+    ],
+    "refreshDungeonCell": [
+      "rogue-ts/src//items.ts:162:    refreshDungeonCell: (loc: Pos) => void,",
+      "rogue-ts/src//vision-wiring.ts:183:            refreshDungeonCell: (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer),"
+    ],
+    "itemMagicPolarity": [
+      "rogue-ts/src//items.ts:342:        itemMagicPolarity: (item) => itemMagicPolarityFn(item),",
+      "rogue-ts/src//lifecycle.ts:378:                        itemMagicPolarity: (i) => itemMagicPolarityFn(i as unknown as Item),"
+    ],
+    "cellHasTerrainFlag": [
+      "rogue-ts/src//items.ts:510:                cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),",
+      "rogue-ts/src//vision-wiring.ts:93:            cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),"
+    ],
+    "canSeeMonster": [
+      "rogue-ts/src//items.ts:429:                canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),",
+      "rogue-ts/src//items.ts:545:                canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),"
+    ],
+    "monsterRevealed": [
+      "rogue-ts/src//items.ts:430:                monsterRevealed: (m) => monsterRevealedFn(m, player),",
+      "rogue-ts/src//vision-wiring.ts:110:            monsterRevealed: (monst) => monsterRevealedFn(monst, player),"
+    ],
+    "cellHasGas": [
+      "rogue-ts/src//monsters.ts:261:        cellHasGas: (loc) => !!(pmap[loc.x]?.[loc.y]?.layers[DungeonLayer.Gas]),",
+      "rogue-ts/src//io/cell-queries.ts:152:        cellHasGas: (p: Pos) => pmap[p.x][p.y].layers[DungeonLayer.Gas] !== 0,"
+    ],
+    "temporaryMessage": [
+      "rogue-ts/src//io/input-context.ts:412:        temporaryMessage: (msg, flags) => io.temporaryMessage(msg, flags),",
+      "rogue-ts/src//io/debug-overlays.ts:64:    temporaryMessage: MsgFn,"
+    ],
+    "recalculateEquipmentBonuses": [
+      "rogue-ts/src//turn.ts:358:        recalculateEquipmentBonuses: () => {"
+    ],
+    "discoveredTerrainFlagsAtLoc": [
+      "rogue-ts/src//vision-wiring.ts:138:            discoveredTerrainFlagsAtLoc: (pos) => discoveredTerrainFlagsAtLocFn(",
+      "rogue-ts/src//vision-wiring.ts:242:            discoveredTerrainFlagsAtLoc: (loc) => discoveredTerrainFlagsAtLocFn("
+    ],
+    "chooseNewWanderDestination": [
+      "rogue-ts/src//turn-monster-ai.ts:613:        chooseNewWanderDestination: (monst) => chooseNewWanderDestFn(monst, monsterStateCtx),"
+    ],
+    "addScentToCell": [
+      "rogue-ts/src//turn.ts:636:        addScentToCell: (x, y, distance) => {"
+    ],
+    "makeMonsterDropItem": [
+      "rogue-ts/src//monsters.ts:182:                makeMonsterDropItem: (monst) =>",
+      "rogue-ts/src//monsters.ts:347:        makeMonsterDropItem: (monst) =>"
+    ],
+    "wakeUp": [
+      "rogue-ts/src//items.ts:436:        wakeUp: buildWakeUpFn(player, monsters),",
+      "rogue-ts/src//items.ts:450:                wakeUp: buildWakeUpFn(player, monsters),"
+    ],
+    "checkForContinuedLeadership": [
+      "rogue-ts/src//combat.ts:202:        checkForContinuedLeadership: (monst) => checkForContinuedLeadershipFn(monst, monsters),",
+      "rogue-ts/src//turn.ts:233:        checkForContinuedLeadership: (monst) => checkForContinuedLeadershipFn(monst, monsters),"
+    ],
+    "getMonsterDFMessage": [
+      "rogue-ts/src//combat.ts:205:        getMonsterDFMessage: (id) => getMonsterDFMessageFn(id),",
+      "rogue-ts/src//turn.ts:234:        getMonsterDFMessage: (id) => getMonsterDFMessageFn(id),"
+    ],
+    "updateEncumbrance": [
+      "rogue-ts/src//items.ts:333:        updateEncumbrance: () => updateEncumbranceFn(buildEquipState()),",
+      "rogue-ts/src//items.ts:338:                updateRingBonuses: () => { updateRingBonusesFn(s); syncEquipBonuses(s); }, updateEncumbrance: () => updateE"
+    ],
+    "updateMinersLightRadius": [
+      "rogue-ts/src//items.ts:580:        updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },",
+      "rogue-ts/src//lifecycle.ts:538:        updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },"
+    ],
+    "monsterIsHidden": [
+      "rogue-ts/src//turn-monster-zap-wiring.ts:590:        monsterIsHidden: (target, viewer) => monsterIsHiddenFn(target, viewer, queryCtx),",
+      "rogue-ts/src//movement-weapon-context.ts:128:        monsterIsHidden: (m, observer) => monsterIsHiddenHelper(m, observer),"
+    ],
+    "updateFloorItems": [
+      "rogue-ts/src//turn.ts:551:                updateFloorItems: buildUpdateFloorItemsFn({"
+    ],
+    "monstersTurn": [
+      "rogue-ts/src//tile-effects-wiring.ts:159:        monstersTurn: (monst: Creature) => { void monstersTurnFn(monst, buildMonstersTurnContext()); },",
+      "rogue-ts/src//turn.ts:481:        monstersTurn: (monst) => monstersTurnFn(monst, buildMonstersTurnContext()),"
+    ],
+    "exposeTileToFire": [
+      "rogue-ts/src//tile-effects-wiring.ts:166:        exposeTileToFire: (x: number, y: number, a: boolean) => exposeToFire(x, y, a),",
+      "rogue-ts/src//tile-effects-wiring.ts:384:        exposeTileToFire: (x: number, y: number, alwaysIgnite: boolean) =>"
+    ],
+    "displayCombatText": [
+      "rogue-ts/src//turn.ts:499:        displayCombatText: () => displayCombatTextFn(buildMessageContext() as any),"
+    ],
+    "extinguishFireOnCreature": [
+      "rogue-ts/src//items.ts:262:        extinguishFireOnCreature: (monst: Creature) =>",
+      "rogue-ts/src//items.ts:411:        extinguishFireOnCreature: (monst) =>"
+    ],
+    "cloneMonster": [
+      "rogue-ts/src//combat.ts:476:        cloneMonster: (monst, selfClone, maintainCorpse) => cloneMonsterFn(monst, selfClone, maintainCorpse, cloneMonsterC",
+      "rogue-ts/src//combat.ts:515:        cloneMonster: (monst, selfClone, maintainCorpse) => cloneMonsterFn(monst, selfClone, maintainCorpse, cloneMonsterC"
+    ],
+    "checkForMissingKeys": [
+      "rogue-ts/src//movement.ts:448:        checkForMissingKeys: (x, y) => checkForMissingKeysFn(x, y, itemHelperCtx),"
+    ],
+    "strLenWithoutEscapes": [
+      "rogue-ts/src//io/input-context.ts:405:        strLenWithoutEscapes: (s) => s.length,",
+      "rogue-ts/src//io/sidebar-wiring.ts:153:        strLenWithoutEscapes: strLenWithoutEscapesFn,"
+    ],
+    "confirm": [
+      "rogue-ts/src//items.ts:314:        confirm: buildConfirmFn(),",
+      "rogue-ts/src//menus.ts:277:        confirm: async (prompt, alsoDuringPlayback) =>"
+    ],
+    "isVowelish": [
+      "rogue-ts/src//turn.ts:480:        isVowelish: (w) => \"aeiouAEIOU\".includes(w[0] ?? \"\"),"
+    ],
+    "displayInventory": [
+      "rogue-ts/src//io/input-context.ts:447:        displayInventory: async (categoryMask, requiredFlags, forbiddenFlags, waitForAcknowledge, includeButtons"
+    ],
+    "printHighScores": [
+      "rogue-ts/src//menus.ts:273:        printHighScores: async (_hiliteMostRecent) => {"
+    ],
+    "flavorMessage": [
+      "rogue-ts/src//io/sidebar-wiring.ts:356:            flavorMessage: (msg: string) => flavorMessageFn(msgCtx, msg),",
+      "rogue-ts/src//io-wiring.ts:560:            flavorMessage: (msg: string) => flavorMessageFn(msgCtx, msg),"
+    ],
+    "playerCanSee": [
+      "rogue-ts/src//items.ts:174:        playerCanSee: (x2: number, y2: number) => !!(pmap[x2]?.[y2]?.flags & TileFlag.VISIBLE),",
+      "rogue-ts/src//items.ts:241:        playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),"
+    ],
+    "updateEnvironment": [
+      "rogue-ts/src//turn.ts:525:        updateEnvironment: () => {"
+    ],
+    "updateMonsterState": [
+      "rogue-ts/src//turn-monster-ai.ts:557:        updateMonsterState: (monst) => updateMonsterStateFn(monst, monsterStateCtx),"
+    ],
+    "setGameVariant": [
+      "rogue-ts/src//menus.ts:182:        setGameVariant: () => {"
+    ],
+    "initializeGameVariant": [
+      "rogue-ts/src//menus.ts:298:        initializeGameVariant: () => {"
+    ],
+    "displayLevel": [
+      "rogue-ts/src//items.ts:524:                displayLevel: buildDisplayLevelFn(),",
+      "rogue-ts/src//items.ts:576:        displayLevel: buildDisplayLevelFn(),"
+    ],
+    "nextBrogueEvent": [
+      "rogue-ts/src//menus.ts:253:        nextBrogueEvent: async (_textInput, _colorsDance, _realInputEvenInPlayback) => {",
+      "rogue-ts/src//io/menu-bar.ts:74:        nextBrogueEvent: () => Promise.reject(new Error(\"not available in menu-bar ctx\")),"
+    ],
+    "applyInstantTileEffectsToCreature": [
+      "rogue-ts/src//items.ts:270:        applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),",
+      "rogue-ts/src//turn-monster-ai.ts:309:        applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),"
+    ],
+    "anyoneWantABite": [
+      "rogue-ts/src//combat.ts:194:        anyoneWantABite: (decedent) => anyoneWantABiteFn(decedent, {",
+      "rogue-ts/src//items/item-commands.ts:184:        anyoneWantABite: (decedent) => anyoneWantABiteFn(decedent, {"
+    ],
+    "monsterIsInClass": [
+      "rogue-ts/src//io/sidebar-wiring.ts:237:                monsterIsInClass: (m, cls) => monsterIsInClassFn(m, monsterClassCatalog[cls] ?? { memberList: [",
+      "rogue-ts/src//combat.ts:395:        monsterIsInClass: (monst, cls) => monsterIsInClassFn(monst, cls),"
+    ],
+    "dropItem": [
+      "rogue-ts/src//turn.ts:292:        dropItem: (theItem: Item) => dropItemFn(theItem, {"
+    ],
+    "startLevel": [
+      "rogue-ts/src//movement.ts:663:        startLevel: (oldLevel, dir) => {",
+      "rogue-ts/src//turn.ts:694:                startLevel: (depth: number, dir: number) => startLevelFn(depth, dir),"
+    ],
+    "teleport": [
+      "rogue-ts/src//turn-monster-zap-wiring.ts:361:            teleport: (monst, targetPos, safe) => teleportFn(monst, targetPos, safe, {",
+      "rogue-ts/src//items/staff-wiring.ts:518:            teleport: (monst, targetPos, safe) => teleportFn(monst, targetPos, safe, {"
+    ],
+    "animateFlares": [
+      "rogue-ts/src//turn.ts:633:        animateFlares: buildAnimateFlaresFn(),"
+    ],
+    "spawnPeriodicHorde": [
+      "rogue-ts/src//turn.ts:367:        spawnPeriodicHorde: () => spawnPeriodicHordeFn("
+    ],
+    "synchronizePlayerTimeState": [
+      "rogue-ts/src//turn.ts:357:        synchronizePlayerTimeState: () => { rogue.ticksTillUpdateEnvironment = player.ticksUntilTurn; },"
+    ],
+    "playerTurnEnded": [
+      "rogue-ts/src//io/input-context.ts:286:        playerTurnEnded: async () => { await playerTurnEndedFn(); },",
+      "rogue-ts/src//io/input-context.ts:465:        playerTurnEnded: async () => { await playerTurnEndedFn(); },"
+    ],
+    "search": [
+      "rogue-ts/src//io/input-context.ts:284:        search: (strength) => { searchFn(strength, searchCtx); },"
+    ],
+    "highestPriorityLayer": [
+      "rogue-ts/src//io-wiring.ts:558:            highestPriorityLayer: (x: number, y: number, skipGas: boolean) =>",
+      "rogue-ts/src//items/item-commands.ts:555:            highestPriorityLayer: (x, y, skipGas) => highestPriorityLayerFn(pmap, x, y, skipGas),"
+    ],
+    "tileFlavor": [
+      "rogue-ts/src//io-wiring.ts:573:            tileFlavor: (x: number, y: number) =>"
+    ],
+    "getQualifyingLocNear": [
+      "rogue-ts/src//lifecycle.ts:448:                getQualifyingLocNear: (t, _hw, ftf2, fmf2) =>",
+      "rogue-ts/src//turn-monster-ai.ts:344:        getQualifyingPathLocNear: (t, hw, btf, bmf, ftf, fmf, det) => getQualifyingPathLocNearFn(t, hw, btf, bmf,"
+    ],
+    "heal": [
+      "rogue-ts/src//items.ts:350:        heal: (target, percent, increaseMax) => healFn(target, percent, increaseMax, combatCtx),",
+      "rogue-ts/src//monsters.ts:333:        heal: (monst, percent, panacea) => healFn(monst, percent, panacea, combatCtx),"
+    ],
+    "handleWhipAttacks": [
+      "rogue-ts/src//movement.ts:402:        handleWhipAttacks: (monst, dir, aborted) =>"
+    ],
+    "handleSpearAttacks": [
+      "rogue-ts/src//movement.ts:404:        handleSpearAttacks: (monst, dir, aborted) =>"
+    ],
+    "waypointDistanceMap": [
+      "rogue-ts/src//turn-monster-ai.ts:615:        waypointDistanceMap: (i) => rogue.wpDistance[i] ?? [],"
+    ],
+    "nextStep": [
+      "rogue-ts/src//io/hover-wiring.ts:127:        nextStep: (map: number[][], at: Pos, monst: Creature | null, pref: boolean) =>",
+      "rogue-ts/src//turn-monster-ai.ts:579:        nextStep: (map, loc, monst, preferDiagonals) =>"
+    ],
+    "closestWaypointIndexTo": [
+      "rogue-ts/src//monsters.ts:292:        closestWaypointIndexTo: (loc) =>",
+      "rogue-ts/src//turn-monster-ai.ts:222:        closestWaypointIndexTo: (l) => closestWaypointIndexToFn(l, rogue.wpCount, rogue.wpDistance),"
+    ],
+    "calculateDistances": [
+      "rogue-ts/src//movement.ts:585:        calculateDistances: (distMap, destX, destY, blockFlags, traveler, secretDoors, eightWays) =>"
+    ],
+    "backUpLighting": [
+      "rogue-ts/src//items/staff-wiring.ts:130:        backUpLighting: () => lighting.backUpLighting(),"
+    ],
+    "restoreLighting": [
+      "rogue-ts/src//items/staff-wiring.ts:131:        restoreLighting: () => lighting.restoreLighting(),"
+    ],
+    "demoteVisibility": [
+      "rogue-ts/src//vision-wiring.ts:358:            demoteVisibility: () => {",
+      "rogue-ts/src//light/flares.ts:178:    demoteVisibility: () => void;"
+    ],
+    "updateFieldOfViewDisplay": [
+      "rogue-ts/src//vision-wiring.ts:267:            updateFieldOfViewDisplay: (dancing, refresh) =>",
+      "rogue-ts/src//vision-wiring.ts:367:            updateFieldOfViewDisplay: (_dancing, refresh) => {"
+    ],
+    "paintLight": [
+      "rogue-ts/src//items/staff-wiring.ts:134:        paintLight: (theLight, x, y) => lighting.paintLight(theLight, x, y),"
+    ],
+    "updateLighting": [
+      "rogue-ts/src//vision-wiring.ts:266:            updateLighting: () => updateLightingFn(lightCtx),",
+      "rogue-ts/src//items/staff-wiring.ts:136:        updateLighting: () => lighting.updateLighting(),"
+    ],
+    "hiliteCell": [
+      "rogue-ts/src//io/input-context.ts:610:        hiliteCell: (x, y, color, opacity, distinctColors) =>",
+      "rogue-ts/src//movement.ts:631:        hiliteCell: (x, y, color, strength, flash) => hiliteCellFn(x, y, color, strength, flash, hiliteCellCtx),"
+    ],
+    "plotCharWithColor": [
+      "rogue-ts/src//io/input-context.ts:407:        plotCharWithColor: (ch, pos, fg, bg) => { plotCharWithColorFn(ch, pos, fg, bg, displayBuffer); },",
+      "rogue-ts/src//movement.ts:547:        plotCharWithColor: (g: number, wp: { windowX: number; windowY: number }, fg: unknown, bg: unknown) =>"
+    ],
+    "confirmMessages": [
+      "rogue-ts/src//io/input-context.ts:372:        confirmMessages: () => io.confirmMessages(),",
+      "rogue-ts/src//io/input-context.ts:413:        confirmMessages: () => io.confirmMessages(),"
+    ],
+    "eat": [
+      "rogue-ts/src//items.ts:178:        spawnDungeonFeature: (fx: number, fy: number, feat: object, vol: boolean, override: boolean) =>",
+      "rogue-ts/src//io/input-context.ts:154:    const spawnFeature = (x: number, y: number, feat: unknown, rc: boolean, ab: boolean) =>"
+    ],
+    "updateSafetyMap": [
+      "rogue-ts/src//turn-monster-ai.ts:585:            updateSafetyMap: () => updateSafetyMapFn({",
+      "rogue-ts/src//turn-monster-zap-wiring.ts:555:        updateSafetyMap: () => updateSafetyMapFn({"
+    ],
+    "storeMemories": [
+      "rogue-ts/src//vision-wiring.ts:188:            storeMemories: (x, y) => storeMemoriesFn(",
+      "rogue-ts/src//vision-wiring.ts:502:        storeMemories: (x, y) => storeMemoriesFn("
+    ],
+    "monsterShouldFall": [
+      "rogue-ts/src//movement.ts:391:        monsterShouldFall: (m) => monsterShouldFallFn(m,"
+    ],
+    "pauseBrogue": [
+      "rogue-ts/src//menus.ts:260:        pauseBrogue: async (milliseconds, behavior) => {",
+      "rogue-ts/src//io/menu-bar.ts:75:        pauseBrogue: () => Promise.resolve(false),"
+    ],
+    "randRange": [
+      "rogue-ts/src//items.ts:306:        randRange: (lo, hi) => randRange(lo, hi),",
+      "rogue-ts/src//io/sidebar-wiring.ts:196:            randRange: (lo: number) => lo,"
+    ],
+    "closestWaypointIndex": [
+      "rogue-ts/src//monsters.ts:290:        closestWaypointIndex: (monst) =>",
+      "rogue-ts/src//turn-monster-ai.ts:221:        closestWaypointIndex: (m) => closestWaypointIndexFn(m, rogue.wpCount, rogue.wpDistance, DCOLS),"
+    ],
+    "burnedTerrainFlagsAtLoc": [
+      "rogue-ts/src//monsters.ts:296:        burnedTerrainFlagsAtLoc: (loc) => burnedTerrainFlagsAtLocFn(pmap, loc),",
+      "rogue-ts/src//turn-monster-ai.ts:223:        burnedTerrainFlagsAtLoc: (loc) => burnedTerrainFlagsAtLocFn(pmap, loc),"
+    ],
+    "passableArcCount": [
+      "rogue-ts/src//monsters.ts:227:        passableArcCount: (x, y) => passableArcCountFn(pmap, x, y),",
+      "rogue-ts/src//monsters.ts:304:        passableArcCount: (x, y) => passableArcCountFn(pmap, x, y),"
+    ],
+    "dijkstraScan": [
+      "rogue-ts/src//io/input-context.ts:618:        dijkstraScan: (distanceMap, costMap, useDiagonals) =>",
+      "rogue-ts/src//turn-monster-ai.ts:606:                dijkstraScan: dijkstraScanFn,"
+    ]
+  },
+  "needsPortingDetail": {
+    "playerHasRespirationArmor": {
+      "system": "unknown",
+      "callerCount": 0,
+      "callers": [],
+      "onCriticalPath": false,
+      "effort": "unknown",
+      "note": "not in C manifest"
+    },
+    "becomeAllyWith": {
+      "system": "movement",
+      "callerCount": 7,
+      "callers": [
+        "becomeAllyWith",
+        "cloneMonster",
+        "dialogCreateMonster",
+        "freeCaptive",
+        "spawnHorde",
+        "spawnMinions",
+        "updateBolt"
+      ],
+      "onCriticalPath": true,
+      "effort": "high"
+    },
+    "magicWeaponHit": {
+      "system": "combat",
+      "callerCount": 2,
+      "callers": [
+        "attack",
+        "hitMonsterWithProjectileWeapon"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "applyArmorRunicEffect": {
+      "system": "combat",
+      "callerCount": 2,
+      "callers": [
+        "attack",
+        "hitMonsterWithProjectileWeapon"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "specialHit": {
+      "system": "combat",
+      "callerCount": 1,
+      "callers": [
+        "attack"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "splitMonster": {
+      "system": "combat",
+      "callerCount": 4,
+      "callers": [
+        "attack",
+        "forceWeaponHit",
+        "hitMonsterWithProjectileWeapon",
+        "updateBolt"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "decrementWeaponAutoIDTimer": {
+      "system": "combat",
+      "callerCount": 1,
+      "callers": [
+        "attack"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "checkForDisenchantment": {
+      "system": "items",
+      "callerCount": 3,
+      "callers": [
+        "attack",
+        "specialHit",
+        "swapItemToEnchantLevel"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "strengthCheck": {
+      "system": "items",
+      "callerCount": 3,
+      "callers": [
+        "attack",
+        "equipItem",
+        "weaken"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "handlePaladinFeat": {
+      "system": "combat",
+      "callerCount": 3,
+      "callers": [
+        "attack",
+        "hitMonsterWithProjectileWeapon",
+        "updateBolt"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "setPureMageFeatFailed": {
+      "system": "unknown",
+      "callerCount": 0,
+      "callers": [],
+      "onCriticalPath": false,
+      "effort": "unknown",
+      "note": "not in C manifest"
+    },
+    "setDragonslayerFeatAchieved": {
+      "system": "unknown",
+      "callerCount": 0,
+      "callers": [],
+      "onCriticalPath": false,
+      "effort": "unknown",
+      "note": "not in C manifest"
+    },
+    "armorRunicIdentified": {
+      "system": "unknown",
+      "callerCount": 0,
+      "callers": [],
+      "onCriticalPath": false,
+      "effort": "unknown",
+      "note": "not in C manifest"
+    },
+    "playerImmuneToMonster": {
+      "system": "combat",
+      "callerCount": 1,
+      "callers": [
+        "specialHit"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "weaken": {
+      "system": "items",
+      "callerCount": 1,
+      "callers": [
+        "specialHit"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "forceWeaponHit": {
+      "system": "combat",
+      "callerCount": 1,
+      "callers": [
+        "magicWeaponHit"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "estimatedArmorValue": {
+      "system": "io",
+      "callerCount": 1,
+      "callers": [
+        "printMonsterInfo"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "itemDetails": {
+      "system": "items",
+      "callerCount": 2,
+      "callers": [
+        "printCarriedItemDetails",
+        "printFloorItemDetails"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "printProgressBar": {
+      "system": "io",
+      "callerCount": 4,
+      "callers": [
+        "loadSavedGame",
+        "printMonsterInfo",
+        "refreshSideBar",
+        "seek"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "restoreMonster": {
+      "system": "dungeon-gen",
+      "callerCount": 3,
+      "callers": [
+        "initializeLevel",
+        "monsterEntersLevel",
+        "startLevel"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "initializeButtonState": {
+      "system": "ui",
+      "callerCount": 3,
+      "callers": [
+        "buttonInputLoop",
+        "initializeMenu",
+        "initializeMenuButtons"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "pauseForMilliseconds": {
+      "system": "unknown",
+      "callerCount": 0,
+      "callers": [],
+      "onCriticalPath": false,
+      "effort": "unknown",
+      "note": "wire-up: real implementation in browser-renderer.ts and null-platform.ts; wired in input-keystrokes.ts; test context stub returns false"
+    },
+    "displayMonsterFlashes": {
+      "system": "io",
+      "callerCount": 1,
+      "callers": [
+        "nextBrogueEvent"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "saveGame": {
+      "system": "recording",
+      "callerCount": 1,
+      "callers": [
+        "executeKeystroke"
+      ],
+      "onCriticalPath": true,
+      "effort": "defer"
+    },
+    "showCursor": {
+      "system": "io",
+      "callerCount": 1,
+      "callers": [
+        "executeKeystroke"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "hideCursor": {
+      "system": "io",
+      "callerCount": 4,
+      "callers": [
+        "executeKeystroke",
+        "exploreKey",
+        "mainInputLoop",
+        "startLevel"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "takeScreenshot": {
+      "system": "unknown",
+      "callerCount": 0,
+      "callers": [],
+      "onCriticalPath": false,
+      "effort": "unknown",
+      "note": "intentional-gap: SDL2-only platform function; no browser equivalent; browser cannot capture screenshots this way"
+    },
+    "dialogCreateItemOrMonster": {
+      "system": "debug",
+      "callerCount": 1,
+      "callers": [
+        "executeKeystroke"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "printFloorItemDetails": {
+      "system": "io",
+      "callerCount": 1,
+      "callers": [
+        "mainInputLoop"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "fillGrid": {
+      "system": "grid",
+      "callerCount": 30,
+      "callers": [
+        "addLoops",
+        "aggravateMonsters",
+        "anyoneWantABite",
+        "attachRooms",
+        "buildAMachine",
+        "createBlobOnGrid",
+        "designCavern",
+        "designChunkyRoom",
+        "designCircularRoom",
+        "designCrossRoom",
+        "designEntranceRoom",
+        "designLakes",
+        "designSmallRoom",
+        "designSymmetricalCrossRoom",
+        "fillInteriorForVestibuleMachine",
+        "funkyFade",
+        "getQualifyingPathLocNear",
+        "getRandomMonsterSpawnLocation",
+        "initializeLevel",
+        "initializeRogue",
+        "lakeDisruptsPassability",
+        "mainInputLoop",
+        "pathTowardCreature",
+        "processSnapMap",
+        "refreshWaypoint",
+        "spawnHorde",
+        "startLevel",
+        "summonMinions",
+        "teleport",
+        "updateMapToShore"
+      ],
+      "onCriticalPath": true,
+      "effort": "high"
+    },
+    "getPlayerPathOnMap": {
+      "system": "io",
+      "callerCount": 2,
+      "callers": [
+        "explore",
+        "mainInputLoop"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "processSnapMap": {
+      "system": "io",
+      "callerCount": 1,
+      "callers": [
+        "mainInputLoop"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "executePlaybackInput": {
+      "system": "recording",
+      "callerCount": 2,
+      "callers": [
+        "mainInputLoop",
+        "nextBrogueEvent"
+      ],
+      "onCriticalPath": true,
+      "effort": "defer"
+    },
+    "characterForbiddenInFilename": {
+      "system": "recording",
+      "callerCount": 1,
+      "callers": [
+        "getInputTextString"
+      ],
+      "onCriticalPath": true,
+      "effort": "defer"
+    },
+    "dormantMonsterAtLoc": {
+      "system": "monsters",
+      "callerCount": 2,
+      "callers": [
+        "describeLocation",
+        "getCellAppearance"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "recordKeystrokeSequence": {
+      "system": "recording",
+      "callerCount": 8,
+      "callers": [
+        "call",
+        "drop",
+        "equip",
+        "recordApplyItemCommand",
+        "relabel",
+        "swapLastEquipment",
+        "throwCommand",
+        "unequip"
+      ],
+      "onCriticalPath": true,
+      "effort": "defer"
+    },
+    "refreshWaypoint": {
+      "system": "dungeon-gen",
+      "callerCount": 3,
+      "callers": [
+        "aggravateMonsters",
+        "playerTurnEnded",
+        "setUpWaypoints"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "updateIdentifiableItem": {
+      "system": "items",
+      "callerCount": 1,
+      "callers": [
+        "updateIdentifiableItems"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "swapItemEnchants": {
+      "system": "items",
+      "callerCount": 1,
+      "callers": [
+        "updateFloorItems"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "moralAttack": {
+      "system": "combat",
+      "callerCount": 4,
+      "callers": [
+        "attack",
+        "forceWeaponHit",
+        "hitMonsterWithProjectileWeapon",
+        "updateBolt"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "monstersFall": {
+      "system": "turn",
+      "callerCount": 3,
+      "callers": [
+        "playerFalls",
+        "playerTurnEnded",
+        "updateEnvironment"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "exposeTileToElectricity": {
+      "system": "turn",
+      "callerCount": 1,
+      "callers": [
+        "updateBolt"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "findAlternativeHomeFor": {
+      "system": "monsters",
+      "callerCount": 1,
+      "callers": [
+        "detonateBolt"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "beckonMonster": {
+      "system": "items",
+      "callerCount": 1,
+      "callers": [
+        "updateBolt"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "polymorph": {
+      "system": "items",
+      "callerCount": 1,
+      "callers": [
+        "updateBolt"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "setUpWaypoints": {
+      "system": "dungeon-gen",
+      "callerCount": 2,
+      "callers": [
+        "detonateBolt",
+        "startLevel"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "funkyFade": {
+      "system": "io",
+      "callerCount": 2,
+      "callers": [
+        "gameOver",
+        "victory"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "deleteMessages": {
+      "system": "io",
+      "callerCount": 2,
+      "callers": [
+        "initializeRogue",
+        "victory"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "displayMoreSign": {
+      "system": "io",
+      "callerCount": 5,
+      "callers": [
+        "displayAnnotation",
+        "gameOver",
+        "message",
+        "playbackPanic",
+        "victory"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "displayMoreSignWithoutWaitingForAcknowledgment": {
+      "system": "io",
+      "callerCount": 1,
+      "callers": [
+        "gameOver"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "itemValue": {
+      "system": "items",
+      "callerCount": 1,
+      "callers": [
+        "victory"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "saveHighScore": {
+      "system": "unknown",
+      "callerCount": 0,
+      "callers": [],
+      "onCriticalPath": false,
+      "effort": "defer",
+      "note": "not in C manifest; persistence-deferred"
+    },
+    "saveRecording": {
+      "system": "recording",
+      "callerCount": 2,
+      "callers": [
+        "gameOver",
+        "victory"
+      ],
+      "onCriticalPath": true,
+      "effort": "defer"
+    },
+    "saveRecordingNoPrompt": {
+      "system": "recording",
+      "callerCount": 3,
+      "callers": [
+        "gameOver",
+        "quitImmediately",
+        "victory"
+      ],
+      "onCriticalPath": true,
+      "effort": "defer"
+    },
+    "notifyEvent": {
+      "system": "unknown",
+      "callerCount": 0,
+      "callers": [],
+      "onCriticalPath": false,
+      "effort": "unknown",
+      "note": "wire-up: real implementation in browser-renderer.ts; wired in game-lifecycle.ts; lifecycle-gameover.ts has a stub for test context"
+    },
+    "saveRunHistory": {
+      "system": "unknown",
+      "callerCount": 0,
+      "callers": [],
+      "onCriticalPath": false,
+      "effort": "defer",
+      "note": "not in C manifest; persistence-deferred"
+    },
+    "initRecording": {
+      "system": "recording",
+      "callerCount": 1,
+      "callers": [
+        "initializeRogue"
+      ],
+      "onCriticalPath": true,
+      "effort": "defer"
+    },
+    "removeItemFromArray": {
+      "system": "unknown",
+      "callerCount": 0,
+      "callers": [],
+      "onCriticalPath": false,
+      "effort": "unknown",
+      "note": "wire-up: TS utility fully implemented and used throughout; lifecycle.ts stub is in an unused machine context code path"
+    },
+    "itemIsHeavyWeapon": {
+      "system": "items",
+      "callerCount": 1,
+      "callers": [
+        "buildAMachine"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "itemIsPositivelyEnchanted": {
+      "system": "items",
+      "callerCount": 1,
+      "callers": [
+        "buildAMachine"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "restoreItems": {
+      "system": "dungeon-gen",
+      "callerCount": 2,
+      "callers": [
+        "initializeLevel",
+        "startLevel"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "isApplicationActive": {
+      "system": "unknown",
+      "callerCount": 0,
+      "callers": [],
+      "onCriticalPath": false,
+      "effort": "unknown",
+      "note": "intentional-gap: platform function; browser tab is always active; wired as () => true in menus.ts"
+    },
+    "initializeLaunchArguments": {
+      "system": "unknown",
+      "callerCount": 0,
+      "callers": [],
+      "onCriticalPath": false,
+      "effort": "unknown",
+      "note": "intentional-gap: native CLI launch arguments; no browser equivalent; wired as () => {} in menus.ts"
+    },
+    "saveGameNoPrompt": {
+      "system": "recording",
+      "callerCount": 1,
+      "callers": [
+        "quitImmediately"
+      ],
+      "onCriticalPath": false,
+      "effort": "defer"
+    },
+    "getAvailableFilePath": {
+      "system": "recording",
+      "callerCount": 6,
+      "callers": [
+        "mainBrogueJunction",
+        "saveGame",
+        "saveGameNoPrompt",
+        "saveRecording",
+        "saveRecordingNoPrompt",
+        "switchToPlaying"
+      ],
+      "onCriticalPath": true,
+      "effort": "defer"
+    },
+    "executeEvent": {
+      "system": "lifecycle",
+      "callerCount": 5,
+      "callers": [
+        "actionMenu",
+        "loadSavedGame",
+        "mainBrogueJunction",
+        "mainInputLoop",
+        "seek"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "displayAnnotation": {
+      "system": "recording",
+      "callerCount": 2,
+      "callers": [
+        "mainBrogueJunction",
+        "playerTurnEnded"
+      ],
+      "onCriticalPath": true,
+      "effort": "defer"
+    },
+    "pausePlayback": {
+      "system": "recording",
+      "callerCount": 1,
+      "callers": [
+        "mainBrogueJunction"
+      ],
+      "onCriticalPath": false,
+      "effort": "defer"
+    },
+    "listFiles": {
+      "system": "unknown",
+      "callerCount": 0,
+      "callers": [],
+      "onCriticalPath": false,
+      "effort": "defer",
+      "note": "not in C manifest; persistence-deferred"
+    },
+    "loadRunHistory": {
+      "system": "unknown",
+      "callerCount": 0,
+      "callers": [],
+      "onCriticalPath": false,
+      "effort": "defer",
+      "note": "not in C manifest; persistence-deferred"
+    },
+    "saveResetRun": {
+      "system": "unknown",
+      "callerCount": 0,
+      "callers": [],
+      "onCriticalPath": false,
+      "effort": "defer",
+      "note": "not in C manifest; persistence-deferred"
+    },
+    "openFile": {
+      "system": "lifecycle",
+      "callerCount": 2,
+      "callers": [
+        "mainBrogueJunction",
+        "selectFile"
+      ],
+      "onCriticalPath": false,
+      "effort": "defer",
+      "note": "persistence-deferred"
+    },
+    "assureCosmeticRNG": {
+      "system": "unknown",
+      "callerCount": 0,
+      "callers": [],
+      "onCriticalPath": false,
+      "effort": "unknown",
+      "note": "recording: RNG save/restore pair used to ensure cosmetic display is seeded from cosmetic RNG; part of recording/playback system; defer to port-v2-persistence"
+    },
+    "restoreRNG": {
+      "system": "unknown",
+      "callerCount": 0,
+      "callers": [],
+      "onCriticalPath": false,
+      "effort": "unknown",
+      "note": "recording: RNG save/restore pair; counterpart to assureCosmeticRNG; defer to port-v2-persistence"
+    },
+    "cancelKeystroke": {
+      "system": "recording",
+      "callerCount": 1,
+      "callers": [
+        "playerMoves"
+      ],
+      "onCriticalPath": true,
+      "effort": "defer"
+    },
+    "executeMouseClick": {
+      "system": "io",
+      "callerCount": 2,
+      "callers": [
+        "executeEvent",
+        "travel"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "clearLastTarget": {
+      "system": "unknown",
+      "callerCount": 0,
+      "callers": [],
+      "onCriticalPath": false,
+      "effort": "unknown",
+      "note": "not in C manifest"
+    },
+    "clearYendorWarden": {
+      "system": "unknown",
+      "callerCount": 0,
+      "callers": [],
+      "onCriticalPath": false,
+      "effort": "unknown",
+      "note": "not in C manifest"
+    },
+    "clearCellMonsterFlag": {
+      "system": "unknown",
+      "callerCount": 0,
+      "callers": [],
+      "onCriticalPath": false,
+      "effort": "unknown",
+      "note": "not in C manifest"
+    },
+    "flashMessage": {
+      "system": "io",
+      "callerCount": 2,
+      "callers": [
+        "flashCreatureAlert",
+        "flashTemporaryAlert"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "vomit": {
+      "system": "movement",
+      "callerCount": 2,
+      "callers": [
+        "moveMonster",
+        "playerMoves"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "updateSafeTerrainMap": {
+      "system": "turn",
+      "callerCount": 2,
+      "callers": [
+        "monstersTurn",
+        "moveAlly"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "updateAllySafetyMap": {
+      "system": "turn",
+      "callerCount": 2,
+      "callers": [
+        "monsterBlinkToSafety",
+        "moveAlly"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "updateMapToShore": {
+      "system": "dungeon-gen",
+      "callerCount": 2,
+      "callers": [
+        "playerTurnEnded",
+        "startLevel"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "analyzeMap": {
+      "system": "dungeon-gen",
+      "callerCount": 3,
+      "callers": [
+        "addMachines",
+        "buildAMachine",
+        "playerTurnEnded"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "processIncrementalAutoID": {
+      "system": "turn",
+      "callerCount": 1,
+      "callers": [
+        "playerTurnEnded"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    },
+    "handleHealthAlerts": {
+      "system": "turn",
+      "callerCount": 1,
+      "callers": [
+        "playerTurnEnded"
+      ],
+      "onCriticalPath": true,
+      "effort": "medium"
+    }
+  },
+  "needsPortingSummary": {
+    "high": [
+      "fillGrid",
+      "becomeAllyWith"
+    ],
+    "medium": [
+      "executeEvent",
+      "splitMonster",
+      "printProgressBar",
+      "hideCursor",
+      "moralAttack",
+      "checkForDisenchantment",
+      "strengthCheck",
+      "handlePaladinFeat",
+      "restoreMonster",
+      "initializeButtonState",
+      "analyzeMap",
+      "magicWeaponHit",
+      "applyArmorRunicEffect",
+      "itemDetails",
+      "setUpWaypoints",
+      "deleteMessages",
+      "restoreItems",
+      "vomit",
+      "updateSafeTerrainMap",
+      "updateAllySafetyMap",
+      "updateMapToShore",
+      "specialHit",
+      "decrementWeaponAutoIDTimer",
+      "playerImmuneToMonster",
+      "weaken",
+      "estimatedArmorValue",
+      "displayMonsterFlashes",
+      "showCursor",
+      "printFloorItemDetails",
+      "processSnapMap",
+      "updateIdentifiableItem",
+      "exposeTileToElectricity",
+      "beckonMonster",
+      "polymorph",
+      "displayMoreSignWithoutWaitingForAcknowledgment",
+      "itemValue",
+      "itemIsHeavyWeapon",
+      "itemIsPositivelyEnchanted",
+      "processIncrementalAutoID",
+      "handleHealthAlerts"
+    ],
+    "low": [],
+    "defer": [
+      "recordKeystrokeSequence",
+      "getAvailableFilePath",
+      "saveRecordingNoPrompt",
+      "executePlaybackInput",
+      "saveRecording",
+      "displayAnnotation",
+      "openFile",
+      "saveGame",
+      "characterForbiddenInFilename",
+      "initRecording",
+      "saveGameNoPrompt",
+      "pausePlayback",
+      "cancelKeystroke",
+      "saveHighScore",
+      "saveRunHistory",
+      "listFiles",
+      "loadRunHistory",
+      "saveResetRun"
+    ],
+    "unknown": [
+      "setPureMageFeatFailed",
+      "setDragonslayerFeatAchieved",
+      "armorRunicIdentified",
+      "clearLastTarget",
+      "clearYendorWarden",
+      "clearCellMonsterFlag"
+    ]
+  }
+}

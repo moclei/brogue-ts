@@ -119,10 +119,10 @@ export function buildLifecycleContext(): LifecycleContext {
         // The real death path uses runDeathScreen which handles inventory directly.
         // Keep as no-op for the sync game-lifecycle.ts C-port path.
         displayInventory: () => 0,
-        flushBufferToFile: () => {}, saveHighScore: () => false, printHighScores: () => {},
-        saveRecording: (_f) => {},              // stub — persistence layer not implemented
-        saveRecordingNoPrompt: (_f) => {},      // stub — persistence layer not implemented
-        notifyEvent: () => {}, saveRunHistory: () => {}, recordKeystroke: () => {},
+        flushBufferToFile: () => {}, saveHighScore: () => false, printHighScores: () => {}, // DEFER: port-v2-persistence
+        saveRecording: (_f) => {},              // DEFER: port-v2-persistence
+        saveRecordingNoPrompt: (_f) => {},      // DEFER: port-v2-persistence
+        notifyEvent: () => {}, saveRunHistory: () => {}, recordKeystroke: () => {}, // DEFER: port-v2-persistence
         refreshDungeonCell: (loc) => refreshDungeonCellFn(loc, getCellApp, displayBuffer),
         encodeMessageColor,
         black, white, gray, yellow, lightBlue, badMessageColor,

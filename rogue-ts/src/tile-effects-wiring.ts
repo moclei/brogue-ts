@@ -182,7 +182,8 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
         pmap, rogue, tileCatalog, dungeonFeatureCatalog, DCOLS, DROWS, monsters, levels,
         refreshDungeonCell, spawnDungeonFeature: spawnFeature, cellHasTerrainFlag, cellHasTMFlag,
         coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
-        monstersFall: () => {}, updateFloorItems: () => {},
+        monstersFall: () => {}, // permanent-defer — tile-effects env does not run the fall pass mid-activation
+        updateFloorItems: () => {},
         monstersTurn: (monst: Creature) => { void monstersTurnFn(monst, buildMonstersTurnContext()); },
         keyOnTileAt: () => null,
         removeCreature: () => false, prependCreature: () => {},

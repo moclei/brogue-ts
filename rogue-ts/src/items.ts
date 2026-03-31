@@ -343,9 +343,9 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         itemMagicPolarity: (item) => itemMagicPolarityFn(item),
 
         // ── Recording stubs (wired in port-v2-platform) ─────────────────────
-        recordKeystroke: () => {},
-        recordKeystrokeSequence: () => {},
-        recordMouseClick: () => {},
+        recordKeystroke: () => {},          // DEFER: port-v2-persistence
+        recordKeystrokeSequence: () => {},  // DEFER: port-v2-persistence
+        recordMouseClick: () => {},         // DEFER: port-v2-persistence
 
         // ── Creature / combat helpers ────────────────────────────────────────
         heal: (target, percent, increaseMax) => healFn(target, percent, increaseMax, combatCtx),

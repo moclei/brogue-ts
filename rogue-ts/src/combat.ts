@@ -547,7 +547,7 @@ export function buildCombatAttackContext(): RunicContext {
         onHitHallucinateDuration: gameConst.onHitHallucinateDuration,
         onHitWeakenDuration: gameConst.onHitWeakenDuration,
         onHitMercyHealPercent: gameConst.onHitMercyHealPercent,
-        forceWeaponHit: () => false,
+        forceWeaponHit: () => false, // permanent-defer — needs zap() (bolt system not yet ported)
     };
 
     // Wire specialHit after construction so the closure can reference runicCtx

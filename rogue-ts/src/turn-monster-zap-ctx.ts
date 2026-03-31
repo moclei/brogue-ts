@@ -452,7 +452,7 @@ export function buildMonsterZapCtx(): ZapContext {
         applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
         pickUpItemAt: () => {},         // stub — deferred
         checkForMissingKeys: () => {},  // stub — deferred
-        findAlternativeHomeFor: () => null,  // stub — deferred
+        findAlternativeHomeFor: () => null,  // permanent-defer — zap ctx; full home-finding requires map traversal not needed here
         autoIdentify: () => {},         // stub — deferred
 
         beckonMonster: (monst, x, y) => beckonMonsterFn(monst, x, y, {

@@ -360,11 +360,11 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         flavorMessage: () => {},
         refreshDungeonCell,
         displayLevel: () => {},
-        displayAnnotation: () => {},
+        displayAnnotation: () => {}, // DEFER: port-v2-persistence (playback annotation display)
         refreshSideBar,
         gameOver: (msg) => gameOver(msg),
         confirm: () => true,
-        flashMessage: () => {},
+        flashMessage: () => {}, // permanent-defer — cosmetic flash animation; safe no-op in turn context
         recordKeystroke: () => {},
         confirmMessages: io.confirmMessages,
         pauseAnimation: async (ms) => { commitDraws(); return platformPauseIgnoringHover(ms); },
@@ -525,7 +525,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
             player,
             rogue: rogue as unknown as CreatureEffectsContext["rogue"],
             badMessageColor, darkRed, yellow, darkGreen,
-            flashMessage: () => {},
+            flashMessage: () => {}, // permanent-defer — cosmetic animation; safe no-op in handleHealthAlerts context
             assureCosmeticRNG: () => {},
             restoreRNG: () => {},
         } as unknown as CreatureEffectsContext),

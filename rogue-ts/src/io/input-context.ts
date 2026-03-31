@@ -341,7 +341,7 @@ export function buildInputContext(): InputContext {
             await playerTurnEndedFn();
         },
         enableEasyMode: () => enableEasyModeImpl({ ...buildLifecycleContext(), confirm: buildConfirmFn() } as unknown as LifecycleContext),
-        saveGame: () => {},                         // stub — save system not yet ported
+        saveGame: () => {},                         // DEFER: port-v2-persistence
         gameOver: (killedBy, useCustomPhrasing) => gameOverImpl(buildLifecycleContext(), killedBy, useCustomPhrasing),
         printSeed: () => { buildMessageFns().message(`Seed: ${rogue.seed}`, 0); },
         showCursor: () => showCursorFn({ rogue, player } as unknown as TargetingContext),
@@ -349,7 +349,7 @@ export function buildInputContext(): InputContext {
         exploreKey: (ctrl) => exploreKeyFn(ctrl, travelCtx(), io.message, rogue, player.loc),
         autoPlayLevel: async (ctrl) => { await autoPlayLevelFn(ctrl, travelCtx()); },
         takeScreenshot: () => false,                // stub — screenshot not yet ported
-        dialogCreateItemOrMonster: () => {},        // stub — debug only
+        dialogCreateItemOrMonster: () => {},        // permanent-defer — debug wizard; WizardContext wiring is low priority
 
         // ── Item predicates ───────────────────────────────────────────────────
         itemIsCarried: (item) => itemIsCarriedFn(item, packItems),
@@ -474,12 +474,12 @@ export function buildInputContext(): InputContext {
         terrainMechFlags: (loc) => terrainMechFlagsFn(pmap, loc),
 
         // ── Recordings (stubs) ────────────────────────────────────────────────
-        recordKeystroke: () => {},
+        recordKeystroke: () => {},              // DEFER: port-v2-persistence
         recallEvent: fakeEvent,
-        executePlaybackInput: () => false,
+        executePlaybackInput: () => false,      // DEFER: port-v2-persistence (playback layer)
         proposeOrConfirmLocation: (loc, failMsg) =>
             proposeOrConfirmLocationFn(loc, failMsg, travelCtx()),
-        characterForbiddenInFilename: () => false,
+        characterForbiddenInFilename: () => false, // DEFER: port-v2-persistence (filename validation for saves)
 
         // ── Debug ─────────────────────────────────────────────────────────────
         safetyMap: null,

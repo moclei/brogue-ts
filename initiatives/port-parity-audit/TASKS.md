@@ -126,14 +126,14 @@ All needs-porting functions from sub-phase 2a must exist before starting this su
 - [x] Wire `buildLevelContext` — wired currentStealthRange, updateEnvironment, updateMonsterState, refreshSideBar, messageWithColor, hideCursor; RNGCheck+flushBufferToFile deferred (persistence); extracted to lifecycle-level.ts (600-line split)
 - [x] Wire `buildUpdateVisionFn` — 12 stubs wired (monsterAvoids via buildMonsterStateContext, messageWithColor, assureCosmeticRNG/restoreRNG; dijkstraScan/freeGrid intentional no-ops in updateVision path)
 - [x] Wire `buildItemHandlerContext` — temporaryMessage, printString, recalculateEquipmentBonuses, chooseNewWanderDestination, demoteMonsterFromLeadership, makeMonsterDropItem wired; permanent-defer stubs unchanged
-- [~] Wire all remaining builders with <10 stubs each (batch by file)
+- [x] Wire all remaining builders with <10 stubs each (batch by file)
 - [x] Re-run analysis pipeline. Update `PORT_HEALTH.md`. Commit progress summary.
 
 # --- handoff point ---
 
 ## Phase 4: Drift investigation
 
-- [ ] Review the `needs-porting` list from Phase 1. For each function that was
+- [x] Review the `needs-porting` list from Phase 1. For each function that was
       identified as needing a new implementation: port from C source, wire into
       all relevant contexts, add tests.
 - [ ] Scan for simplified implementations: search for comments like `// simplified`,
