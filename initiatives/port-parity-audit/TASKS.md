@@ -120,7 +120,7 @@ All needs-porting functions from sub-phase 2a must exist before starting this su
 - [x] Wire `buildCombatAttackContext` (combat.ts) — 23 stubs
 - [x] Wire `buildMiscHelpersContext` — 23 stubs
 - [x] Wire `buildMonstersTurnContext` — 22 stubs
-- [ ] Wire `buildLifecycleContext` (lifecycle.ts) — 20 stubs
+- [x] Wire `buildLifecycleContext` (lifecycle-gameover.ts) — wired isVowelish, itemName; remaining stubs are persistence/scoring defers
 - [ ] Wire `buildMenuContext` (menus.ts) — 17 stubs
 - [ ] Wire `buildZapRenderContext` — 16 stubs
 - [ ] Wire `buildLevelContext` — 14 stubs
