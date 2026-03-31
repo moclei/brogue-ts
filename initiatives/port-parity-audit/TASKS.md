@@ -147,7 +147,7 @@ All needs-porting functions from sub-phase 2a must exist before starting this su
 
 ## Phase 5: Verify and close
 
-- [ ] Re-run full analysis pipeline. Critical stub count should be near zero
+- [x] Re-run full analysis pipeline. Critical stub count should be near zero
       (only recording/persistence and documented gaps remaining).
 - [ ] Run full test suite: `npx vitest run` — all passing, no new skips.
 - [ ] Playtest: complete game on a known seed. Note any behavioral anomalies.

@@ -296,14 +296,14 @@ export function buildStaffZapCtx(): ZapContext {
         gameConst,
         tileCatalog,
         itemAtLoc: (loc: Pos) => itemAtLocFn(loc, floorItems),
-        identifyItemKind: () => {},
+        identifyItemKind: () => {},          // permanent-defer — zap context: identification happens at use-site, not during zap resolution
         wandKindData: () => null,
         numberOfItemsInPack: () => numberOfItemsInPackFn(packItems),
         itemWillStackWithPack: (item: Item) => itemWillStackWithPackFn(item, packItems),
         removeItemFromFloor: (item: Item) => removeItemFromArrayFn(item, floorItems),
         addItemToPack: (item: Item) => addItemToPackFn(item, packItems),
         deleteItem: deleteItemFn,
-        removeItemAt: () => {},
+        removeItemAt: () => {},              // permanent-defer — zap context: item removal (e.g. telekinesis) wired at movement layer
         numberOfMatchingPackItems: (cat: number, req: number, forb: number) =>
             numberOfMatchingPackItemsFn(packItems, cat, req, forb),
         getRandomMonsterSpawnLocation: (): Pos => ({ x: 0, y: 0 }), // DEFER: port-v2-persistence

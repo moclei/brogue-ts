@@ -271,12 +271,12 @@ export function buildMonsterBoltBlinkContexts(deps: MonsterBoltBlinkDeps): {
             monsterAtLoc,
             monstersAreEnemies: (a: Creature, b: Creature) => monstersAreEnemiesFn(a, b, player, chTF),
             monsterRevealed: () => false,
-            zeroOutGrid: () => {},
-            getFOVMask: () => {},
-            updateLighting: () => {},
-            updateFieldOfViewDisplay: () => {},
-            discoverCell: () => {},
-            refreshDungeonCell: () => {},
+            zeroOutGrid: () => {},            // permanent-defer — safety-map ctx does not rebuild vision grids
+            getFOVMask: () => {},             // permanent-defer — safety-map ctx does not trace FOV
+            updateLighting: () => {},         // permanent-defer — display ops not needed in safety-map pass
+            updateFieldOfViewDisplay: () => {}, // permanent-defer — display ops not needed in safety-map pass
+            discoverCell: () => {},           // permanent-defer — safety-map pass does not mark cells discovered
+            refreshDungeonCell: () => {},     // permanent-defer — display ops not needed in safety-map pass
             allocGrid,
             freeGrid: () => {},
             dijkstraScan: dijkstraScanFn,

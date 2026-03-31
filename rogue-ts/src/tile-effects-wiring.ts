@@ -455,8 +455,8 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
             itemName: (item, buf, details, article) => { buf[0] = itemNameFn(item, details, article, namingCtx); },
             refreshDungeonCell,
             promoteTile: (x, y, layer, forced) => promoteTileFn(x, y, layer as DungeonLayer, forced, envCtx),
-            activateMachine: () => {},
-            circuitBreakersPreventActivation: () => false,
+            activateMachine: () => {},                        // permanent-defer — updateFloorItems tile-expiry path does not trigger machine activation
+            circuitBreakersPreventActivation: () => false,   // permanent-defer — updateFloorItems tile-expiry path does not check circuit breakers
         }),
         synchronizePlayerTimeState: () => { rogue.ticksTillUpdateEnvironment = player.ticksUntilTurn; },
         recalculateEquipmentBonuses: () => {
