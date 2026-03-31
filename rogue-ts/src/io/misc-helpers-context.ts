@@ -18,7 +18,12 @@ import {
     distanceBetween,
     monsterAvoids as monsterAvoidsFn,
 } from "../monsters/monster-state.js";
-import { canSeeMonster as canSeeMonsterFn, monsterRevealed as monsterRevealedFn } from "../monsters/monster-queries.js";
+import {
+    canSeeMonster as canSeeMonsterFn,
+    monsterRevealed as monsterRevealedFn,
+    monsterName as monsterNameFn,
+    monstersAreEnemies as monstersAreEnemiesFn,
+} from "../monsters/monster-queries.js";
 import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
     cellHasTMFlag as cellHasTMFlagFn,
@@ -30,8 +35,16 @@ import { discover as discoverFn } from "../movement/map-queries.js";
 import { spawnDungeonFeature as spawnDungeonFeatureFn } from "../architect/machines.js";
 import { dungeonFeatureCatalog } from "../globals/dungeon-feature-catalog.js";
 import { tileCatalog } from "../globals/tile-catalog.js";
-import { ringTable } from "../globals/item-catalog.js";
-import { randPercent, randClumpedRange } from "../math/rng.js";
+import {
+    ringTable,
+    potionTable,
+    scrollTable,
+    wandTable,
+    staffTable,
+    charmTable,
+    charmEffectTable,
+} from "../globals/item-catalog.js";
+import { randPercent, randClumpedRange, randRange } from "../math/rng.js";
 // autoRest and manualSearch are imported in input-context.ts; only the context builder lives here.
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "../light/light.js";
 import {
@@ -42,11 +55,29 @@ import {
 import type { MiscHelpersContext } from "../time/misc-helpers.js";
 import type { ItemHelperContext } from "../movement/item-helpers.js";
 import { TURNS_FOR_FULL_REGEN, REST_KEY, SEARCH_KEY, DCOLS, DROWS } from "../types/constants.js";
-import { TileFlag, MonsterBookkeepingFlag } from "../types/flags.js";
-import type { Pos, Color } from "../types/types.js";
+import { TileFlag, MonsterBookkeepingFlag, TerrainFlag, TerrainMechFlag, IS_IN_MACHINE } from "../types/flags.js";
+import type { Pos, Color, Creature } from "../types/types.js";
 import { INVALID_POS } from "../types/types.js";
 import { coordinatesAreInMap, nbDirs, posNeighborInDirection } from "../globals/tables.js";
-import { DungeonLayer } from "../types/enums.js";
+import { DungeonLayer, StatusEffect } from "../types/enums.js";
+import { ringWisdomMultiplier as ringWisdomMultiplierFn, charmRechargeDelay as charmRechargeDelayFn } from "../power/power-tables.js";
+import { itemName as itemNameFn, identify as identifyFn } from "../items/item-naming.js";
+import { updateIdentifiableItems as updateIdentifiableItemsFn } from "../items/item-handlers.js";
+import { updateIdentifiableItem as updateIdentifiableItemFn } from "../items/item-effects.js";
+import { numberOfMatchingPackItems as numberOfMatchingPackItemsFn } from "../items/item-inventory.js";
+import { avoidedFlagsForMonster as avoidedFlagsForMonsterFn } from "../monsters/monster-spawning.js";
+import { getQualifyingPathLocNear as getQualifyingPathLocNearFn } from "../movement/path-qualifying.js";
+import { restoreMonster as restoreMonsterFn, getQualifyingLocNear as getQualifyingLocNearFn } from "../architect/architect.js";
+import { messageColorFromVictim as messageColorFromVictimFn } from "../io/color.js";
+import { demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "../monsters/monster-ally-ops.js";
+import { prependCreature as prependCreatureFn, removeCreature as removeCreatureFn } from "../monsters/monster-actions.js";
+import { inflictDamage as inflictDamageFn, killCreature as killCreatureFn } from "../combat/combat-damage.js";
+import { buildCombatDamageContext } from "../combat.js";
+import { red } from "../globals/colors.js";
+import type { ItemTable } from "../types/types.js";
+
+// ItemTable[] — shorthand cast for readonly catalog arrays passed to ItemNamingContext
+type ItemNamingTableArr = ItemTable[];
 
 // =============================================================================
 // buildMiscHelpersContext — Time.c helpers (autoRest, manualSearch)
@@ -60,7 +91,10 @@ import { DungeonLayer } from "../types/enums.js";
  * are stubbed — they are not invoked from this context.
  */
 export function buildMiscHelpersContext(): MiscHelpersContext {
-    const { rogue, player, pmap, monsters, floorItems, packItems, levels } = getGameState();
+    const {
+        rogue, player, pmap, monsters, floorItems, packItems, levels,
+        gameConst, monsterCatalog, mutableScrollTable, mutablePotionTable,
+    } = getGameState();
     const io = buildMessageFns();
     const refreshDungeonCell = buildRefreshDungeonCellFn();
 
@@ -166,7 +200,7 @@ export function buildMiscHelpersContext(): MiscHelpersContext {
 
         DCOLS,
         DROWS,
-        FP_FACTOR: 1000,                         // stub — not used by autoRest/manualSearch
+        FP_FACTOR: 1000,                         // number-domain FP scale for recharge calculations
         TURNS_FOR_FULL_REGEN,
         deepestLevel: rogue.deepestLevel,
         INVALID_POS,
@@ -175,13 +209,53 @@ export function buildMiscHelpersContext(): MiscHelpersContext {
         rand_percent: (pct) => randPercent(pct),
         max: Math.max,
         clamp: (val, min, max) => Math.min(Math.max(val, min), max),
-        ringWisdomMultiplier: (val) => val,       // stub — not used by autoRest/manualSearch
-        charmRechargeDelay: () => 0,              // stub — not used by autoRest/manualSearch
+        ringWisdomMultiplier: (val: number): number => {
+            // val = wisdomBonus * FP_FACTOR(1000); convert to bigint fixpt (65536-base)
+            const asFixpt = BigInt(Math.round(val)) * 65536n / 1000n;
+            const result = ringWisdomMultiplierFn(asFixpt);
+            // convert result back to FP_FACTOR(1000) scale
+            return Number(result) * 1000 / 65536;
+        },
+        charmRechargeDelay: (kind: number, enchant: number): number => {
+            const entry = charmEffectTable[kind];
+            if (!entry) return 0;
+            return charmRechargeDelayFn(entry, enchant);
+        },
 
-        itemName: () => "",                       // stub
-        identify: () => {},                       // stub
-        updateIdentifiableItems: () => {},        // stub
-        numberOfMatchingPackItems: () => 0,       // stub
+        itemName: (theItem, includeArticle, includeRunic): string =>
+            itemNameFn(theItem, includeRunic, includeArticle, {
+                gameConstants: gameConst,
+                depthLevel: rogue.depthLevel,
+                potionTable: potionTable as ItemNamingTableArr,
+                scrollTable: scrollTable as ItemNamingTableArr,
+                wandTable: wandTable as ItemNamingTableArr,
+                staffTable: staffTable as ItemNamingTableArr,
+                ringTable: ringTable as ItemNamingTableArr,
+                charmTable: charmTable as ItemNamingTableArr,
+                playbackOmniscience: rogue.playbackOmniscience,
+                monsterClassName: (classId) => monsterCatalog[classId]?.monsterName ?? "creature",
+                charmRechargeDelay: (kind, enchant) => {
+                    const entry = charmEffectTable[kind];
+                    return entry ? charmRechargeDelayFn(entry, enchant) : 0;
+                },
+            }),
+        identify: (theItem): void =>
+            identifyFn(theItem, gameConst, {
+                scrollTable: mutableScrollTable,
+                potionTable: mutablePotionTable,
+            }),
+        updateIdentifiableItems: (): void =>
+            updateIdentifiableItemsFn({
+                packItems,
+                floorItems,
+                updateIdentifiableItem: (item) =>
+                    updateIdentifiableItemFn(item, {
+                        scrollTable: mutableScrollTable,
+                        potionTable: mutablePotionTable,
+                    }),
+            }),
+        numberOfMatchingPackItems: (category, requiredFlags, forbiddenFlags, _is498): number =>
+            numberOfMatchingPackItemsFn(packItems, category, requiredFlags, forbiddenFlags),
 
         message: io.message,
         messageWithColor: (msg, color, flags) =>
@@ -190,16 +264,70 @@ export function buildMiscHelpersContext(): MiscHelpersContext {
         monsterAvoids: (monst, loc) =>
             monsterAvoidsFn(monst, loc, buildMonsterStateContext()),
         canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
-        monsterName: () => "",                    // stub
-        messageColorFromVictim: () => null,       // stub
-        inflictDamage: () => false,               // stub
-        killCreature: () => {},                   // stub
-        demoteMonsterFromLeadership: () => {},    // stub
-        restoreMonster: () => {},                 // stub
-        removeCreature: () => {},                 // stub
-        prependCreature: () => {},                // stub
-        avoidedFlagsForMonster: () => 0,          // stub
-        getQualifyingPathLocNear: (loc) => loc,   // stub
+        monsterName: (m: Creature, includeArticle: boolean): string =>
+            monsterNameFn(m, includeArticle, {
+                ...mqCtx,
+                playerStatus: player.status,
+                monsterCatalog,
+            }),
+        messageColorFromVictim: (m: Creature): unknown =>
+            messageColorFromVictimFn(
+                m,
+                player,
+                !!(player.status[StatusEffect.Hallucinating]),
+                rogue.playbackOmniscience,
+                (a, b) => monstersAreEnemiesFn(a, b, player, cellHasTerrainFlag),
+            ),
+        inflictDamage: (attacker, defender, damage, color, ignoreArmor): boolean =>
+            inflictDamageFn(attacker, defender, damage, color as Color | null, ignoreArmor, buildCombatDamageContext()),
+        killCreature: (monst: Creature, maintainCorpse: boolean): void =>
+            killCreatureFn(monst, maintainCorpse, buildCombatDamageContext()),
+        demoteMonsterFromLeadership: (monst: Creature): void =>
+            demoteMonsterFromLeadershipFn(monst, monsters),
+        restoreMonster: (monst: Creature): void =>
+            restoreMonsterFn(monst, null, null, {
+                pmap, monsters, nbDirs, coordinatesAreInMap,
+                cellHasTMFlag: (pos: Pos, flags: number) => cellHasTMFlagFn(pmap, pos, flags),
+                cellHasTerrainFlag,
+                avoidedFlagsForMonster: (info) => avoidedFlagsForMonsterFn(info),
+                knownToPlayerAsPassableOrSecretDoor: (pos: Pos) => {
+                    const cell = pmap[pos.x]?.[pos.y];
+                    if (!cell) return false;
+                    const discovered = !!(cell.flags & (TileFlag.DISCOVERED | TileFlag.MAGIC_MAPPED));
+                    const visible = !!(cell.flags & TileFlag.VISIBLE);
+                    const obstructs = (discovered && !visible)
+                        ? !!(cell.rememberedTerrainFlags & TerrainFlag.T_OBSTRUCTS_PASSABILITY)
+                        : cellHasTerrainFlagFn(pmap, pos, TerrainFlag.T_OBSTRUCTS_PASSABILITY);
+                    return !obstructs || cellHasTMFlagFn(pmap, pos, TerrainMechFlag.TM_IS_SECRET);
+                },
+                getQualifyingPathLocNear: (loc, diags, bTerrain, bMap, fTerrain, fMap, det) =>
+                    getQualifyingPathLocNearFn(loc, diags, bTerrain, bMap, fTerrain, fMap, det, {
+                        pmap,
+                        cellHasTerrainFlag,
+                        cellFlags: (pos: Pos) => pmap[pos.x]?.[pos.y]?.flags ?? 0,
+                        getQualifyingLocNear: (t, _ha, forbTerrF, forbMapF, _det) =>
+                            getQualifyingLocNearFn(pmap, t, forbTerrF, forbMapF),
+                        rng: { randRange },
+                    }),
+                HAS_PLAYER: TileFlag.HAS_PLAYER,
+                HAS_MONSTER: TileFlag.HAS_MONSTER,
+                HAS_STAIRS: TileFlag.HAS_STAIRS,
+                IS_IN_MACHINE,
+            }),
+        removeCreature: (list: Creature[], monst: Creature): void => {
+            removeCreatureFn(list, monst);
+        },
+        prependCreature: (list: Creature[], monst: Creature): void =>
+            prependCreatureFn(list, monst),
+        avoidedFlagsForMonster: (info): number => avoidedFlagsForMonsterFn(info as import("../types/types.js").CreatureType),
+        getQualifyingPathLocNear: (loc: Pos, diags: boolean, bTerrain: number, bMap: number, fTerrain: number, fMap: number, det: boolean): Pos =>
+            getQualifyingPathLocNearFn(loc, diags, bTerrain, bMap, fTerrain, fMap, det, {
+                pmap,
+                cellHasTerrainFlag,
+                cellFlags: (pos: Pos) => pmap[pos.x]?.[pos.y]?.flags ?? 0,
+                getQualifyingLocNear: () => null,
+                rng: { randRange },
+            }),
 
         posNeighborInDirection,
         cellHasTerrainFlag,
@@ -215,7 +343,7 @@ export function buildMiscHelpersContext(): MiscHelpersContext {
         displayLevel: buildDisplayLevelFn(),
         updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
         itemMessageColor: null,
-        red: null,
+        red,
         REST_KEY: String.fromCharCode(REST_KEY),
         SEARCH_KEY: String.fromCharCode(SEARCH_KEY),
         PAUSE_BEHAVIOR_DEFAULT: 0,

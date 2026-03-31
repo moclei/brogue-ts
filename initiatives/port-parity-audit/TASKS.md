@@ -118,7 +118,7 @@ All needs-porting functions from sub-phase 2a must exist before starting this su
 ## Phase 3: Wire remaining builders
 
 - [x] Wire `buildCombatAttackContext` (combat.ts) — 23 stubs
-- [ ] Wire `buildMiscHelpersContext` — 23 stubs
+- [x] Wire `buildMiscHelpersContext` — 23 stubs
 - [ ] Wire `buildMonstersTurnContext` — 22 stubs
 - [ ] Wire `buildLifecycleContext` (lifecycle.ts) — 20 stubs
 - [ ] Wire `buildMenuContext` (menus.ts) — 17 stubs
