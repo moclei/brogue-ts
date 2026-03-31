@@ -18,7 +18,7 @@ import {
     applyInstantTileEffectsToCreature as applyInstantFn,
 } from "./time/creature-effects.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
-import { promoteTile as promoteTileFn, exposeTileToFire as exposeTileToFireFn } from "./time/environment.js";
+import { promoteTile as promoteTileFn, exposeTileToFire as exposeTileToFireFn, exposeTileToElectricity as exposeTileToElectricityFn } from "./time/environment.js";
 import type { EnvironmentContext } from "./time/environment.js";
 import { useKeyAt as useKeyAtFn } from "./movement/item-helpers.js";
 import type { ItemHelperContext } from "./movement/item-helpers.js";
@@ -481,4 +481,44 @@ export function buildExposeTileToFireFn(): (x: number, y: number, alwaysIgnite: 
     exposeToFire = (x, y, a) => exposeTileToFireFn(x, y, a, envCtx);
 
     return exposeToFire;
+}
+
+// =============================================================================
+// buildExposeTileToElectricityFn
+// =============================================================================
+
+/**
+ * Returns an `exposeTileToElectricity(x, y)` closure wired to the
+ * current game state. Replaces `() => false` stubs in bolt/staff contexts.
+ *
+ * exposeTileToElectricity only needs pmap, tileCatalog, and cellHasTMFlag
+ * (plus promoteTile which uses the full EnvironmentContext).
+ */
+export function buildExposeTileToElectricityFn(): (x: number, y: number) => boolean {
+    const { pmap, rogue, monsters, levels } = getGameState();
+    const refreshDungeonCell = buildRefreshDungeonCellFn();
+    const cellHasTerrainFlag = (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags);
+    const cellHasTMFlag = (pos: Pos, flags: number) => cellHasTMFlagFn(pmap, pos, flags);
+
+    const spawnFeature = (x: number, y: number, feat: any, v: boolean, o: boolean): void => {
+        spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat, v, o);
+    };
+
+    let exposeToFire = (_x: number, _y: number, _a: boolean): boolean => false;
+    const envCtx = {
+        pmap, rogue, tileCatalog, dungeonFeatureCatalog, DCOLS, DROWS, monsters, levels,
+        refreshDungeonCell, spawnDungeonFeature: spawnFeature,
+        cellHasTerrainFlag, cellHasTMFlag,
+        coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
+        monstersFall: () => {}, updateFloorItems: () => {}, monstersTurn: () => {}, keyOnTileAt: () => null,
+        removeCreature: () => false, prependCreature: () => {},
+        rand_range: randRange, rand_percent: randPercent,
+        max: Math.max, min: Math.min,
+        fillSequentialList: (list: number[], _len: number) => fillSequentialListFn(list),
+        shuffleList: (list: number[], _len: number) => shuffleListFn(list),
+        exposeTileToFire: (x: number, y: number, a: boolean) => exposeToFire(x, y, a),
+    } as unknown as EnvironmentContext;
+    exposeToFire = (x, y, a) => exposeTileToFireFn(x, y, a, envCtx);
+
+    return (x: number, y: number) => exposeTileToElectricityFn(x, y, envCtx);
 }

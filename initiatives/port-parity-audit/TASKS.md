@@ -63,7 +63,7 @@ reference a function that doesn't exist yet. Skip all 18 defer-tier functions
       (primarily `buildApplyInstantTileEffectsFn`, `buildThrowCommandFn`,
       `buildStaffZapFn`). Run tests. Commit.
 
-- [ ] Port turn + dungeon-gen + movement + lifecycle needs-porting functions.
+- [x] Port turn + dungeon-gen + movement + lifecycle needs-porting functions.
       Turn: `monstersFall` (3 callers), `updateSafeTerrainMap` (2 callers),
       `updateAllySafetyMap` (2 callers), `exposeTileToElectricity` (1 caller),
       `processIncrementalAutoID` (1 caller), `handleHealthAlerts` (1 caller).

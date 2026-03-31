@@ -22,6 +22,7 @@ import {
 } from "./state/helpers.js";
 import { allocGrid, copyGrid } from "./grid/grid.js";
 import { randRange, randPercent, cosmeticRandRange } from "./math/rng.js";
+import { vomit as vomitFn } from "./movement/player-movement.js";
 import { nbDirs, coordinatesAreInMap } from "./globals/tables.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
@@ -82,7 +83,7 @@ import { getSafetyMap as getSafetyMapFn } from "./monsters/monster-flee-ai.js";
 import { nextStep as nextStepFn } from "./movement/travel-explore.js";
 import type { TravelExploreContext } from "./movement/travel-explore.js";
 import { dijkstraScan as dijkstraScanFn } from "./dijkstra/dijkstra.js";
-import { updateSafetyMap as updateSafetyMapFn } from "./time/safety-maps.js";
+import { updateSafetyMap as updateSafetyMapFn, updateSafeTerrainMap as updateSafeTerrainMapFn } from "./time/safety-maps.js";
 import type { SafetyMapsContext } from "./time/safety-maps.js";
 import {
     monsterBlinkToPreferenceMap as monsterBlinkToPreferenceMapFn,
@@ -322,7 +323,16 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         HAS_STAIRS: TileFlag.HAS_STAIRS,
         DCOLS, DROWS,
         // Extended MoveMonsterContext fields
-        vomit: () => {},                                // stub
+        vomit: (monst) => vomitFn(monst, {
+            player,
+            dungeonFeatureCatalog,
+            spawnDungeonFeature: (x, y, feat, isVolatile, overrideProtection) =>
+                void spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, isVolatile, overrideProtection),
+            canDirectlySeeMonster: (m) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+            monsterName: buildMonsterNameInline(player, pmap, player.status, rogue.playbackOmniscience, monsterCatalog),
+            combatMessage: (msg: string, color: unknown) => { void io.combatMessage(msg, color as never); },
+            automationActive: rogue.automationActive,
+        }),
         randValidDirectionFrom: (monst, x, y, allowDiag) =>
             randValidDirectionFromFn(monst, x, y, allowDiag, {
                 coordinatesAreInMap, cellHasTerrainFlag: chTF, cellFlags,
@@ -443,7 +453,32 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         MONST_ALWAYS_HUNTING: MonsterBehaviorFlag.MONST_ALWAYS_HUNTING,
         mapToSafeTerrain: rogue.mapToSafeTerrain,
         updatedMapToSafeTerrainThisTurn: rogue.updatedMapToSafeTerrainThisTurn,
-        updateSafeTerrainMap: () => {},
+        updateSafeTerrainMap: () => updateSafeTerrainMapFn({
+            rogue, player, pmap, monsters, dormantMonsters: [],
+            safetyMap: sharedSafetyMap!, allySafetyMap: sharedSafetyMap!,
+            DCOLS, DROWS, FP_FACTOR: 1, floorItems: [],
+            cellHasTerrainFlag: chTF, cellHasTMFlag: chTMF,
+            coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
+            discoveredTerrainFlagsAtLoc: (pos: Pos) => discoveredTerrainFlagsAtLocFn(
+                pmap, pos, tileCatalog,
+                (tileType: number) => {
+                    const df = tileCatalog[tileType]?.discoverType ?? 0;
+                    return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
+                },
+            ),
+            monsterAtLoc, allocGrid, freeGrid: () => {},
+            dijkstraScan: dijkstraScanFn,
+            max: Math.max, min: Math.min,
+            pmapAt: (loc: Pos) => pmap[loc.x][loc.y],
+            monstersAreEnemies: () => false,
+            monsterRevealed: () => false,
+            zeroOutGrid: () => {},
+            getFOVMask: () => {},
+            updateLighting: () => {},
+            updateFieldOfViewDisplay: () => {},
+            discoverCell: () => {},
+            refreshDungeonCell: () => {},
+        } as unknown as SafetyMapsContext),
         monsterWillAttackTarget: (monst, target) =>
             monsterWillAttackTargetFn(monst, target, player, chTF),
         traversiblePathBetween: (monst, x, y) => traversibleImpl(monst, x, y),
@@ -621,7 +656,32 @@ export function buildMonstersTurnContext(): MonstersTurnContext {
         nbDirs, NO_DIRECTION: -1, DCOLS, DROWS,
         diagonalBlocked: diagBlocked,
         mapToSafeTerrain: rogue.mapToSafeTerrain,
-        updateSafeTerrainMap: () => {},
+        updateSafeTerrainMap: () => updateSafeTerrainMapFn({
+            rogue, player, pmap, monsters, dormantMonsters: [],
+            safetyMap: sharedSafetyMap!, allySafetyMap: sharedSafetyMap!,
+            DCOLS, DROWS, FP_FACTOR: 1, floorItems: [],
+            cellHasTerrainFlag: chTF, cellHasTMFlag: chTMF,
+            coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
+            discoveredTerrainFlagsAtLoc: (pos: Pos) => discoveredTerrainFlagsAtLocFn(
+                pmap, pos, tileCatalog,
+                (tileType: number) => {
+                    const df = tileCatalog[tileType]?.discoverType ?? 0;
+                    return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
+                },
+            ),
+            monsterAtLoc, allocGrid, freeGrid: () => {},
+            dijkstraScan: dijkstraScanFn,
+            max: Math.max, min: Math.min,
+            pmapAt: (loc: Pos) => pmap[loc.x][loc.y],
+            monstersAreEnemies: () => false,
+            monsterRevealed: () => false,
+            zeroOutGrid: () => {},
+            getFOVMask: () => {},
+            updateLighting: () => {},
+            updateFieldOfViewDisplay: () => {},
+            discoverCell: () => {},
+            refreshDungeonCell: () => {},
+        } as unknown as SafetyMapsContext),
         scentMap,
 
         IN_FIELD_OF_VIEW: TileFlag.IN_FIELD_OF_VIEW,

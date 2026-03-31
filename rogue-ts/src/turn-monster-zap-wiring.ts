@@ -17,7 +17,8 @@
  */
 
 import { getGameState, gameOver as gameOverFn } from "./core.js";
-import { buildApplyInstantTileEffectsFn, buildExposeTileToFireFn } from "./tile-effects-wiring.js";
+import { buildApplyInstantTileEffectsFn, buildExposeTileToFireFn, buildExposeTileToElectricityFn } from "./tile-effects-wiring.js";
+import { buildSetUpWaypointsFn } from "./waypoint-wiring.js";
 import { zap as zapFn } from "./items/zap.js";
 import { buildCombatAttackContext, buildCombatDamageContext, buildFadeInMonsterFn } from "./combat.js";
 import { attack as attackFn, moralAttack as moralAttackFn } from "./combat/combat-attack.js";
@@ -60,7 +61,7 @@ import {
     burnedTerrainFlagsAtLoc as burnedTerrainFlagsAtLocFn,
     discoveredTerrainFlagsAtLoc as discoveredTerrainFlagsAtLocFn,
 } from "./state/helpers.js";
-import { updateSafetyMap as updateSafetyMapFn } from "./time/safety-maps.js";
+import { updateSafetyMap as updateSafetyMapFn, updateAllySafetyMap as updateAllySafetyMapFn } from "./time/safety-maps.js";
 import type { SafetyMapsContext } from "./time/safety-maps.js";
 import { dijkstraScan as dijkstraScanFn } from "./dijkstra/dijkstra.js";
 import { DCOLS, DROWS } from "./types/constants.js";
@@ -322,7 +323,7 @@ export function buildMonsterZapFn() {
             wakeUp: buildWakeUpFn(player, monsters),
             exposeCreatureToFire: buildExposeCreatureToFireFn(),
             exposeTileToFire: buildExposeTileToFireFn(),
-            exposeTileToElectricity: () => false,
+            exposeTileToElectricity: buildExposeTileToElectricityFn(),
             createFlare: () => {},
 
             tunnelize: (x, y) => tunnelizeFn(x, y, {
@@ -416,7 +417,7 @@ export function buildMonsterZapFn() {
 
             beckonMonster: () => {},
             polymorph: () => false,
-            setUpWaypoints: () => {},
+            setUpWaypoints: buildSetUpWaypointsFn(),
             generateMonster: (kind, itemPossible, mutationPossible) => {
                 const monst = generateMonsterFn(kind, itemPossible, mutationPossible, {
                     rng: { randPercent, randRange },
@@ -583,7 +584,42 @@ export function buildMonsterBoltBlinkContexts(deps: MonsterBoltBlinkDeps): {
             freeGrid: () => {},
             dijkstraScan: dijkstraScanFn,
         } as unknown as SafetyMapsContext),
-        updateAllySafetyMap: () => {},
+        updateAllySafetyMap: () => updateAllySafetyMapFn({
+            rogue,
+            player,
+            pmap,
+            monsters,
+            dormantMonsters: [],
+            safetyMap: localSafetyMap,
+            allySafetyMap: blinkToSafetyCtx.allySafetyMap,
+            DCOLS, DROWS,
+            FP_FACTOR: 1,
+            floorItems: [],
+            cellHasTerrainFlag: chTF,
+            cellHasTMFlag: chTMF,
+            coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
+            discoveredTerrainFlagsAtLoc: (pos: Pos) => discoveredTerrainFlagsAtLocFn(
+                pmap, pos, tileCatalog,
+                (tileType) => {
+                    const df = tileCatalog[tileType]?.discoverType ?? 0;
+                    return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
+                },
+            ),
+            monsterAtLoc,
+            monstersAreEnemies: (a: Creature, b: Creature) => monstersAreEnemiesFn(a, b, player, chTF),
+            monsterRevealed: () => false,
+            zeroOutGrid: () => {},
+            getFOVMask: () => {},
+            updateLighting: () => {},
+            updateFieldOfViewDisplay: () => {},
+            discoverCell: () => {},
+            refreshDungeonCell: () => {},
+            allocGrid,
+            freeGrid: () => {},
+            dijkstraScan: dijkstraScanFn,
+            max: Math.max, min: Math.min,
+            pmapAt: (loc: Pos) => pmap[loc.x][loc.y],
+        } as unknown as SafetyMapsContext),
     };
 
     // ── boltAICtx ─────────────────────────────────────────────────────────────

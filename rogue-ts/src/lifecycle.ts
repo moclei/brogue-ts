@@ -41,7 +41,7 @@ import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
 import { mutationCatalog } from "./globals/mutation-catalog.js";
 import { itemMessageColor, white, backgroundMessageColor, goodMessageColor } from "./globals/colors.js";
 import { KEYBOARD_LABELS, DCOLS, DROWS, MESSAGE_ARCHIVE_ENTRIES, MONSTER_CLASS_COUNT } from "./types/constants.js";
-import { TileFlag } from "./types/flags.js";
+import { TileFlag, TerrainFlag, TerrainMechFlag, IS_IN_MACHINE } from "./types/flags.js";
 import { seedRandomGenerator, randRange, rand64bits, randPercent, randClump, clamp } from "./math/rng.js";
 import { FP_FACTOR } from "./math/fixpt.js";
 import { allocGrid, fillGrid, freeGrid } from "./grid/grid.js";
@@ -55,7 +55,8 @@ import { buildTurnProcessingContext } from "./turn.js";
 import { buildMonsterSpawningContext } from "./monsters.js";
 import { digDungeon, placeStairs, initializeLevel, setUpWaypoints,
     updateMapToShore, getQualifyingLocNear as getQualifyingLocNearFn,
-    resetDFMessageEligibility } from "./architect/architect.js";
+    resetDFMessageEligibility, restoreMonster as restoreMonsterFn, restoreItems as restoreItemsFn } from "./architect/architect.js";
+import { avoidedFlagsForMonster as avoidedFlagsForMonsterFn } from "./monsters/monster-spawning.js";
 import { analyzeMap } from "./architect/analysis.js";
 import { getFOVMask } from "./light/fov.js";
 import { populateGenericCostMap } from "./movement/cost-maps-fov.js";
@@ -523,8 +524,56 @@ export function buildLevelContext(): LevelContext {
             pmap[loc.x][loc.y].flags |= TileFlag.HAS_ITEM;
         },
         updateEnvironment: () => {},
-        restoreMonster: () => {},
-        restoreItems: () => {},
+        restoreMonster: (monst, mapToStairs, mapToPit) => restoreMonsterFn(monst, mapToStairs, mapToPit, {
+            pmap, monsters, nbDirs,
+            coordinatesAreInMap,
+            cellHasTMFlag: (pos, flags) => ctmf(pmap, pos, flags),
+            cellHasTerrainFlag: (pos, flags) => ctf(pmap, pos, flags),
+            avoidedFlagsForMonster: (info) => avoidedFlagsForMonsterFn(info),
+            knownToPlayerAsPassableOrSecretDoor: (pos) => {
+                const cell = pmap[pos.x]?.[pos.y];
+                if (!cell) return false;
+                const discovered = !!(cell.flags & (TileFlag.DISCOVERED | TileFlag.MAGIC_MAPPED));
+                const visible = !!(cell.flags & TileFlag.VISIBLE);
+                let obstructs: boolean;
+                if (discovered && !visible) {
+                    obstructs = !!(cell.rememberedTerrainFlags & TerrainFlag.T_OBSTRUCTS_PASSABILITY);
+                } else {
+                    obstructs = ctf(pmap, pos, TerrainFlag.T_OBSTRUCTS_PASSABILITY);
+                }
+                const isSecret = ctmf(pmap, pos, TerrainMechFlag.TM_IS_SECRET);
+                return !obstructs || isSecret;
+            },
+            getQualifyingPathLocNear: (target, hallwaysAllowed, blockTerrFl, blockMapFl, forbTerrFl, forbMapFl, det) =>
+                getQualifyingPathLocNearFn(target, hallwaysAllowed, blockTerrFl, blockMapFl, forbTerrFl, forbMapFl, det, {
+                    pmap,
+                    cellHasTerrainFlag: (pos, flags) => ctf(pmap, pos, flags),
+                    cellFlags: (pos) => pmap[pos.x]?.[pos.y]?.flags ?? 0,
+                    getQualifyingLocNear: (t, _ha, forbTerrF, forbMapF, _det) =>
+                        getQualifyingLocNearFn(pmap, t, forbTerrF, forbMapF),
+                    rng: { randRange },
+                }),
+            HAS_PLAYER: TileFlag.HAS_PLAYER,
+            HAS_MONSTER: TileFlag.HAS_MONSTER,
+            HAS_STAIRS: TileFlag.HAS_STAIRS,
+            IS_IN_MACHINE,
+        }),
+        restoreItems: () => restoreItemsFn({
+            pmap, floorItems, tileCatalog, dungeonFeatureCatalog,
+            coordinatesAreInMap,
+            cellHasTerrainFlag: (pos, flags) => ctf(pmap, pos, flags),
+            cellHasTMFlag: (pos, flags) => ctmf(pmap, pos, flags),
+            placeItemAt: (item, dest) => {
+                item.loc = { ...dest };
+                if (!floorItems.includes(item)) floorItems.unshift(item);
+                pmap[dest.x][dest.y].flags |= TileFlag.HAS_ITEM;
+            },
+            getQualifyingLocNear: (target, _hallwaysAllowed, _blockingMap, forbTerrFlags, forbMapFlags, _forbidLiquid, _deterministic) =>
+                getQualifyingLocNearFn(pmap, target, forbTerrFlags, forbMapFlags),
+            HAS_MONSTER: TileFlag.HAS_MONSTER,
+            HAS_ITEM: TileFlag.HAS_ITEM,
+            HAS_STAIRS: TileFlag.HAS_STAIRS,
+        }),
         updateMonsterState: () => {},
         storeMemories(x, y) {
             const cell = pmap[x][y];

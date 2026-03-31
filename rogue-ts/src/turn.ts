@@ -46,7 +46,8 @@ import {
 } from "./globals/colors.js";
 import { DCOLS, DROWS, HUNGER_THRESHOLD, WEAK_THRESHOLD, FAINT_THRESHOLD } from "./types/constants.js";
 import { TileFlag, ItemFlag, MessageFlag, MonsterBookkeepingFlag, TerrainFlag, TerrainMechFlag, T_OBSTRUCTS_SCENT, IS_IN_MACHINE, T_PATHING_BLOCKER, T_DIVIDES_LEVEL, T_HARMFUL_TERRAIN } from "./types/flags.js";
-import { refreshWaypoint as refreshWaypointFn } from "./architect/architect.js";
+import { refreshWaypoint as refreshWaypointFn, updateMapToShore as updateMapToShoreFn } from "./architect/architect.js";
+import { analyzeMap as analyzeMapFn } from "./architect/analysis.js";
 import { populateGenericCostMap } from "./movement/cost-maps-fov.js";
 import { CreatureState, GameMode, ALL_ITEMS, LightType, ItemCategory, FoodKind, DungeonLayer } from "./types/enums.js";
 import type { TurnProcessingContext } from "./time/turn-processing.js";
@@ -54,7 +55,7 @@ import { updateEnvironment as updateEnvironmentFn, promoteTile as promoteTileFn,
 import type { EnvironmentContext } from "./time/environment.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
-import { applyGradualTileEffectsToCreature as applyGradualTileEffectsFn, playerFalls as playerFallsFn, decrementPlayerStatus as decrementPlayerStatusFn, currentStealthRange as currentStealthRangeFn } from "./time/creature-effects.js";
+import { applyGradualTileEffectsToCreature as applyGradualTileEffectsFn, playerFalls as playerFallsFn, decrementPlayerStatus as decrementPlayerStatusFn, currentStealthRange as currentStealthRangeFn, monstersFall as monstersFallFn, handleHealthAlerts as handleHealthAlertsFn } from "./time/creature-effects.js";
 import { buildApplyInstantTileEffectsFn } from "./tile-effects-wiring.js";
 import { buildFadeInMonsterFn } from "./combat.js";
 import type { Creature, Pcell, Pos, PlayerCharacter, Color, Item } from "./types/types.js";
@@ -74,7 +75,9 @@ import { buildEquipState, syncEquipBonuses } from "./items/equip-helpers.js";
 import { getFOVMask as getFOVMaskFn } from "./light/fov.js";
 import { scentDistance } from "./time/turn-processing.js";
 import { itemName as itemNameFn } from "./items/item-naming.js";
-import { autoIdentify as autoIdentifyFn } from "./items/item-handlers.js";
+import { autoIdentify as autoIdentifyFn, updateIdentifiableItems as updateIdentifiableItemsFn } from "./items/item-handlers.js";
+import { updateIdentifiableItem as updateIdentifiableItemFn } from "./items/item-effects.js";
+import { identify as identifyFn } from "./items/item-naming.js";
 import { dropItem as dropItemFn } from "./items/floor-items.js";
 import { buildUpdateFloorItemsFn } from "./items/floor-items-wiring.js";
 import { startLevel as startLevelFn } from "./lifecycle.js";
@@ -95,7 +98,7 @@ import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generatio
 import { keyMatchesLocation as keyMatchesLocationFn } from "./items/item-utils.js";
 import { wandTable, staffTable, ringTable, charmTable, armorTable, charmEffectTable } from "./globals/item-catalog.js";
 import { ringWisdomMultiplier as ringWisdomMultiplierFn, charmRechargeDelay as charmRechargeDelayFn } from "./power/power-tables.js";
-import { rechargeItemsIncrementally as rechargeItemsIncrementallyFn } from "./time/misc-helpers.js";
+import { rechargeItemsIncrementally as rechargeItemsIncrementallyFn, processIncrementalAutoID as processIncrementalAutoIDFn } from "./time/misc-helpers.js";
 import type { MiscHelpersContext } from "./time/misc-helpers.js";
 import type { ItemTable } from "./types/types.js";
 import { buildMonstersApproachStairsCtx, monstersApproachStairs as monstersApproachStairsFn } from "./time/stairs-wiring.js";
@@ -546,7 +549,30 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
                     }
                     return spawned;
                 },
-                monstersFall: () => {},
+                monstersFall: () => monstersFallFn({
+                    monsters, pmap, levels,
+                    cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
+                    rogue: { depthLevel: rogue.depthLevel } as unknown as CreatureEffectsContext["rogue"],
+                    canSeeMonster: (m: Creature) => canSeeMonsterFn(m, mqCtx),
+                    monsterName: (buf: string[], m: Creature, includeArticle: boolean) => {
+                        if (m === player) { buf[0] = "you"; return; }
+                        const pfx = includeArticle ? (m.creatureState === CreatureState.Ally ? "your " : "the ") : "";
+                        buf[0] = `${pfx}${m.info.monsterName}`;
+                    },
+                    messageWithColor: (msg: string, color: Color, flags: number) => io.messageWithColor(msg, color, flags),
+                    messageColorFromVictim: (monst: Creature): Color =>
+                        (monst === player || monst.creatureState === CreatureState.Ally) ? badMessageColor : goodMessageColor,
+                    killCreature: (monst: Creature, adminDeath: boolean) => killCreatureFn(monst, adminDeath, combatCtx),
+                    inflictDamage: (attacker: Creature | null, defender: Creature, damage: number, flashColor: Color, showDamage: boolean) =>
+                        inflictDamageFn(attacker, defender, damage, flashColor, showDamage, combatCtx),
+                    randClumpedRange, red,
+                    demoteMonsterFromLeadership: (monst: Creature) => demoteMonsterFromLeadershipFn(monst, monsters),
+                    removeCreature: (list: Creature[], monst: Creature) => {
+                        const i = list.indexOf(monst); if (i >= 0) { list.splice(i, 1); return true; } return false;
+                    },
+                    prependCreature: (list: Creature[], monst: Creature) => { list.unshift(monst); },
+                    refreshDungeonCell,
+                } as unknown as CreatureEffectsContext),
                 monstersTurn: () => {},
                 updateFloorItems: buildUpdateFloorItemsFn({
                     floorItems, pmap,
@@ -588,7 +614,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
             updateEnvironmentFn(envCtx);
         },
         updateVision: buildUpdateVisionFn(),
-        updateMapToShore: () => {},
+        updateMapToShore: () => { rogue.mapToShore = updateMapToShoreFn(pmap); },
         updateSafetyMap: () => {},
         refreshWaypoint(index: number) {
             const dist = rogue.wpDistance[index];
@@ -607,7 +633,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
             };
             refreshWaypointFn(dist, coord, (cm) => populateGenericCostMap(cm, costCtx as never), monsters);
         },
-        analyzeMap: () => {},
+        analyzeMap: (calculateChokeMap: boolean) => analyzeMapFn(pmap, null, calculateChokeMap),
         removeDeadMonsters() {
             for (let i = monsters.length - 1; i >= 0; i--) {
                 const m = monsters[i];
@@ -663,13 +689,51 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
                 itemNameFn(item, includeDetails, includeArticle, namingCtx),
             message: io.message,
         } as unknown as MiscHelpersContext),
-        processIncrementalAutoID: () => {},
+        processIncrementalAutoID: () => processIncrementalAutoIDFn({
+            rogue: {
+                armor: rogue.armor,
+                ringLeft: rogue.ringLeft,
+                ringRight: rogue.ringRight,
+            } as unknown as MiscHelpersContext["rogue"],
+            ringTable,
+            itemName: (item: Item, _inclArticle: boolean, inclRunic: boolean) =>
+                itemNameFn(item, inclRunic, _inclArticle, namingCtx),
+            message: io.message,
+            identify: (item: Item) => identifyFn(item, gameConst, { scrollTable: mutableScrollTable, potionTable: mutablePotionTable }),
+            updateIdentifiableItems: () => updateIdentifiableItemsFn({
+                packItems, floorItems,
+                updateIdentifiableItem: (item: Item) => updateIdentifiableItemFn(item, { scrollTable: mutableScrollTable, potionTable: mutablePotionTable }),
+            }),
+        } as unknown as MiscHelpersContext),
 
         // ── Tile effects ──────────────────────────────────────────────────────
         applyInstantTileEffectsToCreature: buildApplyInstantTileEffectsFn(),
         applyGradualTileEffectsToCreature: (monst, ticks) => applyGradualTileEffectsFn(monst, ticks, gradualCtx),
         monsterShouldFall: () => false,
-        monstersFall: () => {},
+        monstersFall: () => monstersFallFn({
+            monsters, pmap, levels,
+            cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
+            rogue: { depthLevel: rogue.depthLevel } as unknown as CreatureEffectsContext["rogue"],
+            canSeeMonster: (m: Creature) => canSeeMonsterFn(m, mqCtx),
+            monsterName: (buf: string[], m: Creature, includeArticle: boolean) => {
+                if (m === player) { buf[0] = "you"; return; }
+                const pfx = includeArticle ? (m.creatureState === CreatureState.Ally ? "your " : "the ") : "";
+                buf[0] = `${pfx}${m.info.monsterName}`;
+            },
+            messageWithColor: (msg: string, color: Color, flags: number) => io.messageWithColor(msg, color, flags),
+            messageColorFromVictim: (monst: Creature): Color =>
+                (monst === player || monst.creatureState === CreatureState.Ally) ? badMessageColor : goodMessageColor,
+            killCreature: (monst: Creature, adminDeath: boolean) => killCreatureFn(monst, adminDeath, combatCtx),
+            inflictDamage: (attacker: Creature | null, defender: Creature, damage: number, flashColor: Color, showDamage: boolean) =>
+                inflictDamageFn(attacker, defender, damage, flashColor, showDamage, combatCtx),
+            randClumpedRange, red,
+            demoteMonsterFromLeadership: (monst: Creature) => demoteMonsterFromLeadershipFn(monst, monsters),
+            removeCreature: (list: Creature[], monst: Creature) => {
+                const i = list.indexOf(monst); if (i >= 0) { list.splice(i, 1); return true; } return false;
+            },
+            prependCreature: (list: Creature[], monst: Creature) => { list.unshift(monst); },
+            refreshDungeonCell,
+        } as unknown as CreatureEffectsContext),
         decrementPlayerStatus: () => decrementPlayerStatusFn(decrementStatusCtx),
         playerFalls: async () => {
             const fallCtx = {
@@ -743,7 +807,14 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
             };
             await playerFallsFn(fallCtx as unknown as CreatureEffectsContext);
         },
-        handleHealthAlerts: () => {},
+        handleHealthAlerts: async () => handleHealthAlertsFn({
+            player,
+            rogue: rogue as unknown as CreatureEffectsContext["rogue"],
+            badMessageColor, darkRed, yellow, darkGreen,
+            flashMessage: () => {},
+            assureCosmeticRNG: () => {},
+            restoreRNG: () => {},
+        } as unknown as CreatureEffectsContext),
         updateScent() {
             if (!rogue.scentMap) rogue.scentMap = allocGrid();
             const sm = rogue.scentMap;

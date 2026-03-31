@@ -17,7 +17,8 @@
  */
 
 import { getGameState, gameOver as gameOverFn } from "../core.js";
-import { buildApplyInstantTileEffectsFn, buildExposeTileToFireFn } from "../tile-effects-wiring.js";
+import { buildApplyInstantTileEffectsFn, buildExposeTileToFireFn, buildExposeTileToElectricityFn } from "../tile-effects-wiring.js";
+import { buildSetUpWaypointsFn } from "../waypoint-wiring.js";
 import { waitForEvent, commitDraws, pauseAndCheckForEvent } from "../platform.js";
 import { moveCursor as moveCursorFn } from "../io/cursor-move.js";
 import type { MoveCursorContext } from "../io/cursor-move.js";
@@ -458,7 +459,7 @@ export function buildStaffZapFn() {
             wakeUp: buildWakeUpFn(player, monsters),
             exposeCreatureToFire: buildExposeCreatureToFireFn(),
             exposeTileToFire: buildExposeTileToFireFn(),
-            exposeTileToElectricity: () => false,  // stub
+            exposeTileToElectricity: buildExposeTileToElectricityFn(),
             createFlare: () => {},          // stub — visual only
 
             // ── Bolt-travel effects ──
@@ -578,7 +579,7 @@ export function buildStaffZapFn() {
             polymorph: () => false,         // stub
 
             // ── Conjuration ──
-            setUpWaypoints: () => {},       // stub — complex dijkstra recompute
+            setUpWaypoints: buildSetUpWaypointsFn(),
             generateMonster: (kind, itemPossible, mutationPossible) => {
                 const monst = generateMonsterFn(kind, itemPossible, mutationPossible, {
                     rng: { randPercent, randRange },
