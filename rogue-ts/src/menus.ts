@@ -19,13 +19,14 @@
  *  License, or (at your option) any later version.
  */
 
-import { getGameState, takePendingDeathMessage, takePendingVictory } from "./core.js";
+import { getGameState, takePendingDeathMessage, takePendingVictory, setGameVariant as coreSetGameVariant } from "./core.js";
 import { runDeathScreen } from "./lifecycle-gameover.js";
 import { waitForEvent, commitDraws, mainGameLoop, pauseAndCheckForEvent } from "./platform.js";
 import {
     initializeRogue, startLevel, freeEverything,
-    getPreviousGameSeed,
+    getPreviousGameSeed, buildGameInitContext,
 } from "./lifecycle.js";
+import { initializeGameVariant as initializeGameVariantFn } from "./game/game-init.js";
 import { buildButtonContext, buildInventoryContext } from "./ui.js";
 import { buildInputContext } from "./io/input-context.js";
 import { seedRandomGenerator, randRange } from "./math/rng.js";
@@ -179,8 +180,8 @@ export function buildMenuContext(): MenuContext {
         currentFilePath: _currentFilePath,
         setCurrentFilePath: (path) => { _currentFilePath = path; },
 
-        setGameVariant: () => {
-            // Variant switching re-initializes constants; stubbed for Phase 7
+        setGameVariant: (variant) => {
+            coreSetGameVariant(variant);
         },
 
         // -- RNG -------------------------------------------------------------
@@ -296,7 +297,7 @@ export function buildMenuContext(): MenuContext {
         },
         freeEverything,
         initializeGameVariant: () => {
-            // Variant re-initialization is handled in lifecycle.ts via buildGameInitContext
+            initializeGameVariantFn(buildGameInitContext());
         },
         initializeLaunchArguments: () => {},
 
