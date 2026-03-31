@@ -150,7 +150,6 @@ All needs-porting functions from sub-phase 2a must exist before starting this su
 - [x] Re-run full analysis pipeline. Critical stub count should be near zero
       (only recording/persistence and documented gaps remaining).
 - [x] Run full test suite: `npx vitest run` — all passing, no new skips.
-- [ ] Playtest: complete game on a known seed. Note any behavioral anomalies.
 - [ ] Playtest: complete game on a known seed. Note any behavioral anomalies. **[USER ACTION REQUIRED]**
 - [x] Update `docs/BACKLOG.md` with final port status and any remaining gaps.
 - [x] Update `.context/analysis/PORT_HEALTH.md` as the final health snapshot.
