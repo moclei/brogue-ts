@@ -95,8 +95,17 @@ reference a function that doesn't exist yet. Skip all 18 defer-tier functions
 Each task is one context builder. Skip recording/persistence stubs within each builder.
 All needs-porting functions from sub-phase 2a must exist before starting this sub-phase.
 
-- [ ] Wire `buildApplyInstantTileEffectsFn` (tile-effects-wiring.ts) — 44 stubs.
+- [x] Wire `buildApplyInstantTileEffectsFn` (tile-effects-wiring.ts) — 44 stubs.
       Check file length; split if approaching 600 lines.
+      Split: extracted buildExposeTileToFireFn/buildExposeTileToElectricityFn to tile-effects-env-wiring.ts.
+      Wired: demoteMonsterFromLeadership (×2), makeMonsterDropItem (×2), updateEncumbrance (×2),
+      updateVision (combatCtx), numberOfMatchingPackItems, dropItem, flavorMessage, displayLevel,
+      highestPriorityLayer, tileFlavor, describeLocation, monstersFall, updateFloorItems,
+      animateFlares, spawnPeriodicHorde, synchronizePlayerTimeState, recalculateEquipmentBonuses,
+      playerInDarkness, randClumpedRange, pmapAt, terrainFlags, armorTable, constants.
+      Remaining stubs: teleport (complex FOV ctx), startLevel (circular dep with lifecycle.ts),
+      playerTurnEnded (re-entry guard), search/recordKeystroke (record-cmd path),
+      assureCosmeticRNG/restoreRNG/flashMessage (cosmetic-only, safe no-ops).
 - [ ] Wire `buildTurnProcessingContext` (turn.ts) — 34 stubs
 - [ ] Wire `buildInputContext` (io/input-context.ts) — 33 stubs
 - [ ] Wire `buildMonsterZapFn` (turn-monster-zap-wiring.ts) — 28 stubs
