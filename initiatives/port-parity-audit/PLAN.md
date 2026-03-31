@@ -209,6 +209,74 @@ Total markers found: 21 (after excluding DEFER/permanent-defer/port-v2-persisten
 - Pre-existing failures: 2 (sprite-renderer tests, unrelated to these changes)
 - Tests passing: 2730 | skipped: 54
 
+---
+
+### Phase 4 — Behavioral Parity Spot-Check
+
+Functions reviewed: `attack` (Combat.c:1017), `inflictDamage` (Combat.c:1521), `applyInstantTileEffectsToCreature` (Time.c:101), `updateEnvironment` (Time.c:1412).
+
+#### Summary table
+
+| Function | System | Assessment | Key Finding |
+|---|---|---|---|
+| `attack` | combat | **Behavioral drift (4 bugs fixed)** | See details below |
+| `inflictDamage` | combat | **Match** | Shield reduction, transference, flee threshold all faithful |
+| `applyInstantTileEffectsToCreature` | turn/tiles | **Behavioral drift (1 bug fixed)** | Missing DF_CREATURE_FIRE on lava monster kill |
+| `updateEnvironment` | turn/env | **Match** | Two-pass promotion, fire spread, gas update all faithful |
+
+#### Behavioral drift — `attack` (4 issues)
+
+**1. `applyArmorRunicEffect` damage not applied (Critical)**
+- C: `applyArmorRunicEffect(armorRunicString, attacker, &damage, true)` — passes `&damage` by pointer; the function mutates it (e.g. Absorption reduces it, Immunity zeroes it, Vulnerability doubles it).
+- TS (before fix): `ctx.applyArmorRunicEffect(attacker, { value: damage }, true)` — creates a temporary object; `damage` local is never updated from the object after the call.
+- Impact: armor runics Absorption, Immunity, Mutuality, and Vulnerability all had no effect on actual damage inflicted during melee attacks.
+- Fix: `combat-attack.ts:502` — store object ref, read back `damage = damageRef.value` after call.
+
+**2. Dragonslayer feat never set (Critical)**
+- C: `if (&player == attacker && defender->info.monsterID == MK_DRAGON)` — MK_DRAGON is enum value ~42.
+- TS (before fix): `if (attacker === ctx.player && defender.info.monsterID === 0)` — `0` is `MK_YOU` (the player), not MK_DRAGON. Condition was always false for any dragon kill.
+- Fix: `combat-attack.ts:582` — changed to `defender.info.monsterID === MonsterType.MK_DRAGON`.
+
+**3. A_BURDEN `strengthCheck` never called (Minor)**
+- C: after showing armor runic message, calls `strengthCheck(rogue.armor, true)` if `enchant2 == A_BURDEN` (value 8).
+- TS (before fix): condition was `ctx.armor.enchant2 === 0` (Multiplicity), so always false for Burden armor.
+- Impact: Burden armor of strength requirement increase after hits would not trigger the strength failure check.
+- Fix: `combat-attack.ts:621` — changed to `ctx.armor.enchant2 === ArmorEnchant.Burden`.
+
+**4. W_SLAYING weapon degradation bypass never triggered (Minor)**
+- C: weapon of Slaying against its slaying class is exempt from acid mound degradation; `enchant2 == W_SLAYING` (value 7).
+- TS (before fix): condition was `ctx.weapon.enchant2 === 0` (Speed), always false for Slaying weapons.
+- Impact: a Slaying weapon attacking its target class could be degraded by an acid mound when it should be immune.
+- Fix: `combat-attack.ts:654` — changed to `ctx.weapon.enchant2 === WeaponEnchant.Slaying`.
+
+#### Behavioral drift — `applyInstantTileEffectsToCreature` (1 issue)
+
+**Missing DF_CREATURE_FIRE spawn on lava monster kill**
+- C: after `killCreature(monst, false)`, calls `spawnDungeonFeature(*x, *y, &dungeonFeatureCatalog[DF_CREATURE_FIRE], true, false)`.
+- TS (before fix): called `killCreature` and `refreshDungeonCell` but skipped the fire spawn.
+- Impact: monsters killed by lava did not produce the fire visual effect on their tile.
+- Fix: `creature-effects.ts:925` — added `ctx.spawnDungeonFeature(x, y, ctx.dungeonFeatureCatalog[DungeonFeatureType.DF_CREATURE_FIRE], true, false)`.
+
+#### `inflictDamage` — Match
+
+- Shield reduction: C uses `(status + 9) / 10` (ceiling division); TS uses `Math.ceil(status / 10)` — equivalent ✓
+- Transference: player, ally (40%), enemy (90%) fractions all match ✓
+- Flee-near-death: `maxHP / 4 >= currentHP` threshold faithful ✓
+- Easy mode: `max(1, damage/5)` ✓
+- Blood spawning: `15 + min(damage, currentHP) * 3 / 2` probability scale faithful ✓
+
+#### `updateEnvironment` — Match
+
+- Two-pass promotion (mark then promote) ✓
+- Fire spread (4-cardinal neighbors) ✓
+- Gas double-update ✓
+- Pressure plate release, key-activated promotions ✓
+- `updateFloorItems` call at end ✓
+
+#### Test results
+- Tests passing: 2730 | skipped: 54 | failed: 2 (pre-existing sprite-renderer, unrelated)
+- No regressions introduced by fixes.
+
 ## Open Questions
 
 - How many stubs are truly "mechanical wire-ups" vs "needs porting"?

@@ -12,7 +12,7 @@
  */
 
 import type { Creature, Item, Color, Pos, MonsterClass } from "../types/types.js";
-import { StatusEffect, CreatureState, Direction } from "../types/enums.js";
+import { StatusEffect, CreatureState, Direction, MonsterType, ArmorEnchant, WeaponEnchant } from "../types/enums.js";
 import {
     MonsterBehaviorFlag,
     MonsterBookkeepingFlag,
@@ -499,8 +499,9 @@ export function attack(
         // Armor runic effect
         let armorRunicString = "";
         if (defender === ctx.player && ctx.armor && (ctx.armor.flags & ItemFlag.ITEM_RUNIC)) {
-            armorRunicString = ctx.applyArmorRunicEffect(attacker, { value: damage }, true);
-            // Note: damage may have been modified by the runic effect through the object reference
+            const damageRef = { value: damage };
+            armorRunicString = ctx.applyArmorRunicEffect(attacker, damageRef, true);
+            damage = damageRef.value; // read back modified damage (C uses *damage pointer)
         }
 
         // Reaping
@@ -579,8 +580,7 @@ export function attack(
             if (defender === ctx.player) {
                 ctx.gameOverFromMonster(attacker.info.monsterName);
                 return true;
-            } else if (attacker === ctx.player && defender.info.monsterID === 0) {
-                // MK_DRAGON check — context should handle this
+            } else if (attacker === ctx.player && defender.info.monsterID === MonsterType.MK_DRAGON) {
                 ctx.setDragonslayerFeatAchieved();
             }
         } else {
@@ -618,8 +618,7 @@ export function attack(
             // Armor runic message
             if (armorRunicString) {
                 ctx.message(armorRunicString, 0);
-                if (ctx.armor && (ctx.armor.flags & ItemFlag.ITEM_RUNIC) && ctx.armor.enchant2 === 0) {
-                    // A_BURDEN check — context should handle specific enchant2 values
+                if (ctx.armor && (ctx.armor.flags & ItemFlag.ITEM_RUNIC) && ctx.armor.enchant2 === ArmorEnchant.Burden) {
                     ctx.strengthCheck(ctx.armor, true);
                 }
             }
@@ -652,7 +651,7 @@ export function attack(
             ctx.weapon &&
             !(ctx.weapon.flags & ItemFlag.ITEM_PROTECTED) &&
             !((ctx.weapon.flags & ItemFlag.ITEM_RUNIC) &&
-                ctx.weapon.enchant2 === 0 /* W_SLAYING — should be checked via context */ &&
+                ctx.weapon.enchant2 === WeaponEnchant.Slaying &&
                 ctx.monsterIsInClass(defender, ctx.monsterClassCatalog[ctx.weapon.vorpalEnemy])) &&
             ctx.weapon.enchant1 >= -10
         ) {

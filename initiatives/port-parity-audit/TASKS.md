@@ -139,7 +139,7 @@ All needs-porting functions from sub-phase 2a must exist before starting this su
 - [x] Scan for simplified implementations: search for comments like `// simplified`,
       `// TODO`, `// stub`, `// placeholder` across `rogue-ts/src/`. Cross-reference
       with C source to check if the simplification affects gameplay.
-- [ ] For the most critical game systems (combat, monster AI, items, turn processing),
+- [x] For the most critical game systems (combat, monster AI, items, turn processing),
       spot-check 3-5 complex functions against their C equivalents to verify behavioral
       parity. Document any discrepancies found.
 
