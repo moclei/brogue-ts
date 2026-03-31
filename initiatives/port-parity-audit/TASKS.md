@@ -85,7 +85,7 @@ reference a function that doesn't exist yet. Skip all 18 defer-tier functions
       `clearLastTarget`, `clearYendorWarden`, `clearCellMonsterFlag`.
       Read C source for each, implement, wire. Run tests. Commit.
 
-- [ ] Re-run analysis pipeline after all 2a porting is complete.
+- [x] Re-run analysis pipeline after all 2a porting is complete.
       Update `PORT_HEALTH.md`. Commit progress summary.
 
 # --- sub-phase 2a complete ---
