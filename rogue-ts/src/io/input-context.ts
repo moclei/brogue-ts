@@ -56,7 +56,7 @@ import {
     buildMessageFns,
     buildRefreshDungeonCellFn,
     buildHiliteCellFn,
-    buildRefreshSideBarFn, buildConfirmFn, buildDisplayLevelFn,
+    buildRefreshSideBarFn, buildConfirmFn, buildDisplayLevelFn, buildUpdateFlavorTextFn,
 } from "../io-wiring.js";
 import { buildDebugOverlayFns } from "./debug-overlays.js";
 import { buildSidebarContext, buildPrintLocationDescriptionFn } from "./sidebar-wiring.js";
@@ -190,6 +190,7 @@ export function buildInputContext(): InputContext {
 
     const refreshSideBarFn = buildRefreshSideBarFn();
     const displayLevelFn = buildDisplayLevelFn();
+    const updateFlavorText = buildUpdateFlavorTextFn();
     const io = buildMessageFns();
     const refreshDungeonCell = buildRefreshDungeonCellFn();
     const hiliteCellFn = buildHiliteCellFn();
@@ -301,7 +302,16 @@ export function buildInputContext(): InputContext {
 
         // ── Game actions ──────────────────────────────────────────────────────
         playerMoves: async (dir) => { await playerMovesFn(dir, moveCtx()); },
-        playerRuns: async (dir) => { await playerRunsFn(dir, moveCtx() as PlayerRunContext); },
+        playerRuns: async (dir) => {
+            const movementCtx = moveCtx();
+            const runCtx: PlayerRunContext = {
+                ...movementCtx,
+                isPosInMap: (pos) => coordinatesAreInMap(pos.x, pos.y),
+                posEq: (a, b) => a.x === b.x && a.y === b.y,
+                updateFlavorText,
+            };
+            await playerRunsFn(dir, runCtx);
+        },
         playerTurnEnded: async () => { await playerTurnEndedFn(); },
         autoRest: async () => { await autoRestFn(buildMiscHelpersContext()); },
         manualSearch: async () => { await manualSearchFn(buildMiscHelpersContext()); },
