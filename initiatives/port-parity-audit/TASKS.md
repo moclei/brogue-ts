@@ -110,7 +110,7 @@ All needs-porting functions from sub-phase 2a must exist before starting this su
 - [x] Wire `buildInputContext` (io/input-context.ts) — 33 stubs
 - [x] Wire `buildMonsterZapFn` (turn-monster-zap-wiring.ts) — 28 stubs
 - [x] Wire `buildThrowCommandFn` (items/item-commands.ts) — 27 stubs
-- [ ] Wire `buildStaffZapFn` (items/staff-wiring.ts) — 27 stubs
+- [x] Wire `buildStaffZapFn` (items/staff-wiring.ts) — 27 stubs
 - [ ] Re-run analysis pipeline. Update `PORT_HEALTH.md`. Commit progress summary.
 
 # --- handoff point ---
