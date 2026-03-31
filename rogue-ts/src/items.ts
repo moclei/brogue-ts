@@ -35,7 +35,7 @@ import {
     removeItemFromArray,
     numberOfMatchingPackItems as numberOfMatchingPackItemsFn,
 } from "./items/item-inventory.js";
-import { enchantMagnitude, netEnchant as netEnchantFn, updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, equipItem as equipItemFn } from "./items/item-usage.js";
+import { enchantMagnitude, netEnchant as netEnchantFn, updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, equipItem as equipItemFn, recalculateEquipmentBonuses as recalculateEquipmentBonusesFn } from "./items/item-usage.js";
 import { buildEquipState, syncEquipBonuses, syncEquipState } from "./items/equip-helpers.js";
 import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
 import {
@@ -44,7 +44,7 @@ import {
     inflictLethalDamage as inflictLethalDamageFn,
     flashMonster as flashMonsterFn,
 } from "./combat/combat-damage.js";
-import { alertMonster as alertMonsterFn } from "./monsters/monster-state.js";
+import { alertMonster as alertMonsterFn, chooseNewWanderDestination as chooseNewWanderDestinationFn } from "./monsters/monster-state.js";
 import {
     teleport as teleportFn,
     disentangle as disentangleFn,
@@ -98,6 +98,9 @@ import {
 import { playerTurnEnded as playerTurnEndedFn } from "./time/turn-processing.js";
 import { allocGrid, fillGrid } from "./grid/grid.js";
 import { freeCaptivesEmbeddedAt as freeCaptivesEmbeddedAtFn } from "./movement/ally-management.js";
+import { demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "./monsters/monster-ally-ops.js";
+import { doMakeMonsterDropItem } from "./monsters/monster-drop.js";
+import { closestWaypointIndex as closestWaypointIndexFn } from "./monsters/monster-awareness.js";
 import { generateMonster as generateMonsterFn } from "./monsters/monster-creation.js";
 import {
     aggravateMonsters as aggravateMonstersFn,
@@ -114,7 +117,7 @@ import {
     MonsterBookkeepingFlag, TerrainMechFlag, IS_IN_MACHINE,
 } from "./types/flags.js";
 import { INVALID_POS } from "./types/types.js";
-import { KEYBOARD_LABELS } from "./types/constants.js";
+import { KEYBOARD_LABELS, DCOLS } from "./types/constants.js";
 import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
 import type { ItemHandlerContext } from "./items/item-handlers.js";
 import {
@@ -125,7 +128,7 @@ import {
 import type { ItemTable, Creature, Pos } from "./types/types.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn, buildExposeCreatureToFireFn, buildPromptForItemOfTypeFn, buildConfirmFn, buildDisplayLevelFn, buildColorFlashFn } from "./io-wiring.js";
 import { buildUpdateClairvoyanceFn } from "./vision-wiring.js";
-import { buildResolvePronounEscapesFn } from "./io/text.js";
+import { buildResolvePronounEscapesFn, printString as printStringFn } from "./io/text.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
 import { createFlare as createFlareFn } from "./light/flares.js";
 import { lightCatalog } from "./globals/light-catalog.js";
@@ -219,7 +222,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
     const state = getGameState();
     const {
         player, rogue, pmap, monsters, packItems, floorItems,
-        mutableScrollTable, mutablePotionTable, gameConst,
+        mutableScrollTable, mutablePotionTable, gameConst, displayBuffer,
     } = state;
 
     const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn(), refreshSideBar = buildRefreshSideBarFn();
@@ -312,8 +315,8 @@ export function buildItemHandlerContext(): ItemHandlerContext {
         messageWithColor: io.messageWithColor,
         confirmMessages: io.confirmMessages,
         confirm: buildConfirmFn(),
-        temporaryMessage: () => {},
-        printString: () => {},
+        temporaryMessage: (msg, flags) => io.temporaryMessage(msg, flags),
+        printString: (s, x, y, fg, bg, _grid) => printStringFn(s, x, y, fg, bg, displayBuffer),
 
         // ── Inventory / item management ─────────────────────────────────────
         promptForItemOfType: buildPromptForItemOfTypeFn(),
@@ -338,7 +341,7 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                 updateRingBonuses: () => { updateRingBonusesFn(s); syncEquipBonuses(s); }, updateEncumbrance: () => updateEncumbranceFn(s) });
             syncEquipState(s);
         },
-        recalculateEquipmentBonuses: () => {},
+        recalculateEquipmentBonuses: () => recalculateEquipmentBonusesFn(buildEquipState()),
         itemMagicPolarity: (item) => itemMagicPolarityFn(item),
 
         // ── Recording stubs (wired in port-v2-platform) ─────────────────────
@@ -400,7 +403,12 @@ export function buildItemHandlerContext(): ItemHandlerContext {
                         monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_SUBMERGED;
                     }
                 },
-                chooseNewWanderDestination: () => {},  // stub — Phase 3a
+                chooseNewWanderDestination: (monst) => chooseNewWanderDestinationFn(monst, {
+                    waypointCount: rogue.wpCount,
+                    closestWaypointIndex: (m: Creature) =>
+                        closestWaypointIndexFn(m, rogue.wpCount, rogue.wpDistance, DCOLS),
+                    rng: { randRange: (lo: number, hi: number) => randRange(lo, hi) },
+                } as unknown as import("./monsters/monster-state.js").MonsterStateContext),
                 IS_IN_MACHINE,
                 HAS_PLAYER: TileFlag.HAS_PLAYER,
                 HAS_MONSTER: TileFlag.HAS_MONSTER,
@@ -501,8 +509,8 @@ export function buildItemHandlerContext(): ItemHandlerContext {
             const combatCtx = buildCombatDamageContext();
             const allyCtx = {
                 player, pmap,
-                demoteMonsterFromLeadership: () => {},  // stub
-                makeMonsterDropItem: () => {},           // stub
+                demoteMonsterFromLeadership: (monst: Creature) => demoteMonsterFromLeadershipFn(monst, monsters),
+                makeMonsterDropItem: (monst: Creature) => doMakeMonsterDropItem(monst, pmap, floorItems, cellHasTerrainFlag, refreshDungeonCell),
                 refreshDungeonCell,
                 monsterName: (m: Creature) => m.info.monsterName,
                 message: io.message,
