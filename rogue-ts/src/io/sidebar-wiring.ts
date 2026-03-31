@@ -86,6 +86,7 @@ import { TileFlag, MonsterBookkeepingFlag } from "../types/flags.js";
 import type { Color, Pos, ItemTable, Creature, ScreenDisplayBuffer } from "../types/types.js";
 import { DungeonLayer } from "../types/enums.js";
 import type { DisplayGlyph } from "../types/enums.js";
+import { buildItemDetailsFn } from "./item-details-wiring.js";
 
 // =============================================================================
 // buildSidebarContext — build a fresh SidebarContext from live game state
@@ -255,7 +256,7 @@ export function buildSidebarContext(): SidebarContext {
             };
             return monsterDetailsFn(monst, detailsCtx);
         },
-        itemDetails: () => "",                  // stub — itemDetails not yet ported
+        itemDetails: (item) => buildItemDetailsFn()(item),
 
         printTextBox: (text, x, y, width, fg, bg) => {
             // No-buttons variant: fire-and-forget (async body is sync with no buttons).

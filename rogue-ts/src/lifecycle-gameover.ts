@@ -46,7 +46,7 @@ import {
     displayMoreSignWithoutWaitingForAcknowledgment as displayMoreSignWithoutFn,
 } from "./io/messages.js";
 import type { MessageContext as SyncMessageContext } from "./io/messages-state.js";
-import { identify } from "./items/item-naming.js";
+import { identify, itemValue as itemValueFn } from "./items/item-naming.js";
 import { numberOfMatchingPackItems as packCount } from "./items/item-inventory.js";
 import { buildMessageFns, buildRefreshSideBarFn } from "./io-wiring.js";
 import type { LifecycleContext } from "./game/game-lifecycle.js";
@@ -93,7 +93,7 @@ export function buildLifecycleContext(): LifecycleContext {
         flashTemporaryAlert: () => {}, confirm: () => false,
         nextBrogueEvent(ev) { ev.eventType = EventType.MouseUp; }, // stub: exits sync event loops
         identify: (item) => identify(item, gameConst),
-        itemName: () => "", upperCase: (s) => s.toUpperCase(), itemValue: () => 0,
+        itemName: () => "", upperCase: (s) => s.toUpperCase(), itemValue: (item) => itemValueFn(item),
         numberOfMatchingPackItems: (cat, fl, fl2, _uf) => packCount(packItems, cat, fl, fl2),
         isVowelish: () => false, displayInventory: () => 0,
         flushBufferToFile: () => {}, saveHighScore: () => false, printHighScores: () => {},

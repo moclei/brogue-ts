@@ -45,7 +45,7 @@ import type { Creature, CreatureType, Item, ItemTable, Pos } from "./types/types
 import { getCellAppearance } from "./io/cell-appearance.js";
 import { terrainRandomValues, displayDetail } from "./render-state.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
-import { updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, equipItem as equipItemFn } from "./items/item-usage.js";
+import { updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, equipItem as equipItemFn, strengthCheck as strengthCheckFn } from "./items/item-usage.js";
 import { buildEquipState, syncEquipBonuses, syncEquipState } from "./items/equip-helpers.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
 import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
@@ -69,6 +69,10 @@ import {
 import type { RunicContext } from "./combat/combat-runics.js";
 import { itemName as itemNameFn } from "./items/item-naming.js";
 import { cloneMonster as cloneMonsterFn, becomeAllyWith as becomeAllyWithFn } from "./monsters/monster-lifecycle.js";
+import { checkForDisenchantment as checkForDisenchantmentFn } from "./items/item-inventory.js";
+import { weaken as weakenFn } from "./items/item-effects.js";
+import { NUMBER_GOOD_WEAPON_ENCHANT_KINDS } from "./types/constants.js";
+import { ArmorEnchant } from "./types/enums.js";
 import { doMakeMonsterDropItem } from "./monsters/monster-drop.js";
 import type { CloneMonsterContext } from "./monsters/monster-lifecycle.js";
 import { wandTable, staffTable, ringTable, charmTable, charmEffectTable } from "./globals/item-catalog.js";
@@ -166,37 +170,22 @@ export function buildCombatDamageContext(): CombatDamageContext {
         gameOver(msg) { gameOver(msg); },
         setCreaturesWillFlash() { rogue.creaturesWillFlashThisTurn = true; },
 
-        // ── Item management ───────────────────────────────────────────────────
         deleteItem(item) {
             const idx = floorItems.indexOf(item as never);
             if (idx >= 0) floorItems.splice(idx, 1);
         },
         makeMonsterDropItem(monst) {
-            doMakeMonsterDropItem(
-                monst, pmap, floorItems,
-                (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags),
-                refreshDungeonCell,
-            );
+            doMakeMonsterDropItem(monst, pmap, floorItems,
+                (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags), refreshDungeonCell);
         },
-
-        // ── Reference clearing ────────────────────────────────────────────────
-        clearLastTarget(monst) {
-            if (rogue.lastTarget === monst) rogue.lastTarget = null;
-        },
-        clearYendorWarden(monst) {
-            if (rogue.yendorWarden === monst) rogue.yendorWarden = null;
-        },
+        clearLastTarget(monst) { if (rogue.lastTarget === monst) rogue.lastTarget = null; },
+        clearYendorWarden(monst) { if (rogue.yendorWarden === monst) rogue.yendorWarden = null; },
         clearCellMonsterFlag(loc, isDormant) {
             if (coordinatesAreInMap(loc.x, loc.y)) {
-                const flag = isDormant
-                    ? TileFlag.HAS_DORMANT_MONSTER
-                    : TileFlag.HAS_MONSTER;
-                pmap[loc.x][loc.y].flags &= ~flag;
+                pmap[loc.x][loc.y].flags &= ~(isDormant ? TileFlag.HAS_DORMANT_MONSTER : TileFlag.HAS_MONSTER);
             }
         },
         prependCreature(monst) { monsters.unshift(monst); },
-
-        // ── Leadership ────────────────────────────────────────────────────────
         anyoneWantABite: (decedent) => anyoneWantABiteFn(decedent, {
             player,
             iterateAllies: () => monsters.filter(m => m.creatureState === CreatureState.Ally),
@@ -206,18 +195,12 @@ export function buildCombatDamageContext(): CombatDamageContext {
         } as unknown as CombatHelperContext),
         demoteMonsterFromLeadership: (monst) => demoteMonsterFromLeadershipFn(monst, monsters),
         checkForContinuedLeadership: (monst) => checkForContinuedLeadershipFn(monst, monsters),
-
-        // ── Message ───────────────────────────────────────────────────────────
         getMonsterDFMessage: (id) => getMonsterDFMessageFn(id),
         resolvePronounEscapes,
-
         monsterCatalog,
-
-        // ── Equipment updates ─────────────────────────────────────────────────
         updateEncumbrance: () => updateEncumbranceFn(buildEquipState()),
         updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
         updateVision: () => {},
-
         badMessageColor,
         poisonColor,
     };
@@ -375,6 +358,19 @@ export function buildCombatAttackContext(): RunicContext {
         FEAT_JELLYMANCER: FeatType.Jellymancer,
     };
 
+    // Helper: build the strengthCheck closure once, reused for attack ctx and weaken.
+    const doStrengthCheck = (item: Item | null, force: boolean): void => {
+        if (!item) return;
+        const s = buildEquipState();
+        strengthCheckFn(item, !force, {
+            state: s,
+            message: (msg) => { void damageCtx.messageWithColor(msg, badMessageColor); },
+            itemName: (i, incDet, incArt) => itemNameFn(i, incDet, incArt, namingCtx),
+            updateRingBonuses: () => { updateRingBonusesFn(s); syncEquipBonuses(s); },
+            updateEncumbrance: () => updateEncumbranceFn(s),
+        });
+    };
+
     const runicCtx: RunicContext = {
         ...damageCtx,
 
@@ -457,8 +453,10 @@ export function buildCombatAttackContext(): RunicContext {
             syncEquipState(s);
         },
         itemName: (item) => itemNameFn(item, false, true, namingCtx),
-        checkForDisenchantment: () => {},
-        strengthCheck: () => {},
+        checkForDisenchantment: (item) => {
+            checkForDisenchantmentFn(item, NUMBER_GOOD_WEAPON_ENCHANT_KINDS, ArmorEnchant.NumberGoodArmorEnchantKinds);
+        },
+        strengthCheck: doStrengthCheck,
         itemMessageColor,
 
         // ── Feat tracking stubs ───────────────────────────────────────────────
@@ -475,23 +473,24 @@ export function buildCombatAttackContext(): RunicContext {
         whiteColor: white,
         redColor: red,
 
-        // ── Game over ────────────────────────────────────────────────────────
-        gameOverFromMonster(monName) {
-            gameOver(`Killed by a ${monName}`);
-        },
-
-        // ── Ally ops ─────────────────────────────────────────────────────────
+        gameOverFromMonster(monName) { gameOver(`Killed by a ${monName}`); },
         unAlly: (monst) => unAllyFn(monst),
         alertMonster: (monst) => alertMonsterFn(monst, player),
-
-        // ── RunicContext additional fields (stubs except steal) ───────────────
         armorRunicIdentified: () => false,
         autoIdentify: () => {},
         createFlare: () => {},
         cloneMonster: (monst, selfClone, maintainCorpse) => cloneMonsterFn(monst, selfClone, maintainCorpse, cloneMonsterCtx),
         playerImmuneToMonster: () => false, // wired below — needs splitHelperCtx
         slow: () => {},
-        weaken: () => {},
+        weaken: (monst, duration) => {
+            weakenFn(monst, duration, {
+                player,
+                rogue: { weapon: rogue.weapon, armor: rogue.armor },
+                messageWithColor: (msg, color) => { void damageCtx.messageWithColor(msg, color); },
+                badMessageColor,
+                strengthCheck: doStrengthCheck,
+            });
+        },
         exposeCreatureToFire: () => {},
         monsterStealsFromPlayer: monsterStealsFromPlayerImpl,
         monstersAreEnemies: () => true,

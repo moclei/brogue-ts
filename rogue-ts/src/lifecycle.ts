@@ -61,7 +61,7 @@ import { getFOVMask } from "./light/fov.js";
 import { populateGenericCostMap } from "./movement/cost-maps-fov.js";
 import { populateItems } from "./items/item-population.js";
 import { populateMonsters, spawnHorde as spawnHordeFn } from "./monsters/monster-spawning.js";
-import { generateItem, itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
+import { generateItem, itemMagicPolarity as itemMagicPolarityFn, itemIsHeavyWeapon as itemIsHeavyWeaponFn, itemIsPositivelyEnchanted as itemIsPositivelyEnchantedFn } from "./items/item-generation.js";
 import { placeItemAt as placeItemAtFn } from "./items/floor-items.js";
 import { addItemToPack, numberOfMatchingPackItems, itemAtLoc as itemAtLocFn, deleteItem as deleteItemFn } from "./items/item-inventory.js";
 import { identify, shuffleFlavors, itemColors, itemTitles } from "./items/item-naming.js";
@@ -389,7 +389,7 @@ export function buildLevelContext(): LevelContext {
                     });
                 },
                 removeItemFromArray: () => {},
-                itemIsHeavyWeapon: () => false, itemIsPositivelyEnchanted: () => false,
+                itemIsHeavyWeapon: (i: MachineItem) => itemIsHeavyWeaponFn(i as import("./types/types.js").Item), itemIsPositivelyEnchanted: (i: MachineItem) => itemIsPositivelyEnchantedFn(i as import("./types/types.js").Item),
             },
             analyzeMap: analyzeMapWrap,
             calculateDistances: calcDistWrap,

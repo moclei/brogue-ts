@@ -199,6 +199,10 @@ export {
 } from "./item-utils.js";
 export type { BeckonMonsterContext } from "./item-utils.js";
 
+// ── Item details sidebar (Phase 7) ──
+export { itemDetails } from "./item-details.js";
+export type { ItemDetailsContext } from "./item-details.js";
+
 // ── Item call / inscription (Phase 1b) ──
 export { inscribeItem } from "./item-call.js";
 export type { InscribeContext } from "./item-call.js";

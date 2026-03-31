@@ -108,6 +108,7 @@ import {
     type PromptItemContext,
 } from "./io/inventory-display.js";
 import { commitDraws as commitDrawsFn, pauseAndCheckForEvent } from "./platform.js";
+import { buildItemDetailsFn } from "./io/item-details-wiring.js";
 
 /** Returns a getCellAppearance closure using the full pipeline. */
 export function buildGetCellAppearanceFn(): (loc: Pos) => { glyph: DisplayGlyph; foreColor: Color; backColor: Color } {
@@ -297,7 +298,7 @@ export function buildRefreshSideBarFn(): () => void {
             };
             return monsterDetailsFn(monst, detailsCtx);
         },
-        itemDetails: () => "",                  // stub — Phase 7
+        itemDetails: (item) => buildItemDetailsFn()(item),
         printTextBox: () => 0,                  // stub — Phase 7
         printProgressBar: () => {},             // patched below
     };

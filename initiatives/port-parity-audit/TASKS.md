@@ -54,7 +54,7 @@ reference a function that doesn't exist yet. Skip all 18 defer-tier functions
       Read C source for each, implement in `rogue-ts/src/`, wire into relevant builders
       (primarily `buildInputContext`, `buildTurnProcessingContext`). Run tests. Commit.
 
-- [ ] Port items system needs-porting functions: `checkForDisenchantment` (3 callers),
+- [x] Port items system needs-porting functions: `checkForDisenchantment` (3 callers),
       `strengthCheck` (3 callers), `itemDetails` (2 callers), `updateIdentifiableItem` (1 caller),
       `swapItemEnchants` (1 caller), `beckonMonster` (1 caller), `polymorph` (1 caller),
       `itemValue` (1 caller), `itemIsHeavyWeapon` (1 caller),

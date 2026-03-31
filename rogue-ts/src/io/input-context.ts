@@ -74,6 +74,7 @@ import {
 } from "../io-wiring.js";
 import { buildDebugOverlayFns } from "./debug-overlays.js";
 import { buildSidebarContext, buildPrintLocationDescriptionFn } from "./sidebar-wiring.js";
+import { printFloorItemDetails as printFloorItemDetailsFn } from "./sidebar-player.js";
 import { printMonsterDetails as printMonsterDetailsFn } from "./sidebar-monsters.js";
 import { enableEasyMode as enableEasyModeImpl, gameOver as gameOverImpl, type LifecycleContext } from "../game/game-lifecycle.js";
 import { buildLifecycleContext } from "../lifecycle-gameover.js";
@@ -522,7 +523,7 @@ export function buildInputContext(): InputContext {
         playerCanSeeOrSense: () => false,           // stub — sensory detail
         cellHasTMFlag,
         printMonsterDetails: (monst) => printMonsterDetailsFn(monst, buildSidebarContext()),
-        printFloorItemDetails: () => {},            // stub — itemDetails not yet ported
+        printFloorItemDetails: (item) => printFloorItemDetailsFn(item, buildSidebarContext()),
         printLocationDescription: printLocDesc,
 
         // ── Targeting / cursor ────────────────────────────────────────────────
