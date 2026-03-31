@@ -1,19 +1,19 @@
 /*
- *  items/item-commands.ts — throwCommand and call command wiring factories
+ *  items/item-commands.ts — throwCommand wiring factory
  *  Port V2 — rogue-ts
  *
- *  Exports buildThrowCommandFn() and buildCallCommandFn().
+ *  Exports buildThrowCommandFn() and re-exports buildCallCommandFn().
  *  Both accept an ItemCommandDeps object for messaging (avoiding the
  *  ui.ts ↔ io-wiring.ts circular import chain) and read game state via
  *  getGameState().
  *
  *  throwCommand: chooseTarget (targeting cursor) → throwItem (flight + land)
  *  call:         inscribeItem (name-entry) → playerTurnEnded
+ *                (implemented in item-call-command.ts, re-exported here)
  *
  *  NOTE — Interactive targeting requires Phase 2 (async event bridge).
  *  In the browser the moveCursor wrapper awaits waitForEvent() per call so
- *  the targeting loop receives real keypresses.  getInputTextString is
- *  stubbed to return null until Phase 2 wires synchronous event delivery.
+ *  the targeting loop receives real keypresses.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -28,8 +28,6 @@ import { moveCursor as moveCursorFn, type MoveCursorContext } from "../io/cursor
 import { chooseTarget } from "./targeting.js";
 import { throwItem } from "./throw-item.js";
 import type { ThrowItemContext, HitMonsterContext } from "./throw-item.js";
-import { inscribeItem } from "./item-call.js";
-import { itemCanBeCalled } from "./item-utils.js";
 import { attackHit as attackHitFn } from "../combat/combat-math.js";
 import {
     inflictDamage as inflictDamageFn,
@@ -51,19 +49,26 @@ import { placeItemAt as placeItemAtFn } from "./floor-items.js";
 import type { PlaceItemAtContext } from "./floor-items.js";
 import { spawnDungeonFeature as spawnDungeonFeatureFn } from "../architect/machines.js";
 import { promoteTile as promoteTileFn } from "../time/environment.js";
+import { activateMachine as activateMachineFn, circuitBreakersPreventActivation as circuitBreakersPreventActivationFn, exposeTileToFire as exposeTileToFireFn } from "../time/environment.js";
 import type { EnvironmentContext } from "../time/environment.js";
 import {
     highestPriorityLayer as highestPriorityLayerFn,
     cellHasTerrainFlag as cellHasTerrainFlagFn,
     cellHasTMFlag as cellHasTMFlagFn,
 } from "../state/helpers.js";
-import { removeItemFromArray } from "./item-inventory.js";
+import { removeItemFromArray, itemAtLoc as itemAtLocFn } from "./item-inventory.js";
 import { layerWithTMFlag as layerWithTMFlagFn } from "../movement/map-queries.js";
 import {
     monstersAreTeammates as monstersAreTeammatesFn,
     monstersAreEnemies as monstersAreEnemiesFn,
+    monsterIsHidden as monsterIsHiddenFn,
+    canSeeMonster as canSeeMonsterFn,
 } from "../monsters/monster-queries.js";
 import { distanceBetween } from "../monsters/monster-state.js";
+import { removeCreature as removeCreatureFn } from "../monsters/monster-actions.js";
+import { demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "../monsters/monster-ally-ops.js";
+import { monstersFall as monstersFallFn } from "../time/creature-effects.js";
+import type { CreatureEffectsContext } from "../time/creature-effects.js";
 import { openPathBetween } from "./bolt-geometry.js";
 import { negationWillAffectMonster as negationWillAffectMonsterFn } from "./bolt-helpers.js";
 import {
@@ -82,20 +87,23 @@ import {
 import { itemName as itemNameFn } from "./item-naming.js";
 import { charmRechargeDelay as charmRechargeDelayFn } from "../power/power-tables.js";
 import { itemMagicPolarity as itemMagicPolarityFn } from "./item-generation.js";
+import { keyMatchesLocation as keyMatchesLocationFn } from "./item-utils.js";
 import { coordinatesAreInMap, mapToWindowX, windowToMapX, windowToMapY } from "../globals/tables.js";
-import { randClump, randPercent, randRange, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "../math/rng.js";
+import { randClump, randPercent, randRange, randClumpedRange, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "../math/rng.js";
 import { playerTurnEnded as playerTurnEndedFn } from "../turn.js";
-import { badMessageColor, black, clairvoyanceColor, gray, red, white, itemMessageColor } from "../globals/colors.js";
+import { badMessageColor, goodMessageColor, clairvoyanceColor, red, white, itemMessageColor } from "../globals/colors.js";
 import { anyoneWantABite as anyoneWantABiteFn } from "../combat/combat-helpers.js";
 import type { CombatHelperContext } from "../combat/combat-helpers.js";
-import { AutoTargetMode, CreatureState, DisplayGlyph, DungeonLayer, EventType, GameMode, StatusEffect } from "../types/enums.js";
-import { TerrainFlag, TileFlag } from "../types/flags.js";
-import { COLS, DCOLS, DROWS, DELETE_KEY, ESCAPE_KEY, MESSAGE_LINES, RETURN_KEY } from "../types/constants.js";
+import { AutoTargetMode, CreatureState, DungeonLayer, GameMode, StatusEffect } from "../types/enums.js";
+import { TerrainFlag, TileFlag, ItemFlag, MonsterBookkeepingFlag } from "../types/flags.js";
+import { DCOLS, DROWS } from "../types/constants.js";
 import type { Color, Creature, Item, ItemTable, Pos, RogueEvent } from "../types/types.js";
-import { printString } from "../io/text.js";
-import { plotCharToBuffer, plotCharWithColor as plotCharWithColorFn, mapToWindow } from "../io/display.js";
-import { buildRefreshDungeonCellFn, buildHiliteCellFn, buildGetCellAppearanceFn } from "../io-wiring.js";
+import { INVALID_POS } from "../types/types.js";
+import { plotCharWithColor as plotCharWithColorFn, mapToWindow } from "../io/display.js";
+import { buildRefreshDungeonCellFn, buildHiliteCellFn, buildGetCellAppearanceFn, buildExposeCreatureToFireFn } from "../io-wiring.js";
 import { buildRefreshSideBarWithFocusFn, buildPrintLocationDescriptionFn } from "../io/sidebar-wiring.js";
+import { buildUpdateFloorItemsFn } from "./floor-items-wiring.js";
+export { buildCallCommandFn } from "./item-call-command.js";
 
 // =============================================================================
 // ItemCommandDeps — caller-supplied messaging (avoids circular imports)
@@ -207,95 +215,6 @@ function buildMinCombatDamageCtx(deps: ItemCommandDeps): CombatDamageContext {
 }
 
 // =============================================================================
-// asyncGetInputTextString — async text-entry loop for browser
-// =============================================================================
-
-/**
- * Show a text-entry prompt in the message area and read keystrokes via
- * waitForEvent(). Returns the entered string or null if cancelled (Escape).
- *
- * Replicates getInputTextString() (IO.c:2720) in non-dialog mode with
- * TEXT_INPUT_NORMAL bounds (printable ASCII 32–126).
- *
- * C: getInputTextString in IO.c
- */
-async function asyncGetInputTextString(
-    prompt: string,
-    maxLength: number,
-    defaultEntry: string,
-    promptSuffix: string,
-): Promise<string | null> {
-    const { displayBuffer } = getGameState();
-    const SPACE = 32;
-    const TILDE = 126;
-    const BACKSPACE = 8;
-
-    // Capitalize and show prompt in the message area (mirrors temporaryMessage)
-    const text = prompt.charAt(0).toUpperCase() + prompt.slice(1);
-    for (let row = 0; row < MESSAGE_LINES; row++) {
-        for (let col = 0; col < DCOLS; col++) {
-            plotCharToBuffer(SPACE as DisplayGlyph, mapToWindowX(col), row, black, black, displayBuffer);
-        }
-    }
-    printString(text, mapToWindowX(0), MESSAGE_LINES - 1, white, black, displayBuffer);
-
-    // Cursor position is immediately after the visible prompt text
-    const promptVisLen = text.replace(/\x19[\s\S]{3}/g, "").length;
-    const baseX = mapToWindowX(promptVisLen);
-    const y = MESSAGE_LINES - 1;
-    const actualMaxLength = Math.min(maxLength, COLS - baseX);
-    const promptSuffixLen = promptSuffix.length;
-
-    // Initialise input buffer from defaultEntry
-    const inputChars: number[] = new Array(actualMaxLength).fill(SPACE);
-    let charNum = 0;
-    if (defaultEntry) {
-        const take = Math.min(defaultEntry.length, actualMaxLength);
-        for (let i = 0; i < take; i++) { inputChars[i] = defaultEntry.charCodeAt(i); }
-        printString(defaultEntry.substring(0, take), baseX, y, white, black, displayBuffer);
-        charNum = take;
-    }
-
-    const suffix = promptSuffix || " ";
-
-    for (;;) {
-        // Render cursor: suffix in gray, first char inverted (black on white)
-        printString(suffix, baseX + charNum, y, gray, black, displayBuffer);
-        plotCharToBuffer(
-            (suffix.charCodeAt(0) || SPACE) as DisplayGlyph,
-            baseX + charNum, y, black, white, displayBuffer,
-        );
-        commitDraws();
-
-        let event: RogueEvent;
-        try { event = await waitForEvent(); } catch { return null; }
-        if (event.eventType !== EventType.Keystroke) continue;
-        const keystroke = event.param1;
-
-        if ((keystroke === DELETE_KEY || keystroke === BACKSPACE) && charNum > 0) {
-            printString(suffix, baseX + charNum - 1, y, gray, black, displayBuffer);
-            plotCharToBuffer(
-                SPACE as DisplayGlyph,
-                baseX + charNum + suffix.length - 1, y, black, black, displayBuffer,
-            );
-            charNum--;
-            inputChars[charNum] = SPACE;
-        } else if (keystroke >= SPACE && keystroke <= TILDE) {
-            inputChars[charNum] = keystroke;
-            plotCharToBuffer(keystroke as DisplayGlyph, baseX + charNum, y, white, black, displayBuffer);
-            if (charNum < actualMaxLength - promptSuffixLen) {
-                printString(suffix, baseX + charNum + 1, y, gray, black, displayBuffer);
-                charNum++;
-            }
-        } else if (keystroke === RETURN_KEY) {
-            return String.fromCharCode(...inputChars.slice(0, charNum));
-        } else if (keystroke === ESCAPE_KEY) {
-            return null;
-        }
-    }
-}
-
-// =============================================================================
 // buildThrowCommandFn
 // =============================================================================
 
@@ -318,7 +237,7 @@ export function buildThrowCommandFn(
     return async (item, _confirmed) => {
         if (!item) return;
 
-        const { rogue, player, pmap, tmap, displayBuffer, monsters, levels, floorItems, packItems, mutablePotionTable, gameConst } = getGameState();
+        const { rogue, player, pmap, tmap, displayBuffer, monsters, levels, floorItems, packItems, mutablePotionTable, mutableScrollTable, gameConst } = getGameState();
 
         const cellHasTerrainFlag = (loc: Pos, flags: number) => cellHasTerrainFlagFn(pmap, loc, flags);
         const cellHasTMFlag = (loc: Pos, flag: number) => cellHasTMFlagFn(pmap, loc, flag);
@@ -326,6 +245,17 @@ export function buildThrowCommandFn(
         const namingCtx = buildNamingCtx();
         const refreshSideBarFn = buildRefreshSideBarWithFocusFn();
         const printLocDescFn = buildPrintLocationDescriptionFn();
+        const throwRefreshCell = buildRefreshDungeonCellFn();
+
+        // Shared MonsterQueryContext for visibility checks
+        const mqCtx = {
+            player,
+            cellHasTerrainFlag,
+            cellHasGas: (loc: Pos) => !!(pmap[loc.x]?.[loc.y]?.layers[DungeonLayer.Gas]),
+            playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+            playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
+            playbackOmniscience: rogue.playbackOmniscience,
+        };
 
         // ── ChooseTargetContext ──────────────────────────────────────────────
         const chooseCtx = {
@@ -334,10 +264,7 @@ export function buildThrowCommandFn(
             pmap,
             boltCatalog,
             monstersAreTeammates: (a: Creature, b: Creature) => monstersAreTeammatesFn(a, b, player),
-            canSeeMonster: (m: Creature) => {
-                if (m === player) return true;
-                return !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE);
-            },
+            canSeeMonster: (m: Creature) => canSeeMonsterFn(m, mqCtx),
             openPathBetween: (from: Pos, to: Pos) => openPathBetween(from, to,
                 (loc: Pos) => cellHasTerrainFlagFn(pmap, loc, TerrainFlag.T_OBSTRUCTS_PASSABILITY)),
             distanceBetween,
@@ -350,11 +277,13 @@ export function buildThrowCommandFn(
             itemAtLoc: (loc: Pos) =>
                 floorItems.find(i => i.loc.x === loc.x && i.loc.y === loc.y) ?? null,
             hiliteCell: buildHiliteCellFn(),
-            refreshDungeonCell: buildRefreshDungeonCellFn(),
+            refreshDungeonCell: throwRefreshCell,
             playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-            monsterIsHidden: () => false,       // stub — visibility detail
+            monsterIsHidden: (m: Creature, observer: Creature) =>
+                monsterIsHiddenFn(m, observer, mqCtx),
             cellHasTerrainFlag,
-            playerCanSeeOrSense: () => false,   // stub — sensory detail
+            playerCanSeeOrSense: (x: number, y: number) =>
+                !!(pmap[x]?.[y]?.flags & (TileFlag.VISIBLE | TileFlag.WAS_VISIBLE)),
             cellHasTMFlag,
             refreshSideBar: refreshSideBarFn,
             printLocationDescription: printLocDescFn,
@@ -384,12 +313,12 @@ export function buildThrowCommandFn(
                     restoreDisplayBuffer: () => {},
                     drawButtonsInState: () => {},
                     processButtonInput: async () => -1,
-                    refreshSideBar: () => {},
+                    refreshSideBar: refreshSideBarFn,
                     pmapFlagsAt: (loc: Pos) => pmap[loc.x]?.[loc.y]?.flags ?? 0,
-                    canSeeMonster: (m: Creature) =>
-                        !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
+                    canSeeMonster: (m: Creature) => canSeeMonsterFn(m, mqCtx),
                     monsterAtLoc,
-                    playerCanSeeOrSense: () => false,
+                    playerCanSeeOrSense: (x: number, y: number) =>
+                        !!(pmap[x]?.[y]?.flags & (TileFlag.VISIBLE | TileFlag.WAS_VISIBLE)),
                     cellHasTMFlag,
                     coordinatesAreInMap,
                     isPosInMap: (loc: Pos) => coordinatesAreInMap(loc.x, loc.y),
@@ -460,7 +389,14 @@ export function buildThrowCommandFn(
         // activate cage machines when a thrown item lands on them.
         // fillSequentialList/shuffleList must be real: activateMachine fills and
         // shuffles sCols/sRows before iterating pmap; stubs leave them undefined
-        // and pmap[undefined] crashes.  monstersTurn remains stubbed (complex wiring).
+        // and pmap[undefined] crashes.
+        const monsterNameBuf = (buf: string[], m: Creature, includeArticle: boolean) => {
+            if (m === player) { buf[0] = "you"; return; }
+            const pfx = includeArticle ? (m.creatureState === CreatureState.Ally ? "your " : "the ") : "";
+            buf[0] = `${pfx}${m.info.monsterName}`;
+        };
+
+        let exposeToFire = (_x: number, _y: number, _a: boolean): boolean => false;
         const envCtx: EnvironmentContext = {
             player,
             rogue,
@@ -474,24 +410,87 @@ export function buildThrowCommandFn(
             cellHasTerrainFlag,
             cellHasTMFlag,
             coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
-            refreshDungeonCell: () => {},
+            refreshDungeonCell: throwRefreshCell,
             spawnDungeonFeature: (x: number, y: number, feat: number, isV: boolean, oP: boolean) =>
                 spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y,
                     feat as never, isV, oP),
-            monstersFall: () => {},
-            updateFloorItems: () => {},
+            monstersFall: () => monstersFallFn({
+                monsters, pmap, levels,
+                cellHasTerrainFlag,
+                rogue: { depthLevel: rogue.depthLevel } as unknown as CreatureEffectsContext["rogue"],
+                canSeeMonster: (m: Creature) => canSeeMonsterFn(m, mqCtx),
+                monsterName: monsterNameBuf,
+                messageWithColor: (msg: string, color: Color, flags: number) =>
+                    deps.messageWithColor(msg, color as Readonly<Color>, flags),
+                messageColorFromVictim: (monst: Creature): Color =>
+                    (monst === player || monst.creatureState === CreatureState.Ally)
+                        ? badMessageColor : goodMessageColor,
+                killCreature: (monst: Creature, adminDeath: boolean) =>
+                    killCreatureFn(monst, adminDeath, damageCtx),
+                inflictDamage: (
+                    attacker: Creature | null, defender: Creature,
+                    damage: number, flashColor: Color, showDamage: boolean,
+                ) => inflictDamageFn(attacker, defender, damage, flashColor as never, showDamage, damageCtx),
+                randClumpedRange,
+                red,
+                demoteMonsterFromLeadership: (monst: Creature) =>
+                    demoteMonsterFromLeadershipFn(monst, monsters),
+                removeCreature: (list: Creature[], monst: Creature) =>
+                    removeCreatureFn(list, monst),
+                prependCreature: (list: Creature[], monst: Creature) => { list.unshift(monst); },
+                INVALID_POS,
+                refreshDungeonCell: throwRefreshCell,
+            } as unknown as CreatureEffectsContext),
+            updateFloorItems: buildUpdateFloorItemsFn({
+                floorItems, pmap,
+                rogue: { absoluteTurnNumber: rogue.absoluteTurnNumber, depthLevel: rogue.depthLevel },
+                gameConst, levels, player,
+                tileCatalog: tileCatalog as unknown as Parameters<typeof buildUpdateFloorItemsFn>[0]["tileCatalog"],
+                dungeonFeatureCatalog: dungeonFeatureCatalog as unknown as Parameters<typeof buildUpdateFloorItemsFn>[0]["dungeonFeatureCatalog"],
+                mutableScrollTable: mutableScrollTable as unknown as Parameters<typeof buildUpdateFloorItemsFn>[0]["mutableScrollTable"],
+                mutablePotionTable: mutablePotionTable as unknown as Parameters<typeof buildUpdateFloorItemsFn>[0]["mutablePotionTable"],
+                itemMessageColor,
+                messageWithColor: (msg, color, flags) =>
+                    deps.messageWithColor(msg, color as Readonly<Color>, flags),
+                itemName: (item, buf, details, article) => { buf[0] = itemNameFn(item, details, article, namingCtx); },
+                refreshDungeonCell: throwRefreshCell,
+                promoteTile: (x, y, layer, forced) => promoteTileFn(x, y, layer as DungeonLayer, forced, envCtx),
+                activateMachine: (mn) => activateMachineFn(mn, envCtx),
+                circuitBreakersPreventActivation: (mn) => circuitBreakersPreventActivationFn(mn, envCtx),
+            }),
             monstersTurn: () => {},         // stub — cage monsters get a turn on release
-            keyOnTileAt: () => null,
-            removeCreature: () => false,
-            prependCreature: () => {},
+            keyOnTileAt: (loc: Pos) => {
+                const machineNum = pmap[loc.x]?.[loc.y]?.machineNumber ?? 0;
+                if (player.loc.x === loc.x && player.loc.y === loc.y) {
+                    const k = packItems.find(it =>
+                        (it.flags & ItemFlag.ITEM_IS_KEY) &&
+                        keyMatchesLocationFn(it, loc, rogue.depthLevel, machineNum));
+                    if (k) return k;
+                }
+                if (pmap[loc.x]?.[loc.y]?.flags & TileFlag.HAS_ITEM) {
+                    const fi = itemAtLocFn(loc, floorItems);
+                    if (fi && (fi.flags & ItemFlag.ITEM_IS_KEY) &&
+                        keyMatchesLocationFn(fi, loc, rogue.depthLevel, machineNum)) return fi;
+                }
+                const monst = monsters.find(m =>
+                    m.loc.x === loc.x && m.loc.y === loc.y &&
+                    !(m.bookkeepingFlags & MonsterBookkeepingFlag.MB_HAS_DIED));
+                if (monst?.carriedItem && (monst.carriedItem.flags & ItemFlag.ITEM_IS_KEY) &&
+                    keyMatchesLocationFn(monst.carriedItem, loc, rogue.depthLevel, machineNum))
+                    return monst.carriedItem;
+                return null;
+            },
+            removeCreature: (list: Creature[], m: Creature) => removeCreatureFn(list, m),
+            prependCreature: (list: Creature[], m: Creature) => { list.unshift(m); },
             rand_range: (a: number, b: number) => randRange(a, b),
             rand_percent: (p: number) => randPercent(p),
             max: Math.max,
             min: Math.min,
             fillSequentialList: (list: number[], _len: number) => fillSequentialListFn(list),
             shuffleList: (list: number[], _len: number) => shuffleListFn(list),
-            exposeTileToFire: () => false,
+            exposeTileToFire: (x: number, y: number, a: boolean) => exposeToFire(x, y, a),
         } as unknown as EnvironmentContext;
+        exposeToFire = (x, y, a) => exposeTileToFireFn(x, y, a, envCtx);
 
         const placeCtx: PlaceItemAtContext = {
             pmap,
@@ -502,10 +501,10 @@ export function buildThrowCommandFn(
             cellHasTerrainFlag,
             cellHasTMFlag,
             playerCanSee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-            itemName: () => {},
+            itemName: (i, buf, details, article) => { buf[0] = itemNameFn(i, details, article, namingCtx); },
             message: deps.message,
-            discover: () => {},             // stub — discovery display
-            refreshDungeonCell: () => {},   // stub — cell rendering
+            discover: (x, y) => { if (coordinatesAreInMap(x, y)) pmap[x][y].flags |= TileFlag.DISCOVERED; },
+            refreshDungeonCell: throwRefreshCell,
             REQUIRE_ACKNOWLEDGMENT: 1,
             spawnDungeonFeature: (x, y, feat, isV, oP) =>
                 spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y,
@@ -515,7 +514,6 @@ export function buildThrowCommandFn(
         };
 
         const throwCellApp = buildGetCellAppearanceFn();
-        const throwRefreshCell = buildRefreshDungeonCellFn();
 
         const throwCtx: ThrowItemContext = {
             ...hitCtx,
@@ -551,8 +549,9 @@ export function buildThrowCommandFn(
             spawnDungeonFeature: (x, y, dfType, refreshCell, abortIfBlocking) =>
                 spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y,
                     dungeonFeatureCatalog[dfType] as never, refreshCell, abortIfBlocking),
-            promoteTile: () => {},          // stub — tile promotion
-            exposeCreatureToFire: () => {}, // stub — fire exposure
+            promoteTile: (x, y, layer, isForced) =>
+                promoteTileFn(x, y, layer as DungeonLayer, isForced, envCtx),
+            exposeCreatureToFire: buildExposeCreatureToFireFn(),
             autoIdentify: (i) => autoIdentifyFn(i, {
                 gc: gameConst,
                 messageWithColor: deps.messageWithColor,
@@ -574,40 +573,5 @@ export function buildThrowCommandFn(
             removeItemFromArray(item, packItems);
         }
         playerTurnEndedFn();
-    };
-}
-
-// =============================================================================
-// buildCallCommandFn
-// =============================================================================
-
-/**
- * Returns an async function implementing the 'call' (inscribe) command.
- * Wire into buildInputContext().call and buildInventoryContext().call.
- *
- * NOTE: getInputTextString is stubbed to return null (no inscription applied)
- * until Phase 2 wires synchronous event delivery into the text-entry loop.
- */
-export function buildCallCommandFn(
-    deps: ItemCommandDeps,
-): (item: Item | null) => Promise<void> {
-    return async (item) => {
-        if (!item) return;
-        if (!itemCanBeCalled(item)) return;
-
-        const namingCtx = buildNamingCtx();
-
-        const confirmed = await inscribeItem(item, {
-            itemName: (i, details, article) => itemNameFn(i, details, article, namingCtx),
-            getInputTextString: asyncGetInputTextString,
-            confirmMessages: deps.confirmMessages,
-            messageWithColor: (msg, color, flags) => deps.messageWithColor(msg, color, flags),
-            strLenWithoutEscapes: (s) => s.replace(/\x19[\s\S]{3}/g, "").length,
-            itemMessageColor,
-        });
-
-        if (confirmed) {
-            await playerTurnEndedFn();
-        }
     };
 }
