@@ -54,6 +54,9 @@ import {
     buildExposeCreatureToFireFn,
     buildWakeUpFn,
     buildRefreshDungeonCellFn,
+    buildGetCellAppearanceFn,
+    buildHiliteCellFn,
+    buildRefreshSideBarFn,
 } from "./io-wiring.js";
 import { boltCatalog } from "./globals/bolt-catalog.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
@@ -73,6 +76,9 @@ import { initializeStatus as initializeStatusFn } from "./monsters/monster-creat
 import { doMakeMonsterDropItem } from "./monsters/monster-drop.js";
 import { buildResolvePronounEscapesFn } from "./io/text.js";
 import { buildEquipState } from "./items/equip-helpers.js";
+import { buildBoltLightingFns } from "./vision-wiring.js";
+import { plotCharWithColor as plotCharWithColorFn, mapToWindow } from "./io/display.js";
+import { commitDraws, pauseAndCheckForEvent } from "./platform.js";
 import { updateEncumbrance as updateEncumbranceFn } from "./items/item-usage.js";
 import { generateMonster as generateMonsterFn } from "./monsters/monster-creation.js";
 import { randPercent, randRange } from "./math/rng.js";
@@ -94,25 +100,38 @@ import type { Color, Creature, Pos } from "./types/types.js";
 import type { ZapContext, ZapRenderContext } from "./items/zap-context.js";
 
 // =============================================================================
-// ZapRenderContext — all visual effects are no-ops (mirrors staff-wiring.ts)
+// ZapRenderContext — real rendering wired (mirrors buildStaffZapRenderContext)
 // =============================================================================
 
 export function buildZapRenderContext(): ZapRenderContext {
+    const { displayBuffer } = getGameState();
+    const getCellAppFn = buildGetCellAppearanceFn();
+    const hiliteFn = buildHiliteCellFn();
+    const lighting = buildBoltLightingFns();
+    const refreshSideBar = buildRefreshSideBarFn();
+    const refreshDungeonCell = buildRefreshDungeonCellFn();
     return {
-        refreshSideBar: () => {},
+        refreshSideBar: () => refreshSideBar(),
         displayCombatText: () => {},
-        refreshDungeonCell: () => {},
-        backUpLighting: () => {},
-        restoreLighting: () => {},
-        demoteVisibility: () => {},
-        updateFieldOfViewDisplay: () => {},
-        paintLight: () => {},
-        updateVision: () => {},
-        updateLighting: () => {},
-        hiliteCell: () => {},
-        pauseAnimation: async () => false,
-        getCellAppearance: () => ({ char: 0x2e as never, foreColor: black, backColor: black }),
-        plotCharWithColor: () => {},
+        refreshDungeonCell: (loc) => refreshDungeonCell(loc),
+        backUpLighting: () => lighting.backUpLighting(),
+        restoreLighting: () => lighting.restoreLighting(),
+        demoteVisibility: () => lighting.demoteVisibility(),
+        updateFieldOfViewDisplay: (dancing, refresh) => lighting.updateFieldOfViewDisplay(dancing, refresh),
+        paintLight: (theLight, x, y) => lighting.paintLight(theLight, x, y),
+        updateVision: (full) => lighting.updateVision(full),
+        updateLighting: () => lighting.updateLighting(),
+        hiliteCell: (x, y, color, strength, _saveBuf) => hiliteFn(x, y, color, strength, false),
+        pauseAnimation: async (delay) => {
+            commitDraws();
+            return pauseAndCheckForEvent(delay);
+        },
+        getCellAppearance: (loc) => {
+            const { glyph, foreColor, backColor } = getCellAppFn(loc);
+            return { char: glyph, foreColor, backColor };
+        },
+        plotCharWithColor: (theChar, loc, foreColor, backColor) =>
+            plotCharWithColorFn(theChar, mapToWindow(loc), foreColor, backColor, displayBuffer),
         colorMultiplierFromDungeonLight: () => ({ ...black, colorDances: false }),
     };
 }
