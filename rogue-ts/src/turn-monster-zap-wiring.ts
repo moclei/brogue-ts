@@ -82,6 +82,9 @@ import { monsterBehaviorCatalog, monsterAbilityCatalog } from "./globals/status-
 import { goodMessageColor, advancementMessageColor, black } from "./globals/colors.js";
 import { wandDominate as wandDominateFn } from "./power/power-tables.js";
 import { freeCaptivesEmbeddedAt as freeCaptivesEmbeddedAtFn } from "./movement/ally-management.js";
+import { becomeAllyWith as becomeAllyWithFn } from "./monsters/monster-lifecycle.js";
+import { demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "./monsters/monster-ally-ops.js";
+import { doMakeMonsterDropItem } from "./monsters/monster-drop.js";
 import { buildResolvePronounEscapesFn } from "./io/text.js";
 import { buildEquipState } from "./items/equip-helpers.js";
 import { updateEncumbrance as updateEncumbranceFn } from "./items/item-usage.js";
@@ -169,7 +172,7 @@ export function buildMonsterZapFn() {
         reverseBoltDir: boolean,
     ): Promise<boolean> => {
         const {
-            rogue, player, pmap, monsters,
+            rogue, player, pmap, monsters, floorItems,
             monsterCatalog: mCatalog, monsterItemsHopper, gameConst,
         } = getGameState();
         const io = buildMessageFns();
@@ -279,7 +282,12 @@ export function buildMonsterZapFn() {
             }),
             imbueInvisibility: (monst, turns) => { void monst; void turns; return false; },
             wandDominate: (monst) => wandDominateFn(monst.currentHP, monst.info.maxHP),
-            becomeAllyWith: () => {},
+            becomeAllyWith: (monst) => becomeAllyWithFn(monst, {
+                player,
+                demoteMonsterFromLeadership: (m) => demoteMonsterFromLeadershipFn(m, monsters),
+                makeMonsterDropItem: (m) => doMakeMonsterDropItem(m, pmap, floorItems, cellHasTerrainFlag, buildRefreshDungeonCellFn()),
+                refreshDungeonCell: buildRefreshDungeonCellFn(),
+            }),
             negate: (monst) => negateCreatureFn(monst, {
                 player,
                 boltCatalog,

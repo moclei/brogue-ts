@@ -62,7 +62,7 @@ import { monsterText } from "./globals/monster-text.js";
 import { specialHit as specialHitFn } from "./combat/combat-runics.js";
 import type { RunicContext } from "./combat/combat-runics.js";
 import { itemName as itemNameFn } from "./items/item-naming.js";
-import { cloneMonster as cloneMonsterFn } from "./monsters/monster-lifecycle.js";
+import { cloneMonster as cloneMonsterFn, becomeAllyWith as becomeAllyWithFn } from "./monsters/monster-lifecycle.js";
 import { doMakeMonsterDropItem } from "./monsters/monster-drop.js";
 import type { CloneMonsterContext } from "./monsters/monster-lifecycle.js";
 import { wandTable, staffTable, ringTable, charmTable, charmEffectTable } from "./globals/item-catalog.js";
@@ -232,7 +232,7 @@ export function buildCombatDamageContext(): CombatDamageContext {
  */
 export function buildCombatAttackContext(): AttackContext {
     const {
-        player, rogue, pmap, monsters, dormantMonsters,
+        player, rogue, pmap, monsters, dormantMonsters, floorItems,
         packItems, gameConst, mutablePotionTable, mutableScrollTable, monsterCatalog,
     } = getGameState();
     const damageCtx = buildCombatDamageContext();
@@ -349,7 +349,16 @@ export function buildCombatAttackContext(): AttackContext {
             if (idx >= 0) { dormantMonsters.splice(idx, 1); return true; }
             return false;
         },
-        becomeAllyWith: () => {},
+        becomeAllyWith: (monst) => becomeAllyWithFn(monst, {
+            player,
+            demoteMonsterFromLeadership: (m) => demoteMonsterFromLeadershipFn(m, monsters),
+            makeMonsterDropItem: (m) => doMakeMonsterDropItem(
+                m, pmap, floorItems,
+                (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags),
+                buildRefreshDungeonCellFn(),
+            ),
+            refreshDungeonCell: buildRefreshDungeonCellFn(),
+        }),
         getQualifyingPathLocNear: (loc) => loc, // not reached when placeClone=false
         setPmapFlag: (loc, flag) => { if (coordinatesAreInMap(loc.x, loc.y)) pmap[loc.x][loc.y].flags |= flag; },
         refreshDungeonCell: buildRefreshDungeonCellFn(),

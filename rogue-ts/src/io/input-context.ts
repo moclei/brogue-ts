@@ -109,6 +109,7 @@ import type { InputContext } from "./input-keystrokes.js";
 import type { PlayerRunContext } from "../movement/player-movement.js";
 import type { Pos, RogueEvent, Color } from "../types/types.js";
 import { INVALID_POS } from "../types/types.js";
+import { allocGrid as allocGridFn, fillGrid as fillGridFn } from "../grid/grid.js";
 
 // =============================================================================
 // Helpers
@@ -611,10 +612,10 @@ export function buildInputContext(): InputContext {
             hiliteCellFn(x, y, color, opacity, distinctColors),
         refreshDungeonCell: (loc) => refreshDungeonCell(loc),
 
-        // ── Pathing (stubs — wired in Phase 5) ───────────────────────────────
-        allocGrid: () => [],
+        // ── Pathing ───────────────────────────────────────────────────────────
+        allocGrid: () => allocGridFn(),
         freeGrid: () => {},
-        fillGrid: () => {},
+        fillGrid: (grid, value) => fillGridFn(grid, value),
         dijkstraScan: (distanceMap, costMap, useDiagonals) =>
             dijkstraScanFn(distanceMap, costMap, useDiagonals),
         populateCreatureCostMap: () => {},

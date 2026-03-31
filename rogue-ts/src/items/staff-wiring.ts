@@ -81,6 +81,9 @@ import { statusEffectCatalog } from "../globals/status-effects.js";
 import { staffBlinkDistance as staffBlinkDistanceFn } from "../power/power-tables.js";
 import { wandDominate as wandDominateFn } from "../power/power-tables.js";
 import { freeCaptivesEmbeddedAt as freeCaptivesEmbeddedAtFn } from "../movement/ally-management.js";
+import { becomeAllyWith as becomeAllyWithFn } from "../monsters/monster-lifecycle.js";
+import { demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "../monsters/monster-ally-ops.js";
+import { doMakeMonsterDropItem } from "../monsters/monster-drop.js";
 import { negationWillAffectMonster as negationWillAffectMonsterFn } from "./bolt-helpers.js";
 import { openPathBetween } from "./bolt-geometry.js";
 import { buildResolvePronounEscapesFn } from "../io/text.js";
@@ -303,7 +306,7 @@ export function buildStaffZapFn() {
         hideDetails: boolean,
         reverseBoltDir: boolean,
     ): Promise<boolean> => {
-        const { rogue, player, pmap, monsters, monsterCatalog, monsterItemsHopper, gameConst } = getGameState();
+        const { rogue, player, pmap, monsters, floorItems, monsterCatalog, monsterItemsHopper, gameConst } = getGameState();
         const io = buildMessageFns();
         const monsterAtLoc = buildMonsterAtLocFn(player, monsters);
         const cellHasTerrainFlag = (loc: Pos, flags: number) =>
@@ -419,7 +422,12 @@ export function buildStaffZapFn() {
                 return false;
             },
             wandDominate: (monst) => wandDominateFn(monst.currentHP, monst.info.maxHP),
-            becomeAllyWith: () => {},       // stub — domination ally conversion
+            becomeAllyWith: (monst) => becomeAllyWithFn(monst, {
+                player,
+                demoteMonsterFromLeadership: (m) => demoteMonsterFromLeadershipFn(m, monsters),
+                makeMonsterDropItem: (m) => doMakeMonsterDropItem(m, pmap, floorItems, cellHasTerrainFlag, buildRefreshDungeonCellFn()),
+                refreshDungeonCell: buildRefreshDungeonCellFn(),
+            }),
             negate: (monst) => negateCreatureFn(monst, {
                 player,
                 boltCatalog,
