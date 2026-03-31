@@ -108,6 +108,11 @@ impact. Do not implement.
   IO integration tests; wired in browser, can't be unit tested
 - `SeedCatalog.c` functions — CLI seed-scanning tool, no gameplay logic
 - POSIX/SDL entry points, platform-specific terminal code — browser has no equivalent
+- `takeScreenshot` — SDL2-only platform function; no browser equivalent; not wired
+- `isApplicationActive` — platform function; browser tab is always active; wired as
+  `() => true` in `menus.ts`; no real implementation needed
+- `initializeLaunchArguments` — native CLI launch arguments (seed, path, command);
+  no browser equivalent; wired as `() => {}` in `menus.ts`
 
 ---
 
