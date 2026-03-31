@@ -13,7 +13,7 @@
  *  License, or (at your option) any later version.
  */
 
-import { gameOver } from "./core.js";
+import { gameOver, getGameState } from "./core.js";
 import { deleteItem as deleteItemFn } from "./items/item-inventory.js";
 import {
     inflictDamage as inflictDamageFn,
@@ -193,7 +193,7 @@ export function buildMinimalCombatContext(
         getMonsterDFMessage: (id) => getMonsterDFMessageFn(id),
         resolvePronounEscapes,
         message: io.message,
-        monsterCatalog: [],                         // stub — real catalog via core.ts
+        monsterCatalog: getGameState().monsterCatalog,
         updateEncumbrance: () => updateEncumbranceFn(buildEquipState()),
         updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
         updateVision: () => buildUpdateVisionFn()(true),

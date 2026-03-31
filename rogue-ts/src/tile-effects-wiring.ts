@@ -302,7 +302,7 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
         getMonsterDFMessage: () => "",
         resolvePronounEscapes: (s: string) => s,
         message: io.message,
-        monsterCatalog: [],
+        monsterCatalog,
         updateEncumbrance: () => { const s = buildEquipState(); updateEncumbranceFn(s); syncEquipBonuses(s); },
         updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
         updateVision: buildUpdateVisionFn(),

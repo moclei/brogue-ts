@@ -136,7 +136,7 @@ All needs-porting functions from sub-phase 2a must exist before starting this su
 - [x] Review the `needs-porting` list from Phase 1. For each function that was
       identified as needing a new implementation: port from C source, wire into
       all relevant contexts, add tests.
-- [ ] Scan for simplified implementations: search for comments like `// simplified`,
+- [x] Scan for simplified implementations: search for comments like `// simplified`,
       `// TODO`, `// stub`, `// placeholder` across `rogue-ts/src/`. Cross-reference
       with C source to check if the simplification affects gameplay.
 - [ ] For the most critical game systems (combat, monster AI, items, turn processing),

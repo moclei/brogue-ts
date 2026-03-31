@@ -162,6 +162,53 @@ _(append-only — do not clean up)_
 
 ---
 
+## Session Notes [2026-03-31]
+
+### Phase 4 — Simplified Implementation Scan
+
+Total markers found: 21 (after excluding DEFER/permanent-defer/port-v2-persistence comments).
+
+#### Summary table
+
+| Finding | File | Category | Status |
+|---|---|---|---|
+| `monsterCatalog: []` stub in `buildMinimalCombatContext` | `turn-combat-helpers.ts:196` | Gameplay-critical | **Fixed** |
+| `monsterCatalog: []` stub in `buildApplyInstantTileEffectsFn` combat ctx | `tile-effects-wiring.ts:305` | Gameplay-critical | **Fixed** |
+| `burnedTerrainFlagsAtLoc` approximation (hardcoded flags instead of catalog lookup) | `state/helpers.ts:165` | Monster AI (fire avoidance) | **Deferred** |
+| `traversiblePathBetween` docstring said "Bresenham-style" (stale comment) | `monsters/monster-actions.ts:291` | Stale comment only | **Fixed** (comment corrected) |
+| `executeMouseClick` — left-click always travels, C version shows cursor mode loop without controlKey | `io/input-mouse.ts:48` | Visual/UX | **Documented** |
+| `monsterName` — hallucination random names use `cosmeticRandRange` but catalog deferred | `monsters/monster-queries.ts:267` | Visual-only | Already handled (cosmetic RNG deferred) |
+| `pauseAnimation: () => false` | `io/misc-helpers-context.ts:341` | Visual-only | Pre-existing stub |
+| Various `animateFlares: () => {}` stubs | `turn-env-wiring.ts:279` | Visual-only | Pre-existing stub |
+| `confirmMessages: () => {}` in turn ctx | `turn.ts:215` | UI sequencing | Pre-existing stub |
+| Other stubs (eat, playerTurnEnded re-entry guard, etc.) | various | Pre-existing documented stubs | No change |
+
+#### Gameplay-critical fixes
+
+**`monsterCatalog: []` (2 locations)**
+- Impact: `combat-damage.ts:469` accesses `ctx.monsterCatalog[decedent.info.monsterID].abilityFlags` without null guard. With empty array, this throws a runtime error when an ally dies out of sight (checking `MA_ENTER_SUMMONS` flag for "sense of loss" message). Also affects `splitMonster` in `combat-helpers.ts` (has null guard, so safe but returns wrong flags).
+- Fix: `turn-combat-helpers.ts` — added `getGameState` import, replaced `[]` with `getGameState().monsterCatalog`. `tile-effects-wiring.ts` — `monsterCatalog` was already destructured from `getGameState()` at line 122; removed duplicate `[]` stub.
+
+#### Deferred
+
+**`burnedTerrainFlagsAtLoc` approximation**
+- C uses `successorTerrainFlags(tile, SUBSEQ_BURN)` → looks up `tileCatalog[tile].fireType`, then returns `tileCatalog[dungeonFeatureCatalog[DF].tile].flags`.
+- TS approximates: `T_IS_FIRE | T_CAUSES_DAMAGE` (+ `T_CAUSES_EXPLOSIVE_DAMAGE` for explosive promoters).
+- Impact: practically zero — all flammable tiles in the catalog use `DF_PLAIN_FIRE` or `DF_EMBERS`, both of which produce fire terrain with exactly those flags. The approximation is correct for all current tile types.
+- Fix path if ever needed: add `dungeonFeatureCatalog` parameter to `burnedTerrainFlagsAtLoc` and all 4 call sites.
+
+**`executeMouseClick` cursor mode**
+- C: left-click without `controlKey` sets `rogue.cursorLoc` and calls `mainInputLoop()` (cursor mode).
+- TS: always calls `travel()` directly (architectural decision documented in file header — Port V2 outer loop lives in `platform.ts`).
+- Impact: UX only — cursor mode is a display feature. Travel behavior is the same.
+- Status: intentional architectural deviation, not a bug.
+
+#### Visual-only / already-handled (count only): 7 items
+
+#### Test results
+- Pre-existing failures: 2 (sprite-renderer tests, unrelated to these changes)
+- Tests passing: 2730 | skipped: 54
+
 ## Open Questions
 
 - How many stubs are truly "mechanical wire-ups" vs "needs porting"?

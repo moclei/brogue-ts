@@ -288,8 +288,7 @@ export interface TraversiblePathContext {
  * Returns true if a monster can traverse the path from its current location
  * to (x2, y2) using line-of-sight stepping without hitting avoided terrain.
  *
- * This port uses a simplified line-of-sight traversal (Bresenham-style)
- * rather than the full bolt-path algorithm from the C source.
+ * Uses the same fixed-point bolt-path geometry as the C source (BOLT_NONE — no evaluator).
  *
  * Ported from traversiblePathBetween() in Monsters.c.
  */
