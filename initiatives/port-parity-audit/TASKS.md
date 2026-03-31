@@ -123,7 +123,7 @@ All needs-porting functions from sub-phase 2a must exist before starting this su
 - [x] Wire `buildLifecycleContext` (lifecycle-gameover.ts) — wired isVowelish, itemName; remaining stubs are persistence/scoring defers
 - [x] Wire `buildMenuContext` (menus.ts) — 17 stubs (2 wired: setGameVariant, initializeGameVariant; 13 are persistence/recording/playback/file-ops defers; message/initializeLaunchArguments/isApplicationActive correct as no-ops)
 - [x] Wire `buildZapRenderContext` — 13 stubs wired (lighting, hilite, getCellAppearance, plotCharWithColor, refreshSideBar, refreshDungeonCell, pauseAnimation); displayCombatText intentional no-op
-- [ ] Wire `buildLevelContext` — 14 stubs
+- [x] Wire `buildLevelContext` — wired currentStealthRange, updateEnvironment, updateMonsterState, refreshSideBar, messageWithColor, hideCursor; RNGCheck+flushBufferToFile deferred (persistence); extracted to lifecycle-level.ts (600-line split)
 - [ ] Wire `buildUpdateVisionFn` — 12 stubs
 - [ ] Wire `buildItemHandlerContext` — 10 stubs
 - [ ] Wire all remaining builders with <10 stubs each (batch by file)
