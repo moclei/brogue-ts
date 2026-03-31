@@ -34,7 +34,7 @@ reference a function that doesn't exist yet. Skip all 18 defer-tier functions
       Read C source for each, implement in `rogue-ts/src/`, wire into all relevant context
       builders. Run tests after each function. Commit.
 
-- [ ] Port combat system needs-porting functions: `splitMonster` (4 callers),
+- [x] Port combat system needs-porting functions: `splitMonster` (4 callers),
       `moralAttack` (4 callers), `handlePaladinFeat` (3 callers), `magicWeaponHit` (2 callers),
       `applyArmorRunicEffect` (2 callers), `specialHit` (1 caller),
       `decrementWeaponAutoIDTimer` (1 caller), `playerImmuneToMonster` (1 caller),

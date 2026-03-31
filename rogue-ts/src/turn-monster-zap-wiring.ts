@@ -20,7 +20,7 @@ import { getGameState, gameOver as gameOverFn } from "./core.js";
 import { buildApplyInstantTileEffectsFn, buildExposeTileToFireFn } from "./tile-effects-wiring.js";
 import { zap as zapFn } from "./items/zap.js";
 import { buildCombatAttackContext, buildCombatDamageContext, buildFadeInMonsterFn } from "./combat.js";
-import { attack as attackFn } from "./combat/combat-attack.js";
+import { attack as attackFn, moralAttack as moralAttackFn } from "./combat/combat-attack.js";
 import {
     inflictDamage as inflictDamageFn,
     inflictLethalDamage as inflictLethalDamageFn,
@@ -259,9 +259,9 @@ export function buildMonsterZapFn() {
                     ignoresProtection, damageCtx,
                 ),
             killCreature: (monst, admin) => killCreatureFn(monst, admin, damageCtx),
-            moralAttack: () => {},
-            splitMonster: () => {},
-            handlePaladinFeat: () => {},
+            moralAttack: (attacker, defender) => moralAttackFn(attacker, defender, attackCtx),
+            splitMonster: (monst, attacker) => attackCtx.splitMonster(monst, attacker),
+            handlePaladinFeat: (monst) => attackCtx.handlePaladinFeat(monst),
             gameOver: (msg) => { void gameOverFn(msg); },
 
             haste: (monst, turns) => hasteFn(monst, turns, {

@@ -36,7 +36,12 @@ import {
     killCreature as killCreatureFn,
 } from "../combat/combat-damage.js";
 import type { CombatDamageContext } from "../combat/combat-damage.js";
-import { buildFadeInMonsterFn } from "../combat.js";
+import { buildFadeInMonsterFn, buildCombatAttackContext } from "../combat.js";
+import { moralAttack as moralAttackFn } from "../combat/combat-attack.js";
+import {
+    magicWeaponHit as magicWeaponHitFn,
+    applyArmorRunicEffect as applyArmorRunicEffectFn,
+} from "../combat/combat-runics.js";
 import { damageFraction } from "../power/power-tables.js";
 import { wandDominate } from "../power/power-tables.js";
 import { netEnchant as netEnchantFn } from "./item-usage.js";
@@ -406,6 +411,7 @@ export function buildThrowCommandFn(
 
         // ── ThrowItemContext — combat + item management ───────────────────────
         const damageCtx = buildMinCombatDamageCtx(deps);
+        const attackCtx = buildCombatAttackContext();
 
         const hitCtx: HitMonsterContext = {
             player,
@@ -421,11 +427,13 @@ export function buildThrowCommandFn(
             inflictDamage: (attacker, defender, damage, flashColor, ignoresProtection) =>
                 inflictDamageFn(attacker, defender, damage, flashColor as never, ignoresProtection, damageCtx),
             killCreature: (monst, admin) => killCreatureFn(monst, admin, damageCtx),
-            magicWeaponHit: () => {},        // stub — runic weapons
-            moralAttack: () => {},           // stub — morale effects
-            splitMonster: () => {},          // stub — splitting monsters
-            handlePaladinFeat: () => {},     // stub — paladin feat
-            applyArmorRunicEffect: () => "", // stub — armor runics
+            magicWeaponHit: (monst, weapon, wasSneakOrSleep) =>
+                magicWeaponHitFn(monst, weapon, wasSneakOrSleep, attackCtx),
+            moralAttack: (attacker, defender) => moralAttackFn(attacker, defender, attackCtx),
+            splitMonster: (monst, attacker) => attackCtx.splitMonster(monst, attacker),
+            handlePaladinFeat: (monst) => attackCtx.handlePaladinFeat(monst),
+            applyArmorRunicEffect: (attacker, damage) =>
+                applyArmorRunicEffectFn(attacker, damage, false /* projectile hit = not melee */, attackCtx),
             itemName: (i) => itemNameFn(i, false, false, namingCtx),
             monsterName: (m, includeArticle) => {
                 if (m === player) return "you";

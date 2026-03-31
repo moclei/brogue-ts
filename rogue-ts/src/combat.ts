@@ -41,7 +41,6 @@ import { TileFlag, ItemFlag } from "./types/flags.js";
 import { CreatureState, CreatureMode, GameMode, ItemCategory, FeatType, StatusEffect, MonsterType } from "./types/enums.js";
 import { flashMonster } from "./combat/combat-damage.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
-import type { AttackContext } from "./combat/combat-attack.js";
 import type { Creature, CreatureType, Item, ItemTable, Pos } from "./types/types.js";
 import { getCellAppearance } from "./io/cell-appearance.js";
 import { terrainRandomValues, displayDetail } from "./render-state.js";
@@ -56,10 +55,17 @@ import {
     attackVerb as attackVerbFn,
     anyoneWantABite as anyoneWantABiteFn,
     splitMonster as splitMonsterFn,
+    handlePaladinFeat as handlePaladinFeatFn,
+    playerImmuneToMonster as playerImmuneToMonsterFn,
+    decrementWeaponAutoIDTimer as decrementWeaponAutoIDTimerFn,
 } from "./combat/combat-helpers.js";
 import type { CombatHelperContext } from "./combat/combat-helpers.js";
 import { monsterText } from "./globals/monster-text.js";
-import { specialHit as specialHitFn } from "./combat/combat-runics.js";
+import {
+    specialHit as specialHitFn,
+    magicWeaponHit as magicWeaponHitFn,
+    applyArmorRunicEffect as applyArmorRunicEffectFn,
+} from "./combat/combat-runics.js";
 import type { RunicContext } from "./combat/combat-runics.js";
 import { itemName as itemNameFn } from "./items/item-naming.js";
 import { cloneMonster as cloneMonsterFn, becomeAllyWith as becomeAllyWithFn } from "./monsters/monster-lifecycle.js";
@@ -230,7 +236,7 @@ export function buildCombatDamageContext(): CombatDamageContext {
  * Runic effects (magicWeaponHit, specialHit, applyArmorRunicEffect) and
  * item enchantment ops are stubbed — they require deeper platform wiring.
  */
-export function buildCombatAttackContext(): AttackContext {
+export function buildCombatAttackContext(): RunicContext {
     const {
         player, rogue, pmap, monsters, dormantMonsters, floorItems,
         packItems, gameConst, mutablePotionTable, mutableScrollTable, monsterCatalog,
@@ -413,8 +419,8 @@ export function buildCombatAttackContext(): AttackContext {
         reaping: rogue.reaping,
 
         // ── Runic / special hit ───────────────────────────────────────────────
-        magicWeaponHit: () => {},
-        applyArmorRunicEffect: () => "",
+        magicWeaponHit: () => {}, // wired below — needs runicCtx self-reference
+        applyArmorRunicEffect: () => "", // wired below — needs runicCtx self-reference
         specialHit: () => {}, // wired below to allow self-reference
         splitMonster: () => {}, // wired below to allow self-reference via splitHelperCtx
 
@@ -428,7 +434,7 @@ export function buildCombatAttackContext(): AttackContext {
             defender === player ? badMessageColor : goodMessageColor,
 
         // ── Item / weapon ops ─────────────────────────────────────────────────
-        decrementWeaponAutoIDTimer: () => {},
+        decrementWeaponAutoIDTimer: () => {}, // wired below — needs splitHelperCtx
         rechargeItemsIncrementally: (multiplier: number) => rechargeItemsIncrementallyFn(multiplier, {
             rogue: { wisdomBonus: rogue.wisdomBonus },
             FP_FACTOR: Number(FP_FACTOR),
@@ -456,7 +462,7 @@ export function buildCombatAttackContext(): AttackContext {
         itemMessageColor,
 
         // ── Feat tracking stubs ───────────────────────────────────────────────
-        handlePaladinFeat: () => {},
+        handlePaladinFeat: () => {}, // wired below — needs splitHelperCtx
         setPureMageFeatFailed: () => {},
         setDragonslayerFeatAchieved: () => {},
         reportHeardCombat() {
@@ -483,7 +489,7 @@ export function buildCombatAttackContext(): AttackContext {
         autoIdentify: () => {},
         createFlare: () => {},
         cloneMonster: (monst, selfClone, maintainCorpse) => cloneMonsterFn(monst, selfClone, maintainCorpse, cloneMonsterCtx),
-        playerImmuneToMonster: () => false,
+        playerImmuneToMonster: () => false, // wired below — needs splitHelperCtx
         slow: () => {},
         weaken: () => {},
         exposeCreatureToFire: () => {},
@@ -549,6 +555,15 @@ export function buildCombatAttackContext(): AttackContext {
     runicCtx.splitMonster = (defender, attacker) => {
         splitMonsterFn(defender, attacker, splitHelperCtx);
     };
+
+    // Wire helpers that need splitHelperCtx or runicCtx self-reference
+    runicCtx.handlePaladinFeat = (defender) => handlePaladinFeatFn(defender, splitHelperCtx);
+    runicCtx.playerImmuneToMonster = (monst) => playerImmuneToMonsterFn(monst, splitHelperCtx);
+    runicCtx.decrementWeaponAutoIDTimer = () => decrementWeaponAutoIDTimerFn(splitHelperCtx);
+    runicCtx.magicWeaponHit = (defender, weapon, wasSneakOrSleep) =>
+        magicWeaponHitFn(defender, weapon, wasSneakOrSleep, runicCtx);
+    runicCtx.applyArmorRunicEffect = (attacker, damage, melee) =>
+        applyArmorRunicEffectFn(attacker, damage, melee, runicCtx);
 
     return runicCtx;
 }

@@ -27,7 +27,7 @@ import {
 } from "./targeting.js";
 import { zap as zapFn } from "./zap.js";
 import { buildCombatAttackContext, buildCombatDamageContext, buildFadeInMonsterFn } from "../combat.js";
-import { attack as attackFn } from "../combat/combat-attack.js";
+import { attack as attackFn, moralAttack as moralAttackFn } from "../combat/combat-attack.js";
 import {
     inflictDamage as inflictDamageFn,
     inflictLethalDamage as inflictLethalDamageFn,
@@ -394,9 +394,9 @@ export function buildStaffZapFn() {
                     ignoresProtection, damageCtx,
                 ),
             killCreature: (monst, admin) => killCreatureFn(monst, admin, damageCtx),
-            moralAttack: () => {},          // stub
-            splitMonster: () => {},         // stub — jelly splitting
-            handlePaladinFeat: () => {},    // stub
+            moralAttack: (attacker, defender) => moralAttackFn(attacker, defender, attackCtx),
+            splitMonster: (monst, attacker) => attackCtx.splitMonster(monst, attacker),
+            handlePaladinFeat: (monst) => attackCtx.handlePaladinFeat(monst),
             gameOver: (msg) => { void gameOverFn(msg); },
 
             // ── Effects ──
