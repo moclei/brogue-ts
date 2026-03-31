@@ -16,7 +16,7 @@
  */
 
 import { getGameState, gameOver } from "./core.js";
-import { deleteItem as deleteItemFn, numberOfMatchingPackItems as numberOfMatchingPackItemsFn, itemAtLoc as itemAtLocFn } from "./items/item-inventory.js";
+import { numberOfMatchingPackItems as numberOfMatchingPackItemsFn, itemAtLoc as itemAtLocFn } from "./items/item-inventory.js";
 import {
     inflictDamage as inflictDamageFn,
     killCreature as killCreatureFn,
@@ -28,46 +28,40 @@ import {
     cellHasTMFlag as cellHasTMFlagFn,
     terrainFlags as terrainFlagsFn,
     discoveredTerrainFlagsAtLoc as discoveredTerrainFlagsAtLocFn,
+    terrainMechFlags as terrainMechFlagsFn,
+    highestPriorityLayer,
 } from "./state/helpers.js";
-import { anyoneWantABite as anyoneWantABiteFn } from "./combat/combat-helpers.js";
-import type { CombatHelperContext } from "./combat/combat-helpers.js";
-import { allocGrid, fillGrid, findReplaceGrid, randomLocationInGrid } from "./grid/grid.js";
+import { allocGrid } from "./grid/grid.js";
 import { zeroOutGrid } from "./architect/helpers.js";
 import { FP_FACTOR } from "./math/fixpt.js";
-import { randRange, randPercent, randClumpedRange, clamp, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "./math/rng.js";
+import { randRange, randPercent, randClumpedRange, clamp } from "./math/rng.js";
 import { nbDirs, coordinatesAreInMap } from "./globals/tables.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
 import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
 import {
     goodMessageColor, badMessageColor, advancementMessageColor, itemMessageColor,
-    orange, green, red, yellow, darkRed, darkGreen, poisonColor,
+    orange, green, red, yellow, darkRed, darkGreen,
     white, minersLightColor,
 } from "./globals/colors.js";
 import { DCOLS, DROWS, HUNGER_THRESHOLD, WEAK_THRESHOLD, FAINT_THRESHOLD } from "./types/constants.js";
-import { TileFlag, ItemFlag, MessageFlag, MonsterBookkeepingFlag, TerrainFlag, TerrainMechFlag, T_OBSTRUCTS_SCENT, IS_IN_MACHINE, T_PATHING_BLOCKER, T_DIVIDES_LEVEL, T_HARMFUL_TERRAIN } from "./types/flags.js";
+import { TileFlag, MessageFlag, MonsterBookkeepingFlag, TerrainFlag, T_OBSTRUCTS_SCENT } from "./types/flags.js";
 import { refreshWaypoint as refreshWaypointFn, updateMapToShore as updateMapToShoreFn } from "./architect/architect.js";
 import { analyzeMap as analyzeMapFn } from "./architect/analysis.js";
 import { populateGenericCostMap } from "./movement/cost-maps-fov.js";
-import { CreatureState, GameMode, ALL_ITEMS, LightType, ItemCategory, FoodKind, DungeonLayer } from "./types/enums.js";
+import { CreatureState, ALL_ITEMS, ItemCategory, FoodKind, DungeonLayer } from "./types/enums.js";
 import type { TurnProcessingContext } from "./time/turn-processing.js";
-import { updateEnvironment as updateEnvironmentFn, promoteTile as promoteTileFn, activateMachine as activateMachineFn, circuitBreakersPreventActivation as circuitBreakersPreventActivationFn, exposeTileToFire as exposeTileToFireFn } from "./time/environment.js";
-import type { EnvironmentContext } from "./time/environment.js";
-import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
-import { applyGradualTileEffectsToCreature as applyGradualTileEffectsFn, playerFalls as playerFallsFn, decrementPlayerStatus as decrementPlayerStatusFn, currentStealthRange as currentStealthRangeFn, monstersFall as monstersFallFn, handleHealthAlerts as handleHealthAlertsFn } from "./time/creature-effects.js";
+import { applyGradualTileEffectsToCreature as applyGradualTileEffectsFn, decrementPlayerStatus as decrementPlayerStatusFn, currentStealthRange as currentStealthRangeFn, monstersFall as monstersFallFn, handleHealthAlerts as handleHealthAlertsFn } from "./time/creature-effects.js";
 import { buildApplyInstantTileEffectsFn } from "./tile-effects-wiring.js";
-import { buildFadeInMonsterFn } from "./combat.js";
-import type { Creature, Pcell, Pos, PlayerCharacter, Color, Item } from "./types/types.js";
-import { INVALID_POS } from "./types/types.js";
-import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn, buildDisplayLevelFn } from "./io-wiring.js";
+import type { Creature, Pcell, Pos, Color, Item } from "./types/types.js";
+import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildDisplayLevelFn } from "./io-wiring.js";
 import { displayCombatText as displayCombatTextFn } from "./io/messages.js";
 import { buildMessageContext } from "./ui.js";
 import { buildUpdateVisionFn, buildAnimateFlaresFn } from "./vision-wiring.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn, playerInDarkness as playerInDarknessFn } from "./light/light.js";
 import { shuffleTerrainColors as shuffleTerrainColorsFn } from "./render-state.js";
-import { checkForContinuedLeadership as checkForContinuedLeadershipFn, demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "./monsters/monster-ally-ops.js";
-import { buildResolvePronounEscapesFn, getMonsterDFMessage as getMonsterDFMessageFn } from "./io/text.js";
+import { demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "./monsters/monster-ally-ops.js";
 import { buildMonstersTurnContext } from "./turn-monster-ai.js";
 import { doMakeMonsterDropItem } from "./monsters/monster-drop.js";
 import { updateEncumbrance as updateEncumbranceFn, recalculateEquipmentBonuses as recalculateEquipmentBonusesFn } from "./items/item-usage.js";
@@ -79,23 +73,21 @@ import { autoIdentify as autoIdentifyFn, updateIdentifiableItems as updateIdenti
 import { updateIdentifiableItem as updateIdentifiableItemFn } from "./items/item-effects.js";
 import { identify as identifyFn } from "./items/item-naming.js";
 import { dropItem as dropItemFn } from "./items/floor-items.js";
-import { buildUpdateFloorItemsFn } from "./items/floor-items-wiring.js";
-import { startLevel as startLevelFn } from "./lifecycle.js";
-import { layerWithFlag as layerWithFlagFn } from "./movement/map-queries.js";
-import { teleport as teleportFn, disentangle as disentangleFn } from "./monsters/monster-teleport.js";
-import { createFlare as createFlareFn } from "./light/flares.js";
-import { calculateDistances } from "./dijkstra/dijkstra.js";
-import { forbiddenFlagsForMonster as forbiddenFlagsForMonsterFn, avoidedFlagsForMonster as avoidedFlagsForMonsterFn, monsterCanSubmergeNow as monsterCanSubmergeNowFn, spawnPeriodicHorde as spawnPeriodicHordeFn } from "./monsters/monster-spawning.js";
+import { monsterCanSubmergeNow as monsterCanSubmergeNowFn, spawnPeriodicHorde as spawnPeriodicHordeFn } from "./monsters/monster-spawning.js";
 import { buildMonsterSpawningContext } from "./monsters.js";
 import {
     canSeeMonster as canSeeMonsterFn,
     canDirectlySeeMonster as canDirectlySeeMonsterFn,
     monsterRevealed as monsterRevealedFn,
+    monsterIsInClass as monsterIsInClassFn,
 } from "./monsters/monster-queries.js";
-import { decrementMonsterStatus as decrementMonsterStatusFn } from "./monsters/monster-state.js";
-import { lightCatalog } from "./globals/light-catalog.js";
+import { decrementMonsterStatus as decrementMonsterStatusFn, monsterAvoids as monsterAvoidsFn } from "./monsters/monster-state.js";
+import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
+import { storeMemories as storeMemoriesFn } from "./movement/map-queries.js";
+import { dijkstraScan as dijkstraScanFn } from "./dijkstra/dijkstra.js";
+import { updateSafetyMap as updateSafetyMapFn } from "./time/safety-maps.js";
+import type { SafetyMapsContext } from "./time/safety-maps.js";
 import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
-import { keyMatchesLocation as keyMatchesLocationFn } from "./items/item-utils.js";
 import { wandTable, staffTable, ringTable, charmTable, armorTable, charmEffectTable } from "./globals/item-catalog.js";
 import { ringWisdomMultiplier as ringWisdomMultiplierFn, charmRechargeDelay as charmRechargeDelayFn } from "./power/power-tables.js";
 import { rechargeItemsIncrementally as rechargeItemsIncrementallyFn, processIncrementalAutoID as processIncrementalAutoIDFn } from "./time/misc-helpers.js";
@@ -104,158 +96,10 @@ import type { ItemTable } from "./types/types.js";
 import { buildMonstersApproachStairsCtx, monstersApproachStairs as monstersApproachStairsFn } from "./time/stairs-wiring.js";
 import { commitDraws } from "./platform.js";
 import { platformPauseIgnoringHover } from "./platform-bridge.js";
+import { buildGetRandomMonsterSpawnLocationFn, buildMinimalCombatContext, buildMonsterAvoidsCtx } from "./turn-combat-helpers.js";
+import { buildUpdateEnvironmentFn, buildPlayerFallsFn } from "./turn-env-wiring.js";
 
-// =============================================================================
-// buildGetRandomMonsterSpawnLocationFn
-// Ported from getRandomMonsterSpawnLocation() in Monsters.c:1086
-// Returns a closure that finds a spawn position far from the player.
-// =============================================================================
-
-function buildGetRandomMonsterSpawnLocationFn(
-    player: Creature,
-    pmap: Pcell[][],
-): () => Pos | null {
-    const ctf = (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags);
-    const ctmf = (pos: Pos, flags: number) => cellHasTMFlagFn(pmap, pos, flags);
-    const calcDistCtx = {
-        cellHasTerrainFlag: ctf,
-        cellHasTMFlag: ctmf,
-        monsterAtLoc: (loc: Pos): Creature | null => {
-            if (loc.x === player.loc.x && loc.y === player.loc.y) return player;
-            return null; // conservative: only block player tile
-        },
-        monsterAvoids: () => false as const,
-        discoveredTerrainFlagsAtLoc: () => 0,
-        isPlayer: (m: Creature) => m === player,
-        getCellFlags: (x: number, y: number) => pmap[x]?.[y]?.flags ?? 0,
-    };
-
-    return function getRandomMonsterSpawnLocation(): Pos | null {
-        const grid = allocGrid();
-        fillGrid(grid, 0);
-        calculateDistances(grid, player.loc.x, player.loc.y, T_DIVIDES_LEVEL, null, true, true, calcDistCtx);
-        // Zero out tiles that are blocked, occupied, or visible
-        const blockMapFlags = TileFlag.HAS_PLAYER | TileFlag.HAS_MONSTER | TileFlag.HAS_STAIRS | TileFlag.IN_FIELD_OF_VIEW;
-        for (let i = 0; i < DCOLS; i++) {
-            for (let j = 0; j < DROWS; j++) {
-                if (ctf({ x: i, y: j }, T_PATHING_BLOCKER | T_HARMFUL_TERRAIN) ||
-                    (pmap[i]?.[j]?.flags & blockMapFlags)) {
-                    grid[i][j] = 0;
-                }
-            }
-        }
-        // Only keep cells at distance >= DCOLS/2
-        findReplaceGrid(grid, -30000, Math.floor(DCOLS / 2) - 1, 0);
-        findReplaceGrid(grid, 30000, 30000, 0);
-        findReplaceGrid(grid, Math.floor(DCOLS / 2), 30000 - 1, 1);
-        let loc = randomLocationInGrid(grid, 1);
-        if (loc.x < 0 || loc.y < 0) {
-            // Fallback: any open, unoccupied tile not in a machine
-            fillGrid(grid, 1);
-            const blockMapFlagsFallback = TileFlag.HAS_PLAYER | TileFlag.HAS_MONSTER | TileFlag.HAS_STAIRS | TileFlag.IN_FIELD_OF_VIEW | IS_IN_MACHINE;
-            for (let i = 0; i < DCOLS; i++) {
-                for (let j = 0; j < DROWS; j++) {
-                    if (ctf({ x: i, y: j }, T_PATHING_BLOCKER | T_HARMFUL_TERRAIN) ||
-                        (pmap[i]?.[j]?.flags & blockMapFlagsFallback)) {
-                        grid[i][j] = 0;
-                    }
-                }
-            }
-            loc = randomLocationInGrid(grid, 1);
-        }
-        if (loc.x < 0 || loc.y < 0) {
-            return null;
-        }
-        return loc;
-    };
-}
-
-// =============================================================================
-// Minimal combat context — used by inflictDamage/killCreature/addPoison calls
-// in the turn-processing pipeline. Full context in Phase 3: combat.ts.
-// =============================================================================
-
-function buildMinimalCombatContext(
-    player: Creature,
-    rogue: PlayerCharacter,
-    pmap: Pcell[][],
-    monsters: Creature[],
-    floorItems: Item[],
-): CombatDamageContext {
-    const canSeeMonster = (m: Creature) =>
-        !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE);
-    const io = buildMessageFns(), refreshDungeonCell = buildRefreshDungeonCellFn(), refreshSideBar = buildRefreshSideBarFn();
-    const resolvePronounEscapes = buildResolvePronounEscapesFn(player, pmap, rogue);
-
-    return {
-        player,
-        easyMode: rogue.mode === GameMode.Easy,
-        transference: rogue.transference,
-        playerTransferenceRatio: 20,
-        canSeeMonster,
-        canDirectlySeeMonster: canSeeMonster,
-        wakeUp: buildWakeUpFn(player, monsters),
-        spawnDungeonFeature(x, y, featureIndex, probability, _isGas) {
-            const feat = dungeonFeatureCatalog[featureIndex];
-            if (!feat) return;
-            const scaled = probability === 100
-                ? feat
-                : { ...feat, startProbability: Math.floor(feat.startProbability * probability / 100) };
-            spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, scaled as never, true, false);
-        },
-        refreshSideBar,
-        combatMessage: io.combatMessage,
-        messageWithColor: (text, color) => io.messageWithColor(text, color, 0),
-        monsterName: (m, includeArticle) => {
-            if (m === player) return "you";
-            const pfx = includeArticle
-                ? (m.creatureState === CreatureState.Ally ? "your " : "the ")
-                : "";
-            return `${pfx}${m.info.monsterName}`;
-        },
-        gameOver: (msg) => gameOver(msg),
-        setCreaturesWillFlash: () => { rogue.creaturesWillFlashThisTurn = true; },
-        deleteItem: deleteItemFn,
-        makeMonsterDropItem: (monst: Creature) =>
-            doMakeMonsterDropItem(monst, pmap, floorItems, (loc, flags) => cellHasTerrainFlagFn(pmap, loc, flags), refreshDungeonCell),
-        clearLastTarget(monst) { if (rogue.lastTarget === monst) rogue.lastTarget = null; },
-        clearYendorWarden(monst) { if (rogue.yendorWarden === monst) rogue.yendorWarden = null; },
-        clearCellMonsterFlag(loc, isDormant) {
-            if (coordinatesAreInMap(loc.x, loc.y)) {
-                pmap[loc.x][loc.y].flags &= ~(isDormant ? TileFlag.HAS_DORMANT_MONSTER : TileFlag.HAS_MONSTER);
-            }
-        },
-        prependCreature: () => {},                  // stub
-        applyInstantTileEffectsToCreature: () => {},// stub
-        fadeInMonster: buildFadeInMonsterFn(),
-        refreshDungeonCell,
-        anyoneWantABite: (decedent) => anyoneWantABiteFn(decedent, {
-            player,
-            iterateAllies: () => monsters.filter(m => m.creatureState === CreatureState.Ally),
-            randRange: (lo: number, hi: number) => randRange(lo, hi),
-            isPosInMap: (loc: Pos) => coordinatesAreInMap(loc.x, loc.y),
-            monsterAvoids: () => false,
-        } as unknown as CombatHelperContext),
-        demoteMonsterFromLeadership: (monst) => demoteMonsterFromLeadershipFn(monst, monsters),
-        checkForContinuedLeadership: (monst) => checkForContinuedLeadershipFn(monst, monsters),
-        getMonsterDFMessage: (id) => getMonsterDFMessageFn(id),
-        resolvePronounEscapes,
-        message: io.message,
-        monsterCatalog: [],                         // stub — real catalog via core.ts
-        updateEncumbrance: () => updateEncumbranceFn(buildEquipState()),
-        updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
-        updateVision: () => {},                     // stub
-        badMessageColor,
-        poisonColor,
-    };
-}
-
-// =============================================================================
-// buildTurnProcessingContext
-// =============================================================================
-
-/**
- * Build the TurnProcessingContext for playerTurnEnded().
+/** Build the TurnProcessingContext for playerTurnEnded().
  *
  * Called each time the player ends a turn. Pulls live state from core.ts
  * and provides real implementations for scheduler-critical operations;
@@ -482,8 +326,9 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         },
         monsterAtLoc,
         monstersAreEnemies: (m1, m2) => m1.creatureState !== CreatureState.Ally && m2 === player,
-        monsterAvoids: () => false,                         // stub
-        monsterIsInClass: () => false,                      // stub
+        monsterAvoids: (monst, p) => monsterAvoidsFn(monst, p, buildMonsterAvoidsCtx(player, monsters, pmap, rogue)),
+        monsterIsInClass: (monst, cls) =>
+            monsterIsInClassFn(monst, monsterClassCatalog[cls] ?? { memberList: [] } as never),
         isVowelish: (w) => "aeiouAEIOU".includes(w[0] ?? ""),
         monstersTurn: (monst) => monstersTurnFn(monst, buildMonstersTurnContext()),
         decrementMonsterStatus: (monst) => decrementMonsterStatusFn(monst, decrementMonsterStatusCtx),
@@ -496,7 +341,8 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
 
         // ── Item helpers ──────────────────────────────────────────────────────
         itemName(item, buf, inclDetails, inclArticle) { buf[0] = itemNameFn(item, inclDetails, inclArticle, namingCtx); },
-        numberOfMatchingPackItems: () => 0,                 // stub
+        numberOfMatchingPackItems: (cat, _kind, forbiddenFlags, _checkCarried) =>
+            numberOfMatchingPackItemsFn(packItems, cat, 0, forbiddenFlags),
 
         // ── Combat helpers ────────────────────────────────────────────────────
         inflictDamage: (attacker, defender, damage, flashColor, showDamage) =>
@@ -529,97 +375,27 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         white, minersLightColor,
 
         // ── Environment / vision ──────────────────────────────────────────────
-        updateEnvironment: () => {
-            let exposeToFire = (_x: number, _y: number, _a: boolean): boolean => false;
-            const envCtx: EnvironmentContext = {
-                player, rogue, monsters, pmap, levels, tileCatalog, DCOLS, DROWS,
-                dungeonFeatureCatalog: dungeonFeatureCatalog as unknown as EnvironmentContext["dungeonFeatureCatalog"],
-                cellHasTerrainFlag: (pos, flags) => cellHasTerrainFlagFn(pmap, pos, flags),
-                cellHasTMFlag: (pos, flags) => cellHasTMFlagFn(pmap, pos, flags),
-                coordinatesAreInMap: (x, y) => coordinatesAreInMap(x, y),
-                refreshDungeonCell,
-                spawnDungeonFeature: (x, y, feat, v, o) => {
-                    const spawned = spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, v, o, refreshDungeonCell);
-                    if (spawned) {
-                        // Mirror C: Architect.c spawnDungeonFeature creates a flare when lightFlare is set and we refreshed the cell
-                        if (v && feat.lightFlare) {
-                            createFlareFn(x, y, feat.lightFlare as LightType, rogue, lightCatalog);
-                        }
-                        // Mirror C: display feat->description message if not yet shown and player can see the tile
-                        if (feat.description && !feat.messageDisplayed && (pmap[x]?.[y]?.flags & TileFlag.VISIBLE)) {
-                            void io.message(feat.description, 0);
-                            feat.messageDisplayed = true;
-                        }
-                    }
-                    return spawned;
-                },
-                monstersFall: () => monstersFallFn({
-                    monsters, pmap, levels,
-                    cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
-                    rogue: { depthLevel: rogue.depthLevel } as unknown as CreatureEffectsContext["rogue"],
-                    canSeeMonster: (m: Creature) => canSeeMonsterFn(m, mqCtx),
-                    monsterName: (buf: string[], m: Creature, includeArticle: boolean) => {
-                        if (m === player) { buf[0] = "you"; return; }
-                        const pfx = includeArticle ? (m.creatureState === CreatureState.Ally ? "your " : "the ") : "";
-                        buf[0] = `${pfx}${m.info.monsterName}`;
-                    },
-                    messageWithColor: (msg: string, color: Color, flags: number) => io.messageWithColor(msg, color, flags),
-                    messageColorFromVictim: (monst: Creature): Color =>
-                        (monst === player || monst.creatureState === CreatureState.Ally) ? badMessageColor : goodMessageColor,
-                    killCreature: (monst: Creature, adminDeath: boolean) => killCreatureFn(monst, adminDeath, combatCtx),
-                    inflictDamage: (attacker: Creature | null, defender: Creature, damage: number, flashColor: Color, showDamage: boolean) =>
-                        inflictDamageFn(attacker, defender, damage, flashColor, showDamage, combatCtx),
-                    randClumpedRange, red,
-                    demoteMonsterFromLeadership: (monst: Creature) => demoteMonsterFromLeadershipFn(monst, monsters),
-                    removeCreature: (list: Creature[], monst: Creature) => {
-                        const i = list.indexOf(monst); if (i >= 0) { list.splice(i, 1); return true; } return false;
-                    },
-                    prependCreature: (list: Creature[], monst: Creature) => { list.unshift(monst); },
-                    refreshDungeonCell,
-                } as unknown as CreatureEffectsContext),
-                monstersTurn: () => {},
-                updateFloorItems: buildUpdateFloorItemsFn({
-                    floorItems, pmap,
-                    rogue: { absoluteTurnNumber: rogue.absoluteTurnNumber, depthLevel: rogue.depthLevel },
-                    gameConst, levels, player,
-                    tileCatalog: tileCatalog as unknown as Parameters<typeof buildUpdateFloorItemsFn>[0]["tileCatalog"],
-                    dungeonFeatureCatalog: dungeonFeatureCatalog as unknown as Parameters<typeof buildUpdateFloorItemsFn>[0]["dungeonFeatureCatalog"],
-                    mutableScrollTable: mutableScrollTable as unknown as Parameters<typeof buildUpdateFloorItemsFn>[0]["mutableScrollTable"],
-                    mutablePotionTable: mutablePotionTable as unknown as Parameters<typeof buildUpdateFloorItemsFn>[0]["mutablePotionTable"],
-                    itemMessageColor,
-                    messageWithColor: (msg, color, flags) => io.messageWithColor(msg, color, flags),
-                    itemName: (item, buf, details, article) => { buf[0] = itemNameFn(item, details, article, namingCtx); },
-                    refreshDungeonCell,
-                    promoteTile: (x, y, layer, forced) => promoteTileFn(x, y, layer as DungeonLayer, forced, envCtx),
-                    activateMachine: (mn) => activateMachineFn(mn, envCtx),
-                    circuitBreakersPreventActivation: (mn) => circuitBreakersPreventActivationFn(mn, envCtx),
-                }),
-                keyOnTileAt: (loc: Pos) => {
-                    const machineNum = pmap[loc.x]?.[loc.y]?.machineNumber ?? 0;
-                    if (player.loc.x === loc.x && player.loc.y === loc.y) {
-                        const k = packItems.find(it => (it.flags & ItemFlag.ITEM_IS_KEY) && keyMatchesLocationFn(it, loc, rogue.depthLevel, machineNum));
-                        if (k) return k;
-                    }
-                    if (pmap[loc.x][loc.y].flags & TileFlag.HAS_ITEM) {
-                        const fi = itemAtLocFn(loc, floorItems);
-                        if (fi && (fi.flags & ItemFlag.ITEM_IS_KEY) && keyMatchesLocationFn(fi, loc, rogue.depthLevel, machineNum)) return fi;
-                    }
-                    const monst = monsters.find(m => m.loc.x === loc.x && m.loc.y === loc.y);
-                    if (monst?.carriedItem && (monst.carriedItem.flags & ItemFlag.ITEM_IS_KEY) && keyMatchesLocationFn(monst.carriedItem, loc, rogue.depthLevel, machineNum)) return monst.carriedItem;
-                    return null;
-                },
-                removeCreature: (list, m) => { const i = list.indexOf(m); if (i >= 0) { list.splice(i, 1); return true; } return false; },
-                prependCreature: (list, m) => { list.unshift(m); },
-                rand_range: randRange, rand_percent: randPercent, max: Math.max, min: Math.min,
-                fillSequentialList: (list) => fillSequentialListFn(list), shuffleList: (list) => shuffleListFn(list),
-                exposeTileToFire: (x, y, a) => exposeToFire(x, y, a),
-            };
-            exposeToFire = (x, y, a) => exposeTileToFireFn(x, y, a, envCtx);
-            updateEnvironmentFn(envCtx);
-        },
+        updateEnvironment: buildUpdateEnvironmentFn(combatCtx),
         updateVision: buildUpdateVisionFn(),
         updateMapToShore: () => { rogue.mapToShore = updateMapToShoreFn(pmap); },
-        updateSafetyMap: () => {},
+        updateSafetyMap: () => updateSafetyMapFn({
+            rogue, player, pmap,
+            safetyMap, allySafetyMap,
+            DCOLS, DROWS, FP_FACTOR: 1,
+            cellHasTerrainFlag: (pos: Pos, f: number) => cellHasTerrainFlagFn(pmap, pos, f),
+            cellHasTMFlag: (pos: Pos, f: number) => cellHasTMFlagFn(pmap, pos, f),
+            coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
+            discoveredTerrainFlagsAtLoc: (pos: Pos) => discoveredTerrainFlagsAtLocFn(
+                pmap, pos, tileCatalog,
+                (tileType) => {
+                    const df = tileCatalog[tileType]?.discoverType ?? 0;
+                    return df ? (tileCatalog[dungeonFeatureCatalog[df]?.tile ?? 0]?.flags ?? 0) : 0;
+                },
+            ),
+            monsterAtLoc,
+            allocGrid, freeGrid: () => {},
+            dijkstraScan: dijkstraScanFn,
+        } as unknown as SafetyMapsContext),
         refreshWaypoint(index: number) {
             const dist = rogue.wpDistance[index];
             const coord = rogue.wpCoordinates[index];
@@ -676,7 +452,12 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         zeroOutGrid,
         discoverCell: (x, y) => { if (coordinatesAreInMap(x, y)) { pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY; pmap[x][y].flags |= TileFlag.DISCOVERED; } },
         discover: (x, y) => { if (coordinatesAreInMap(x, y)) { pmap[x][y].flags &= ~TileFlag.STABLE_MEMORY; pmap[x][y].flags |= TileFlag.DISCOVERED; } },
-        storeMemories: () => {},
+        storeMemories: (x, y) => storeMemoriesFn(
+            pmap, x, y,
+            (pos) => terrainFlagsFn(pmap, pos),
+            (pos) => terrainMechFlagsFn(pmap, pos),
+            (pm, xi, yi, skipGas) => highestPriorityLayer(pm, xi, yi, skipGas) as DungeonLayer,
+        ),
 
         // ── Items / recharging ────────────────────────────────────────────────
         rechargeItemsIncrementally: (multiplier: number) => rechargeItemsIncrementallyFn(multiplier, {
@@ -739,78 +520,7 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
             refreshDungeonCell,
         } as unknown as CreatureEffectsContext),
         decrementPlayerStatus: () => decrementPlayerStatusFn(decrementStatusCtx),
-        playerFalls: async () => {
-            const fallCtx = {
-                player, rogue, pmap, gameConst,
-                cellHasTMFlag: (pos: Pos, flags: number) => cellHasTMFlagFn(pmap, pos, flags),
-                playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-                discover: (x: number, y: number) => { if (coordinatesAreInMap(x, y)) { pmap[x][y].flags |= TileFlag.DISCOVERED; } },
-                monstersFall: () => {},     // stub — separate backlog item
-                updateFloorItems: () => {}, // stub — separate backlog item
-                layerWithFlag: (x: number, y: number, flag: number) => layerWithFlagFn(pmap, x, y, flag),
-                tileCatalog,
-                pmapAt: (pos: Pos) => pmap[pos.x][pos.y],
-                REQUIRE_ACKNOWLEDGMENT: 1,
-                message: io.message,
-                terrainFlags: (pos: Pos) => terrainFlagsFn(pmap, pos),
-                messageWithColor: (msg: string, color: Color, f: number) => io.messageWithColor(msg, color, f),
-                badMessageColor, red,
-                inflictDamage: (attacker: Creature | null, defender: Creature, damage: number, flashColor: Color, showDamage: boolean) =>
-                    inflictDamageFn(attacker, defender, damage, flashColor, showDamage, combatCtx),
-                killCreature: (monst: Creature, adminDeath: boolean) => killCreatureFn(monst, adminDeath, combatCtx),
-                gameOver: (msg: string) => gameOver(msg),
-                startLevel: (depth: number, dir: number) => startLevelFn(depth, dir),
-                randClumpedRange,
-                teleport: (monst: Creature, destination: Pos, voluntary: boolean) => {
-                    const fovCtx = {
-                        cellHasTerrainFlag: _ctf,
-                        getCellFlags: (x: number, y: number) => pmap[x]?.[y]?.flags ?? 0,
-                    };
-                    teleportFn(monst, destination, voluntary, {
-                        player,
-                        disentangle: (m: Creature) => disentangleFn(m, { player, message: () => {} }),
-                        calculateDistancesFrom: (grid: number[][], x: number, y: number, flags: number) =>
-                            calculateDistances(grid, x, y, flags, null, true, false, {
-                                cellHasTerrainFlag: _ctf,
-                                cellHasTMFlag: (pos: Pos, f: number) => cellHasTMFlagFn(pmap, pos, f),
-                                monsterAtLoc,
-                                monsterAvoids: () => false as const,
-                                discoveredTerrainFlagsAtLoc: () => 0,
-                                isPlayer: (m: Creature) => m === player,
-                                getCellFlags: (x: number, y: number) => pmap[x]?.[y]?.flags ?? 0,
-                            }),
-                        getFOVMaskAt: (grid: number[][], x: number, y: number, radius: bigint, terrain: number, f: number, cautious: boolean) =>
-                            getFOVMaskFn(grid, x, y, radius, terrain, f, cautious, fovCtx),
-                        forbiddenFlagsForMonster: (info) => forbiddenFlagsForMonsterFn(info),
-                        avoidedFlagsForMonster: (info) => avoidedFlagsForMonsterFn(info),
-                        cellHasTerrainFlag: _ctf,
-                        cellHasTMFlag: (pos: Pos, f: number) => cellHasTMFlagFn(pmap, pos, f),
-                        getCellFlags: (x: number, y: number) => pmap[x]?.[y]?.flags ?? 0,
-                        isPosInMap: (loc: Pos) => coordinatesAreInMap(loc.x, loc.y),
-                        setMonsterLocation(m: Creature, loc: Pos) {
-                            const flag = m === player ? TileFlag.HAS_PLAYER : TileFlag.HAS_MONSTER;
-                            if (pmap[m.loc.x]?.[m.loc.y]) pmap[m.loc.x][m.loc.y].flags &= ~flag;
-                            m.loc = { ...loc };
-                            if (pmap[loc.x]?.[loc.y]) pmap[loc.x][loc.y].flags |= flag;
-                            if ((m.bookkeepingFlags & MonsterBookkeepingFlag.MB_SUBMERGED) &&
-                                !cellHasTMFlagFn(pmap, loc, TerrainMechFlag.TM_ALLOWS_SUBMERGING)) {
-                                m.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_SUBMERGED;
-                            }
-                        },
-                        chooseNewWanderDestination: () => {},
-                        IS_IN_MACHINE,
-                        HAS_PLAYER: TileFlag.HAS_PLAYER,
-                        HAS_MONSTER: TileFlag.HAS_MONSTER,
-                        HAS_STAIRS: TileFlag.HAS_STAIRS,
-                    });
-                },
-                INVALID_POS: { ...INVALID_POS },
-                createFlare: (x: number, y: number, lightType: number) => createFlareFn(x, y, lightType as LightType, rogue, lightCatalog),
-                animateFlares: () => {},    // stub — flare animation is visual
-                GENERIC_FLASH_LIGHT: LightType.GENERIC_FLASH_LIGHT,
-            };
-            await playerFallsFn(fallCtx as unknown as CreatureEffectsContext);
-        },
+        playerFalls: buildPlayerFallsFn(combatCtx),
         handleHealthAlerts: async () => handleHealthAlertsFn({
             player,
             rogue: rogue as unknown as CreatureEffectsContext["rogue"],
