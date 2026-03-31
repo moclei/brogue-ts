@@ -16,6 +16,7 @@
  */
 
 import { getGameState, gameOver } from "./core.js";
+import { buildFadeInMonsterFn } from "./combat-fade.js";
 import { buildApplyInstantTileEffectsFn } from "./tile-effects-wiring.js";
 import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
@@ -30,7 +31,7 @@ import { coordinatesAreInMap } from "./globals/tables.js";
 import { monsterClassCatalog } from "./globals/monster-class-catalog.js";
 import { alertMonster as alertMonsterFn, monsterAvoids as monsterAvoidsFn } from "./monsters/monster-state.js";
 import type { MonsterStateContext } from "./monsters/monster-state.js";
-import { monsterWillAttackTarget as monsterWillAttackTargetFn, monsterIsInClass as monsterIsInClassFn, monstersAreTeammates as monstersAreTeammatesFn } from "./monsters/monster-queries.js";
+import { monsterWillAttackTarget as monsterWillAttackTargetFn, monsterIsInClass as monsterIsInClassFn, monstersAreTeammates as monstersAreTeammatesFn, monstersAreEnemies as monstersAreEnemiesFn } from "./monsters/monster-queries.js";
 import { unAlly as unAllyFn, checkForContinuedLeadership as checkForContinuedLeadershipFn, demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "./monsters/monster-ally-ops.js";
 import { buildResolvePronounEscapesFn, getMonsterDFMessage as getMonsterDFMessageFn } from "./io/text.js";
 import {
@@ -38,13 +39,10 @@ import {
     goodMessageColor, badMessageColor, itemMessageColor,
 } from "./globals/colors.js";
 import { TileFlag, ItemFlag } from "./types/flags.js";
-import { CreatureState, CreatureMode, GameMode, ItemCategory, FeatType, StatusEffect, MonsterType } from "./types/enums.js";
-import { flashMonster } from "./combat/combat-damage.js";
+import { CreatureState, CreatureMode, GameMode, ItemCategory, FeatType, StatusEffect, MonsterType, LightType } from "./types/enums.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
 import type { Creature, CreatureType, Item, ItemTable, Pos } from "./types/types.js";
-import { getCellAppearance } from "./io/cell-appearance.js";
-import { terrainRandomValues, displayDetail } from "./render-state.js";
-import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn } from "./io-wiring.js";
+import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildWakeUpFn, buildExposeCreatureToFireFn } from "./io-wiring.js";
 import { updateEncumbrance as updateEncumbranceFn, updateRingBonuses as updateRingBonusesFn, equipItem as equipItemFn, strengthCheck as strengthCheckFn } from "./items/item-usage.js";
 import { buildEquipState, syncEquipBonuses, syncEquipState } from "./items/equip-helpers.js";
 import { updateMinersLightRadius as updateMinersLightRadiusFn } from "./light/light.js";
@@ -70,7 +68,10 @@ import type { RunicContext } from "./combat/combat-runics.js";
 import { itemName as itemNameFn } from "./items/item-naming.js";
 import { cloneMonster as cloneMonsterFn, becomeAllyWith as becomeAllyWithFn } from "./monsters/monster-lifecycle.js";
 import { checkForDisenchantment as checkForDisenchantmentFn } from "./items/item-inventory.js";
-import { weaken as weakenFn } from "./items/item-effects.js";
+import { weaken as weakenFn, slow as slowFn, updateIdentifiableItem as updateIdentifiableItemFn } from "./items/item-effects.js";
+import { autoIdentify as autoIdentifyFn, updateIdentifiableItems as updateIdentifiableItemsFn } from "./items/item-handlers.js";
+import { createFlare as createFlareFn } from "./light/flares.js";
+import { lightCatalog } from "./globals/light-catalog.js";
 import { NUMBER_GOOD_WEAPON_ENCHANT_KINDS } from "./types/constants.js";
 import { ArmorEnchant } from "./types/enums.js";
 import { doMakeMonsterDropItem } from "./monsters/monster-drop.js";
@@ -481,11 +482,19 @@ export function buildCombatAttackContext(): RunicContext {
         unAlly: (monst) => unAllyFn(monst),
         alertMonster: (monst) => alertMonsterFn(monst, player),
         armorRunicIdentified: () => !!(rogue.armor && (rogue.armor.flags & ItemFlag.ITEM_RUNIC_IDENTIFIED)),
-        autoIdentify: () => {},
-        createFlare: () => {},
+        autoIdentify: (item) => autoIdentifyFn(item, {
+            gc: gameConst,
+            messageWithColor: (msg, color, _flags) => { void damageCtx.messageWithColor(msg, color); },
+            itemMessageColor, namingCtx,
+        }),
+        createFlare: (x, y, lightType) => createFlareFn(x, y, lightType as LightType, rogue, lightCatalog),
         cloneMonster: (monst, selfClone, maintainCorpse) => cloneMonsterFn(monst, selfClone, maintainCorpse, cloneMonsterCtx),
         playerImmuneToMonster: () => false, // wired below — needs splitHelperCtx
-        slow: () => {},
+        slow: (monst, duration) => slowFn(monst, duration, {
+            player,
+            updateEncumbrance: () => updateEncumbranceFn(buildEquipState()),
+            message: (msg, flags) => { void damageCtx.message(msg, flags); },
+        }),
         weaken: (monst, duration) => {
             weakenFn(monst, duration, {
                 player,
@@ -495,9 +504,9 @@ export function buildCombatAttackContext(): RunicContext {
                 strengthCheck: doStrengthCheck,
             });
         },
-        exposeCreatureToFire: () => {},
+        exposeCreatureToFire: buildExposeCreatureToFireFn(),
         monsterStealsFromPlayer: monsterStealsFromPlayerImpl,
-        monstersAreEnemies: () => true,
+        monstersAreEnemies: (m1, m2) => monstersAreEnemiesFn(m1, m2, player, cellHasTerrainFlag),
         onHitHallucinateDuration: gameConst.onHitHallucinateDuration,
         onHitWeakenDuration: gameConst.onHitWeakenDuration,
         onHitMercyHealPercent: gameConst.onHitMercyHealPercent,
@@ -544,7 +553,10 @@ export function buildCombatAttackContext(): RunicContext {
         monsterClassCatalog,
         cautiousMode: rogue.cautiousMode,
         setCautiousMode: (val) => { rogue.cautiousMode = val; },
-        updateIdentifiableItems: () => {},
+        updateIdentifiableItems: () => updateIdentifiableItemsFn({
+            packItems, floorItems,
+            updateIdentifiableItem: (item) => updateIdentifiableItemFn(item, { scrollTable: mutableScrollTable, potionTable: mutablePotionTable }),
+        }),
         messageWithColor: (text, color) => { void runicCtx.messageWithColor(text, color); },
         itemName: (item) => itemNameFn(item, false, true, namingCtx),
         itemMessageColor,
@@ -571,30 +583,6 @@ export function buildCombatAttackContext(): RunicContext {
     return runicCtx;
 }
 
-// =============================================================================
-// buildFadeInMonsterFn — Monsters.c:904
-// =============================================================================
-
-/**
- * Returns a `fadeInMonster(monst)` closure that flashes the monster with the
- * background colour of its current cell — the visual cue for a monster
- * appearing (summoned, revealed, etc.).
- *
- * C: void fadeInMonster(creature *monst) — calls getCellAppearance then
- *    flashMonster(monst, &bColor, 100).
- */
-export function buildFadeInMonsterFn(): (monst: Creature) => void {
-    return (monst) => {
-        const { rogue, pmap, tmap, displayBuffer, player, monsters,
-            dormantMonsters, floorItems, monsterCatalog, scentMap } = getGameState();
-        const { backColor } = getCellAppearance(
-            monst.loc, pmap, tmap, displayBuffer, rogue, player,
-            monsters, dormantMonsters, floorItems,
-            tileCatalog, dungeonFeatureCatalog, monsterCatalog,
-            terrainRandomValues, displayDetail, scentMap ?? [],
-        );
-        flashMonster(monst, backColor, 100, {
-            setCreaturesWillFlash() { rogue.creaturesWillFlashThisTurn = true; },
-        } as unknown as CombatDamageContext);
-    };
-}
+// buildFadeInMonsterFn is defined in combat-fade.ts (extracted to stay under
+// the 600-line limit) and re-exported here for backward compatibility.
+export { buildFadeInMonsterFn } from "./combat-fade.js";
