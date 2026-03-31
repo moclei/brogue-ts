@@ -107,7 +107,7 @@ All needs-porting functions from sub-phase 2a must exist before starting this su
       playerTurnEnded (re-entry guard), search/recordKeystroke (record-cmd path),
       assureCosmeticRNG/restoreRNG/flashMessage (cosmetic-only, safe no-ops).
 - [x] Wire `buildTurnProcessingContext` (turn.ts) — 34 stubs
-- [ ] Wire `buildInputContext` (io/input-context.ts) — 33 stubs
+- [x] Wire `buildInputContext` (io/input-context.ts) — 33 stubs
 - [ ] Wire `buildMonsterZapFn` (turn-monster-zap-wiring.ts) — 28 stubs
 - [ ] Wire `buildThrowCommandFn` (items/item-commands.ts) — 27 stubs
 - [ ] Wire `buildStaffZapFn` (items/staff-wiring.ts) — 27 stubs

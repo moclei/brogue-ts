@@ -13,10 +13,9 @@
  *  License, or (at your option) any later version.
  */
 
-import { getGameState, getScentMap } from "../core.js";
+import { getGameState } from "../core.js";
 import { buildMovementContext, buildTravelContext } from "../movement.js";
 import { buildItemHandlerContext } from "../items.js";
-import { buildMonsterStateContext } from "../monsters.js";
 import { playerTurnEnded as playerTurnEndedFn } from "../turn.js";
 import {
     playerMoves as playerMovesFn,
@@ -35,36 +34,23 @@ import {
     mapToWindowX, mapToWindowY,
     windowToMapX, windowToMapY,
     coordinatesAreInMap, nbDirs,
-    posNeighborInDirection,
 } from "../globals/tables.js";
-import {
-    distanceBetween,
-    monsterAvoids as monsterAvoidsFn,
-} from "../monsters/monster-state.js";
+import { distanceBetween } from "../monsters/monster-state.js";
 import { wandDominate } from "../power/power-tables.js";
 import { openPathBetween } from "../items/bolt-geometry.js";
 import { negationWillAffectMonster } from "../items/bolt-helpers.js";
 import { boltCatalog } from "../globals/bolt-catalog.js";
 import { mutationCatalog } from "../globals/mutation-catalog.js";
-import { canSeeMonster as canSeeMonsterFn, monstersAreTeammates as monstersAreTeammatesFn, monsterRevealed as monsterRevealedFn } from "../monsters/monster-queries.js";
+import { canSeeMonster as canSeeMonsterFn, monstersAreTeammates as monstersAreTeammatesFn } from "../monsters/monster-queries.js";
 import {
     cellHasTerrainFlag as cellHasTerrainFlagFn,
     cellHasTMFlag as cellHasTMFlagFn,
     terrainFlags as terrainFlagsFn,
     terrainMechFlags as terrainMechFlagsFn,
 } from "../state/helpers.js";
-import { search as searchFn } from "../movement/item-helpers.js";
-import { discover as discoverFn } from "../movement/map-queries.js";
-import { spawnDungeonFeature as spawnDungeonFeatureFn } from "../architect/machines.js";
-import { dungeonFeatureCatalog } from "../globals/dungeon-feature-catalog.js";
-import { tileCatalog } from "../globals/tile-catalog.js";
-import { ringTable } from "../globals/item-catalog.js";
-import { randPercent, randClumpedRange } from "../math/rng.js";
 import { autoRest as autoRestFn, manualSearch as manualSearchFn } from "../time/misc-helpers.js";
 import { equipItem as equipItemFn, updateRingBonuses as updateRingBonusesFn, updateEncumbrance as updateEncumbranceFn } from "../items/item-usage.js";
 import { buildEquipState, syncEquipBonuses, syncEquipState } from "../items/equip-helpers.js";
-import type { MiscHelpersContext } from "../time/misc-helpers.js";
-import type { ItemHelperContext } from "../movement/item-helpers.js";
 import { dijkstraScan as dijkstraScanFn } from "../dijkstra/dijkstra.js";
 import {
     buildMessageFns,
@@ -84,8 +70,7 @@ import {
     printDiscoveriesScreen as printDiscoveriesScreenFn,
 } from "./overlay-screens.js";
 import { displayMessageArchive as displayMessageArchiveFn } from "./messages.js";
-import { updateMinersLightRadius as updateMinersLightRadiusFn } from "../light/light.js";
-import { encodeMessageColor } from "./color.js";
+import { encodeMessageColor, storeColorComponents as storeColorComponentsFn } from "./color.js";
 import {
     createScreenDisplayBuffer as createScreenDisplayBufferFn,
     clearDisplayBuffer as clearDisplayBufferFn,
@@ -93,24 +78,39 @@ import {
     restoreDisplayBuffer as restoreDisplayBufferFn,
     applyOverlay as applyOverlayFn,
     plotCharWithColor as plotCharWithColorFn,
+    locIsInWindow as locIsInWindowFn,
 } from "./display.js";
-import { buttonInputLoop as buttonInputLoopFn, initializeButton as initializeButtonFn } from "./buttons.js";
+import { buttonInputLoop as buttonInputLoopFn, initializeButton as initializeButtonFn, initializeButtonState as initializeButtonStateFn } from "./buttons.js";
 import { equip as equipFn, unequip as unequipFn, drop as dropFn, relabel as relabelFn } from "./inventory-actions.js";
 import { buildButtonContext, buildInventoryContext, buildMessageContext } from "../ui.js";
 import { displayInventory as displayInventoryFn } from "./inventory-display.js";
-import { printTextBox as printTextBoxFn } from "./inventory.js";
+import { printTextBox as printTextBoxFn, rectangularShading as rectangularShadingFn } from "./inventory.js";
 import { buildThrowCommandFn, buildCallCommandFn } from "../items/item-commands.js";
 import { exploreKey as exploreKeyFn } from "./explore-wiring.js";
-import { TURNS_FOR_FULL_REGEN, REST_KEY, SEARCH_KEY, DCOLS, DROWS } from "../types/constants.js";
+import { DCOLS, DROWS } from "../types/constants.js";
 import { moveCursor as moveCursorFn, nextTargetAfter as nextTargetAfterFn } from "./cursor-move.js";
 import { commitDraws, waitForEvent, getGraphicsMode, setGraphicsMode, hasGraphics } from "../platform.js";
-import { EventType, AutoTargetMode, StatusEffect, ALL_ITEMS, DungeonLayer } from "../types/enums.js";
-import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MessageFlag, MonsterBookkeepingFlag } from "../types/flags.js";
+import { EventType, AutoTargetMode, StatusEffect, ALL_ITEMS } from "../types/enums.js";
+import { TileFlag, TerrainFlag, TerrainMechFlag, MonsterBehaviorFlag, MessageFlag } from "../types/flags.js";
 import type { InputContext } from "./input-keystrokes.js";
 import type { PlayerRunContext } from "../movement/player-movement.js";
 import type { Pos, RogueEvent, Color } from "../types/types.js";
-import { INVALID_POS } from "../types/types.js";
 import { allocGrid as allocGridFn, fillGrid as fillGridFn } from "../grid/grid.js";
+import {
+    showCursor as showCursorFn,
+    hideCursor as hideCursorFn,
+    getPlayerPathOnMap as getPlayerPathOnMapFn,
+    processSnapMap as processSnapMapFn,
+    getClosestValidLocationOnMap as getClosestValidLocationOnMapFn,
+    type TargetingContext,
+} from "./targeting.js";
+import { populateCreatureCostMap as populateCreatureCostMapFn } from "../movement/cost-maps-fov.js";
+import { buildCostMapFovContext } from "../movement-cost-map.js";
+import { diagonalBlocked as diagonalBlockedFn } from "../combat/combat-math.js";
+import { strLenWithoutEscapes as strLenWithoutEscapesFn, printString as printStringFn } from "./text.js";
+import { displayMonsterFlashes as displayMonsterFlashesFn, flashTemporaryAlert as flashTemporaryAlertFn } from "./effects-alerts.js";
+import { buildMiscHelpersContext } from "./misc-helpers-context.js";
+import { buildTargetingCtx, buildEffectsCtx } from "./input-context-helpers.js";
 
 // =============================================================================
 // Helpers
@@ -121,181 +121,6 @@ function fakeEvent(): RogueEvent {
         eventType: EventType.EventError,
         param1: 0, param2: 0,
         controlKey: false, shiftKey: false,
-    };
-}
-
-
-// =============================================================================
-// buildMiscHelpersContext — Time.c helpers (autoRest, manualSearch)
-// =============================================================================
-
-/**
- * Build a MiscHelpersContext backed by the current game state.
- *
- * Only autoRest and manualSearch are called from buildInputContext; the
- * remaining fields (rechargeItemsIncrementally, monsterEntersLevel, etc.)
- * are stubbed — they are not invoked from this context.
- */
-function buildMiscHelpersContext(): MiscHelpersContext {
-    const { rogue, player, pmap, monsters, floorItems, packItems, levels } = getGameState();
-    const io = buildMessageFns();
-    const refreshDungeonCell = buildRefreshDungeonCellFn();
-
-    const cellHasTerrainFlag = (pos: Pos, flags: number) =>
-        cellHasTerrainFlagFn(pmap, pos, flags);
-    const cellHasTMFlag = (pos: Pos, flags: number) =>
-        cellHasTMFlagFn(pmap, pos, flags);
-    // Skip MB_HAS_DIED — matches C iterateCreatures() (B112)
-    const monsterAtLoc = (loc: Pos) => {
-        if (loc.x === player.loc.x && loc.y === player.loc.y) return player;
-        return monsters.find(
-            m => m.loc.x === loc.x && m.loc.y === loc.y &&
-                !(m.bookkeepingFlags & MonsterBookkeepingFlag.MB_HAS_DIED),
-        ) ?? null;
-    };
-    const spawnFeature = (x: number, y: number, feat: unknown, rc: boolean, ab: boolean) =>
-        spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, rc, ab);
-
-    const mqCtx = {
-        player,
-        cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
-        cellHasGas: (loc: Pos) => !!(pmap[loc.x]?.[loc.y]?.layers[DungeonLayer.Gas]),
-        playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-        playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-        playbackOmniscience: rogue.playbackOmniscience,
-    };
-
-    // Minimal ItemHelperContext for the search() call in manualSearch
-    const searchCtx: ItemHelperContext = {
-        pmap,
-        player,
-        rogue: { playbackOmniscience: rogue.playbackOmniscience },
-        tileCatalog: tileCatalog as unknown as ItemHelperContext["tileCatalog"],
-        initializeItem: () => ({} as never),
-        itemName: () => {},
-        describeHallucinatedItem: () => {},
-        removeItemFromChain: () => false,
-        deleteItem: () => {},
-        monsterAtLoc,
-        promoteTile: () => {},
-        messageWithColor: () => {},
-        itemMessageColor: null,
-        packItems,
-        floorItems,
-        cellHasTerrainFlag,
-        cellHasTMFlag,
-        coordinatesAreInMap,
-        playerCanDirectlySee: (x, y) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
-        distanceBetween,
-        discover: (x, y) => {
-            discoverFn(x, y, {
-                pmap,
-                player,
-                rogue: {
-                    scentTurnNumber: rogue.scentTurnNumber,
-                    disturbed: rogue.disturbed,
-                    automationActive: rogue.automationActive,
-                },
-                scentMap: getScentMap() ?? ([] as number[][]),
-                terrainFlags: (pos) => terrainFlagsFn(pmap, pos),
-                terrainMechFlags: (pos) => terrainMechFlagsFn(pmap, pos),
-                cellHasTerrainFlag,
-                cellHasTMFlag,
-                coordinatesAreInMap,
-                playerCanSee: (x2, y2) => !!(pmap[x2]?.[y2]?.flags & TileFlag.VISIBLE),
-                monsterAtLoc,
-                canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
-                monsterRevealed: (m) => monsterRevealedFn(m, player),
-                spawnDungeonFeature: spawnFeature as never,
-                refreshDungeonCell,
-                dungeonFeatureCatalog,
-                nbDirs: nbDirs as [number, number][],
-            });
-        },
-        randPercent,
-        posEq: (a, b) => a.x === b.x && a.y === b.y,
-        keyOnTileAt: () => null,
-    };
-
-    return {
-        player,
-        rogue: {
-            depthLevel: rogue.depthLevel,
-            wisdomBonus: rogue.wisdomBonus,
-            awarenessBonus: rogue.awarenessBonus,
-            justRested: rogue.justRested,
-            justSearched: rogue.justSearched,
-            automationActive: rogue.automationActive,
-            disturbed: rogue.disturbed,
-            yendorWarden: rogue.yendorWarden ?? null,
-            weapon: rogue.weapon ?? null,
-            armor: rogue.armor ?? null,
-            ringLeft: rogue.ringLeft ?? null,
-            ringRight: rogue.ringRight ?? null,
-            upLoc: rogue.upLoc,
-            downLoc: rogue.downLoc,
-            monsterSpawnFuse: rogue.monsterSpawnFuse,
-        },
-        monsters,
-        levels,
-        pmap,
-        packItems,
-
-        DCOLS,
-        DROWS,
-        FP_FACTOR: 1000,                         // stub — not used by autoRest/manualSearch
-        TURNS_FOR_FULL_REGEN,
-        deepestLevel: rogue.deepestLevel,
-        INVALID_POS,
-
-        randClumpedRange: (min, max, clumps) => randClumpedRange(min, max, clumps),
-        rand_percent: (pct) => randPercent(pct),
-        max: Math.max,
-        clamp: (val, min, max) => Math.min(Math.max(val, min), max),
-        ringWisdomMultiplier: (val) => val,       // stub — not used by autoRest/manualSearch
-        charmRechargeDelay: () => 0,              // stub — not used by autoRest/manualSearch
-
-        itemName: () => "",                       // stub
-        identify: () => {},                       // stub
-        updateIdentifiableItems: () => {},        // stub
-        numberOfMatchingPackItems: () => 0,       // stub
-
-        message: io.message,
-        messageWithColor: (msg, color, flags) =>
-            io.messageWithColor(msg, color as Readonly<Color>, flags),
-
-        monsterAvoids: (monst, loc) =>
-            monsterAvoidsFn(monst, loc, buildMonsterStateContext()),
-        canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
-        monsterName: () => "",                    // stub
-        messageColorFromVictim: () => null,       // stub
-        inflictDamage: () => false,               // stub
-        killCreature: () => {},                   // stub
-        demoteMonsterFromLeadership: () => {},    // stub
-        restoreMonster: () => {},                 // stub
-        removeCreature: () => {},                 // stub
-        prependCreature: () => {},                // stub
-        avoidedFlagsForMonster: () => 0,          // stub
-        getQualifyingPathLocNear: (loc) => loc,   // stub
-
-        posNeighborInDirection,
-        cellHasTerrainFlag,
-        pmapAt: (loc) => pmap[loc.x][loc.y],
-        terrainFlags: (loc) => terrainFlagsFn(pmap, loc),
-        refreshDungeonCell,
-        search: (strength) => { searchFn(strength, searchCtx); },
-        recordKeystroke: () => {},                // stub — persistence layer
-        playerTurnEnded: async () => { await playerTurnEndedFn(); },
-        pauseAnimation: () => false,              // stub — Phase 3b
-
-        ringTable: ringTable as unknown as Array<{ identified: boolean }>,
-        displayLevel: buildDisplayLevelFn(),
-        updateMinersLightRadius: () => { updateMinersLightRadiusFn(rogue, player); },
-        itemMessageColor: null,
-        red: null,
-        REST_KEY: String.fromCharCode(REST_KEY),
-        SEARCH_KEY: String.fromCharCode(SEARCH_KEY),
-        PAUSE_BEHAVIOR_DEFAULT: 0,
     };
 }
 
@@ -313,7 +138,7 @@ function buildMiscHelpersContext(): MiscHelpersContext {
 export function buildInputContext(): InputContext {
     const {
         rogue, player, pmap, packItems, floorItems, monsters,
-        displayBuffer,
+        displayBuffer, messageState,
     } = getGameState();
 
     // Shared context factories (built fresh each call so they close
@@ -329,7 +154,7 @@ export function buildInputContext(): InputContext {
     const mqCtxInput = {
         player,
         cellHasTerrainFlag: (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags),
-        cellHasGas: (loc: Pos) => !!(pmap[loc.x]?.[loc.y]?.layers[DungeonLayer.Gas]),
+        cellHasGas: (loc: Pos) => !!(pmap[loc.x]?.[loc.y]?.layers[3]),   // DungeonLayer.Gas = 3
         playerCanSee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
         playerCanDirectlySee: (x: number, y: number) => !!(pmap[x]?.[y]?.flags & TileFlag.VISIBLE),
         playbackOmniscience: rogue.playbackOmniscience,
@@ -374,6 +199,10 @@ export function buildInputContext(): InputContext {
         confirmMessages: () => io.confirmMessages(),
     };
 
+    const ctxSlice = { rogue, player, pmap, monsters, displayBuffer, messageState };
+    const getTargetingCtx = () => buildTargetingCtx(ctxSlice, cellHasTMFlag, refreshDungeonCell);
+    const getEffectsCtx = () => buildEffectsCtx(ctxSlice, mqCtxInput);
+
     return {
         // ── State ─────────────────────────────────────────────────────────────
         rogue,
@@ -404,8 +233,9 @@ export function buildInputContext(): InputContext {
 
         // ── Color / text helpers ──────────────────────────────────────────────
         encodeMessageColor,
-        strLenWithoutEscapes: (s) => s.length,
-        printString: () => {},
+        strLenWithoutEscapes: strLenWithoutEscapesFn,
+        printString: (str, x, y, foreColor, backColor, dbuf) =>
+            printStringFn(str, x, y, foreColor, backColor, dbuf ?? displayBuffer),
         plotCharWithColor: (ch, pos, fg, bg) => { plotCharWithColorFn(ch, pos, fg, bg, displayBuffer); },
 
         // ── Messages ──────────────────────────────────────────────────────────
@@ -425,7 +255,10 @@ export function buildInputContext(): InputContext {
 
         // ── Buttons ───────────────────────────────────────────────────────────
         initializeButton: () => initializeButtonFn(),
-        initializeButtonState: () => {},                      // stub — mutating signature differs from domain
+        initializeButtonState: (state, buttons, count, winX, winY, winWidth, winHeight) => {
+            const newState = initializeButtonStateFn(buttons, count, winX, winY, winWidth, winHeight);
+            Object.assign(state, newState);
+        },
         buttonInputLoop: async (buttons, count, winX, winY, winWidth, winHeight, _event) => {
             const result = await buttonInputLoopFn(buttons, count, winX, winY, winWidth, winHeight, buildButtonContext());
             return result.chosenButton;
@@ -434,14 +267,15 @@ export function buildInputContext(): InputContext {
         // ── Text box ─────────────────────────────────────────────────────────
         printTextBox: async (text, x, y, width, foreColor, backColor, buttons, buttonCount) =>
             printTextBoxFn(text, x, y, width, foreColor, backColor, buildInventoryContext(), buttons, buttonCount),
-        rectangularShading: () => {},
+        rectangularShading: (x, y, width, height, color, opacity, dbuf) =>
+            rectangularShadingFn(x, y, width, height, color, opacity, dbuf, { storeColorComponents: storeColorComponentsFn }),
 
         // ── Events / timing ───────────────────────────────────────────────────
         // nextKeyOrMouseEvent: sync fallback; real events arrive via waitForEvent().
         nextKeyOrMouseEvent: () => fakeEvent(),
         nextBrogueEvent: async (_t, _c, _r) => { commitDraws(); return waitForEvent(); },
         pauseForMilliseconds: () => false,
-        locIsInWindow: () => false,
+        locIsInWindow: (pos) => locIsInWindowFn(pos),
 
         // ── Display ───────────────────────────────────────────────────────────
         displayLevel: displayLevelFn,
@@ -458,8 +292,12 @@ export function buildInputContext(): InputContext {
         printHelpScreen: () => printHelpScreenFn(overlayWaitFn),
         displayFeatsScreen: () => displayFeatsScreenFn(overlayWaitFn),
         printDiscoveriesScreen: () => printDiscoveriesScreenFn(overlayWaitFn),
-        flashTemporaryAlert: () => {},
-        displayMonsterFlashes: () => {},
+        flashTemporaryAlert: async (msg, time) => {
+            await flashTemporaryAlertFn(msg, time, getEffectsCtx());
+        },
+        displayMonsterFlashes: (flashAll) => {
+            displayMonsterFlashesFn(flashAll, getEffectsCtx());
+        },
 
         // ── Game actions ──────────────────────────────────────────────────────
         playerMoves: async (dir) => { await playerMovesFn(dir, moveCtx()); },
@@ -506,8 +344,8 @@ export function buildInputContext(): InputContext {
         saveGame: () => {},                         // stub — save system not yet ported
         gameOver: (killedBy, useCustomPhrasing) => gameOverImpl(buildLifecycleContext(), killedBy, useCustomPhrasing),
         printSeed: () => { buildMessageFns().message(`Seed: ${rogue.seed}`, 0); },
-        showCursor: () => {},                       // stub — cursor display (Phase 5)
-        hideCursor: () => {},                       // stub — cursor display (Phase 5)
+        showCursor: () => showCursorFn({ rogue, player } as unknown as TargetingContext),
+        hideCursor: () => hideCursorFn({ rogue, player } as unknown as TargetingContext),
         exploreKey: (ctrl) => exploreKeyFn(ctrl, travelCtx(), io.message, rogue, player.loc),
         autoPlayLevel: async (ctrl) => { await autoPlayLevelFn(ctrl, travelCtx()); },
         takeScreenshot: () => false,                // stub — screenshot not yet ported
@@ -520,7 +358,8 @@ export function buildInputContext(): InputContext {
         itemAtLoc,
         canSeeMonster: (m) =>
             !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE),
-        playerCanSeeOrSense: () => false,           // stub — sensory detail
+        playerCanSeeOrSense: (x, y) =>
+            !!(pmap[x]?.[y]?.flags & (TileFlag.VISIBLE | TileFlag.WAS_VISIBLE)),
         cellHasTMFlag,
         printMonsterDetails: (monst) => printMonsterDetailsFn(monst, buildSidebarContext()),
         printFloorItemDetails: (item) => printFloorItemDetailsFn(item, buildSidebarContext()),
@@ -551,7 +390,8 @@ export function buildInputContext(): InputContext {
                         }
                         return null;
                     },
-                    playerCanSeeOrSense: () => false,
+                    playerCanSeeOrSense: (x, y) =>
+                        !!(pmap[x]?.[y]?.flags & (TileFlag.VISIBLE | TileFlag.WAS_VISIBLE)),
                     cellHasTMFlag: (loc, flag) => cellHasTMFlagFn(pmap, loc, flag),
                     coordinatesAreInMap,
                     isPosInMap: (loc) => coordinatesAreInMap(loc.x, loc.y),
@@ -619,14 +459,19 @@ export function buildInputContext(): InputContext {
         fillGrid: (grid, value) => fillGridFn(grid, value),
         dijkstraScan: (distanceMap, costMap, useDiagonals) =>
             dijkstraScanFn(distanceMap, costMap, useDiagonals),
-        populateCreatureCostMap: () => {},
-        getPlayerPathOnMap: () => 0,
-        processSnapMap: () => {},
-        getClosestValidLocationOnMap: () => ({ x: 0, y: 0 }),
-        diagonalBlocked: () => false,
+        populateCreatureCostMap: (costMap, creature) =>
+            populateCreatureCostMapFn(costMap, creature, buildCostMapFovContext()),
+        getPlayerPathOnMap: (path, playerPathingMap, origin) =>
+            getPlayerPathOnMapFn(path, playerPathingMap, origin, getTargetingCtx()),
+        processSnapMap: (cursorSnapMap) =>
+            processSnapMapFn(cursorSnapMap, getTargetingCtx()),
+        getClosestValidLocationOnMap: (snapMap, x, y) =>
+            getClosestValidLocationOnMapFn(snapMap, x, y),
+        diagonalBlocked: (fromX, fromY, toX, toY, _limitToPlayerKnowledge) =>
+            diagonalBlockedFn(fromX, fromY, toX, toY, (pos) => terrainFlagsFn(pmap, pos)),
         pmapFlagsAt: (loc) => pmap[loc.x]?.[loc.y]?.flags ?? 0,
-        terrainFlags: () => 0,
-        terrainMechFlags: () => 0,
+        terrainFlags: (loc) => terrainFlagsFn(pmap, loc),
+        terrainMechFlags: (loc) => terrainMechFlagsFn(pmap, loc),
 
         // ── Recordings (stubs) ────────────────────────────────────────────────
         recordKeystroke: () => {},
