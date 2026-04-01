@@ -5,6 +5,20 @@ Active backlog is maintained in [BACKLOG.md](./BACKLOG.md).
 
 ---
 
+## Playtest batch — B117–B135
+
+- [x] **B122 — Starvation auto-eat loop: hunger bar never refills** — When the player
+  reaches "starving" status the game shows "Unable to control your hunger, you eat a
+  ration of food" every turn, but the hunger bar does not refill. The message repeats
+  indefinitely until the player manually eats. The auto-eat action is not actually
+  consuming a food item or updating the satiation counter.
+  C: `RogueMain.c` / `Items.c` (hunger / auto-eat logic). TS: player status / items.
+
+- [x] **B124 — Staffs don't seem to work for their first zap when they are unidentified** — Tested firing several staves - Lightning, Conjuration, Discord - when they were unidentified. All of them successfully identified from the usage, but all of them failed to zap or have any effect. Subsequently they worked. May be a race condition or first-use initialisation issue.
+  C: `Items.c` (`zap` / bolt animation). TS: bolt/lightning animation path.
+
+---
+
 ## Priority 1 — Divergences (behavior wrong vs C)
 
 - [x] **`canPass` stub** — `() => false` in movement context; monster traversal rules
