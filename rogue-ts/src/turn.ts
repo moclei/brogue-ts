@@ -16,7 +16,12 @@
  */
 
 import { getGameState, gameOver } from "./core.js";
-import { numberOfMatchingPackItems as numberOfMatchingPackItemsFn, itemAtLoc as itemAtLocFn } from "./items/item-inventory.js";
+import {
+    numberOfMatchingPackItems as numberOfMatchingPackItemsFn,
+    itemAtLoc as itemAtLocFn,
+    removeItemFromArray as removeItemFromArrayFn,
+    deleteItem as deleteItemFn,
+} from "./items/item-inventory.js";
 import {
     inflictDamage as inflictDamageFn,
     killCreature as killCreatureFn,
@@ -44,12 +49,12 @@ import {
     orange, green, red, yellow, darkRed, darkGreen,
     white, minersLightColor,
 } from "./globals/colors.js";
-import { COLS, DCOLS, DROWS, HUNGER_THRESHOLD, WEAK_THRESHOLD, FAINT_THRESHOLD } from "./types/constants.js";
+import { COLS, DCOLS, DROWS, HUNGER_THRESHOLD, WEAK_THRESHOLD, FAINT_THRESHOLD, STOMACH_SIZE } from "./types/constants.js";
 import { TileFlag, MessageFlag, MonsterBookkeepingFlag, TerrainFlag, T_OBSTRUCTS_SCENT } from "./types/flags.js";
 import { refreshWaypoint as refreshWaypointFn, updateMapToShore as updateMapToShoreFn } from "./architect/architect.js";
 import { analyzeMap as analyzeMapFn } from "./architect/analysis.js";
 import { populateGenericCostMap } from "./movement/cost-maps-fov.js";
-import { CreatureState, ALL_ITEMS, ItemCategory, FoodKind, DungeonLayer } from "./types/enums.js";
+import { CreatureState, ALL_ITEMS, ItemCategory, FoodKind, DungeonLayer, StatusEffect } from "./types/enums.js";
 import type { TurnProcessingContext } from "./time/turn-processing.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
 import { applyGradualTileEffectsToCreature as applyGradualTileEffectsFn, decrementPlayerStatus as decrementPlayerStatusFn, currentStealthRange as currentStealthRangeFn, monstersFall as monstersFallFn, handleHealthAlerts as handleHealthAlertsFn } from "./time/creature-effects.js";
@@ -88,7 +93,7 @@ import { dijkstraScan as dijkstraScanFn } from "./dijkstra/dijkstra.js";
 import { updateSafetyMap as updateSafetyMapFn } from "./time/safety-maps.js";
 import type { SafetyMapsContext } from "./time/safety-maps.js";
 import { itemMagicPolarity as itemMagicPolarityFn } from "./items/item-generation.js";
-import { wandTable, staffTable, ringTable, charmTable, armorTable, charmEffectTable } from "./globals/item-catalog.js";
+import { wandTable, staffTable, ringTable, charmTable, armorTable, charmEffectTable, foodTable } from "./globals/item-catalog.js";
 import { ringWisdomMultiplier as ringWisdomMultiplierFn, charmRechargeDelay as charmRechargeDelayFn } from "./power/power-tables.js";
 import { rechargeItemsIncrementally as rechargeItemsIncrementallyFn, processIncrementalAutoID as processIncrementalAutoIDFn } from "./time/misc-helpers.js";
 import type { MiscHelpersContext } from "./time/misc-helpers.js";
@@ -214,7 +219,25 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
         },
         updateEncumbrance: () => updateEncumbranceFn(buildEquipState()),
         confirmMessages: () => {},      // stub — complex UI sequencing
-        eat: () => {},                  // stub — emergency eating deferred
+        eat: (theItem: Item, _recordCommands: boolean) => {
+            if (!(theItem.category & ItemCategory.FOOD)) return;
+            const foodPower = (foodTable as unknown as ItemTable[])[theItem.kind]?.power ?? 0;
+            player.status[StatusEffect.Nutrition] = Math.min(
+                foodPower + player.status[StatusEffect.Nutrition],
+                STOMACH_SIZE,
+            );
+            refreshSideBar();
+            const msg = theItem.kind === FoodKind.Ration
+                ? "That food tasted delicious!"
+                : "My, what a yummy mango!";
+            void io.messageWithColor(msg, itemMessageColor, 0);
+            if (theItem.quantity > 1) {
+                theItem.quantity--;
+            } else {
+                removeItemFromArrayFn(theItem, packItems);
+                deleteItemFn(theItem);
+            }
+        },
         playerTurnEnded: () => {},      // stub — avoid re-entry
         spawnPeriodicHorde: () => spawnPeriodicHordeFn(
             buildMonsterSpawningContext(),
