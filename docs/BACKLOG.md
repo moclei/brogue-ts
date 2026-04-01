@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-04-01 (B123 fixed; completed B117/B119/B123/B125/B126 moved to BACKLOG-DONE)
+**Status:** updated 2026-04-01 (B122/B123 fixed; completed B117/B119/B123/B125/B126 moved to BACKLOG-DONE)
 **Tests at last update:** 98 files · 2720 pass · 55 skip
 
 ---
@@ -73,7 +73,7 @@ Resolved items: see `docs/BACKLOG-DONE.md`.
       C: `RogueMain.c` (`usePotion` / descent handling). TS: items / potion effect code.
       Note: B110 fixed the chasm-fall path; this is specifically the potion-of-descent path.
 
-- [ ] **B122 — Starvation auto-eat loop: hunger bar never refills** — When the player
+- [x] **B122 — Starvation auto-eat loop: hunger bar never refills** — When the player
       reaches "starving" status the game shows "Unable to control your hunger, you eat a
       ration of food" every turn, but the hunger bar does not refill. The message repeats
       indefinitely until the player manually eats. The auto-eat action is not actually
