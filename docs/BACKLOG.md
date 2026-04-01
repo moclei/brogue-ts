@@ -65,7 +65,7 @@ Resolved items: see `docs/BACKLOG-DONE.md`.
       the path cells are not highlighted.
       C: `IO.c` (path display). TS: display / pixel-art rendering path.
 
-- [ ] **B127 — Rat trap/machine room spawns no rats** — In a trap room (machine room) that should spawn rats, no rats ever appear.
+- [x] **B127 — Rat trap/machine room spawns no rats** — In a trap room (machine room) that should spawn rats, no rats ever appear.
       C: `Architect.c` (machine room generation + horde/creature spawn wiring). TS: machine room generation/spawn triggers.
 
 - [ ] **B128 — Arrow turrets attack before reveal trigger and flicker in sidebar** — Before entering the turret room, multiple arrow turrets attacked while invisible. They appeared in the left sidebar but not on map; hovering sidebar entries caused flickering (entries disappearing/reappearing). After picking up a pedestal key, message said stones shift to reveal turrets. Turrets should likely not attack or appear in sidebar before reveal.

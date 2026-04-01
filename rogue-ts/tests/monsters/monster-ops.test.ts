@@ -142,6 +142,20 @@ describe("createMonsterOps", () => {
         expect(result).toBe(monst);
     });
 
+    it("generateMonster prepends spawned monster to live list", () => {
+        const monst = makeCreature();
+        const existing = makeCreature({ currentHP: 7 });
+        const ctx = makeOpsCtx({
+            monsters: [existing],
+            generateMonster: vi.fn().mockReturnValue(monst),
+        });
+        const ops = createMonsterOps(ctx);
+        const result = ops.generateMonster(3, true, true);
+        expect(result).toBe(monst);
+        expect(ctx.monsters[0]).toBe(monst);
+        expect(ctx.monsters[1]).toBe(existing);
+    });
+
     it("toggleMonsterDormancy delegates to ctx", () => {
         const monst = makeCreature();
         const ctx = makeOpsCtx();
