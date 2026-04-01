@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-04-01 (B122/B123/B124 fixed; completed B117/B119/B123/B124/B125/B126 moved to BACKLOG-DONE)
+**Status:** updated 2026-04-01 (B122/B123/B124 fixed; completed B117/B119/B122/B123/B124/B125/B126 moved to BACKLOG-DONE; added B127-B135)
 **Tests at last update:** 98 files · 2720 pass · 55 skip
 
 ---
@@ -48,7 +48,7 @@ Resolved items: see `docs/BACKLOG-DONE.md`.
 
 ---
 
-## Playtest batch — B117–B126 (remaining)
+## Playtest batch — B117–B135 (remaining)
 
 - [ ] **B118 — Second vault blocks item pickup after key collected from first vault** —
       When two vault rooms share a floor, picking up a key from the first machine room and
@@ -65,15 +65,32 @@ Resolved items: see `docs/BACKLOG-DONE.md`.
       the path cells are not highlighted.
       C: `IO.c` (path display). TS: display / pixel-art rendering path.
 
-- [x] **B122 — Starvation auto-eat loop: hunger bar never refills** — When the player
-      reaches "starving" status the game shows "Unable to control your hunger, you eat a
-      ration of food" every turn, but the hunger bar does not refill. The message repeats
-      indefinitely until the player manually eats. The auto-eat action is not actually
-      consuming a food item or updating the satiation counter.
-      C: `RogueMain.c` / `Items.c` (hunger / auto-eat logic). TS: player status / items.
+- [ ] **B127 — Rat trap/machine room spawns no rats** — In a trap room (machine room) that should spawn rats, no rats ever appear.
+      C: `Architect.c` (machine room generation + horde/creature spawn wiring). TS: machine room generation/spawn triggers.
 
-- [x] **B124 — Staffs don't seem to work for their first zap when they are unidentified** — Tested firing several staves - Lightning, Conjuration, Discord - when they were unidentified. All of them successfully identified from the usage, but all of them failed to zap or have any effect. Subsequently they worked. May be a race condition or first-use initialisation issue.
-      C: `Items.c` (`zap` / bolt animation). TS: bolt/lightning animation path.
+- [ ] **B128 — Arrow turrets attack before reveal trigger and flicker in sidebar** — Before entering the turret room, multiple arrow turrets attacked while invisible. They appeared in the left sidebar but not on map; hovering sidebar entries caused flickering (entries disappearing/reappearing). After picking up a pedestal key, message said stones shift to reveal turrets. Turrets should likely not attack or appear in sidebar before reveal.
+      C: `Architect.c` + `Time.c` + `IO.c` (machine reveal state, hidden monster visibility/sidebar listing). TS: machine activation, hidden/revealed monster flags, sidebar selection/hover path logic.
+
+- [ ] **B129 — Ogre ally does not follow player across stairs** — Allied ogre failed to follow upstairs/downstairs transitions.
+      C: `RogueMain.c` / `Movement.c` / `Monsters.c` (level transition + ally carryover). TS: level transition and ally migration between levels.
+
+- [ ] **B130 — Returning upstairs corrupts remembered map layout** — Going back upstairs caused incorrect remembered map geometry in some rooms.
+      C: `Movement.c` / `RogueMain.c` / `IO.c` (memory map persistence + level restore). TS: remembered cell state, level restore, and display memory update paths.
+
+- [ ] **B131 — Magic glyphs do nothing when stepped on** — Stepping onto magic glyphs has no observed effect (expected teleport/displacement behavior needs verification).
+      C: `Time.c` / `Architect.c` (tile effects + machine/glyph behaviors). TS: instant tile effect handling and glyph tile promotion/effect dispatch.
+
+- [ ] **B132 — Goblin conjurers summon spectral blades too frequently (parity check)** — Conjurer spectral blade summon cadence appears too high versus C behavior.
+      C: `Monsters.c` (spellcasting AI timing/cooldowns). TS: monster spell AI cadence and summon gating.
+
+- [ ] **B133 — Scroll of weapon protection does not prevent acid weakening** — Protected weapon still appears to be weakened by acid.
+      C: `Combat.c` / `Items.c` (ITEM_PROTECTED checks during acid/weapon degradation). TS: weapon degradation logic and protection flag handling.
+
+- [ ] **B134 — Hallucination display cycling too fast (parity/tuning check)** — Hallucination state appears to rotate visuals/messages too quickly compared with C.
+      C: `IO.c` / `Time.c` (hallucination display cadence and timing). TS: hallucination visual update cadence; verify parity before any tuning.
+
+- [ ] **B135 — Intermittent message: \"Error; Expected Item; Item not found\"** — Message appeared once in message list; trigger unknown.
+      C: N/A (likely TS-only guard/error text). TS: item lookup/inventory/floor-item retrieval paths that emit this error string.
 
 ---
 
