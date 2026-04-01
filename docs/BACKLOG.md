@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-03-31 (playtest batch — B117–B126 added)
+**Status:** updated 2026-04-01 (B123 fixed; completed B117/B119/B123/B125/B126 moved to BACKLOG-DONE)
 **Tests at last update:** 98 files · 2720 pass · 55 skip
 
 ---
@@ -48,13 +48,7 @@ Resolved items: see `docs/BACKLOG-DONE.md`.
 
 ---
 
-## Playtest batch — B117–B126
-
-- [x] **B117 — Shift+H crash: `isPosInMap is not a function`** — Pressing Shift+H during
-      a game causes a fatal crash. Stack trace: `playerRuns (player-movement.ts:890)` →
-      `Object.playerRuns (input-context.ts:460)` → `executeKeystroke`. `ctx.isPosInMap` is
-      not wired into the input context used by `playerRuns`.
-      C: `Movement.c` (`playerRuns`). TS: `io/input-context.ts`, `player-movement.ts:890`.
+## Playtest batch — B117–B126 (remaining)
 
 - [ ] **B118 — Second vault blocks item pickup after key collected from first vault** —
       When two vault rooms share a floor, picking up a key from the first machine room and
@@ -64,12 +58,6 @@ Resolved items: see `docs/BACKLOG-DONE.md`.
       Intermittent: on one test run the second vault worked correctly; reproduce conditions
       unclear.
       C: `Architect.c` (machine room / vault item selection logic). TS: machine-room handling.
-
-- [x] **B119 — Picked-up vault item pedestal cage shuts, preventing item return** — After
-      selecting an item from a vault pedestal the cage for that pedestal closes, locking it
-      permanently. In the C game the player can return the item to its pedestal to reopen
-      all cages and choose again. The TS port does not reopen cages on item return.
-      C: `Architect.c` (vault pedestal / cage trigger). TS: architect / machine-room context.
 
 - [ ] **B120 — Pixel-art mode missing pathfinding path highlight** — In ASCII mode hovering
       over a cell highlights each cell on the path the player would take, in a distinct
@@ -92,30 +80,11 @@ Resolved items: see `docs/BACKLOG-DONE.md`.
       consuming a food item or updating the satiation counter.
       C: `RogueMain.c` / `Items.c` (hunger / auto-eat logic). TS: player status / items.
 
-- [ ] **B123 — Item panel shows stale items from previous floors** — As the player
-      descends, the item panel begins displaying items that were on earlier floors and are
-      no longer present. Hovering over a stale entry causes the item highlight and
-      pathfinding visual to flicker/oscillate, sometimes pointing toward the stairs up.
-      C: `IO.c` (sidebar item list refresh). TS: sidebar / item panel update logic.
-
 - [ ] **B124 — Staff of lightning bolt animation missing on first shot** — Firing an
       unidentified staff of lightning at a monster occasionally shows no bolt animation on
       the first shot; the bolt fires silently. Subsequent shots display the animation
       correctly. May be a race condition or first-use initialisation issue.
       C: `Items.c` (`zap` / bolt animation). TS: bolt/lightning animation path.
-
-- [x] **B125 — Combat sidebar info panel missing when aiming** — When targeting a monster
-      with a staff (e.g. staff of lightning) the C game displays a left-panel overlay showing
-      the player's chance-to-hit percentage and the expected damage range (min–max % of
-      monster health). This overlay is absent in the TS port.
-      C: `IO.c` (targeting UI / `displayMonsterInfo` or equivalent). TS: sidebar / aim context.
-
-- [x] **B126 — Crash in `flashCreatureAlert`: `mapToWindowY is not a function`** — Fatal
-      crash during combat. Stack trace: `flashCreatureAlert (creature-effects.ts:463)` →
-      `handleHealthAlerts (creature-effects.ts:487)` → `Object.handleHealthAlerts (turn.ts:524)`
-      → `playerTurnEnded (turn-processing.ts:15)` → `playerMoves (player-movement.ts:561)`.
-      `ctx.mapToWindowY` is not wired in the context passed to `flashCreatureAlert`.
-      C: `IO.c` (creature flash / health alert). TS: `creature-effects.ts:463`, `turn.ts:524`.
 
 ---
 

@@ -15,6 +15,7 @@ import { updateColors, startLevel } from "../../src/game/game-level.js";
 import type { LevelContext } from "../../src/game/game-level.js";
 import { applyColorAverage } from "../../src/io/color.js";
 import type { Color } from "../../src/types/types.js";
+import { DCOLS, DROWS, NUMBER_TERRAIN_LAYERS } from "../../src/types/constants.js";
 
 // =============================================================================
 // Helpers
@@ -190,4 +191,170 @@ it("startLevel: LevelContext requires updateEnvironment (loop wired in game-leve
     // TypeScript compile error here if updateEnvironment is missing from LevelContext.
     const ctx = makeUpdateColorsCtx(0, 26, [], []);
     expect(typeof ctx.updateEnvironment).toBe("function");
+});
+
+it("startLevel clears current floor items before loading destination level items", () => {
+    const makeCell = () => ({
+        flags: 0,
+        layers: Array(NUMBER_TERRAIN_LAYERS).fill(0),
+        volume: 0,
+        machineNumber: 0,
+        rememberedAppearance: {},
+        rememberedItemCategory: 0,
+        rememberedItemKind: 0,
+        rememberedItemQuantity: 0,
+        rememberedItemOriginDepth: 0,
+        rememberedTerrain: 0,
+        rememberedCellFlags: 0,
+        rememberedTerrainFlags: 0,
+        rememberedTMFlags: 0,
+    });
+    const makeStorage = () => ({
+        layers: Array(NUMBER_TERRAIN_LAYERS).fill(0),
+        volume: 0,
+        flags: 0,
+        machineNumber: 0,
+        rememberedAppearance: {},
+        rememberedItemCategory: 0,
+        rememberedItemKind: 0,
+        rememberedItemQuantity: 0,
+        rememberedItemOriginDepth: 0,
+        rememberedTerrain: 0,
+        rememberedCellFlags: 0,
+        rememberedTerrainFlags: 0,
+        rememberedTMFlags: 0,
+    });
+
+    const pmap = Array.from({ length: DCOLS }, () =>
+        Array.from({ length: DROWS }, () => makeCell())) as any;
+    const mapStorage = Array.from({ length: DCOLS }, () =>
+        Array.from({ length: DROWS }, () => makeStorage()));
+
+    const oldFloorItem = { id: "old", loc: { x: 2, y: 2 } } as any;
+    const destinationItem = { id: "new", loc: { x: 4, y: 4 } } as any;
+
+    const floorItems = [oldFloorItem];
+    const levels = [
+        {
+            visited: true,
+            items: [],
+            monsters: [],
+            dormantMonsters: [],
+            mapStorage,
+            awaySince: 0,
+            playerExitedVia: { x: 2, y: 2 },
+            upStairsLoc: { x: 2, y: 2 },
+            downStairsLoc: { x: 3, y: 2 },
+            scentMap: null,
+        },
+        {
+            visited: true,
+            items: [destinationItem],
+            monsters: [],
+            dormantMonsters: [],
+            mapStorage,
+            awaySince: 0,
+            playerExitedVia: { x: 2, y: 2 },
+            upStairsLoc: { x: 2, y: 2 },
+            downStairsLoc: { x: 3, y: 2 },
+            scentMap: [],
+        },
+    ] as any;
+
+    const rogue = {
+        depthLevel: 2,
+        deepestLevel: 2,
+        absoluteTurnNumber: 1,
+        playerTurnNumber: 1,
+        scentTurnNumber: 0,
+        updatedSafetyMapThisTurn: false,
+        updatedAllySafetyMapThisTurn: false,
+        updatedMapToSafeTerrainThisTurn: false,
+        cursorLoc: { x: 0, y: 0 },
+        lastTarget: null,
+        upLoc: { x: 2, y: 2 },
+        downLoc: { x: 3, y: 2 },
+        inWater: false,
+        ticksTillUpdateEnvironment: 100,
+        minersLightRadius: 0n,
+        playbackBetweenTurns: false,
+        stealthRange: 0,
+        yendorWarden: null,
+    } as any;
+    const player = {
+        loc: { x: 2, y: 2 },
+        status: Array(32).fill(0),
+    } as any;
+
+    const ctx: LevelContext = {
+        rogue,
+        player,
+        gameConst: { deepestLevel: 50, depthAccelerator: 1, amuletLevel: 26 } as any,
+        FP_FACTOR: 1n as any,
+        levels,
+        pmap,
+        monsters: [],
+        dormantMonsters: [],
+        floorItems,
+        setMonsters: () => {},
+        setDormantMonsters: () => {},
+        scentMap: null,
+        setScentMap: () => {},
+        dynamicColors: [],
+        dynamicColorsBounds: [],
+        levelFeelings: [],
+        allocGrid: () => [[0]],
+        fillGrid: () => {},
+        freeGrid: () => {},
+        applyColorAverage,
+        seedRandomGenerator: () => 0n,
+        rand_64bits: () => 1n,
+        synchronizePlayerTimeState: () => {},
+        cellHasTerrainFlag: () => false,
+        coordinatesAreInMap: () => true,
+        pmapAt: (loc) => pmap[loc.x][loc.y],
+        posNeighborInDirection: (loc) => ({ x: Math.min(DCOLS - 1, loc.x + 1), y: loc.y }),
+        calculateDistances: () => {},
+        pathingDistance: () => 1,
+        currentStealthRange: () => 0,
+        getQualifyingLocNear: () => ({ x: 2, y: 2 }),
+        getQualifyingPathLocNear: () => ({ x: 2, y: 2 }),
+        digDungeon: () => {},
+        placeStairs: () => ({ success: true, upStairsLoc: { x: 2, y: 2 } }),
+        initializeLevel: () => {},
+        setUpWaypoints: () => {},
+        shuffleTerrainColors: () => {},
+        numberOfMatchingPackItems: () => 0,
+        itemAtLoc: () => null,
+        describedItemName: () => "item",
+        generateItem: () => ({}) as any,
+        placeItemAt: () => {},
+        restoreMonster: () => {},
+        restoreItems: () => {},
+        updateMonsterState: () => {},
+        updateEnvironment: () => {},
+        storeMemories: () => {},
+        updateVision: () => {},
+        discoverCell: () => {},
+        updateMapToShore: () => {},
+        updateRingBonuses: () => {},
+        updateMinersLightRadius: () => {},
+        updatePlayerRegenerationDelay: () => {},
+        displayLevel: () => {},
+        refreshSideBar: () => {},
+        messageWithColor: () => {},
+        RNGCheck: () => {},
+        flushBufferToFile: () => {},
+        deleteAllFlares: () => {},
+        hideCursor: () => {},
+        itemMessageColor: makeColor(0, 0, 0),
+        nbDirs: [[1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]],
+        clamp: (val, lo, hi) => Math.min(hi, Math.max(lo, val)),
+    };
+
+    startLevel(ctx, 1, 1);
+
+    expect(levels[0].items).toEqual([oldFloorItem]);
+    expect(ctx.floorItems).toEqual([destinationItem]);
+    expect(ctx.floorItems).not.toContain(oldFloorItem);
 });

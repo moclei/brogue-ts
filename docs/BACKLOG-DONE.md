@@ -1104,3 +1104,38 @@ Fixed/closed by the orchestrator session (2026-03-29). Items B49/B51/B57/B67/B85
       (3) visual feedback of shielding a non-player creature is minimal. Ally spell-casters
       similarly require a directly-visible caster and a player-visible enemy in FOV before
       buffing. No code change needed; matches C game parity.
+
+---
+
+## Playtest batch — B117–B126
+
+- [x] **B117 — Shift+H crash: `isPosInMap is not a function`** — Pressing Shift+H during
+      a game causes a fatal crash. Stack trace: `playerRuns (player-movement.ts:890)` →
+      `Object.playerRuns (input-context.ts:460)` → `executeKeystroke`. `ctx.isPosInMap` is
+      not wired into the input context used by `playerRuns`.
+      C: `Movement.c` (`playerRuns`). TS: `io/input-context.ts`, `player-movement.ts:890`.
+
+- [x] **B119 — Picked-up vault item pedestal cage shuts, preventing item return** — After
+      selecting an item from a vault pedestal the cage for that pedestal closes, locking it
+      permanently. In the C game the player can return the item to its pedestal to reopen
+      all cages and choose again. The TS port does not reopen cages on item return.
+      C: `Architect.c` (vault pedestal / cage trigger). TS: architect / machine-room context.
+
+- [x] **B123 — Item panel shows items that arent there** — Fixed by making level-transition
+      item list handling match C behavior in `startLevel`: old-level items are saved to level
+      storage and the active floor-item list is cleared before destination-level items are
+      loaded, preventing stale items from accumulating in the sidebar source list.
+      C: `RogueMain.c` (`startLevel` item-list handoff). TS: `game/game-level.ts`.
+
+- [x] **B125 — Combat sidebar info panel missing when aiming** — When targeting a monster
+      with a staff (e.g. staff of lightning) the C game displays a left-panel overlay showing
+      the player's chance-to-hit percentage and the expected damage range (min–max % of
+      monster health). This overlay is absent in the TS port.
+      C: `IO.c` (targeting UI / `displayMonsterInfo` or equivalent). TS: sidebar / aim context.
+
+- [x] **B126 — Crash in `flashCreatureAlert`: `mapToWindowY is not a function`** — Fatal
+      crash during combat. Stack trace: `flashCreatureAlert (creature-effects.ts:463)` →
+      `handleHealthAlerts (creature-effects.ts:487)` → `Object.handleHealthAlerts (turn.ts:524)`
+      → `playerTurnEnded (turn-processing.ts:15)` → `playerMoves (player-movement.ts:561)`.
+      `ctx.mapToWindowY` is not wired in the context passed to `flashCreatureAlert`.
+      C: `IO.c` (creature flash / health alert). TS: `creature-effects.ts:463`, `turn.ts:524`.
