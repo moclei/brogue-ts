@@ -319,6 +319,13 @@ export interface ChooseTargetContext {
     refreshSideBar(x: number, y: number, justClearing: boolean): void;
     printLocationDescription(x: number, y: number): void;
     confirmMessages(): void;
+    /**
+     * Optional monster detail panel hooks (used by aiming UI to mirror C behavior
+     * where focused monsters show combat odds/details while targeting).
+     */
+    saveDisplayBuffer?(): unknown;
+    restoreDisplayBuffer?(saved: unknown): void;
+    printMonsterDetails?(monst: Creature): void;
 
     // ── Pre-bound moveCursor (hides platform IO complexity) ──
     moveCursor(
@@ -422,6 +429,8 @@ export async function chooseTarget(
     let canceled = false;
     let tabKey = false;
     let event: RogueEvent = { eventType: EventType.EventError, param1: 0, param2: 0, controlKey: false, shiftKey: false };
+    let textDisplayed = false;
+    let savedBuffer: unknown = null;
 
     do {
         ctx.printLocationDescription(targetLoc.x, targetLoc.y);
@@ -459,6 +468,20 @@ export async function chooseTarget(
         if (focusedOnSomething) {
             ctx.refreshSideBar(targetLoc.x, targetLoc.y, false);
         }
+        textDisplayed = false;
+        savedBuffer = null;
+        if (
+            monst &&
+            monst !== ctx.player &&
+            (!ctx.player.status[StatusEffect.Hallucinating] || ctx.player.status[StatusEffect.Telepathic]) &&
+            ctx.saveDisplayBuffer &&
+            ctx.restoreDisplayBuffer &&
+            ctx.printMonsterDetails
+        ) {
+            savedBuffer = ctx.saveDisplayBuffer();
+            ctx.printMonsterDetails(monst);
+            textDisplayed = true;
+        }
 
         ctx.refreshDungeonCell(oldTargetLoc);
         hiliteTrajectory(coords, numCells, true, theBolt, trajColor, ctx); // erase
@@ -488,6 +511,9 @@ export async function chooseTarget(
         const tl = { value: { ...targetLoc } };
         const ev = { value: event };
         await ctx.moveCursor(tc, ca, tk, tl, ev, null, false, true, false);
+        if (textDisplayed && savedBuffer !== null && ctx.restoreDisplayBuffer) {
+            ctx.restoreDisplayBuffer(savedBuffer);
+        }
         targetConfirmed = tc.value;
         canceled = ca.value;
         tabKey = tk.value;
