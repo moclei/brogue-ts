@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-04-01 (B122/B123 fixed; completed B117/B119/B123/B125/B126 moved to BACKLOG-DONE)
+**Status:** updated 2026-04-01 (B122/B123/B124 fixed; completed B117/B119/B123/B124/B125/B126 moved to BACKLOG-DONE)
 **Tests at last update:** 98 files · 2720 pass · 55 skip
 
 ---
@@ -65,14 +65,6 @@ Resolved items: see `docs/BACKLOG-DONE.md`.
       the path cells are not highlighted.
       C: `IO.c` (path display). TS: display / pixel-art rendering path.
 
-- [ ] **B121 — Potion of descent: no "more" prompt; player stuck on same depth** — Drinking
-      a potion of descent shows "You plunge downward into the hole!" but does not advance to
-      the next depth. The player can still act on the current depth, and any movement
-      triggers the "Dive into the depths? Yes/No" chasm confirmation instead of descending.
-      The C game shows a "more" prompt and then transitions to the lower depth.
-      C: `RogueMain.c` (`usePotion` / descent handling). TS: items / potion effect code.
-      Note: B110 fixed the chasm-fall path; this is specifically the potion-of-descent path.
-
 - [x] **B122 — Starvation auto-eat loop: hunger bar never refills** — When the player
       reaches "starving" status the game shows "Unable to control your hunger, you eat a
       ration of food" every turn, but the hunger bar does not refill. The message repeats
@@ -80,10 +72,7 @@ Resolved items: see `docs/BACKLOG-DONE.md`.
       consuming a food item or updating the satiation counter.
       C: `RogueMain.c` / `Items.c` (hunger / auto-eat logic). TS: player status / items.
 
-- [ ] **B124 — Staff of lightning bolt animation missing on first shot** — Firing an
-      unidentified staff of lightning at a monster occasionally shows no bolt animation on
-      the first shot; the bolt fires silently. Subsequent shots display the animation
-      correctly. May be a race condition or first-use initialisation issue.
+- [x] **B124 — Staffs don't seem to work for their first zap when they are unidentified** — Tested firing several staves - Lightning, Conjuration, Discord - when they were unidentified. All of them successfully identified from the usage, but all of them failed to zap or have any effect. Subsequently they worked. May be a race condition or first-use initialisation issue.
       C: `Items.c` (`zap` / bolt animation). TS: bolt/lightning animation path.
 
 ---

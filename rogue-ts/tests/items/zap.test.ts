@@ -320,12 +320,27 @@ describe("zap > BF_PASSES_THRU_CREATURES", () => {
 // =============================================================================
 
 describe("zap > hideDetails", () => {
-    it("returns false without crashing when hideDetails = true", async () => {
+    it("renders a generic bolt trail when hideDetails = true", async () => {
         const ctx = makeCtx();
-        const bolt = makeBolt(BoltEffect.Damage);
-        // Should not throw; passes null bolt to getLineCoordinates.
-        await expect(
-            zap({ x: 1, y: 5 }, { x: 10, y: 5 }, bolt, true, false, ctx),
-        ).resolves.not.toThrow();
+        const render = ctx.render as ReturnType<typeof makeNoOpRender>;
+        (ctx.playerCanSeeOrSense as ReturnType<typeof vi.fn>).mockReturnValue(true);
+        (ctx.playerCanSee as ReturnType<typeof vi.fn>).mockReturnValue(true);
+        render.getCellAppearance.mockReturnValue({
+            char: ".".charCodeAt(0),
+            foreColor: { red: 100, green: 100, blue: 100, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false },
+            backColor: { red: 0, green: 0, blue: 0, redRand: 0, greenRand: 0, blueRand: 0, rand: 0, colorDances: false },
+        });
+
+        const bolt = makeBolt(BoltEffect.Damage, {
+            // No explicit glyph/color: hidden-details rendering should still draw
+            // a generic (gray) trail like C's `boltColor = &gray` path.
+            theChar: 0,
+            foreColor: null,
+            backColor: null,
+        });
+
+        const result = await zap({ x: 1, y: 5 }, { x: 10, y: 5 }, bolt, true, false, ctx);
+        expect(result).toBe(false);
+        expect(render.plotCharWithColor).toHaveBeenCalled();
     });
 });

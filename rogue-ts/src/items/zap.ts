@@ -17,7 +17,7 @@
 import type { Bolt, Pos, LightSource } from "../types/types.js";
 import type { ZapContext } from "./zap-context.js";
 import { FP_FACTOR } from "../math/fixpt.js";
-import { BoltEffect } from "../types/enums.js";
+import { BoltEffect, BoltType } from "../types/enums.js";
 import {
     BoltFlag,
     MonsterBookkeepingFlag,
@@ -30,6 +30,7 @@ import { getLineCoordinates, reflectBolt } from "./bolt-geometry.js";
 import { projectileReflects } from "./bolt-helpers.js";
 import { updateBolt } from "./bolt-update.js";
 import { detonateBolt } from "./bolt-detonation.js";
+import { gray } from "../globals/colors.js";
 
 // Terrain flags that stop a bolt (passability + vision blockers).
 const T_BLOCKS_BOLT = (TerrainFlag.T_OBSTRUCTS_PASSABILITY | TerrainFlag.T_OBSTRUCTS_VISION) >>> 0;
@@ -72,6 +73,9 @@ export async function zap(
     // Work with a local copy so foreColor/theChar mutations (for blinking) don't
     // escape to the caller's (catalog) bolt.
     const bolt: Bolt = { ...theBolt };
+    // C parity: hideDetails uses BOLT_NONE for line geometry and a generic gray
+    // bolt for rendering, while still applying real gameplay effects.
+    const pathBolt = hideDetails ? (ctx.boltCatalog[BoltType.NONE] ?? null) : bolt;
 
     // ── Compute path ─────────────────────────────────────────────────────────
 
@@ -82,7 +86,7 @@ export async function zap(
     if (reverseBoltDir) {
         // Beckoning workaround (Items.c:4843): compute B→A, find where originLoc
         // appears, then reverse that prefix so both legs share coordinates.
-        const tmp = getLineCoordinates(targetLoc, originLoc, hideDetails ? null : bolt);
+        const tmp = getLineCoordinates(targetLoc, originLoc, pathBolt);
         let revLen = -1;
         for (let i = 0; i < tmp.length; i++) {
             if (tmp[i].x === originLoc.x && tmp[i].y === originLoc.y) {
@@ -97,7 +101,7 @@ export async function zap(
         listOfCoordinates.push({ ...targetLoc });
         numCells = listOfCoordinates.length;
     } else {
-        const path = getLineCoordinates(originLoc, targetLoc, hideDetails ? null : bolt);
+        const path = getLineCoordinates(originLoc, targetLoc, pathBolt);
         for (const p of path) listOfCoordinates.push({ ...p });
         numCells = listOfCoordinates.length;
     }
@@ -110,7 +114,7 @@ export async function zap(
     let boltLength = initialBoltLength;
     let blinkDistance = 0;
 
-    const boltColor = hideDetails ? null : bolt.backColor;
+    const boltColor = hideDetails ? gray : bolt.backColor;
 
     // ── Pre-compute bolt light sources ────────────────────────────────────────
     // Mirrors Items.c:4896-4906: each step gets a synthesized LightSource based
@@ -237,7 +241,9 @@ export async function zap(
             ctx.render.restoreLighting();
             for (let k = Math.min(i, boltLength + 2); k >= 0; k--) {
                 if (k < initialBoltLength && boltLights[k]) {
-                    ctx.render.paintLight(boltLights[k], listOfCoordinates[i - k].x, listOfCoordinates[i - k].y);
+                    const coord = listOfCoordinates[i - k];
+                    if (!coord) continue;
+                    ctx.render.paintLight(boltLights[k], coord.x, coord.y);
                 }
             }
         }
@@ -380,7 +386,9 @@ export async function zap(
                     ctx.render.restoreLighting();
                     for (let k = Math.min(j, boltLength + 2); k >= j - i; k--) {
                         if (k < initialBoltLength && boltLights[k]) {
-                            ctx.render.paintLight(boltLights[k], listOfCoordinates[j - k].x, listOfCoordinates[j - k].y);
+                            const coord = listOfCoordinates[j - k];
+                            if (!coord) continue;
+                            ctx.render.paintLight(boltLights[k], coord.x, coord.y);
                         }
                     }
                     ctx.render.updateFieldOfViewDisplay(false, true);
@@ -389,8 +397,10 @@ export async function zap(
 
                 // Hilite pass — bolt dissipates away from impact.
                 for (let k = Math.min(j, boltLength + 2); k >= j - i; k--) {
-                    const cx = listOfCoordinates[j - k].x;
-                    const cy = listOfCoordinates[j - k].y;
+                    const coord = listOfCoordinates[j - k];
+                    if (!coord) continue;
+                    const cx = coord.x;
+                    const cy = coord.y;
                     if (ctx.playerCanSee(cx, cy)) {
                         ctx.render.hiliteCell(cx, cy, boltColor, Math.max(0, 100 - k * 100 / boltLength), false);
                         boltInView = true;
