@@ -370,8 +370,10 @@ export function startLevel(
         }
     }
 
-    // Save floor items for the old level
+    // Save floor items for the old level, then reset current-floor list.
+    // C detaches the linked list pointer here; clearing keeps TS arrays equivalent.
     levels[oldLevelNumber - 1].items = [...ctx.floorItems];
+    ctx.floorItems.length = 0;
 
     // ---- Save current level cell state ----
     for (let i = 0; i < DCOLS; i++) {
