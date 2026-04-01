@@ -110,7 +110,7 @@ Resolved items: see `docs/BACKLOG-DONE.md`.
       monster health). This overlay is absent in the TS port.
       C: `IO.c` (targeting UI / `displayMonsterInfo` or equivalent). TS: sidebar / aim context.
 
-- [ ] **B126 — Crash in `flashCreatureAlert`: `mapToWindowY is not a function`** — Fatal
+- [x] **B126 — Crash in `flashCreatureAlert`: `mapToWindowY is not a function`** — Fatal
       crash during combat. Stack trace: `flashCreatureAlert (creature-effects.ts:463)` →
       `handleHealthAlerts (creature-effects.ts:487)` → `Object.handleHealthAlerts (turn.ts:524)`
       → `playerTurnEnded (turn-processing.ts:15)` → `playerMoves (player-movement.ts:561)`.
