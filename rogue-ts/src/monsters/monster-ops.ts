@@ -89,7 +89,13 @@ export function createMonsterOps(ctx: MonsterOpsContext): MonsterOps {
             atDepth: boolean,
             summon: boolean,
         ): MachineCreature | null {
-            return ctx.generateMonster(monsterID, atDepth, summon);
+            const monst = ctx.generateMonster(monsterID, atDepth, summon);
+            // C parity: generateMonster() prepends to the live monster list.
+            // Machine-building code relies on immediate membership for MB_JUST_SUMMONED scans.
+            if (monst && !ctx.monsters.includes(monst as Creature)) {
+                ctx.monsters.unshift(monst as Creature);
+            }
+            return monst;
         },
 
         toggleMonsterDormancy(creature: MachineCreature): void {
