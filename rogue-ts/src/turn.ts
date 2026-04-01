@@ -35,7 +35,7 @@ import { allocGrid } from "./grid/grid.js";
 import { zeroOutGrid } from "./architect/helpers.js";
 import { FP_FACTOR } from "./math/fixpt.js";
 import { randRange, randPercent, randClumpedRange, clamp } from "./math/rng.js";
-import { nbDirs, coordinatesAreInMap } from "./globals/tables.js";
+import { nbDirs, coordinatesAreInMap, mapToWindowX, mapToWindowY } from "./globals/tables.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
 import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
@@ -44,7 +44,7 @@ import {
     orange, green, red, yellow, darkRed, darkGreen,
     white, minersLightColor,
 } from "./globals/colors.js";
-import { DCOLS, DROWS, HUNGER_THRESHOLD, WEAK_THRESHOLD, FAINT_THRESHOLD } from "./types/constants.js";
+import { COLS, DCOLS, DROWS, HUNGER_THRESHOLD, WEAK_THRESHOLD, FAINT_THRESHOLD } from "./types/constants.js";
 import { TileFlag, MessageFlag, MonsterBookkeepingFlag, TerrainFlag, T_OBSTRUCTS_SCENT } from "./types/flags.js";
 import { refreshWaypoint as refreshWaypointFn, updateMapToShore as updateMapToShoreFn } from "./architect/architect.js";
 import { analyzeMap as analyzeMapFn } from "./architect/analysis.js";
@@ -98,6 +98,7 @@ import { commitDraws } from "./platform.js";
 import { platformPauseIgnoringHover } from "./platform-bridge.js";
 import { buildGetRandomMonsterSpawnLocationFn, buildMinimalCombatContext, buildMonsterAvoidsCtx } from "./turn-combat-helpers.js";
 import { buildUpdateEnvironmentFn, buildPlayerFallsFn } from "./turn-env-wiring.js";
+import { strLenWithoutEscapes } from "./io/text.js";
 
 /** Build the TurnProcessingContext for playerTurnEnded().
  *
@@ -525,6 +526,11 @@ export function buildTurnProcessingContext(): TurnProcessingContext {
             player,
             rogue: rogue as unknown as CreatureEffectsContext["rogue"],
             badMessageColor, darkRed, yellow, darkGreen,
+            mapToWindowX,
+            mapToWindowY,
+            strLenWithoutEscapes,
+            DROWS,
+            COLS,
             flashMessage: () => {}, // permanent-defer — cosmetic animation; safe no-op in handleHealthAlerts context
             assureCosmeticRNG: () => {},
             restoreRNG: () => {},
