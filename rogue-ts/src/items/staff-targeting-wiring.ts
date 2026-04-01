@@ -37,7 +37,12 @@ import {
     buildGetCellAppearanceFn,
     buildRefreshSideBarFn,
 } from "../io-wiring.js";
-import { buildRefreshSideBarWithFocusFn, buildPrintLocationDescriptionFn } from "../io/sidebar-wiring.js";
+import {
+    buildSidebarContext,
+    buildRefreshSideBarWithFocusFn,
+    buildPrintLocationDescriptionFn,
+} from "../io/sidebar-wiring.js";
+import { printMonsterDetails as printMonsterDetailsFn } from "../io/sidebar-monsters.js";
 import { buildBoltLightingFns } from "../vision-wiring.js";
 import {
     plotCharWithColor as plotCharWithColorFn,
@@ -146,6 +151,11 @@ export function buildStaffChooseTargetFn() {
             refreshSideBar: refreshSideBarFn,
             printLocationDescription: printLocDescFn,
             confirmMessages: io.confirmMessages,
+            saveDisplayBuffer: () => saveDisplayBufferFn(displayBuffer),
+            restoreDisplayBuffer: (saved) =>
+                restoreDisplayBufferFn(displayBuffer, saved as ReturnType<typeof saveDisplayBufferFn>),
+            printMonsterDetails: (monst) =>
+                printMonsterDetailsFn(monst, buildSidebarContext()),
             moveCursor: async (
                 tc: { value: boolean }, ca: { value: boolean }, tk: { value: boolean },
                 tl: { value: Pos }, ev: { value: RogueEvent },
