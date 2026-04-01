@@ -433,15 +433,10 @@ export function buildMovementContext(): PlayerMoveContext {
 
         // ── Items ─────────────────────────────────────────────────────────────
         keyInPackFor(loc) {
+            const machineNum = pmap[loc.x]?.[loc.y]?.machineNumber ?? 0;
             return packItems.find((item) => {
-                if (!(item.category & ItemCategory.KEY)) return false;
-                for (let i = 0; i < item.keyLoc.length; i++) {
-                    const kl = item.keyLoc[i];
-                    if (!kl.loc.x && !kl.machine) break;
-                    if (kl.loc.x === loc.x && kl.loc.y === loc.y) return true;
-                    if (kl.machine && kl.machine === pmap[loc.x]?.[loc.y]?.machineNumber) return true;
-                }
-                return false;
+                if (!(item.flags & ItemFlag.ITEM_IS_KEY)) return false;
+                return keyMatchesLocationFn(item, loc, rogue.depthLevel, machineNum);
             }) ?? null;
         },
         useKeyAt: (item, x, y) => useKeyAtFn(item, x, y, itemHelperCtx),
