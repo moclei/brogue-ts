@@ -65,7 +65,7 @@ Resolved items: see `docs/BACKLOG-DONE.md`.
       unclear.
       C: `Architect.c` (machine room / vault item selection logic). TS: machine-room handling.
 
-- [ ] **B119 — Picked-up vault item pedestal cage shuts, preventing item return** — After
+- [x] **B119 — Picked-up vault item pedestal cage shuts, preventing item return** — After
       selecting an item from a vault pedestal the cage for that pedestal closes, locking it
       permanently. In the C game the player can return the item to its pedestal to reopen
       all cages and choose again. The TS port does not reopen cages on item return.
