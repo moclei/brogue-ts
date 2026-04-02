@@ -12,9 +12,14 @@
  *  License, or (at your option) any later version.
  */
 
-import type { Creature, Pos } from "../types/types.js";
+import type { Creature, Pcell, Pos } from "../types/types.js";
 import type { MonsterOps, MachineCreature } from "../architect/machines.js";
-import { MonsterBookkeepingFlag } from "../types/flags.js";
+import {
+    MonsterBookkeepingFlag,
+    TileFlag,
+    T_DIVIDES_LEVEL,
+    TerrainFlag,
+} from "../types/flags.js";
 import { CreatureState } from "../types/enums.js";
 
 // =============================================================================
@@ -29,6 +34,10 @@ import { CreatureState } from "../types/enums.js";
 export interface MonsterOpsContext {
     /** Mutable list of all monsters on the current level. */
     monsters: Creature[];
+    /** Mutable list of dormant monsters on the current level. */
+    dormantMonsters: Creature[];
+    /** Current floor pmap for HAS_MONSTER/HAS_DORMANT_MONSTER bookkeeping. */
+    pmap: Pcell[][];
 
     /** Spawn a horde, returning the leader or null. */
     spawnHorde(
@@ -47,8 +56,20 @@ export interface MonsterOpsContext {
     /** Generate a single monster by ID. */
     generateMonster(monsterID: number, atDepth: boolean, summon: boolean): Creature | null;
 
-    /** Toggle dormancy on a creature (flip MB_IS_DORMANT). */
-    toggleMonsterDormancy(creature: Creature): void;
+    /** Optional item-drop helper when waking marked-for-sacrifice monsters. */
+    makeMonsterDropItem?(creature: Creature): void;
+    /** Optional legacy delegating toggle hook (used by existing tests). */
+    toggleMonsterDormancy?(creature: Creature): void;
+    /** Optional relocation helper if wake target cell is occupied. */
+    getQualifyingPathLocNear?(
+        target: Pos,
+        hallwaysAllowed: boolean,
+        blockingTerrainFlags: number,
+        blockingMapFlags: number,
+        forbiddenTerrainFlags: number,
+        forbiddenMapFlags: number,
+        deterministic: boolean,
+    ): Pos;
 }
 
 // =============================================================================
@@ -99,7 +120,11 @@ export function createMonsterOps(ctx: MonsterOpsContext): MonsterOps {
         },
 
         toggleMonsterDormancy(creature: MachineCreature): void {
-            ctx.toggleMonsterDormancy(creature as Creature);
+            if (ctx.toggleMonsterDormancy) {
+                ctx.toggleMonsterDormancy(creature as Creature);
+            } else {
+                toggleMonsterDormancy(creature as Creature, ctx);
+            }
         },
 
         iterateMachineMonsters(): MachineCreature[] {
@@ -109,21 +134,75 @@ export function createMonsterOps(ctx: MonsterOpsContext): MonsterOps {
     };
 }
 
+function removeFrom(list: Creature[], monst: Creature): boolean {
+    const idx = list.indexOf(monst);
+    if (idx < 0) {
+        return false;
+    }
+    list.splice(idx, 1);
+    return true;
+}
+
 /**
- * Default implementation of toggleMonsterDormancy.
- * Flips the MB_IS_DORMANT bookkeeping flag on a creature.
- *
- * When a monster becomes dormant, it's set to sleeping state.
- * When it wakes from dormancy, it's set to tracking scent.
+ * C-parity dormancy transition:
+ * - Active -> dormant: move `monsters` -> `dormantMonsters`, swap pmap flags.
+ * - Dormant -> active: move `dormantMonsters` -> `monsters`, swap pmap flags,
+ *   delay first turn, and optionally relocate if occupied.
  */
-export function toggleMonsterDormancy(monst: Creature): void {
-    if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DORMANT) {
-        // Wake from dormancy
+export function toggleMonsterDormancy(monst: Creature, ctx?: MonsterOpsContext): void {
+    // Backward-compatible fallback for call sites/tests that use the old
+    // signature and only expect bookkeeping/state flipping.
+    if (!ctx) {
+        if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DORMANT) {
+            monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_IS_DORMANT;
+            monst.creatureState = CreatureState.TrackingScent;
+        } else {
+            monst.bookkeepingFlags |= MonsterBookkeepingFlag.MB_IS_DORMANT;
+            monst.creatureState = CreatureState.Sleeping;
+        }
+        return;
+    }
+    if (removeFrom(ctx.dormantMonsters, monst)) {
+        // Wake dormant monster: move to active list.
+        ctx.monsters.unshift(monst);
+        ctx.pmap[monst.loc.x][monst.loc.y].flags &= ~TileFlag.HAS_DORMANT_MONSTER;
+
+        // If the wake cell is occupied, re-home nearby (C parity behavior).
+        const occupied = !!(ctx.pmap[monst.loc.x][monst.loc.y].flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER));
+        if (occupied && ctx.getQualifyingPathLocNear) {
+            const newLoc = ctx.getQualifyingPathLocNear(
+                monst.loc,
+                true,
+                T_DIVIDES_LEVEL,
+                TileFlag.HAS_PLAYER,
+                TerrainFlag.T_OBSTRUCTS_PASSABILITY,
+                TileFlag.HAS_PLAYER | TileFlag.HAS_MONSTER | TileFlag.HAS_STAIRS,
+                false,
+            );
+            monst.loc = { ...newLoc };
+        }
+
+        if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_MARKED_FOR_SACRIFICE) {
+            monst.bookkeepingFlags |= MonsterBookkeepingFlag.MB_TELEPATHICALLY_REVEALED;
+            if (monst.carriedItem && ctx.makeMonsterDropItem) {
+                ctx.makeMonsterDropItem(monst);
+            }
+        }
+
+        monst.ticksUntilTurn = 200;
+        ctx.pmap[monst.loc.x][monst.loc.y].flags |= TileFlag.HAS_MONSTER;
         monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_IS_DORMANT;
-        monst.creatureState = CreatureState.TrackingScent;
-    } else {
-        // Go dormant
+        return;
+    }
+
+    if (removeFrom(ctx.monsters, monst)) {
+        // Put active monster into dormancy.
+        ctx.dormantMonsters.unshift(monst);
+        ctx.pmap[monst.loc.x][monst.loc.y].flags &= ~TileFlag.HAS_MONSTER;
+        ctx.pmap[monst.loc.x][monst.loc.y].flags |= TileFlag.HAS_DORMANT_MONSTER;
         monst.bookkeepingFlags |= MonsterBookkeepingFlag.MB_IS_DORMANT;
-        monst.creatureState = CreatureState.Sleeping;
+        if (monst.creatureState === CreatureState.TrackingScent) {
+            monst.creatureState = CreatureState.Sleeping;
+        }
     }
 }

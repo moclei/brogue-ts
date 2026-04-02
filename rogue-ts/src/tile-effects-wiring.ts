@@ -26,6 +26,7 @@ import { promoteTile as promoteTileFn, exposeTileToFire as exposeTileToFireFn } 
 import type { EnvironmentContext } from "./time/environment.js";
 import { useKeyAt as useKeyAtFn } from "./movement/item-helpers.js";
 import type { ItemHelperContext } from "./movement/item-helpers.js";
+import { getQualifyingPathLocNear as getQualifyingPathLocNearFn } from "./movement/path-qualifying.js";
 import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
 import {
     inflictDamage as inflictDamageFn,
@@ -101,6 +102,7 @@ import { foodTable, wandTable, staffTable, ringTable, charmTable, armorTable } f
 import type { ItemTable } from "./types/types.js";
 import { monstersTurn as monstersTurnFn } from "./monsters/monster-actions.js";
 import { buildMonstersTurnContext } from "./turn-monster-ai.js";
+import { toggleMonsterDormancy } from "./monsters/monster-ops.js";
 
 // =============================================================================
 // buildApplyInstantTileEffectsFn
@@ -128,6 +130,20 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
     const cellHasTerrainFlag = (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags);
     const cellHasTMFlag = (pos: Pos, flags: number) => cellHasTMFlagFn(pmap, pos, flags);
     const canSeeMonster = (m: Creature) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE);
+    const dormancyCtx = {
+        monsters,
+        dormantMonsters,
+        pmap,
+        getQualifyingPathLocNear: (target: Pos, hallwaysAllowed: boolean, btf: number, bmf: number, ftf: number, fmf: number, det: boolean) =>
+            getQualifyingPathLocNearFn(target, hallwaysAllowed, btf, bmf, ftf, fmf, det, {
+                pmap,
+                cellHasTerrainFlag,
+                cellFlags: (pos: Pos) => pmap[pos.x][pos.y].flags,
+                rng: { randRange },
+                getQualifyingLocNear: (t: Pos) => t,
+            }),
+        makeMonsterDropItem: (monst: Creature) => doMakeMonsterDropItem(monst, pmap, floorItems, cellHasTerrainFlag, refreshDungeonCell),
+    };
 
     // naming context for itemName / autoIdentify
     const namingCtx = {
@@ -149,30 +165,38 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
     const runtimeSpawnFeature = (x: number, y: number, feat: any, v: boolean, o: boolean): void => {
         // Pass refreshDungeonCell so spread features (e.g. DF_INACTIVE_GLYPH) visually update
         // cells immediately during gameplay (C: Architect.c spawnDungeonFeature refreshCell path).
-        spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat, v, o, refreshDungeonCell);
+        spawnDungeonFeatureFn(
+            pmap,
+            tileCatalog,
+            dungeonFeatureCatalog,
+            x,
+            y,
+            feat,
+            v,
+            o,
+            refreshDungeonCell,
+            (fx, fy, appliedFeat, blockingMap) => {
+                if (!(appliedFeat.flags & DFFlag.DFF_ACTIVATE_DORMANT_MONSTER)) {
+                    return;
+                }
+                for (const monst of [...dormantMonsters]) {
+                    if (
+                        (monst.loc.x === fx && monst.loc.y === fy)
+                        || !!blockingMap[monst.loc.x]?.[monst.loc.y]
+                    ) {
+                        toggleMonsterDormancy(monst, dormancyCtx);
+                        if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_MARKED_FOR_SACRIFICE) {
+                            updateVision(true);
+                        }
+                        refreshDungeonCell(monst.loc);
+                    }
+                }
+            },
+        );
         // Show message if feature has description and player can see the cell (C: Architect.c:3370)
         if (feat.description && !feat.messageDisplayed && (pmap[x]?.[y]?.flags & TileFlag.VISIBLE)) {
             feat.messageDisplayed = true;
             void io.message(feat.description, 0);
-        }
-        // Awaken dormant monsters at this location (C: Architect.c:3488, DFF_ACTIVATE_DORMANT_MONSTER)
-        if (feat.flags & DFFlag.DFF_ACTIVATE_DORMANT_MONSTER) {
-            for (const monst of monsters) {
-                if (
-                    (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DORMANT) &&
-                    monst.loc.x === x && monst.loc.y === y
-                ) {
-                    monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_IS_DORMANT;
-                    monst.creatureState = CreatureState.TrackingScent;
-                    monst.ticksUntilTurn = 200;
-                    pmap[x][y].flags |= TileFlag.HAS_MONSTER;
-                    if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_MARKED_FOR_SACRIFICE) {
-                        monst.bookkeepingFlags |= MonsterBookkeepingFlag.MB_TELEPATHICALLY_REVEALED;
-                        updateVision(true);
-                    }
-                    refreshDungeonCell({ x, y });
-                }
-            }
         }
     };
     const spawnFeature = runtimeSpawnFeature;

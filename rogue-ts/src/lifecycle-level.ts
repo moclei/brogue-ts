@@ -54,7 +54,7 @@ import { updatePlayerRegenerationDelay as updatePlayerRegenerationDelayFn } from
 import { buildEquipState, syncEquipBonuses } from "./items/equip-helpers.js";
 import { buildAMachine, type MachineItem } from "./architect/machines.js";
 import { generateMonster } from "./monsters/monster-creation.js";
-import { createMonsterOps, toggleMonsterDormancy } from "./monsters/monster-ops.js";
+import { createMonsterOps } from "./monsters/monster-ops.js";
 import {
     getCellAppearance,
     refreshDungeonCell as refreshDungeonCellFn,
@@ -180,6 +180,8 @@ export function buildLevelContext(): LevelContext {
     // ---- Architect context ---------------------------------------------------
     const monsterOps = createMonsterOps({
         monsters,
+        dormantMonsters,
+        pmap,
         spawnHorde(leaderID, pos, forbiddenFlags, requiredFlags) {
             return spawnHordeFn(leaderID, pos, forbiddenFlags, requiredFlags, buildMonsterSpawningContext());
         },
@@ -197,7 +199,15 @@ export function buildLevelContext(): LevelContext {
                 monsterCatalog, mutationCatalog, monsterItemsHopper, itemsEnabled: true,
             });
         },
-        toggleMonsterDormancy,
+        getQualifyingPathLocNear: (target, hallwaysAllowed, btf, bmf, ftf, fmf, det) =>
+            getQualifyingPathLocNearFn(target, hallwaysAllowed, btf, bmf, ftf, fmf, det, {
+                pmap,
+                cellHasTerrainFlag: (loc, flags) => ctf(pmap, loc, flags),
+                cellFlags: (pos) => pmap[pos.x][pos.y].flags,
+                rng: { randRange },
+                getQualifyingLocNear: (t, _hw, ftf2, fmf2) =>
+                    getQualifyingLocNearFn(pmap, t, ftf2, fmf2),
+            }),
     });
 
     const archCtx = {
