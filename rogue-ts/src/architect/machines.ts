@@ -987,6 +987,7 @@ export function spawnDungeonFeature(
     refreshCell: boolean,
     abortIfBlocking: boolean,
     refreshDungeonCell?: (loc: Pos) => void,
+    onFeatureApplied?: (x: number, y: number, feat: DungeonFeature, blockingMap: Grid) => void,
 ): boolean {
     const blockingMap = allocGrid();
     fillGrid(blockingMap, 0);
@@ -1064,13 +1065,39 @@ export function spawnDungeonFeature(
             for (let i = 0; i < DCOLS; i++) {
                 for (let j = 0; j < DROWS; j++) {
                     if (blockingMap[i][j]) {
-                        spawnDungeonFeature(pmap, tCatalog, dungeonFeatureCatalog, i, j, dungeonFeatureCatalog[feat.subsequentDF], refreshCell, abortIfBlocking, refreshDungeonCell);
+                        spawnDungeonFeature(
+                            pmap,
+                            tCatalog,
+                            dungeonFeatureCatalog,
+                            i,
+                            j,
+                            dungeonFeatureCatalog[feat.subsequentDF],
+                            refreshCell,
+                            abortIfBlocking,
+                            refreshDungeonCell,
+                            onFeatureApplied,
+                        );
                     }
                 }
             }
         } else {
-            spawnDungeonFeature(pmap, tCatalog, dungeonFeatureCatalog, x, y, dungeonFeatureCatalog[feat.subsequentDF], refreshCell, abortIfBlocking, refreshDungeonCell);
+            spawnDungeonFeature(
+                pmap,
+                tCatalog,
+                dungeonFeatureCatalog,
+                x,
+                y,
+                dungeonFeatureCatalog[feat.subsequentDF],
+                refreshCell,
+                abortIfBlocking,
+                refreshDungeonCell,
+                onFeatureApplied,
+            );
         }
+    }
+
+    if (succeeded && onFeatureApplied) {
+        onFeatureApplied(x, y, feat, blockingMap);
     }
 
     freeGrid(blockingMap);

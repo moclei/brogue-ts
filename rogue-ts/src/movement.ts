@@ -128,6 +128,7 @@ import type { EnvironmentContext } from "./time/environment.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
 import { buildRefreshDungeonCellFn, buildRefreshSideBarFn, buildMessageFns, buildGetCellAppearanceFn, buildConfirmFn, buildUpdateFlavorTextFn } from "./io-wiring.js";
 import { buildWeaponAttackContext } from "./movement-weapon-context.js";
+import { toggleMonsterDormancy } from "./monsters/monster-ops.js";
 export { buildWeaponAttackContext };
 
 // =============================================================================
@@ -184,7 +185,7 @@ function buildMonsterNameHelper(
 
 /** Build a PlayerMoveContext backed by the current game state. */
 export function buildMovementContext(): PlayerMoveContext {
-    const { player, rogue, pmap, monsters, levels, packItems, floorItems, gameConst,
+    const { player, rogue, pmap, monsters, dormantMonsters, levels, packItems, floorItems, gameConst,
         mutableScrollTable, mutablePotionTable, monsterCatalog } = getGameState();
     const namingCtx = {
         gameConstants: gameConst,
@@ -217,11 +218,51 @@ export function buildMovementContext(): PlayerMoveContext {
     const canSeeMonster = (m: Creature) => canSeeMonsterFn(m, mqCtx);
 
     const updateVision = buildUpdateVisionFn();
+    const dormancyCtx = {
+        monsters,
+        dormantMonsters,
+        pmap,
+        getQualifyingPathLocNear: (target: Pos, hallwaysAllowed: boolean, btf: number, bmf: number, ftf: number, fmf: number, det: boolean) =>
+            getQualifyingPathLocNearFn(target, hallwaysAllowed, btf, bmf, ftf, fmf, det, {
+                pmap,
+                cellHasTerrainFlag,
+                cellFlags: (pos: Pos) => pmap[pos.x][pos.y].flags,
+                rng: { randRange: (lo: number, hi: number) => randRange(lo, hi) },
+                getQualifyingLocNear: (t: Pos) => t,
+            }),
+    };
 
     // Runtime spawnDungeonFeature: calls the base function then shows feature messages
     // and activates dormant monsters (DFF_ACTIVATE_DORMANT_MONSTER) for key-triggered effects.
     const runtimeSpawnFeature = (x: number, y: number, feat: any, rc: boolean, ab: boolean): boolean => {
-        const result = spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, rc, ab, rc ? refreshDungeonCell : undefined);
+        const result = spawnDungeonFeatureFn(
+            pmap,
+            tileCatalog,
+            dungeonFeatureCatalog,
+            x,
+            y,
+            feat as never,
+            rc,
+            ab,
+            rc ? refreshDungeonCell : undefined,
+            (fx, fy, appliedFeat, blockingMap) => {
+                if (!(appliedFeat.flags & DFFlag.DFF_ACTIVATE_DORMANT_MONSTER)) {
+                    return;
+                }
+                for (const monst of [...dormantMonsters]) {
+                    if (
+                        (monst.loc.x === fx && monst.loc.y === fy)
+                        || !!blockingMap[monst.loc.x]?.[monst.loc.y]
+                    ) {
+                        toggleMonsterDormancy(monst, dormancyCtx);
+                        if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_MARKED_FOR_SACRIFICE) {
+                            updateVision(true);
+                        }
+                        refreshDungeonCell(monst.loc);
+                    }
+                }
+            },
+        );
         if (result) {
             // Mirror C: Architect.c spawnDungeonFeature creates a flare when lightFlare is set and we refreshed the cell
             if (rc && feat.lightFlare) {
@@ -230,24 +271,6 @@ export function buildMovementContext(): PlayerMoveContext {
             if (feat.description && !feat.messageDisplayed && (pmap[x]?.[y]?.flags & TileFlag.VISIBLE)) {
                 feat.messageDisplayed = true;
                 void io.message(feat.description, 0);
-            }
-            if (feat.flags & DFFlag.DFF_ACTIVATE_DORMANT_MONSTER) {
-                for (const monst of monsters) {
-                    if (
-                        (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DORMANT) &&
-                        monst.loc.x === x && monst.loc.y === y
-                    ) {
-                        monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_IS_DORMANT;
-                        monst.creatureState = CreatureState.TrackingScent;
-                        monst.ticksUntilTurn = 200;
-                        pmap[x][y].flags |= TileFlag.HAS_MONSTER;
-                        if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_MARKED_FOR_SACRIFICE) {
-                            monst.bookkeepingFlags |= MonsterBookkeepingFlag.MB_TELEPATHICALLY_REVEALED;
-                            updateVision(true);
-                        }
-                        refreshDungeonCell({ x, y });
-                    }
-                }
             }
         }
         return result;
