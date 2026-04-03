@@ -389,7 +389,17 @@ export function startLevel(
             storage.volume = cell.volume;
             storage.flags = cell.flags & PERMANENT_TILE_FLAGS;
             storage.machineNumber = cell.machineNumber;
-            storage.rememberedAppearance = { ...cell.rememberedAppearance };
+            const saveFore = Array.isArray(cell.rememberedAppearance.foreColorComponents)
+                ? [...cell.rememberedAppearance.foreColorComponents]
+                : [0, 0, 0];
+            const saveBack = Array.isArray(cell.rememberedAppearance.backColorComponents)
+                ? [...cell.rememberedAppearance.backColorComponents]
+                : [0, 0, 0];
+            storage.rememberedAppearance = {
+                ...cell.rememberedAppearance,
+                foreColorComponents: saveFore as [number, number, number],
+                backColorComponents: saveBack as [number, number, number],
+            };
             storage.rememberedItemCategory = cell.rememberedItemCategory;
             storage.rememberedItemKind = cell.rememberedItemKind;
             storage.rememberedItemQuantity = cell.rememberedItemQuantity;
@@ -400,7 +410,6 @@ export function startLevel(
             storage.rememberedTMFlags = cell.rememberedTMFlags;
         }
     }
-
     levels[oldLevelNumber - 1].awaySince = rogue.absoluteTurnNumber;
 
     // ---- Prepare the new level ----
@@ -512,7 +521,17 @@ export function startLevel(
                 cell.volume = storage.volume;
                 cell.flags = storage.flags & PERMANENT_TILE_FLAGS;
                 cell.machineNumber = storage.machineNumber;
-                cell.rememberedAppearance = { ...storage.rememberedAppearance };
+                const restoreFore = Array.isArray(storage.rememberedAppearance.foreColorComponents)
+                    ? [...storage.rememberedAppearance.foreColorComponents]
+                    : [0, 0, 0];
+                const restoreBack = Array.isArray(storage.rememberedAppearance.backColorComponents)
+                    ? [...storage.rememberedAppearance.backColorComponents]
+                    : [0, 0, 0];
+                cell.rememberedAppearance = {
+                    ...storage.rememberedAppearance,
+                    foreColorComponents: restoreFore as [number, number, number],
+                    backColorComponents: restoreBack as [number, number, number],
+                };
                 cell.rememberedItemCategory = storage.rememberedItemCategory;
                 cell.rememberedItemKind = storage.rememberedItemKind;
                 cell.rememberedItemQuantity = storage.rememberedItemQuantity;
@@ -523,7 +542,6 @@ export function startLevel(
                 cell.rememberedTMFlags = storage.rememberedTMFlags;
             }
         }
-
         ctx.setUpWaypoints();
 
         rogue.downLoc = { ...levels[rogue.depthLevel - 1].downStairsLoc };

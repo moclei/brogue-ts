@@ -597,7 +597,7 @@
   "glyph": {
     "G_PLAYER": {
       "sheet": "the-roguelike",
-      "x": 29,
+      "x": 32,
       "y": 32
     },
     "G_GOBLIN": {
