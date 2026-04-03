@@ -275,6 +275,7 @@ export function startLevel(
     stairDirection: number,
 ): void {
     const { rogue, player, gameConst, levels, pmap } = ctx;
+    let activeMonsters = ctx.monsters;
 
     if (oldLevelNumber === gameConst.deepestLevel && stairDirection !== -1) {
         return;
@@ -319,11 +320,10 @@ export function startLevel(
                 : T_PATHING_BLOCKER) | TerrainFlag.T_SACRED;
             ctx.calculateDistances(mapToStairs, px, py, blockFlags, null, true, true);
 
-            for (const monst of ctx.monsters) {
+            for (const monst of activeMonsters) {
                 if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_HAS_DIED) continue;
                 const x = monst.loc.x;
                 const y = monst.loc.y;
-
                 if (((monst.creatureState === CreatureState.TrackingScent
                         && (stairDirection !== 0 || monst.status[StatusEffect.Levitating]))
                     || monst.creatureState === CreatureState.Ally
@@ -363,7 +363,7 @@ export function startLevel(
     }
 
     // Free monster pathfinding maps
-    for (const monst of ctx.monsters) {
+    for (const monst of activeMonsters) {
         if (monst.mapToMe) {
             ctx.freeGrid(monst.mapToMe);
             monst.mapToMe = null;
@@ -435,6 +435,7 @@ export function startLevel(
         // Load up next level's monsters and items
         ctx.setMonsters(levels[rogue.depthLevel - 1].monsters);
         ctx.setDormantMonsters(levels[rogue.depthLevel - 1].dormantMonsters);
+        activeMonsters = levels[rogue.depthLevel - 1].monsters;
         // Merge any items that fell from above
         ctx.floorItems.push(...levels[rogue.depthLevel - 1].items);
         levels[rogue.depthLevel - 1].items = [];
@@ -473,7 +474,7 @@ export function startLevel(
                 }
             }
             if (!foundAmulet) {
-                for (const monst of ctx.monsters) {
+                for (const monst of activeMonsters) {
                     if (monst.carriedItem && (monst.carriedItem.category & ItemCategory.AMULET)) {
                         foundAmulet = true;
                         break;
@@ -530,6 +531,7 @@ export function startLevel(
 
         ctx.setMonsters(levels[rogue.depthLevel - 1].monsters);
         ctx.setDormantMonsters(levels[rogue.depthLevel - 1].dormantMonsters);
+        activeMonsters = levels[rogue.depthLevel - 1].monsters;
         ctx.floorItems.push(...levels[rogue.depthLevel - 1].items);
         levels[rogue.depthLevel - 1].items = [];
 
@@ -669,7 +671,7 @@ export function startLevel(
             levels[rogue.depthLevel - 1].playerExitedVia.x,
             levels[rogue.depthLevel - 1].playerExitedVia.y,
             T_PATHING_BLOCKER, null, true, true);
-        for (const monst of ctx.monsters) {
+        for (const monst of activeMonsters) {
             ctx.restoreMonster(monst, mapToStairs, mapToPit);
         }
         ctx.freeGrid(mapToStairs);
@@ -681,7 +683,7 @@ export function startLevel(
     rogue.stealthRange = ctx.currentStealthRange();
 
     // Update monster states so none are hunting without scent/vision
-    for (const monst of ctx.monsters) {
+    for (const monst of activeMonsters) {
         ctx.updateMonsterState(monst);
     }
 

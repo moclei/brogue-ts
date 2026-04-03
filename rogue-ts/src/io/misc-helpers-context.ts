@@ -264,6 +264,7 @@ export function buildMiscHelpersContext(): MiscHelpersContext {
         monsterAvoids: (monst, loc) =>
             monsterAvoidsFn(monst, loc, buildMonsterStateContext()),
         canSeeMonster: (m) => canSeeMonsterFn(m, mqCtx),
+        monsterAtLoc,
         monsterName: (m: Creature, includeArticle: boolean): string =>
             monsterNameFn(m, includeArticle, {
                 ...mqCtx,

@@ -88,6 +88,7 @@ export interface MiscHelpersContext {
     // Creature helpers
     monsterAvoids(monst: Creature, loc: Pos): boolean;
     canSeeMonster(monst: Creature): boolean;
+    monsterAtLoc(loc: Pos): Creature | null;
     monsterName(monst: Creature, includeArticle: boolean): string;
     messageColorFromVictim(monst: Creature): unknown;
     inflictDamage(attacker: Creature | null, defender: Creature, damage: number, color: unknown, ignoreArmor: boolean): boolean;
@@ -447,9 +448,7 @@ export function monsterEntersLevel(
         (ctx.pmapAt(monst.loc).flags & (TileFlag.HAS_PLAYER | TileFlag.HAS_MONSTER)) &&
         !(ctx.terrainFlags(monst.loc) & ctx.avoidedFlagsForMonster(monst.info))
     ) {
-        const prevMonst = ctx.monsters.find(
-            (m) => m.loc.x === monst.loc.x && m.loc.y === monst.loc.y,
-        );
+        const prevMonst = ctx.monsterAtLoc(monst.loc);
         if (prevMonst) {
             prevMonst.loc = ctx.getQualifyingPathLocNear(
                 monst.loc,

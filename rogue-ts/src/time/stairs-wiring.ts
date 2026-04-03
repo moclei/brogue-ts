@@ -101,6 +101,12 @@ export function buildMonstersApproachStairsCtx(): MiscHelpersContext {
         monsterName: (m: Creature, article: boolean) =>
             m === player ? "you" : `${article ? "the " : ""}${m.info.monsterName}`,
         canSeeMonster: (m: Creature) => canSeeMonsterFn(m, mqCtx),
+        monsterAtLoc: (loc: Pos) => {
+            if (player.loc.x === loc.x && player.loc.y === loc.y) {
+                return player;
+            }
+            return monsters.find((m) => m.loc.x === loc.x && m.loc.y === loc.y) ?? null;
+        },
         message: io.message,
         messageWithColor: (msg: string, c: unknown, f: number) => io.messageWithColor(msg, c as never, f),
         messageColorFromVictim: (m: Creature) =>
