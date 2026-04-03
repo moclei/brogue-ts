@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-04-03 (B129 fixed; ally stair following after level transition)
+**Status:** updated 2026-04-03 (B130 fixed; upstairs remembered map memory restore parity)
 **Tests at last update:** 98 files · 2720 pass · 55 skip
 
 ---
@@ -74,7 +74,7 @@ Resolved items: see `docs/BACKLOG-DONE.md`.
 - [x] **B129 — Ogre ally does not follow player across stairs** — Allied ogre failed to follow upstairs/downstairs transitions. Could be any ally, I just noticed it with this Ogre.
       C: `RogueMain.c` / `Movement.c` / `Monsters.c` (level transition + ally carryover). TS: level transition and ally migration between levels.
 
-- [ ] **B130 — Returning upstairs corrupts remembered map layout** — Going back upstairs caused incorrect remembered map geometry in some rooms.
+- [x] **B130 — Returning upstairs corrupts remembered map layout** — Going back upstairs caused incorrect remembered map geometry in some rooms.
       C: `Movement.c` / `RogueMain.c` / `IO.c` (memory map persistence + level restore). TS: remembered cell state, level restore, and display memory update paths.
 
 - [ ] **B131 — Magic glyphs do nothing when stepped on** — Stepping onto magic glyphs has no observed effect (expected teleport/displacement behavior needs verification).
