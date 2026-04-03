@@ -72,6 +72,9 @@ export interface MonsterOpsContext {
     ): Pos;
 }
 
+type DormancyContext = Pick<MonsterOpsContext, "monsters" | "dormantMonsters" | "pmap"> &
+Partial<Pick<MonsterOpsContext, "getQualifyingPathLocNear" | "makeMonsterDropItem">>;
+
 // =============================================================================
 // Factory
 // =============================================================================
@@ -149,7 +152,7 @@ function removeFrom(list: Creature[], monst: Creature): boolean {
  * - Dormant -> active: move `dormantMonsters` -> `monsters`, swap pmap flags,
  *   delay first turn, and optionally relocate if occupied.
  */
-export function toggleMonsterDormancy(monst: Creature, ctx?: MonsterOpsContext): void {
+export function toggleMonsterDormancy(monst: Creature, ctx?: DormancyContext): void {
     // Backward-compatible fallback for call sites/tests that use the old
     // signature and only expect bookkeeping/state flipping.
     if (!ctx) {

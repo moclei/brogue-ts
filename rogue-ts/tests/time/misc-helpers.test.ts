@@ -123,6 +123,7 @@ function makeCtx(overrides: Partial<MiscHelpersContext> = {}): MiscHelpersContex
         messageWithColor: vi.fn(),
         monsterAvoids: vi.fn(() => false),
         canSeeMonster: vi.fn(() => true),
+        monsterAtLoc: vi.fn(() => null),
         monsterName: vi.fn(() => "the monster"),
         messageColorFromVictim: vi.fn(() => "red"),
         inflictDamage: vi.fn(() => false),
@@ -582,6 +583,30 @@ describe("monsterEntersLevel", () => {
         ctx.levels[0] = makeLevel({ playerExitedVia: makePos(4, 4) });
         monsterEntersLevel(monst, 0, ctx);
         expect(ctx.inflictDamage).not.toHaveBeenCalled();
+    });
+
+    it("displaces the player when an entering monster lands on the player tile", () => {
+        const monst = makeCreature({
+            loc: makePos(3, 3),
+            bookkeepingFlags: MonsterBookkeepingFlag.MB_APPROACHING_DOWNSTAIRS,
+        });
+        const player = makeCreature({ loc: makePos(1, 1) });
+        const relocatedPlayerLoc = makePos(2, 1);
+        const mapCell = makePcell({ flags: TileFlag.HAS_PLAYER | TileFlag.HAS_MONSTER });
+        const ctx = makeCtx({
+            player,
+            pmapAt: vi.fn(() => mapCell),
+            monsterAtLoc: vi.fn(() => player),
+            getQualifyingPathLocNear: vi.fn((_loc: Pos, _u, _tf, _tm, _af, tileFlags) => {
+                if (tileFlags & TileFlag.HAS_MONSTER) {
+                    return relocatedPlayerLoc;
+                }
+                return makePos(1, 1);
+            }),
+        });
+        monsterEntersLevel(monst, 0, ctx);
+        expect(player.loc).toEqual(relocatedPlayerLoc);
+        expect(ctx.refreshDungeonCell).toHaveBeenCalledWith(relocatedPlayerLoc);
     });
 });
 

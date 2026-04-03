@@ -6,7 +6,7 @@ persistence layer. No more initiatives — just pick the next item, do it, check
 **Ground truth:** C source in `src/brogue/`. Every item here maps to a C function.
 Read the C source before touching any TS code.
 
-**Status:** updated 2026-04-01 (B122/B123/B124 fixed; completed B117/B119/B122/B123/B124/B125/B126 moved to BACKLOG-DONE; added B127-B135)
+**Status:** updated 2026-04-03 (B129 fixed; ally stair following after level transition)
 **Tests at last update:** 98 files · 2720 pass · 55 skip
 
 ---
@@ -71,7 +71,7 @@ Resolved items: see `docs/BACKLOG-DONE.md`.
 - [x] **B128 — Arrow turrets attack before reveal trigger and flicker in sidebar** — Before entering the turret machine/trap room, multiple arrow turrets attacked while invisible. They appeared in the left sidebar but not on map; hovering sidebar entries caused flickering (entries disappearing/reappearing). After picking up a pedestal key in the trap/machine room, a message said “you hear a click, and the stones in the wall shift to reveal turrets!”. Turrets should not attack or appear in sidebar before that event.
       C: `Architect.c` + `Time.c` + `IO.c` (machine reveal state, hidden monster visibility/sidebar listing). TS: machine activation, hidden/revealed monster flags, sidebar selection/hover path logic.
 
-- [ ] **B129 — Ogre ally does not follow player across stairs** — Allied ogre failed to follow upstairs/downstairs transitions.
+- [x] **B129 — Ogre ally does not follow player across stairs** — Allied ogre failed to follow upstairs/downstairs transitions. Could be any ally, I just noticed it with this Ogre.
       C: `RogueMain.c` / `Movement.c` / `Monsters.c` (level transition + ally carryover). TS: level transition and ally migration between levels.
 
 - [ ] **B130 — Returning upstairs corrupts remembered map layout** — Going back upstairs caused incorrect remembered map geometry in some rooms.
