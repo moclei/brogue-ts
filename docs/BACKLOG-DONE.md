@@ -7,6 +7,9 @@ Active backlog is maintained in [BACKLOG.md](./BACKLOG.md).
 
 ## Playtest batch — B117–B135
 
+- [x] **B129 — Ogre ally does not follow player across stairs** — Allied monsters did not follow the player across depth changes because `startLevel` kept using a stale `ctx.monsters` reference after `setMonsters`, clearing stair-follow state on the wrong list. Fixed by tracking the active level monster array; stair entry collision uses `monsterAtLoc` (player-aware) for C parity.
+  C: `RogueMain.c` / `Movement.c` / `Monsters.c` (level transition + ally carryover). TS: `game-level.ts`, `misc-helpers.ts`, `stairs-wiring.ts`.
+
 - [x] **B122 — Starvation auto-eat loop: hunger bar never refills** — When the player
   reaches "starving" status the game shows "Unable to control your hunger, you eat a
   ration of food" every turn, but the hunger bar does not refill. The message repeats
