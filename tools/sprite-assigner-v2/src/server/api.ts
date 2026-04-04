@@ -118,6 +118,31 @@ export function spriteAssignerApi(repoRoot: string): Plugin {
           req.on("end", () => {
             (async () => {
               const payload = JSON.parse(body) as SavePayload;
+
+              // Validate w/h on glyph assignments: if present, must be positive integers
+              const allRefs = [
+                ...Object.values(payload.glyph ?? {}),
+                ...Object.values(payload.tiletype ?? {}),
+              ];
+              for (const ref of allRefs) {
+                if (ref.w !== undefined) {
+                  if (!Number.isInteger(ref.w) || ref.w < 1) {
+                    res.statusCode = 400;
+                    res.setHeader("Content-Type", "application/json");
+                    res.end(JSON.stringify({ ok: false, error: `Invalid w value: ${ref.w}. Must be a positive integer.` }));
+                    return;
+                  }
+                }
+                if (ref.h !== undefined) {
+                  if (!Number.isInteger(ref.h) || ref.h < 1) {
+                    res.statusCode = 400;
+                    res.setHeader("Content-Type", "application/json");
+                    res.end(JSON.stringify({ ok: false, error: `Invalid h value: ${ref.h}. Must be a positive integer.` }));
+                    return;
+                  }
+                }
+              }
+
               const result = await generateMasterSheet(payload, sheetPaths, tilesetsDir, sheetStrides);
               const gamePayload = {
                 sheets: result.sheetsRecord,
