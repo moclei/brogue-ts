@@ -3,7 +3,7 @@ import path from "path";
 import fs from "fs";
 import { generateMasterSheet, type SavePayload } from "./generate.ts";
 
-interface ManifestSheet { key: string; path: string; category: string }
+interface ManifestSheet { key: string; path: string; category: string; stride?: number }
 interface ManifestGroup { id: string; name: string; sheets: ManifestSheet[] }
 interface ManifestData { tileSize: number; basePath: string; tilesets: ManifestGroup[] }
 
@@ -176,7 +176,7 @@ export function spriteAssignerApi(repoRoot: string): Plugin {
                 return;
               }
               const meta = JSON.parse(metaPart.data.toString("utf-8")) as {
-                groupId: string; key: string; category: string; subpath: string;
+                groupId: string; key: string; category: string; subpath: string; stride?: number;
               };
               const destPath = path.join(tilesetsDir, meta.subpath);
               fs.mkdirSync(path.dirname(destPath), { recursive: true });
@@ -185,11 +185,13 @@ export function spriteAssignerApi(repoRoot: string): Plugin {
               const manifest = readManifest();
               const group = manifest.tilesets.find(g => g.id === meta.groupId);
               if (group) {
-                group.sheets.push({
+                const entry: ManifestSheet = {
                   key: meta.key,
                   path: meta.subpath,
                   category: meta.category,
-                });
+                };
+                if (meta.stride) entry.stride = meta.stride;
+                group.sheets.push(entry);
                 writeManifest(manifest);
                 sheetPaths = buildSheetPaths();
               }

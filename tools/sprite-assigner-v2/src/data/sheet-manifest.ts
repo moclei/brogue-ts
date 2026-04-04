@@ -2,6 +2,7 @@ export interface SheetDef {
   key: string;
   path: string;
   category: string;
+  stride?: number;  // tile stride in pixels; defaults to manifest-level tileSize (16)
 }
 
 export interface TilesetDef {
@@ -33,7 +34,7 @@ export async function saveTilesetManifest(manifest: TilesetManifest): Promise<vo
 
 export async function uploadSheet(
   file: File,
-  meta: { groupId: string; key: string; category: string; subpath: string },
+  meta: { groupId: string; key: string; category: string; subpath: string; stride?: number },
 ): Promise<void> {
   const form = new FormData();
   form.append("file", file);
