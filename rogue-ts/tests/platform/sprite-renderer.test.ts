@@ -363,10 +363,11 @@ describe("SpriteRenderer", () => {
         expect(fakeTintCtx.save).toHaveBeenCalled();
       });
 
-      it("skips tint canvas on SURFACE and other non-tinted layers", () => {
+      it("skips tint canvas on ITEM and other blendMode:none layers", () => {
         vi.clearAllMocks();
+        tileTypeSpriteMap.set(TileType.WALL, REF_WALL);
         const sd = makeSpriteData();
-        sd.layers[RenderLayer.SURFACE] = makeLayer({
+        sd.layers[RenderLayer.ITEM] = makeLayer({
           tileType: TileType.WALL,
           tint: makeColor(50, 50, 50),
         });
@@ -388,10 +389,11 @@ describe("SpriteRenderer", () => {
         expect(fakeTintCtx.clearRect).not.toHaveBeenCalled();
       });
 
-      it("skips tint canvas on non-tinted layers even with sub-98 tint component", () => {
+      it("skips tint canvas on blendMode:none layers even with sub-98 tint component", () => {
         vi.clearAllMocks();
+        tileTypeSpriteMap.set(TileType.WALL, REF_WALL);
         const sd = makeSpriteData();
-        sd.layers[RenderLayer.SURFACE] = makeLayer({
+        sd.layers[RenderLayer.ITEM] = makeLayer({
           tileType: TileType.WALL,
           tint: makeColor(97, 100, 100),
         });

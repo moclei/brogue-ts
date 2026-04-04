@@ -7,7 +7,11 @@
  *  no hardcoded image paths. Glyph-to-sprite mapping is in glyph-sprite-map.ts.
  */
 
+/** Default stride for standard tiles and for glyphs without explicit dimensions. */
 export const TILE_SIZE = 16;
+
+/** Maximum sprite dimension (px) supported by the tint offscreen canvas. */
+export const MAX_SPRITE_SIZE = 64;
 
 /**
  * Load tileset images from a URL map. Resolves when every image has loaded.

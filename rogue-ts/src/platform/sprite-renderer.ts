@@ -19,7 +19,7 @@ import type { Color } from "../types/types.js";
 import type { DisplayGlyph, TileType } from "../types/enums.js";
 import type { Renderer, CellRect } from "./renderer.js";
 import type { SpriteRef } from "./glyph-sprite-map.js";
-import { TILE_SIZE } from "./tileset-loader.js";
+import { TILE_SIZE, MAX_SPRITE_SIZE } from "./tileset-loader.js";
 import type { TextRenderer } from "./text-renderer.js";
 import type { CellSpriteData, VisibilityOverlay } from "./render-layers.js";
 import {
@@ -89,7 +89,11 @@ const LEGACY_LAYER_CONFIG: LayerConfig = {
 };
 
 function bitmapKey(ref: SpriteRef): string {
-  return `${ref.sheetKey}:${ref.tileX}:${ref.tileY}`;
+  const srcW = ref.srcW ?? TILE_SIZE;
+  const srcH = ref.srcH ?? TILE_SIZE;
+  const dimSuffix =
+    srcW !== TILE_SIZE || srcH !== TILE_SIZE ? `:${srcW}x${srcH}` : "";
+  return `${ref.sheetKey}:${ref.tileX}:${ref.tileY}${dimSuffix}`;
 }
 
 /**
@@ -140,7 +144,7 @@ export class SpriteRenderer implements Renderer {
     this.textRenderer = textRenderer;
     this.autotileVariantMap = autotileVariantMap;
 
-    this.tintCanvas = new OffscreenCanvas(TILE_SIZE, TILE_SIZE);
+    this.tintCanvas = new OffscreenCanvas(MAX_SPRITE_SIZE, MAX_SPRITE_SIZE);
     this.tintCtx = this.tintCanvas.getContext("2d")!;
   }
 
@@ -165,13 +169,15 @@ export class SpriteRenderer implements Renderer {
       seen.add(key);
       const img = this.tiles.get(ref.sheetKey);
       if (!img) return;
+      const srcW = ref.srcW ?? TILE_SIZE;
+      const srcH = ref.srcH ?? TILE_SIZE;
       tasks.push(
         createImageBitmap(
           img,
           ref.tileX * TILE_SIZE,
           ref.tileY * TILE_SIZE,
-          TILE_SIZE,
-          TILE_SIZE,
+          srcW,
+          srcH,
         ).then((bmp) => {
           this.bitmaps.set(key, bmp);
         }),
@@ -466,6 +472,9 @@ export class SpriteRenderer implements Renderer {
     config: LayerConfig,
     debugOverride: import("./sprite-debug.js").LayerOverride | null = null,
   ): void {
+    const srcW = spriteRef.srcW ?? TILE_SIZE;
+    const srcH = spriteRef.srcH ?? TILE_SIZE;
+
     const { ctx } = this;
     const bitmap = this.bitmaps.get(bitmapKey(spriteRef));
     const source: CanvasImageSource | undefined =
@@ -500,17 +509,17 @@ export class SpriteRenderer implements Renderer {
       if (!neutral || debugOverride?.blendMode) {
         const { tintCtx, tintCanvas } = this;
 
-        tintCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
+        tintCtx.clearRect(0, 0, srcW, srcH);
         tintCtx.drawImage(
           source,
           sprSx,
           sprSy,
-          TILE_SIZE,
-          TILE_SIZE,
+          srcW,
+          srcH,
           0,
           0,
-          TILE_SIZE,
-          TILE_SIZE,
+          srcW,
+          srcH,
         );
 
         const tintAlpha =
@@ -521,7 +530,7 @@ export class SpriteRenderer implements Renderer {
         tintCtx.globalCompositeOperation = blendMode;
         if (tintAlpha < 1) tintCtx.globalAlpha = tintAlpha;
         tintCtx.fillStyle = `rgb(${c100to255(tintR)},${c100to255(tintG)},${c100to255(tintB)})`;
-        tintCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+        tintCtx.fillRect(0, 0, srcW, srcH);
         if (tintAlpha < 1) tintCtx.globalAlpha = 1;
 
         tintCtx.globalCompositeOperation = "destination-in";
@@ -529,12 +538,12 @@ export class SpriteRenderer implements Renderer {
           source,
           sprSx,
           sprSy,
-          TILE_SIZE,
-          TILE_SIZE,
+          srcW,
+          srcH,
           0,
           0,
-          TILE_SIZE,
-          TILE_SIZE,
+          srcW,
+          srcH,
         );
         tintCtx.restore();
 
@@ -549,8 +558,8 @@ export class SpriteRenderer implements Renderer {
       drawSource,
       drawSx,
       drawSy,
-      TILE_SIZE,
-      TILE_SIZE,
+      srcW,
+      srcH,
       cellRect.x,
       cellRect.y,
       cellRect.width,
