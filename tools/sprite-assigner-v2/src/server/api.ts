@@ -48,10 +48,24 @@ export function spriteAssignerApi(repoRoot: string): Plugin {
     return map;
   }
 
+  function buildSheetStrides(): Map<string, number> {
+    const raw = readManifest();
+    const map = new Map<string, number>();
+    for (const tileset of raw.tilesets) {
+      for (const sheet of tileset.sheets) {
+        if (sheet.stride !== undefined) {
+          map.set(sheet.key, sheet.stride);
+        }
+      }
+    }
+    return map;
+  }
+
   return {
     name: "sprite-assigner-api",
     configureServer(server) {
       let sheetPaths = buildSheetPaths();
+      let sheetStrides = buildSheetStrides();
 
       server.middlewares.use((req, res, next) => {
         if (!req.url) return next();
@@ -104,9 +118,9 @@ export function spriteAssignerApi(repoRoot: string): Plugin {
           req.on("end", () => {
             (async () => {
               const payload = JSON.parse(body) as SavePayload;
-              const result = await generateMasterSheet(payload, sheetPaths, tilesetsDir);
+              const result = await generateMasterSheet(payload, sheetPaths, tilesetsDir, sheetStrides);
               const gamePayload = {
-                sheets: payload.sheets ?? { master: "master-spritesheet.png" },
+                sheets: result.sheetsRecord,
                 tiletype: payload.tiletype,
                 glyph: payload.glyph,
                 autotile: payload.autotile ?? {},
@@ -142,6 +156,7 @@ export function spriteAssignerApi(repoRoot: string): Plugin {
               const data = JSON.parse(body) as ManifestData;
               writeManifest(data);
               sheetPaths = buildSheetPaths();
+              sheetStrides = buildSheetStrides();
               res.setHeader("Content-Type", "application/json");
               res.end(JSON.stringify({ ok: true }));
             } catch (err: unknown) {
@@ -194,6 +209,7 @@ export function spriteAssignerApi(repoRoot: string): Plugin {
                 group.sheets.push(entry);
                 writeManifest(manifest);
                 sheetPaths = buildSheetPaths();
+                sheetStrides = buildSheetStrides();
               }
               res.setHeader("Content-Type", "application/json");
               res.end(JSON.stringify({ ok: true, path: meta.subpath }));
