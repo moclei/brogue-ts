@@ -52,12 +52,17 @@ export function EnumPanel() {
 
   const handleAssign = (name: string) => {
     if (!selectedTile) return;
+    const w = selectedTile.w ?? 1;
+    const h = selectedTile.h ?? 1;
     assign(activeTab, name, {
       sheet: selectedTile.sheet,
       x: selectedTile.x,
       y: selectedTile.y,
+      w,
+      h,
     });
-    showToast(`Assigned ${name} → ${selectedTile.sheet} (${selectedTile.x}, ${selectedTile.y})`);
+    const spanSuffix = (w > 1 || h > 1) ? ` [${w}×${h}]` : "";
+    showToast(`Assigned ${name} → ${selectedTile.sheet} (${selectedTile.x}, ${selectedTile.y})${spanSuffix}`);
   };
 
   const handleUnassign = (name: string) => {

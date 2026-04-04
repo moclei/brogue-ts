@@ -9,6 +9,10 @@ export interface SelectedTile {
   sheet: string;
   x: number;
   y: number;
+  /** Tile span width for multi-tile glyph selections (defaults to 1). */
+  w?: number;
+  /** Tile span height for multi-tile glyph selections (defaults to 1). */
+  h?: number;
 }
 
 // ---------------------------------------------------------------------------
