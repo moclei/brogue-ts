@@ -1,7 +1,9 @@
 import { useRef, useEffect, useState } from "react";
-import { TILE_SIZE } from "../data/tile-types.ts";
 import { useApp } from "../state/app-state.ts";
+import { findSheetDef } from "../data/sheet-manifest.ts";
 import type { SpriteRef } from "../state/assignments.ts";
+
+const DEFAULT_STRIDE = 16;
 
 interface EnumEntryProps {
   name: string;
@@ -23,7 +25,7 @@ export function EnumEntry({
   onJumpToSprite,
 }: EnumEntryProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { loadImage } = useApp();
+  const { loadImage, state } = useApp();
   const [flash, setFlash] = useState(false);
 
   useEffect(() => {
@@ -32,6 +34,16 @@ export function EnumEntry({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Derive stride for this assignment's sheet.
+    const { manifest } = state;
+    const sheetDef = manifest ? findSheetDef(manifest, ref_.sheet) : null;
+    const stride = sheetDef?.stride ?? manifest?.tileSize ?? DEFAULT_STRIDE;
+
+    const srcX = ref_.x * stride;
+    const srcY = ref_.y * stride;
+    const srcW = (ref_.w ?? 1) * stride;
+    const srcH = (ref_.h ?? 1) * stride;
+
     let cancelled = false;
     loadImage(ref_.sheet).then((img) => {
       if (cancelled || !img) return;
@@ -39,15 +51,15 @@ export function EnumEntry({
       ctx.clearRect(0, 0, 28, 28);
       ctx.drawImage(
         img,
-        ref_.x * TILE_SIZE,
-        ref_.y * TILE_SIZE,
-        TILE_SIZE,
-        TILE_SIZE,
+        srcX,
+        srcY,
+        srcW,
+        srcH,
         2, 2, 24, 24,
       );
     });
     return () => { cancelled = true; };
-  }, [ref_, loadImage]);
+  }, [ref_, loadImage, state]);
 
   const handleClick = () => {
     onAssign();
