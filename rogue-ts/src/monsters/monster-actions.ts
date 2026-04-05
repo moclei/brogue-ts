@@ -22,6 +22,17 @@ import {
     TerrainMechFlag,
     T_HARMFUL_TERRAIN,
 } from "../types/flags.js";
+
+const DEBUG_B131_GLYPH = false;
+
+function b131Log(message: string, data?: unknown): void {
+    if (!DEBUG_B131_GLYPH) return;
+    if (data === undefined) {
+        console.debug(`[b131] ${message}`);
+    } else {
+        console.debug(`[b131] ${message}`, data);
+    }
+}
 import { distanceBetween } from "./monster-state.js";
 import { getLineCoordinates } from "../items/bolt-geometry.js";
 
@@ -949,6 +960,16 @@ export interface MonstersTurnContext {
  * Ported from monstersTurn() in Monsters.c.
  */
 export async function monstersTurn(monst: Creature, ctx: MonstersTurnContext): Promise<void> {
+    if (monst.info.flags & MonsterBehaviorFlag.MONST_GETS_TURN_ON_ACTIVATION) {
+        b131Log("monstersTurn entry for activation monster", {
+            monster: monst.info.monsterName,
+            loc: monst.loc,
+            machineHome: monst.machineHome,
+            spawnDepth: monst.spawnDepth,
+            dfChance: monst.info.DFChance,
+            dfType: monst.info.DFType,
+        });
+    }
     const x = monst.loc.x;
     const y = monst.loc.y;
 

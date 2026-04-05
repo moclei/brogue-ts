@@ -35,6 +35,9 @@ rogue-ts/assets/tilesets/backup/
 rogue-ts/assets/tilesets/raw-autotile/
 rogue-ts/assets/tilesets/rf-catacombs/
 
+# Cursor / Claude local agent worktrees
+.claude/
+
 # CodeQL — databases are large build artifacts, never committed
 codeql/databases/
 

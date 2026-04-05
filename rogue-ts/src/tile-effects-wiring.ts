@@ -203,12 +203,12 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
 
     let exposeToFire = (_x: number, _y: number, _a: boolean): boolean => false;
     const envCtx = {
-        pmap, rogue, tileCatalog, dungeonFeatureCatalog, DCOLS, DROWS, monsters, levels,
+        pmap, rogue, tileCatalog, dungeonFeatureCatalog, DCOLS, DROWS, monsters, dormantMonsters, levels,
         refreshDungeonCell, spawnDungeonFeature: spawnFeature, cellHasTerrainFlag, cellHasTMFlag,
         coordinatesAreInMap: (x: number, y: number) => coordinatesAreInMap(x, y),
         monstersFall: () => {}, // permanent-defer — tile-effects env does not run the fall pass mid-activation
         updateFloorItems: () => {},
-        monstersTurn: (monst: Creature) => { void monstersTurnFn(monst, buildMonstersTurnContext()); },
+        monstersTurn: (monst: Creature) => monstersTurnFn(monst, buildMonstersTurnContext()),
         keyOnTileAt: () => null,
         removeCreature: () => false, prependCreature: () => {},
         rand_range: randRange, rand_percent: randPercent,

@@ -691,6 +691,24 @@
           "category": "terrain"
         }
       ]
+    },
+    {
+      "id": "heros",
+      "name": "Heros",
+      "sheets": [
+        {
+          "key": "hero-spritesheet-64",
+          "path": "heros/hero-spritesheet-64.png",
+          "category": "creature",
+          "stride": 64
+        },
+        {
+          "key": "fighter_again_south_smaller",
+          "path": "heros/fighter_again_south_smaller.png",
+          "category": "terrain",
+          "stride": 64
+        }
+      ]
     }
   ]
 }

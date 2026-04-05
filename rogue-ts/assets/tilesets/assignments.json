@@ -1,809 +1,1130 @@
 {
   "sheets": {
-    "master": "master-spritesheet.png"
+    "master": "master-spritesheet.png",
+    "master-64": "master-64.png"
   },
   "tiletype": {
     "CARPET": {
       "sheet": "TheRoguelikeSolid",
       "x": 30,
-      "y": 10
+      "y": 10,
+      "w": 1,
+      "h": 1
     },
     "MARBLE_FLOOR": {
       "sheet": "TheRoguelikeSolid",
       "x": 95,
-      "y": 10
+      "y": 10,
+      "w": 1,
+      "h": 1
     },
     "FOLIAGE": {
       "sheet": "the-roguelike",
       "x": 13,
-      "y": 5
+      "y": 5,
+      "w": 1,
+      "h": 1
     },
     "DEAD_FOLIAGE": {
       "sheet": "the-roguelike",
       "x": 68,
-      "y": 7
+      "y": 7,
+      "w": 1,
+      "h": 1
     },
     "TRAMPLED_FOLIAGE": {
       "sheet": "the-roguelike",
       "x": 17,
-      "y": 9
+      "y": 9,
+      "w": 1,
+      "h": 1
     },
     "BLOODFLOWER_STALK": {
       "sheet": "the-roguelike",
       "x": 45,
-      "y": 6
+      "y": 6,
+      "w": 1,
+      "h": 1
     },
     "BLOODFLOWER_POD": {
       "sheet": "the-roguelike",
       "x": 44,
-      "y": 7
+      "y": 7,
+      "w": 1,
+      "h": 1
     },
     "FUNGUS_FOREST": {
       "sheet": "the-roguelike",
       "x": 58,
-      "y": 5
+      "y": 5,
+      "w": 1,
+      "h": 1
     },
     "TRAMPLED_FUNGUS_FOREST": {
       "sheet": "Ground0",
       "x": 4,
-      "y": 0
+      "y": 0,
+      "w": 1,
+      "h": 1
     },
     "GRAY_FUNGUS": {
       "sheet": "the-roguelike",
       "x": 59,
-      "y": 5
+      "y": 5,
+      "w": 1,
+      "h": 1
     },
     "LUMINESCENT_FUNGUS": {
       "sheet": "the-roguelike",
       "x": 59,
-      "y": 5
+      "y": 5,
+      "w": 1,
+      "h": 1
     },
     "LICHEN": {
       "sheet": "muddy cave v3",
       "x": 12,
-      "y": 11
+      "y": 11,
+      "w": 1,
+      "h": 1
     },
     "HAY": {
       "sheet": "Ground0",
       "x": 7,
-      "y": 0
+      "y": 0,
+      "w": 1,
+      "h": 1
     },
     "ANCIENT_SPIRIT_VINES": {
       "sheet": "TheRoguelikeSolid",
       "x": 56,
-      "y": 5
+      "y": 5,
+      "w": 1,
+      "h": 1
     },
     "ANCIENT_SPIRIT_GRASS": {
       "sheet": "the-roguelike",
       "x": 10,
-      "y": 5
+      "y": 5,
+      "w": 1,
+      "h": 1
     },
     "RED_BLOOD": {
       "sheet": "DD_Full",
       "x": 3,
-      "y": 16
+      "y": 16,
+      "w": 1,
+      "h": 1
     },
     "GREEN_BLOOD": {
       "sheet": "TheRoguelikeSolid",
       "x": 102,
-      "y": 13
+      "y": 13,
+      "w": 1,
+      "h": 1
     },
     "PURPLE_BLOOD": {
       "sheet": "TheRoguelikeSolid",
       "x": 105,
-      "y": 13
+      "y": 13,
+      "w": 1,
+      "h": 1
     },
     "ACID_SPLATTER": {
       "sheet": "Raven_Icons",
       "x": 1,
-      "y": 63
+      "y": 63,
+      "w": 1,
+      "h": 1
     },
     "VOMIT": {
       "sheet": "Raven_Icons",
       "x": 2,
-      "y": 63
+      "y": 63,
+      "w": 1,
+      "h": 1
     },
     "URINE": {
       "sheet": "Raven_Icons",
       "x": 2,
-      "y": 64
+      "y": 64,
+      "w": 1,
+      "h": 1
     },
     "UNICORN_POOP": {
       "sheet": "Raven_Icons",
       "x": 7,
-      "y": 68
+      "y": 68,
+      "w": 1,
+      "h": 1
     },
     "WORM_BLOOD": {
       "sheet": "the-roguelike",
       "x": 91,
-      "y": 9
+      "y": 9,
+      "w": 1,
+      "h": 1
     },
     "ASH": {
       "sheet": "Raven_Icons",
       "x": 7,
-      "y": 91
+      "y": 91,
+      "w": 1,
+      "h": 1
     },
     "BURNED_CARPET": {
       "sheet": "Ground0",
       "x": 7,
-      "y": 5
+      "y": 5,
+      "w": 1,
+      "h": 1
     },
     "PUDDLE": {
       "sheet": "Raven_Icons",
       "x": 10,
-      "y": 61
+      "y": 61,
+      "w": 1,
+      "h": 1
     },
     "BONES": {
       "sheet": "DD_Frozen",
       "x": 2,
-      "y": 27
+      "y": 27,
+      "w": 1,
+      "h": 1
     },
     "RUBBLE": {
       "sheet": "Raven_Icons",
       "x": 2,
-      "y": 76
+      "y": 76,
+      "w": 1,
+      "h": 1
     },
     "JUNK": {
       "sheet": "Raven_Icons",
       "x": 6,
-      "y": 99
+      "y": 99,
+      "w": 1,
+      "h": 1
     },
     "BROKEN_GLASS": {
       "sheet": "Raven_Icons",
       "x": 9,
-      "y": 99
+      "y": 99,
+      "w": 1,
+      "h": 1
     },
     "ECTOPLASM": {
       "sheet": "Ground0",
       "x": 1,
-      "y": 6
+      "y": 6,
+      "w": 1,
+      "h": 1
     },
     "EMBERS": {
       "sheet": "Ground0",
       "x": 5,
-      "y": 5
+      "y": 5,
+      "w": 1,
+      "h": 1
     },
     "SPIDERWEB": {
       "sheet": "Raven_Icons",
       "x": 11,
-      "y": 90
+      "y": 90,
+      "w": 1,
+      "h": 1
     },
     "NETTING": {
       "sheet": "TheRoguelikeSolid",
       "x": 105,
-      "y": 10
+      "y": 10,
+      "w": 1,
+      "h": 1
     },
     "FORCEFIELD": {
       "sheet": "Effect0",
       "x": 4,
-      "y": 21
+      "y": 21,
+      "w": 1,
+      "h": 1
     },
     "FORCEFIELD_MELT": {
       "sheet": "Effect0",
       "x": 3,
-      "y": 21
+      "y": 21,
+      "w": 1,
+      "h": 1
     },
     "SACRED_GLYPH": {
       "sheet": "Effect0",
       "x": 4,
-      "y": 23
+      "y": 23,
+      "w": 1,
+      "h": 1
     },
     "PORTAL_LIGHT": {
       "sheet": "TheRoguelikeSolid",
       "x": 100,
-      "y": 31
+      "y": 31,
+      "w": 1,
+      "h": 1
     },
     "GUARDIAN_GLOW": {
       "sheet": "TheRoguelikeSolid",
       "x": 9,
-      "y": 43
+      "y": 43,
+      "w": 1,
+      "h": 1
     },
     "HAVEN_BEDROLL": {
       "sheet": "Decor0",
       "x": 0,
-      "y": 16
+      "y": 16,
+      "w": 1,
+      "h": 1
     },
     "MANACLE_TL": {
       "sheet": "TheRoguelikeSolid",
       "x": 68,
-      "y": 11
+      "y": 11,
+      "w": 1,
+      "h": 1
     },
     "MANACLE_BR": {
       "sheet": "TheRoguelikeSolid",
       "x": 69,
-      "y": 11
+      "y": 11,
+      "w": 1,
+      "h": 1
     },
     "MANACLE_TR": {
       "sheet": "TheRoguelikeSolid",
       "x": 67,
-      "y": 11
+      "y": 11,
+      "w": 1,
+      "h": 1
     },
     "MANACLE_BL": {
       "sheet": "TheRoguelikeSolid",
       "x": 70,
-      "y": 11
+      "y": 11,
+      "w": 1,
+      "h": 1
     },
     "MANACLE_T": {
       "sheet": "TheRoguelikeSolid",
       "x": 66,
-      "y": 11
+      "y": 11,
+      "w": 1,
+      "h": 1
     },
     "MANACLE_B": {
       "sheet": "TheRoguelikeSolid",
       "x": 66,
-      "y": 11
+      "y": 11,
+      "w": 1,
+      "h": 1
     },
     "MANACLE_L": {
       "sheet": "TheRoguelikeSolid",
       "x": 65,
-      "y": 11
+      "y": 11,
+      "w": 1,
+      "h": 1
     },
     "MANACLE_R": {
       "sheet": "TheRoguelikeSolid",
       "x": 65,
-      "y": 11
+      "y": 11,
+      "w": 1,
+      "h": 1
     },
     "DEEP_WATER": {
       "sheet": "water_plus",
       "x": 3,
-      "y": 2
+      "y": 2,
+      "w": 1,
+      "h": 1
     },
     "SHALLOW_WATER": {
       "sheet": "water_plus",
       "x": 3,
-      "y": 1
+      "y": 1,
+      "w": 1,
+      "h": 1
     },
     "LAVA": {
       "sheet": "FireSet",
       "x": 3,
-      "y": 3
+      "y": 3,
+      "w": 1,
+      "h": 1
     },
     "MUD": {
       "sheet": "muddy cave v1",
       "x": 1,
-      "y": 5
+      "y": 5,
+      "w": 1,
+      "h": 1
     },
     "FLOOD_WATER_DEEP": {
       "sheet": "Pit1",
       "x": 1,
-      "y": 29
+      "y": 29,
+      "w": 1,
+      "h": 1
     },
     "FLOOD_WATER_SHALLOW": {
       "sheet": "Pit1",
       "x": 1,
-      "y": 17
+      "y": 17,
+      "w": 1,
+      "h": 1
     },
     "CHASM": {
       "sheet": "mainlevbuild",
       "x": 7,
-      "y": 4
+      "y": 4,
+      "w": 1,
+      "h": 1
     },
     "DOOR": {
       "sheet": "Dungeon_item_props_v2",
       "x": 6,
-      "y": 3
+      "y": 3,
+      "w": 1,
+      "h": 1
     },
     "OPEN_DOOR": {
       "sheet": "TheRoguelikeSolid",
       "x": 20,
-      "y": 22
+      "y": 22,
+      "w": 1,
+      "h": 1
     },
     "LOCKED_DOOR": {
       "sheet": "TheRoguelikeSolid",
       "x": 70,
-      "y": 22
+      "y": 22,
+      "w": 1,
+      "h": 1
     },
     "UP_STAIRS": {
       "sheet": "DD_Full",
       "x": 14,
-      "y": 6
+      "y": 6,
+      "w": 1,
+      "h": 1
     },
     "DOWN_STAIRS": {
       "sheet": "DD_Full",
       "x": 13,
-      "y": 6
+      "y": 6,
+      "w": 1,
+      "h": 1
     },
     "DUNGEON_EXIT": {
       "sheet": "Door0",
       "x": 0,
-      "y": 1
+      "y": 1,
+      "w": 1,
+      "h": 1
     },
     "BRIDGE": {
       "sheet": "DD_Full",
       "x": 2,
-      "y": 33
+      "y": 33,
+      "w": 1,
+      "h": 1
     },
     "STONE_BRIDGE": {
       "sheet": "DD_Full",
       "x": 7,
-      "y": 33
+      "y": 33,
+      "w": 1,
+      "h": 1
     },
     "STATUE_INERT": {
       "sheet": "the-roguelike",
       "x": 7,
-      "y": 34
+      "y": 34,
+      "w": 1,
+      "h": 1
     },
     "STATUE_DORMANT": {
       "sheet": "the-roguelike",
       "x": 7,
-      "y": 34
+      "y": 34,
+      "w": 1,
+      "h": 1
     },
     "PLAIN_FIRE": {
       "sheet": "Effect0",
       "x": 0,
-      "y": 21
+      "y": 21,
+      "w": 1,
+      "h": 1
     },
     "BRIMSTONE_FIRE": {
       "sheet": "Effect0",
       "x": 0,
-      "y": 21
+      "y": 21,
+      "w": 1,
+      "h": 1
     },
     "FLAMEDANCER_FIRE": {
       "sheet": "Effect0",
       "x": 1,
-      "y": 21
+      "y": 21,
+      "w": 1,
+      "h": 1
     },
     "GAS_FIRE": {
       "sheet": "Effect0",
       "x": 0,
-      "y": 21
+      "y": 21,
+      "w": 1,
+      "h": 1
     },
     "GAS_EXPLOSION": {
       "sheet": "Effect0",
       "x": 0,
-      "y": 23
+      "y": 23,
+      "w": 1,
+      "h": 1
     },
     "DART_EXPLOSION": {
       "sheet": "Effect0",
       "x": 1,
-      "y": 23
+      "y": 23,
+      "w": 1,
+      "h": 1
     },
     "ITEM_FIRE": {
       "sheet": "Effect0",
       "x": 0,
-      "y": 21
+      "y": 21,
+      "w": 1,
+      "h": 1
     },
     "CREATURE_FIRE": {
       "sheet": "Effect0",
       "x": 0,
-      "y": 21
+      "y": 21,
+      "w": 1,
+      "h": 1
     },
     "POISON_GAS": {
       "sheet": "TheRoguelikeSolid",
       "x": 101,
-      "y": 13
+      "y": 13,
+      "w": 1,
+      "h": 1
     },
     "CONFUSION_GAS": {
       "sheet": "Effect0",
       "x": 0,
-      "y": 24
+      "y": 24,
+      "w": 1,
+      "h": 1
     },
     "ROT_GAS": {
       "sheet": "Effect0",
       "x": 3,
-      "y": 24
+      "y": 24,
+      "w": 1,
+      "h": 1
     },
     "STENCH_SMOKE_GAS": {
       "sheet": "Effect0",
       "x": 3,
-      "y": 24
+      "y": 24,
+      "w": 1,
+      "h": 1
     },
     "PARALYSIS_GAS": {
       "sheet": "Effect0",
       "x": 0,
-      "y": 24
+      "y": 24,
+      "w": 1,
+      "h": 1
     },
     "METHANE_GAS": {
       "sheet": "Effect0",
       "x": 2,
-      "y": 24
+      "y": 24,
+      "w": 1,
+      "h": 1
     },
     "STEAM": {
       "sheet": "Effect0",
       "x": 0,
-      "y": 24
+      "y": 24,
+      "w": 1,
+      "h": 1
     },
     "DARKNESS_CLOUD": {
       "sheet": "Effect0",
       "x": 3,
-      "y": 24
+      "y": 24,
+      "w": 1,
+      "h": 1
     },
     "HEALING_CLOUD": {
       "sheet": "TheRoguelikeSolid",
       "x": 92,
-      "y": 13
+      "y": 13,
+      "w": 1,
+      "h": 1
     },
     "TORCH_WALL": {
       "sheet": "decorative",
       "x": 12,
-      "y": 1
+      "y": 1,
+      "w": 1,
+      "h": 1
     },
     "WOODEN_BARRICADE": {
       "sheet": "TheRoguelikeSolid",
       "x": 43,
-      "y": 22
+      "y": 22,
+      "w": 1,
+      "h": 1
     },
     "PORTAL": {
       "sheet": "TheRoguelikeSolid",
       "x": 23,
-      "y": 23
+      "y": 23,
+      "w": 1,
+      "h": 1
     },
     "ALTAR_INERT": {
       "sheet": "RA_Graveyard",
       "x": 8,
-      "y": 9
+      "y": 9,
+      "w": 1,
+      "h": 1
     },
     "ALTAR_CAGE_OPEN": {
       "sheet": "the-roguelike",
       "x": 73,
-      "y": 10
+      "y": 10,
+      "w": 1,
+      "h": 1
     },
     "ALTAR_CAGE_CLOSED": {
       "sheet": "the-roguelike",
       "x": 72,
-      "y": 10
+      "y": 10,
+      "w": 1,
+      "h": 1
     },
     "ALTAR_KEYHOLE": {
       "sheet": "RA_Graveyard",
       "x": 21,
-      "y": 4
+      "y": 4,
+      "w": 1,
+      "h": 1
     },
     "PEDESTAL": {
       "sheet": "TheRoguelikeSolid",
       "x": 61,
-      "y": 25
+      "y": 25,
+      "w": 1,
+      "h": 1
     },
     "MONSTER_CAGE_OPEN": {
       "sheet": "TheRoguelikeSolid",
       "x": 31,
-      "y": 25
+      "y": 25,
+      "w": 1,
+      "h": 1
     },
     "MONSTER_CAGE_CLOSED": {
       "sheet": "TheRoguelikeSolid",
       "x": 30,
-      "y": 25
+      "y": 25,
+      "w": 1,
+      "h": 1
     },
     "COFFIN_CLOSED": {
       "sheet": "TheRoguelikeSolid",
       "x": 84,
-      "y": 23
+      "y": 23,
+      "w": 1,
+      "h": 1
     },
     "COFFIN_OPEN": {
       "sheet": "TheRoguelikeSolid",
       "x": 85,
-      "y": 23
+      "y": 23,
+      "w": 1,
+      "h": 1
     },
     "GAS_TRAP_POISON": {
       "sheet": "TheRoguelikeSolid",
       "x": 108,
-      "y": 10
+      "y": 10,
+      "w": 1,
+      "h": 1
     },
     "GRASS": {
       "sheet": "the-roguelike",
       "x": 70,
-      "y": 5
+      "y": 5,
+      "w": 1,
+      "h": 1
     },
     "DEAD_GRASS": {
       "sheet": "the-roguelike",
       "x": 71,
-      "y": 5
+      "y": 5,
+      "w": 1,
+      "h": 1
     },
     "HOLE": {
       "sheet": "DD_Frozen",
       "x": 17,
-      "y": 13
+      "y": 13,
+      "w": 1,
+      "h": 1
     },
     "STATUE_CRACKING": {
       "sheet": "the-roguelike",
       "x": 7,
-      "y": 34
+      "y": 34,
+      "w": 1,
+      "h": 1
     },
     "STATUE_INSTACRACK": {
       "sheet": "the-roguelike",
       "x": 7,
-      "y": 34
+      "y": 34,
+      "w": 1,
+      "h": 1
     },
     "DEMONIC_STATUE": {
       "sheet": "the-roguelike",
       "x": 13,
-      "y": 34
+      "y": 34,
+      "w": 1,
+      "h": 1
     },
     "STATUE_INERT_DOORWAY": {
       "sheet": "the-roguelike",
       "x": 7,
-      "y": 34
+      "y": 34,
+      "w": 1,
+      "h": 1
     },
     "STATUE_DORMANT_DOORWAY": {
       "sheet": "the-roguelike",
       "x": 7,
-      "y": 34
+      "y": 34,
+      "w": 1,
+      "h": 1
     },
     "ALTAR_CAGE_RETRACTABLE": {
       "sheet": "the-roguelike",
       "x": 72,
-      "y": 10
+      "y": 10,
+      "w": 1,
+      "h": 1
     },
     "COMMUTATION_ALTAR": {
       "sheet": "RA_Graveyard",
       "x": 8,
-      "y": 16
+      "y": 16,
+      "w": 1,
+      "h": 1
     },
     "COMMUTATION_ALTAR_INERT": {
       "sheet": "RA_Graveyard",
       "x": 3,
-      "y": 16
+      "y": 16,
+      "w": 1,
+      "h": 1
     },
     "RESURRECTION_ALTAR": {
       "sheet": "the-roguelike",
       "x": 31,
-      "y": 23
+      "y": 23,
+      "w": 1,
+      "h": 1
     },
     "RESURRECTION_ALTAR_INERT": {
       "sheet": "the-roguelike",
       "x": 31,
-      "y": 23
+      "y": 23,
+      "w": 1,
+      "h": 1
     },
     "SACRIFICE_ALTAR_DORMANT": {
       "sheet": "the-roguelike",
       "x": 80,
-      "y": 23
+      "y": 23,
+      "w": 1,
+      "h": 1
     },
     "SACRIFICE_ALTAR": {
       "sheet": "the-roguelike",
       "x": 81,
-      "y": 23
+      "y": 23,
+      "w": 1,
+      "h": 1
     },
     "ALTAR_SWITCH": {
       "sheet": "DD_Generics",
       "x": 1,
-      "y": 5
+      "y": 5,
+      "w": 1,
+      "h": 1
     },
     "ALTAR_SWITCH_RETRACTING": {
       "sheet": "DD_Generics",
       "x": 0,
-      "y": 5
+      "y": 5,
+      "w": 1,
+      "h": 1
     },
     "AMULET_SWITCH": {
       "sheet": "DD_Generics",
       "x": 2,
-      "y": 5
+      "y": 5,
+      "w": 1,
+      "h": 1
     },
     "WALL_LEVER": {
       "sheet": "DD_Generics",
       "x": 1,
-      "y": 6
+      "y": 6,
+      "w": 1,
+      "h": 1
     },
     "WALL_LEVER_PULLED": {
       "sheet": "DD_Generics",
       "x": 0,
-      "y": 6
+      "y": 6,
+      "w": 1,
+      "h": 1
     },
     "TURRET_LEVER": {
       "sheet": "DD_Generics",
       "x": 1,
-      "y": 8
+      "y": 8,
+      "w": 1,
+      "h": 1
     },
     "WALL": {
       "sheet": "the-roguelike",
       "x": 22,
-      "y": 2
+      "y": 2,
+      "w": 1,
+      "h": 1
     },
     "FLOOR": {
       "sheet": "the-roguelike",
       "x": 22,
-      "y": 2
+      "y": 2,
+      "w": 1,
+      "h": 1
     }
   },
   "glyph": {
     "G_PLAYER": {
-      "sheet": "the-roguelike",
-      "x": 32,
-      "y": 32
+      "sheet": "hero-spritesheet-64",
+      "x": 0,
+      "y": 0,
+      "w": 1,
+      "h": 1
     },
     "G_GOBLIN": {
       "sheet": "the-roguelike",
       "x": 5,
-      "y": 31
+      "y": 31,
+      "w": 1,
+      "h": 1
     },
     "G_JACKAL": {
       "sheet": "the-roguelike",
       "x": 42,
-      "y": 31
+      "y": 31,
+      "w": 1,
+      "h": 1
     },
     "G_KOBOLD": {
       "sheet": "the-roguelike",
       "x": 31,
-      "y": 32
+      "y": 32,
+      "w": 1,
+      "h": 1
     },
     "G_RAT": {
       "sheet": "the-roguelike",
       "x": 99,
-      "y": 28
+      "y": 28,
+      "w": 1,
+      "h": 1
     },
     "G_POTION": {
       "sheet": "the-roguelike",
       "x": 5,
-      "y": 37
+      "y": 37,
+      "w": 1,
+      "h": 1
     },
     "G_GOLD": {
       "sheet": "the-roguelike",
       "x": 68,
-      "y": 38
+      "y": 38,
+      "w": 1,
+      "h": 1
     },
     "G_KEY": {
       "sheet": "the-roguelike",
       "x": 7,
-      "y": 37
+      "y": 37,
+      "w": 1,
+      "h": 1
     },
     "G_FOOD": {
       "sheet": "the-roguelike",
       "x": 8,
-      "y": 40
+      "y": 40,
+      "w": 1,
+      "h": 1
     },
     "G_ARMOR": {
       "sheet": "the-roguelike",
       "x": 16,
-      "y": 36
+      "y": 36,
+      "w": 1,
+      "h": 1
     },
     "G_STAFF": {
       "sheet": "the-roguelike",
       "x": 41,
-      "y": 35
+      "y": 35,
+      "w": 1,
+      "h": 1
     },
     "G_EEL": {
       "sheet": "the-roguelike",
       "x": 10,
-      "y": 29
+      "y": 29,
+      "w": 1,
+      "h": 1
     },
     "G_BLOAT": {
       "sheet": "the-roguelike",
       "x": 10,
-      "y": 32
+      "y": 32,
+      "w": 1,
+      "h": 1
     },
     "G_CENTIPEDE": {
       "sheet": "the-roguelike",
       "x": 13,
-      "y": 29
+      "y": 29,
+      "w": 1,
+      "h": 1
     },
     "G_DAR_BLADEMASTER": {
       "sheet": "the-roguelike",
       "x": 5,
-      "y": 34
+      "y": 34,
+      "w": 1,
+      "h": 1
     },
     "G_MONKEY": {
       "sheet": "the-roguelike",
       "x": 89,
-      "y": 28
+      "y": 28,
+      "w": 1,
+      "h": 1
     },
     "G_TOAD": {
       "sheet": "the-roguelike",
       "x": 12,
-      "y": 28
+      "y": 28,
+      "w": 1,
+      "h": 1
     },
     "G_DRAGON": {
       "sheet": "the-roguelike",
       "x": 4,
-      "y": 32
+      "y": 32,
+      "w": 1,
+      "h": 1
     },
     "G_KRAKEN": {
       "sheet": "the-roguelike",
       "x": 8,
-      "y": 30
+      "y": 30,
+      "w": 1,
+      "h": 1
     },
     "G_TROLL": {
       "sheet": "the-roguelike",
       "x": 6,
-      "y": 33
+      "y": 33,
+      "w": 1,
+      "h": 1
     },
     "G_CENTAUR": {
       "sheet": "the-roguelike",
       "x": 4,
-      "y": 33
+      "y": 33,
+      "w": 1,
+      "h": 1
     },
     "G_GOLEM": {
       "sheet": "the-roguelike",
       "x": 11,
-      "y": 33
+      "y": 33,
+      "w": 1,
+      "h": 1
     },
     "G_LICH": {
       "sheet": "the-roguelike",
       "x": 7,
-      "y": 32
+      "y": 32,
+      "w": 1,
+      "h": 1
     },
     "G_NAGA": {
       "sheet": "the-roguelike",
       "x": 16,
-      "y": 32
+      "y": 32,
+      "w": 1,
+      "h": 1
     },
     "G_OGRE": {
       "sheet": "the-roguelike",
       "x": 5,
-      "y": 33
+      "y": 33,
+      "w": 1,
+      "h": 1
     },
     "G_PHANTOM": {
       "sheet": "the-roguelike",
       "x": 9,
-      "y": 32
+      "y": 32,
+      "w": 1,
+      "h": 1
     },
     "G_JELLY": {
       "sheet": "the-roguelike",
       "x": 4,
-      "y": 31
+      "y": 31,
+      "w": 1,
+      "h": 1
     },
     "G_SALAMANDER": {
       "sheet": "the-roguelike",
       "x": 82,
-      "y": 28
+      "y": 28,
+      "w": 1,
+      "h": 1
     },
     "G_VAMPIRE": {
       "sheet": "the-roguelike",
       "x": 11,
-      "y": 34
+      "y": 34,
+      "w": 1,
+      "h": 1
     },
     "G_UNDERWORM": {
       "sheet": "the-roguelike",
       "x": 17,
-      "y": 31
+      "y": 31,
+      "w": 1,
+      "h": 1
     },
     "G_TENTACLE_HORROR": {
       "sheet": "the-roguelike",
       "x": 67,
-      "y": 31
+      "y": 31,
+      "w": 1,
+      "h": 1
     },
     "G_FLAMEDANCER": {
       "sheet": "the-roguelike",
       "x": 13,
-      "y": 31
+      "y": 31,
+      "w": 1,
+      "h": 1
     },
     "G_SPIDER": {
       "sheet": "the-roguelike",
       "x": 98,
-      "y": 31
+      "y": 31,
+      "w": 1,
+      "h": 1
     },
     "G_BAT": {
       "sheet": "the-roguelike",
       "x": 7,
-      "y": 30
+      "y": 30,
+      "w": 1,
+      "h": 1
     },
     "G_RING": {
       "sheet": "the-roguelike",
       "x": 9,
-      "y": 38
+      "y": 38,
+      "w": 1,
+      "h": 1
     },
     "G_WEAPON": {
       "sheet": "the-roguelike",
       "x": 4,
-      "y": 35
+      "y": 35,
+      "w": 1,
+      "h": 1
     },
     "G_SCROLL": {
       "sheet": "the-roguelike",
       "x": 9,
-      "y": 37
+      "y": 37,
+      "w": 1,
+      "h": 1
     },
     "G_CHARM": {
       "sheet": "the-roguelike",
       "x": 74,
-      "y": 38
+      "y": 38,
+      "w": 1,
+      "h": 1
     },
     "G_GEM": {
       "sheet": "the-roguelike",
       "x": 85,
-      "y": 38
+      "y": 38,
+      "w": 1,
+      "h": 1
     },
     "G_WAND": {
       "sheet": "the-roguelike",
       "x": 12,
-      "y": 35
+      "y": 35,
+      "w": 1,
+      "h": 1
     },
     "G_TORCH": {
       "sheet": "the-roguelike",
       "x": 13,
-      "y": 35
+      "y": 35,
+      "w": 1,
+      "h": 1
     },
     "G_CRYSTAL": {
       "sheet": "the-roguelike",
       "x": 23,
-      "y": 38
+      "y": 38,
+      "w": 1,
+      "h": 1
     }
   },
   "autotile": {
