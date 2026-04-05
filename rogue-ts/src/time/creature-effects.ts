@@ -42,6 +42,17 @@ import {
 } from "../types/flags.js";
 import { NUMBER_TERRAIN_LAYERS } from "../types/constants.js";
 
+const DEBUG_B131_GLYPH = false;
+
+function b131Log(message: string, data?: unknown): void {
+    if (!DEBUG_B131_GLYPH) return;
+    if (data === undefined) {
+        console.debug(`[b131] ${message}`);
+    } else {
+        console.debug(`[b131] ${message}`, data);
+    }
+}
+
 // =============================================================================
 // Context
 // =============================================================================
@@ -994,8 +1005,19 @@ export function applyInstantTileEffectsToCreature(
 
     // Promote on player entry
     if (ctx.cellHasTMFlag(pos, TerrainMechFlag.TM_PROMOTES_ON_PLAYER_ENTRY) && monst === ctx.player) {
+        b131Log("player on TM_PROMOTES_ON_PLAYER_ENTRY tile", {
+            loc: { x, y },
+            machineNumber: ctx.pmap[x][y].machineNumber,
+            layers: [...ctx.pmap[x][y].layers],
+            layerMechFlags: ctx.pmap[x][y].layers.map((tileIndex) => ctx.tileCatalog[tileIndex]?.mechFlags ?? 0),
+        });
         for (let layer = 0; layer < NUMBER_TERRAIN_LAYERS; layer++) {
             if (ctx.tileCatalog[ctx.pmap[x][y].layers[layer]].mechFlags & TerrainMechFlag.TM_PROMOTES_ON_PLAYER_ENTRY) {
+                b131Log("promoteTile from TM_PROMOTES_ON_PLAYER_ENTRY", {
+                    loc: { x, y },
+                    layer,
+                    tile: ctx.pmap[x][y].layers[layer],
+                });
                 ctx.promoteTile(x, y, layer as DungeonLayer, false);
             }
         }

@@ -22,7 +22,7 @@ import type {
     FloorTileType,
     DungeonFeature,
 } from "../types/types.js";
-import { DungeonLayer, TileType } from "../types/enums.js";
+import { DungeonLayer, TileType, DungeonFeatureType } from "../types/enums.js";
 import {
     Fl,
     TileFlag,
@@ -34,6 +34,17 @@ import {
     MonsterBookkeepingFlag,
 } from "../types/flags.js";
 import { NUMBER_TERRAIN_LAYERS } from "../types/constants.js";
+
+const DEBUG_B131_GLYPH = false;
+
+function b131Log(message: string, data?: unknown): void {
+    if (!DEBUG_B131_GLYPH) return;
+    if (data === undefined) {
+        console.debug(`[b131] ${message}`);
+    } else {
+        console.debug(`[b131] ${message}`, data);
+    }
+}
 
 // =============================================================================
 // Directions (cardinal: N, E, S, W and diagonals)
@@ -64,6 +75,7 @@ export interface EnvironmentContext {
         yendorWarden: Creature | null;
     };
     monsters: Creature[];
+    dormantMonsters?: Creature[];
     pmap: Pcell[][];
     levels: LevelData[];
     tileCatalog: readonly FloorTileType[];
@@ -82,7 +94,7 @@ export interface EnvironmentContext {
     spawnDungeonFeature(x: number, y: number, feat: DungeonFeature, isVolatile: boolean, overrideProtection: boolean): void;
     monstersFall(): void;
     updateFloorItems(): void;
-    monstersTurn(monst: Creature): void;
+    monstersTurn(monst: Creature): void | Promise<void>;
     keyOnTileAt(loc: Pos): Item | null;
 
     // Monster helpers
@@ -132,6 +144,7 @@ export function activateMachine(
     machineNumber: number,
     ctx: EnvironmentContext,
 ): void {
+    b131Log("activateMachine start", { machineNumber });
     const sCols: number[] = new Array(ctx.DCOLS);
     const sRows: number[] = new Array(ctx.DROWS);
 
@@ -150,9 +163,19 @@ export function activateMachine(
                 !(ctx.pmap[x][y].flags & TileFlag.IS_POWERED) &&
                 ctx.cellHasTMFlag({ x, y }, TerrainMechFlag.TM_IS_WIRED)
             ) {
+                b131Log("activateMachine powering wired cell", {
+                    loc: { x, y },
+                    machineNumber,
+                    layers: [...ctx.pmap[x][y].layers],
+                });
                 ctx.pmap[x][y].flags |= TileFlag.IS_POWERED;
                 for (let layer = 0; layer < NUMBER_TERRAIN_LAYERS; layer++) {
                     if (ctx.tileCatalog[ctx.pmap[x][y].layers[layer]].mechFlags & TerrainMechFlag.TM_IS_WIRED) {
+                        b131Log("activateMachine promote wired layer", {
+                            loc: { x, y },
+                            layer,
+                            tile: ctx.pmap[x][y].layers[layer],
+                        });
                         promoteTile(x, y, layer as DungeonLayer, false, ctx);
                     }
                 }
@@ -160,20 +183,62 @@ export function activateMachine(
         }
     }
 
+    const isActivationMonster = (monst: Creature): boolean => !!(
+        monst.machineHome === machineNumber
+        && monst.spawnDepth === ctx.rogue.depthLevel
+        && (monst.info.flags & MonsterBehaviorFlag.MONST_GETS_TURN_ON_ACTIVATION)
+    );
+    const activeCandidates = ctx.monsters.filter(isActivationMonster);
+    const dormantCandidates = (ctx.dormantMonsters ?? []).filter(isActivationMonster);
+    b131Log("activateMachine candidate scan", {
+        machineNumber,
+        depthLevel: ctx.rogue.depthLevel,
+        activeCount: activeCandidates.length,
+        dormantCount: dormantCandidates.length,
+        activeMonsters: activeCandidates.map((m) => ({
+            name: m.info.monsterName,
+            loc: m.loc,
+            machineHome: m.machineHome,
+            spawnDepth: m.spawnDepth,
+            bookkeepingFlags: m.bookkeepingFlags,
+        })),
+        dormantMonsters: dormantCandidates.map((m) => ({
+            name: m.info.monsterName,
+            loc: m.loc,
+            machineHome: m.machineHome,
+            spawnDepth: m.spawnDepth,
+            bookkeepingFlags: m.bookkeepingFlags,
+        })),
+    });
+
     // Collect and activate monsters belonging to this machine
     const activatedMonsters: Creature[] = [];
     for (const monst of ctx.monsters) {
-        if (
-            monst.machineHome === machineNumber &&
-            monst.spawnDepth === ctx.rogue.depthLevel &&
-            (monst.info.flags & MonsterBehaviorFlag.MONST_GETS_TURN_ON_ACTIVATION)
-        ) {
+        if (isActivationMonster(monst)) {
             activatedMonsters.push(monst);
         }
     }
+    b131Log("activateMachine activation targets", {
+        machineNumber,
+        count: activatedMonsters.length,
+        monsters: activatedMonsters.map((m) => ({
+            name: m.info.monsterName,
+            loc: m.loc,
+            machineHome: m.machineHome,
+        })),
+    });
     for (const monst of activatedMonsters) {
         if (!(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DYING)) {
-            ctx.monstersTurn(monst);
+            const dispatchResult: unknown = ctx.monstersTurn(monst) as unknown;
+            const returnedPromise =
+                typeof dispatchResult === "object"
+                && dispatchResult !== null
+                && typeof (dispatchResult as PromiseLike<void>).then === "function";
+            b131Log("activateMachine monstersTurn dispatched", {
+                monster: monst.info.monsterName,
+                loc: monst.loc,
+                returnedPromise,
+            });
         }
     }
 }
@@ -191,6 +256,27 @@ export function promoteTile(
 ): void {
     const tile = ctx.tileCatalog[ctx.pmap[x][y].layers[layer]];
     const DFType = useFireDF ? tile.fireType : tile.promoteType;
+    const b131RelevantDF = DFType === DungeonFeatureType.DF_INACTIVE_GLYPH
+        || DFType === DungeonFeatureType.DF_ACTIVE_GLYPH
+        || DFType === DungeonFeatureType.DF_GUARDIAN_STEP
+        || DFType === DungeonFeatureType.DF_SILENT_GLYPH_GLOW
+        || DFType === DungeonFeatureType.DF_MIRROR_TOTEM_STEP
+        || DFType === DungeonFeatureType.DF_GLYPH_CIRCLE;
+    const b131RelevantTile = !!(tile.mechFlags & (TerrainMechFlag.TM_IS_WIRED | TerrainMechFlag.TM_PROMOTES_ON_PLAYER_ENTRY));
+    if (b131RelevantDF || b131RelevantTile) {
+        b131Log("promoteTile", {
+            loc: { x, y },
+            layer,
+            tile: ctx.pmap[x][y].layers[layer],
+            useFireDF,
+            mechFlags: tile.mechFlags,
+            promoteType: tile.promoteType,
+            fireType: tile.fireType,
+            DFType,
+            machineNumber: ctx.pmap[x][y].machineNumber,
+            isPowered: !!(ctx.pmap[x][y].flags & TileFlag.IS_POWERED),
+        });
+    }
 
     if (tile.mechFlags & TerrainMechFlag.TM_VANISHES_UPON_PROMOTION) {
         if (ctx.tileCatalog[ctx.pmap[x][y].layers[layer]].flags & T_PATHING_BLOCKER) {

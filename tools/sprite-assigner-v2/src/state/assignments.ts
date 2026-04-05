@@ -23,6 +23,8 @@ export interface SpriteRef {
   sheet: string;
   x: number;
   y: number;
+  w?: number;  // tile width in tile counts (integer ≥ 1); defaults to 1
+  h?: number;  // tile height in tile counts (integer ≥ 1); defaults to 1
 }
 
 export interface AutotileGroupConfig {
@@ -46,6 +48,33 @@ export interface AssignmentStats {
   glyphTotal: number;
   autotileGroups: number;
   autotileVariantsAssigned: number;
+}
+
+// ---------------------------------------------------------------------------
+// Migration helpers
+// ---------------------------------------------------------------------------
+
+/** Ensure every SpriteRef in a glyph/tiletype map has w and h (default 1). */
+function migrateSpriteRefMap(
+  map: Record<string, SpriteRef>,
+): Record<string, SpriteRef> {
+  const out: Record<string, SpriteRef> = {};
+  for (const [k, ref] of Object.entries(map)) {
+    out[k] = {
+      ...ref,
+      w: ref.w ?? 1,
+      h: ref.h ?? 1,
+    };
+  }
+  return out;
+}
+
+function migrateAssignments(data: Assignments): Assignments {
+  return {
+    ...data,
+    tiletype: migrateSpriteRefMap(data.tiletype ?? {}),
+    glyph: migrateSpriteRefMap(data.glyph ?? {}),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -86,12 +115,12 @@ function reducer(state: Assignments, action: Action): Assignments {
       };
     case "importJSON":
     case "loadFromManifest":
-      return {
+      return migrateAssignments({
         sheets: action.data.sheets,
         tiletype: action.data.tiletype ?? {},
         glyph: action.data.glyph ?? {},
         autotile: action.data.autotile ?? {},
-      };
+      });
     case "setAutotileGroup":
       return {
         ...state,
@@ -117,7 +146,7 @@ function loadFromStorage(): Assignments {
     if (saved) {
       const data = JSON.parse(saved) as Assignments;
       if (data.tiletype && data.glyph) {
-        return { ...data, autotile: data.autotile ?? {} };
+        return migrateAssignments({ ...data, autotile: data.autotile ?? {} });
       }
     }
   } catch { /* fall through */ }

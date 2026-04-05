@@ -3,7 +3,7 @@ import path from "path";
 import fs from "fs";
 import { generateMasterSheet, type SavePayload } from "./generate.ts";
 
-interface ManifestSheet { key: string; path: string; category: string }
+interface ManifestSheet { key: string; path: string; category: string; stride?: number }
 interface ManifestGroup { id: string; name: string; sheets: ManifestSheet[] }
 interface ManifestData { tileSize: number; basePath: string; tilesets: ManifestGroup[] }
 
@@ -48,10 +48,24 @@ export function spriteAssignerApi(repoRoot: string): Plugin {
     return map;
   }
 
+  function buildSheetStrides(): Map<string, number> {
+    const raw = readManifest();
+    const map = new Map<string, number>();
+    for (const tileset of raw.tilesets) {
+      for (const sheet of tileset.sheets) {
+        if (sheet.stride !== undefined) {
+          map.set(sheet.key, sheet.stride);
+        }
+      }
+    }
+    return map;
+  }
+
   return {
     name: "sprite-assigner-api",
     configureServer(server) {
       let sheetPaths = buildSheetPaths();
+      let sheetStrides = buildSheetStrides();
 
       server.middlewares.use((req, res, next) => {
         if (!req.url) return next();
@@ -104,9 +118,34 @@ export function spriteAssignerApi(repoRoot: string): Plugin {
           req.on("end", () => {
             (async () => {
               const payload = JSON.parse(body) as SavePayload;
-              const result = await generateMasterSheet(payload, sheetPaths, tilesetsDir);
+
+              // Validate w/h on glyph assignments: if present, must be positive integers
+              const allRefs = [
+                ...Object.values(payload.glyph ?? {}),
+                ...Object.values(payload.tiletype ?? {}),
+              ];
+              for (const ref of allRefs) {
+                if (ref.w !== undefined) {
+                  if (!Number.isInteger(ref.w) || ref.w < 1) {
+                    res.statusCode = 400;
+                    res.setHeader("Content-Type", "application/json");
+                    res.end(JSON.stringify({ ok: false, error: `Invalid w value: ${ref.w}. Must be a positive integer.` }));
+                    return;
+                  }
+                }
+                if (ref.h !== undefined) {
+                  if (!Number.isInteger(ref.h) || ref.h < 1) {
+                    res.statusCode = 400;
+                    res.setHeader("Content-Type", "application/json");
+                    res.end(JSON.stringify({ ok: false, error: `Invalid h value: ${ref.h}. Must be a positive integer.` }));
+                    return;
+                  }
+                }
+              }
+
+              const result = await generateMasterSheet(payload, sheetPaths, tilesetsDir, sheetStrides);
               const gamePayload = {
-                sheets: payload.sheets ?? { master: "master-spritesheet.png" },
+                sheets: result.sheetsRecord,
                 tiletype: payload.tiletype,
                 glyph: payload.glyph,
                 autotile: payload.autotile ?? {},
@@ -142,6 +181,7 @@ export function spriteAssignerApi(repoRoot: string): Plugin {
               const data = JSON.parse(body) as ManifestData;
               writeManifest(data);
               sheetPaths = buildSheetPaths();
+              sheetStrides = buildSheetStrides();
               res.setHeader("Content-Type", "application/json");
               res.end(JSON.stringify({ ok: true }));
             } catch (err: unknown) {
@@ -176,7 +216,7 @@ export function spriteAssignerApi(repoRoot: string): Plugin {
                 return;
               }
               const meta = JSON.parse(metaPart.data.toString("utf-8")) as {
-                groupId: string; key: string; category: string; subpath: string;
+                groupId: string; key: string; category: string; subpath: string; stride?: number;
               };
               const destPath = path.join(tilesetsDir, meta.subpath);
               fs.mkdirSync(path.dirname(destPath), { recursive: true });
@@ -185,13 +225,16 @@ export function spriteAssignerApi(repoRoot: string): Plugin {
               const manifest = readManifest();
               const group = manifest.tilesets.find(g => g.id === meta.groupId);
               if (group) {
-                group.sheets.push({
+                const entry: ManifestSheet = {
                   key: meta.key,
                   path: meta.subpath,
                   category: meta.category,
-                });
+                };
+                if (meta.stride) entry.stride = meta.stride;
+                group.sheets.push(entry);
                 writeManifest(manifest);
                 sheetPaths = buildSheetPaths();
+                sheetStrides = buildSheetStrides();
               }
               res.setHeader("Content-Type", "application/json");
               res.end(JSON.stringify({ ok: true, path: meta.subpath }));

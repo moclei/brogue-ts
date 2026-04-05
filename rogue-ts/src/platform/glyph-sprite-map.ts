@@ -13,6 +13,7 @@ import {
   AUTOTILE_VARIANT_COUNT,
   buildVariantToWangBlob,
 } from "./autotile.js";
+import { TILE_SIZE } from "./tileset-loader.js";
 import defaultManifest from "../../assets/tilesets/sprite-manifest.json";
 import _defaultAssignments from "../../assets/tilesets/assignments.json";
 
@@ -22,11 +23,21 @@ export interface SpriteRef {
   sheetKey: string;
   tileX: number;
   tileY: number;
+  srcW?: number;   // pixel width, default TILE_SIZE
+  srcH?: number;   // pixel height, default TILE_SIZE
+}
+
+export interface ManifestEntry {
+  x: number;
+  y: number;
+  w?: number;
+  h?: number;
+  sheet?: string;
 }
 
 export interface SpriteManifest {
-  tiles: Record<string, { x: number; y: number }>;
-  glyphs: Record<string, { x: number; y: number }>;
+  tiles: Record<string, ManifestEntry>;
+  glyphs: Record<string, ManifestEntry>;
 }
 
 export type AutotileFormat = "grid" | "wang";
@@ -37,7 +48,7 @@ export interface AutotileSheetRef {
 }
 
 export interface AssignmentsData {
-  sheets?: { master: string };
+  sheets?: Record<string, string>;
   autotile?: Record<string, AutotileSheetRef>;
 }
 
@@ -185,13 +196,15 @@ export function buildGlyphSpriteMap(
   manifest: SpriteManifest = defaultManifest,
 ): Map<DisplayGlyph, SpriteRef> {
   const m = new Map<DisplayGlyph, SpriteRef>();
-  for (const [name, coords] of Object.entries(manifest.glyphs)) {
+  for (const [name, entry] of Object.entries(manifest.glyphs)) {
     const dg = DisplayGlyph[name as keyof typeof DisplayGlyph];
     if (dg !== undefined && typeof dg === "number") {
       m.set(dg, {
-        sheetKey: MASTER_SHEET_KEY,
-        tileX: coords.x,
-        tileY: coords.y,
+        sheetKey: entry.sheet ?? MASTER_SHEET_KEY,
+        tileX: entry.x,
+        tileY: entry.y,
+        srcW: entry.w ?? TILE_SIZE,
+        srcH: entry.h ?? TILE_SIZE,
       });
     }
   }
@@ -233,8 +246,16 @@ export function buildSheetUrls(
   bustSuffix = "",
 ): Record<string, string> {
   const urls: Record<string, string> = {};
-  const masterPath = assignments.sheets?.master ?? "master-spritesheet.png";
-  urls[MASTER_SHEET_KEY] = `${TILESETS_BASE}${masterPath}${bustSuffix}`;
+  // Populate all named sheets from assignments.sheets
+  const sheets = assignments.sheets ?? {};
+  if (Object.keys(sheets).length === 0) {
+    // Legacy fallback: no sheets declared, use master key with default path
+    urls[MASTER_SHEET_KEY] = `${TILESETS_BASE}master-spritesheet.png${bustSuffix}`;
+  } else {
+    for (const [key, path] of Object.entries(sheets)) {
+      urls[key] = `${TILESETS_BASE}${path}${bustSuffix}`;
+    }
+  }
   for (const [group, ref] of Object.entries(assignments.autotile ?? {})) {
     urls[group] = `${TILESETS_BASE}${ref.sheet}${bustSuffix}`;
   }

@@ -1,13 +1,22 @@
 import { useRef, useEffect } from "react";
-import { TILE_SIZE } from "../data/tile-types.ts";
 import { useAssignments } from "../state/assignments.ts";
 import { useApp } from "../state/app-state.ts";
+import { findSheetDef } from "../data/sheet-manifest.ts";
+
+const DEFAULT_STRIDE = 16;
 
 export function SelectionBar() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { state, setSelectedTile } = useApp();
   const assignments = useAssignments();
-  const { selectedTile, imageCache } = state;
+  const { selectedTile, imageCache, manifest } = state;
+
+  // Derive stride for the selected tile's sheet.
+  const stride = (() => {
+    if (!selectedTile || !manifest) return DEFAULT_STRIDE;
+    const def = findSheetDef(manifest, selectedTile.sheet);
+    return def?.stride ?? manifest.tileSize ?? DEFAULT_STRIDE;
+  })();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -19,16 +28,26 @@ export function SelectionBar() {
     if (!selectedTile) return;
     const img = imageCache.get(selectedTile.sheet);
     if (!img) return;
+
+    const tileStride = (() => {
+      if (!manifest) return DEFAULT_STRIDE;
+      const def = findSheetDef(manifest, selectedTile.sheet);
+      return def?.stride ?? manifest.tileSize ?? DEFAULT_STRIDE;
+    })();
+
+    const srcW = (selectedTile.w ?? 1) * tileStride;
+    const srcH = (selectedTile.h ?? 1) * tileStride;
+
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(
       img,
-      selectedTile.x * TILE_SIZE,
-      selectedTile.y * TILE_SIZE,
-      TILE_SIZE,
-      TILE_SIZE,
+      selectedTile.x * tileStride,
+      selectedTile.y * tileStride,
+      srcW,
+      srcH,
       0, 0, 48, 48,
     );
-  }, [selectedTile, imageCache]);
+  }, [selectedTile, imageCache, manifest]);
 
   const usedBy: string[] = [];
   if (selectedTile) {
@@ -44,6 +63,15 @@ export function SelectionBar() {
     }
   }
 
+  const dimLabel = (() => {
+    if (!selectedTile) return null;
+    const w = selectedTile.w ?? 1;
+    const h = selectedTile.h ?? 1;
+    const px = w * stride;
+    const tilePlural = (w === 1 && h === 1) ? "tile" : "tiles";
+    return `${w}×${h} ${tilePlural} (${px} px)`;
+  })();
+
   return (
     <div className="selection-bar">
       <canvas ref={canvasRef} className="sel-preview" width={48} height={48} />
@@ -52,6 +80,12 @@ export function SelectionBar() {
           <span className="coord">
             {selectedTile.sheet} ({selectedTile.x}, {selectedTile.y})
           </span>
+          {dimLabel && (
+            <>
+              {" "}
+              <span className="sel-dims">{dimLabel}</span>
+            </>
+          )}
           <br />
           <span className="hint">&rarr; Click an enum on the right to assign this tile</span>
           {usedBy.length > 0 && (

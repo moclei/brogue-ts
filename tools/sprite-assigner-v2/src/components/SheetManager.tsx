@@ -18,6 +18,7 @@ interface AddSheetDialogProps {
 export function AddSheetDialog({ group, manifest, onClose, onAdded }: AddSheetDialogProps) {
   const [key, setKey] = useState("");
   const [category, setCategory] = useState<string>("terrain");
+  const [stride, setStride] = useState<string>("");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -56,11 +57,13 @@ export function AddSheetDialog({ group, manifest, onClose, onAdded }: AddSheetDi
     setSaving(true);
     setError(null);
     try {
+      const strideNum = parseInt(stride, 10);
       await uploadSheet(file, {
         groupId: group.id,
         key,
         category,
         subpath: inferSubpath(),
+        stride: strideNum > 0 ? strideNum : undefined,
       });
       onAdded();
     } catch (err: unknown) {
@@ -111,6 +114,16 @@ export function AddSheetDialog({ group, manifest, onClose, onAdded }: AddSheetDi
             <select value={category} onChange={e => setCategory(e.target.value)}>
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
+          </div>
+          <div className="mgr-field">
+            <label>Stride <span className="dim-note">(tile size in px; leave blank to inherit)</span></label>
+            <input
+              type="number"
+              min={1}
+              value={stride}
+              onChange={e => setStride(e.target.value)}
+              placeholder="16"
+            />
           </div>
           <div className="mgr-field">
             <label>Path <span className="dim-note">(in tilesets dir)</span></label>
