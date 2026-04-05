@@ -10,6 +10,7 @@ pixel art research.
 | `autotile/AUTOTILE.md`         | Autotile system — bitmask encoding, connection groups, spritesheet formats, data pipeline, 47-variant reference |
 | `sprite-layer-pipeline.md`     | Full rendering pipeline — layer stack, tinting, blend modes, visibility overlays, F2 debug panel                |
 | `tiletype-sprite-reference.md` | TileType → sprite mapping reference                                                                             |
+| `VARIABLE-RES.md`              | Variable-resolution sprites — implemented feature reference: data shapes, file touch-points, HMR path, backward compat |
 
 ## Research & Exploration
 
