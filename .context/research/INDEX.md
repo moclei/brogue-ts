@@ -20,6 +20,7 @@ knowledge instead of re-deriving it from source.
 |-------|------|--------|---------|
 | Grid System | grid-system.md | current | 2D grid allocation, pcell/tcell, dungeon dimensions, terrain flags, key globals |
 | UI Overlay Systems | ui-overlay-systems.md | current | Display buffers, sidebar, messages, inventory, buttons, targeting, effects, platform rendering |
+| Machine System | machines.md | current | Blueprint catalog, machine generation pipeline (addMachines→buildAMachine→feature loop), BP_*/MF_* flags, call chains |
 
 <!-- When adding a row:
 | Grid System | grid-system.md | current | 2D grid allocation, pcell/tcell, dungeon dimensions, terrain flags |

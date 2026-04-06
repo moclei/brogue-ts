@@ -2,19 +2,19 @@
 
 ## Phase 1: Research
 
-- [ ] Create `.context/research/machines.md` from template; add entry to INDEX.md
-- [ ] Use CodeQL to map the full C call chain from `addMachines` and `buildAMachine`;
+- [x] Create `.context/research/machines.md` from template; add entry to INDEX.md
+- [x] Use CodeQL to map the full C call chain from `addMachines` and `buildAMachine`;
       document in research doc
-- [ ] Document blueprint data structures, flags (`BP_*`), and the blueprint catalog
+- [x] Document blueprint data structures, flags (`BP_*`), and the blueprint catalog
       (count types, note depth ranges and frequencies for major types)
-- [ ] Document the machine trigger/activation path in C: how key pickup leads to machine
+- [x] Document the machine trigger/activation path in C: how key pickup leads to machine
       effects (trace `keyOnTileAt`, `updateEnvironment`, dungeon feature activation)
-- [ ] Document dormant monster mechanics in C: how monsters enter/exit dormant state,
+- [x] Document dormant monster mechanics in C: how monsters enter/exit dormant state,
       what activates them, relevant flags
-- [ ] Verify `gaps-Architect.md` NEEDS-VERIFICATION and MISSING claims against current
+- [~] Verify `gaps-Architect.md` NEEDS-VERIFICATION and MISSING claims against current
       TS code for the 6 key machine functions: `buildAMachine`, `addMachines`,
       `runAutogenerators`, `redesignInterior`, `fillSpawnMap`, `spawnDungeonFeature`
-- [ ] Finalize research doc: integration points, invariants, known TS gaps confirmed
+- [~] Finalize research doc: integration points, invariants, known TS gaps confirmed
 
 # --- handoff point ---
 

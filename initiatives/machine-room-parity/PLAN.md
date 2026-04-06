@@ -71,9 +71,42 @@ game generation begins.
 ## Open Questions
 
 - Where exactly in the TS codebase is the title screen menu rendered? (Phase 2, task 1)
-- Is `keyOnTileAt` the correct hook for key-pickup machine triggers, or is it
-  `updateEnvironment` / something else? (Phase 1 / Phase 3)
-- Are dormant monster flags (`MONST_DORMANT` or equivalent) implemented in TS, and if
-  so, are they wired to the activation path? (Phase 3)
+- **RESOLVED**: Is `keyOnTileAt` the correct hook for key-pickup machine triggers?
+  Yes. `keyOnTileAt` is called by `applyInstantTileEffectsToCreature` in `Time.c` (line 452),
+  which is the correct hook. It is also called by `updateEnvironment` (key-missing reversal)
+  and `checkForMissingKeys` (anti-exploit). Full call chain documented in machines.md
+  under "Machine Triggers".
+- **PARTIALLY RESOLVED**: Are dormant monster flags implemented in TS and wired to
+  activation? The `MF_MONSTERS_DORMANT` placement path is fully implemented in TS
+  (`buildAMachine` calls `ctx.monsterOps.toggleMonsterDormancy` after spawning).
+  However, `DFF_ACTIVATE_DORMANT_MONSTER` in `spawnDungeonFeature` is entirely absent
+  from TS — dormant monsters are placed correctly but never awakened at runtime.
+  This is a confirmed high-severity gap. See machines.md § Known TS Gaps.
 - How many distinct blueprint types are there? Does the list fit cleanly in a checklist
   UI, or will it need grouping? (Phase 2, task 1)
+
+## Gap List
+
+> Stub — to be expanded in Phase 3. Sourced from Phase 1 Task 6 TS verification.
+> Full details in `.context/research/machines.md` § Known TS Gaps.
+
+### Systemic (affect all or many machine types)
+
+- **`evacuateCreatures` MISSING** in `spawnDungeonFeature` — blocking terrain can spawn into occupied cells during both generation and runtime
+- **`DFF_ACTIVATE_DORMANT_MONSTER` MISSING** in `spawnDungeonFeature` — dormant monsters are placed correctly but never wake at runtime; all dormant-monster machines (turrets, rats, vampires, zombies, statues, etc.) are non-functional at runtime
+- **`staleLoopMap` not set** in `fillSpawnMap` — loop-map not invalidated after terrain changes
+
+### Runtime-only (refresh=true path; no generation-time impact)
+
+- `applyInstantTileEffectsToCreature` absent from `fillSpawnMap`
+- `burnItem` absent from `fillSpawnMap`
+- `flavorMessage` absent from `fillSpawnMap`
+- `aggravateMonsters` / `DFF_AGGRAVATES_MONSTERS` absent from `spawnDungeonFeature`
+- `colorFlash` / `createFlare` absent from `spawnDungeonFeature`
+- `message` (feature description) absent from `spawnDungeonFeature`
+
+### Per-machine-type
+
+- **`DFF_RESURRECT_ALLY` MISSING** in `spawnDungeonFeature` — legendary ally shrine non-functional
+- Bullet Brogue variant check absent from `addMachines` — out of scope for current target
+
