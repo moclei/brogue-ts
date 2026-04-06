@@ -11,10 +11,10 @@
       effects (trace `keyOnTileAt`, `updateEnvironment`, dungeon feature activation)
 - [x] Document dormant monster mechanics in C: how monsters enter/exit dormant state,
       what activates them, relevant flags
-- [~] Verify `gaps-Architect.md` NEEDS-VERIFICATION and MISSING claims against current
+- [x] Verify `gaps-Architect.md` NEEDS-VERIFICATION and MISSING claims against current
       TS code for the 6 key machine functions: `buildAMachine`, `addMachines`,
       `runAutogenerators`, `redesignInterior`, `fillSpawnMap`, `spawnDungeonFeature`
-- [~] Finalize research doc: integration points, invariants, known TS gaps confirmed
+- [x] Finalize research doc: integration points, invariants, known TS gaps confirmed
 
 # --- handoff point ---
 
