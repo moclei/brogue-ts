@@ -20,15 +20,15 @@
 
 ## Phase 2: Tooling
 
-- [ ] Locate title screen menu in TS codebase; identify where to add the debug menu
+- [x] Locate title screen menu in TS codebase; identify where to add the debug menu
       entry point
-- [ ] Enumerate all blueprint types from the C blueprint catalog; establish readable
+- [x] Enumerate all blueprint types from the C blueprint catalog; establish readable
       names for the checklist
-- [ ] Design and implement the debug menu: checklist of all machine types, accessible
+- [x] Design and implement the debug menu: checklist of all machine types, accessible
       from title screen
-- [ ] Wire selected types: boost `frequency` significantly and set `depthRange[0]` to 1
+- [x] Wire selected types: boost `frequency` significantly and set `depthRange[0]` to 1
       for all checked blueprints before game generation
-- [ ] Smoke-test: verify that selected types appear on shallow floors and that
+- [x] Smoke-test: verify that selected types appear on shallow floors and that
       unselected types are not suppressed
 
 # --- handoff point ---

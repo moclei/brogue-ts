@@ -59,7 +59,19 @@ addMachines
 
 ### Debug Tool Location
 
-To be determined in Phase 2. Entry point is the title screen menu in the TS port.
+Title screen main menu — fifth button "Debug Menu" (hotkey D/d), `NGCommand.MachineDebug`.
+Source files:
+- `rogue-ts/src/menus/machine-debug.ts` — state (`boostedBlueprints`), catalog helper
+  (`getDebugBlueprintCatalog`), and the dialog (`showMachineDebugMenu`).
+- `rogue-ts/src/menus/main-menu.ts` — button wiring and `mainBrogueJunction` case.
+- `rogue-ts/src/lifecycle-level.ts` — applies boosts via `activeBlueprintCatalog`
+  before passing to `archCtx` and `machineContext`.
+- `rogue-ts/src/types/enums.ts` — `NGCommand.MachineDebug` added.
+
+UI: two-level dialog. Top level shows 5 blueprint groups with [sel/total] counts.
+Selecting a group opens a per-blueprint toggle list ([ ] / [x] prefix, letter hotkeys).
+"Clear all" resets state. All boosts are session-scoped in-memory only.
+
 The tool modifies blueprint `frequency` and `depthRange[0]` values in-memory before
 game generation begins.
 

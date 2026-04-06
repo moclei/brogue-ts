@@ -19,6 +19,7 @@ import { meteredItemsGenerationTable, lumenstoneDistribution,
     scrollTable, potionTable, armorTable } from "./globals/item-catalog.js";
 import { autoGeneratorCatalog } from "./globals/autogenerator-catalog.js";
 import { blueprintCatalog } from "./globals/blueprint-catalog.js";
+import { getDebugBlueprintCatalog } from "./menus/machine-debug.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
 import { dungeonProfileCatalog } from "./globals/dungeon-profile-catalog.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
@@ -210,15 +211,16 @@ export function buildLevelContext(): LevelContext {
             }),
     });
 
+    const activeBlueprintCatalog = getDebugBlueprintCatalog(blueprintCatalog);
     const archCtx = {
         pmap, depthLevel: rogue.depthLevel, gameConstants: gameConst,
-        dungeonProfileCatalog, dungeonFeatureCatalog, blueprintCatalog, autoGeneratorCatalog, tileCatalog,
+        dungeonProfileCatalog, dungeonFeatureCatalog, blueprintCatalog: activeBlueprintCatalog, autoGeneratorCatalog, tileCatalog,
         machineNumber: rogue.rewardRoomsGenerated,
         rewardRoomsGenerated: rogue.rewardRoomsGenerated,
         staleLoopMap: rogue.staleLoopMap,
         machineContext: {
             pmap, chokeMap: chokeMap!, tileCatalog,
-            blueprintCatalog, dungeonFeatureCatalog, dungeonProfileCatalog, autoGeneratorCatalog,
+            blueprintCatalog: activeBlueprintCatalog, dungeonFeatureCatalog, dungeonProfileCatalog, autoGeneratorCatalog,
             depthLevel: rogue.depthLevel,
             machineNumber: rogue.rewardRoomsGenerated,
             rewardRoomsGenerated: rogue.rewardRoomsGenerated,

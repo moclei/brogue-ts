@@ -580,6 +580,7 @@ export enum NGCommand {
     GameVariant, GameMode,
     NewGame, NewGameWithSeed, OpenGame, ViewRecording,
     HighScores, GameStats, Quit,
+    MachineDebug,
 }
 
 // ===== featTypes =====
