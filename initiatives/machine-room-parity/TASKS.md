@@ -35,14 +35,14 @@
 
 ## Phase 3: Gap Analysis
 
-- [ ] Compare `buildAMachine` C vs TS: document any logic divergence
-- [ ] Compare `addMachines` and `runAutogenerators` C vs TS
-- [ ] Compare `redesignInterior` and `prepareInteriorWithMachineFlags` C vs TS
-- [ ] Trace the key-pickup → machine-trigger path in TS; compare to C; document gaps
-- [ ] Trace dormant monster activation in TS; compare to C; document gaps
-- [ ] Examine B128 fix (`462ba1a`): determine if turret tile placement is a regression
+- [x] Compare `buildAMachine` C vs TS: document any logic divergence
+- [x] Compare `addMachines` and `runAutogenerators` C vs TS
+- [x] Compare `redesignInterior` and `prepareInteriorWithMachineFlags` C vs TS
+- [x] Trace the key-pickup → machine-trigger path in TS; compare to C; document gaps
+- [x] Trace dormant monster activation in TS; compare to C; document gaps
+- [x] Examine B128 fix (`462ba1a`): determine if turret tile placement is a regression
       and document what the correct behavior should be
-- [ ] Consolidate all findings into a gap list in PLAN.md under a new
+- [x] Consolidate all findings into a gap list in PLAN.md under a new
       `## Gap List` section; prioritize systemic gaps above per-machine gaps
 
 # --- handoff point ---

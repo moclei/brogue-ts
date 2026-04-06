@@ -88,25 +88,27 @@ game generation begins.
   which is the correct hook. It is also called by `updateEnvironment` (key-missing reversal)
   and `checkForMissingKeys` (anti-exploit). Full call chain documented in machines.md
   under "Machine Triggers".
-- **PARTIALLY RESOLVED**: Are dormant monster flags implemented in TS and wired to
-  activation? The `MF_MONSTERS_DORMANT` placement path is fully implemented in TS
-  (`buildAMachine` calls `ctx.monsterOps.toggleMonsterDormancy` after spawning).
-  However, `DFF_ACTIVATE_DORMANT_MONSTER` in `spawnDungeonFeature` is entirely absent
-  from TS — dormant monsters are placed correctly but never awakened at runtime.
-  This is a confirmed high-severity gap. See machines.md § Known TS Gaps.
+- **RESOLVED**: Are dormant monster flags implemented in TS and wired to activation?
+  Yes, fully. `MF_MONSTERS_DORMANT` placement is correct in `buildAMachine`.
+  `DFF_ACTIVATE_DORMANT_MONSTER` is implemented via `onFeatureApplied` hook in
+  `movement.ts` and `tile-effects-wiring.ts` — both closures correctly iterate
+  `dormantMonsters` and call `toggleMonsterDormancy`. Confirmed in Phase 3.
 - How many distinct blueprint types are there? Does the list fit cleanly in a checklist
   UI, or will it need grouping? (Phase 2, task 1)
 
 ## Gap List
 
-> Stub — to be expanded in Phase 3. Sourced from Phase 1 Task 6 TS verification.
-> Full details in `.context/research/machines.md` § Known TS Gaps.
+> Phase 3 complete — 2026-04-05. Full line-by-line comparison of all 6 key functions plus trigger and dormant paths.
 
 ### Systemic (affect all or many machine types)
 
 - **`evacuateCreatures` MISSING** in `spawnDungeonFeature` — blocking terrain can spawn into occupied cells during both generation and runtime
-- **`DFF_ACTIVATE_DORMANT_MONSTER` MISSING** in `spawnDungeonFeature` — dormant monsters are placed correctly but never wake at runtime; all dormant-monster machines (turrets, rats, vampires, zombies, statues, etc.) are non-functional at runtime
 - **`staleLoopMap` not set** in `fillSpawnMap` — loop-map not invalidated after terrain changes
+- **`keyOnTileAt` duplicated across 4 closures** — no single source of truth; divergence already present: `item-helper-context.ts` uses `ItemCategory.KEY` instead of `ItemFlag.ITEM_IS_KEY` and omits the monster-carried check. The primary trigger path (`tile-effects-wiring.ts`) is correct; the item-command path is wrong. Severity: Medium (maintainability + one incorrect variant).
+
+### Trigger path
+
+- **`activateMachine` → `monstersTurn` no-op in `updateEnvironment` path** — when `activateMachine` is triggered via `updateEnvironment → promoteTile → activateMachine`, the `monstersTurn` field is wired as a permanent-defer no-op in `turn-env-wiring.ts:149`. Monsters with `MONST_GETS_TURN_ON_ACTIVATION` do NOT receive their immediate activation turn from this code path. The creature-effects path (`tile-effects-wiring.ts`) is correct. Severity: Medium — affects machines where the trigger comes from `updateEnvironment` (e.g., key-missing reversal for `TM_PROMOTES_WITHOUT_KEY`).
 
 ### Runtime-only (refresh=true path; no generation-time impact)
 
@@ -116,9 +118,22 @@ game generation begins.
 - `aggravateMonsters` / `DFF_AGGRAVATES_MONSTERS` absent from `spawnDungeonFeature`
 - `colorFlash` / `createFlare` absent from `spawnDungeonFeature`
 - `message` (feature description) absent from `spawnDungeonFeature`
+- **`fadeInMonster` not called during `toggleMonsterDormancy` wakeup** — C calls `fadeInMonster` (visual flash) when a dormant monster is awakened; TS `toggleMonsterDormancy` does not call it (`fadeInMonster` not in `DormancyContext`). Severity: Low / cosmetic — monster activates correctly in all game-logic respects.
 
 ### Per-machine-type
 
 - **`DFF_RESURRECT_ALLY` MISSING** in `spawnDungeonFeature` — legendary ally shrine non-functional
 - Bullet Brogue variant check absent from `addMachines` — out of scope for current target
+
+### Resolved (Phase 3)
+
+- **`DFF_ACTIVATE_DORMANT_MONSTER`** — previously listed as MISSING / high-severity. Confirmed implemented via `onFeatureApplied` hook in `movement.ts` and `tile-effects-wiring.ts`. Both closures correctly iterate `dormantMonsters` and call `toggleMonsterDormancy`. Gap is CLOSED.
+- **`prepareInteriorWithMachineFlags`** — first-time verified in Phase 3. All 8 flag blocks present and in correct order. No gap.
+- **`redesignInterior`** — verified match confirmed in Phase 3. No gap.
+- **`addMachines` / `runAutogenerators`** — verified exact match in Phase 3 (except the known Bullet Brogue variant check, which is out of scope). No new gaps.
+- **Outer failsafe clobbered by item-gen loop (C quirk)** — C's `buildAMachine` outer retry `failsafe` variable is reused as the inner item-generation loop counter and left at 0–999 after item gen. TS uses a separate `itemFailsafe` variable; the outer retry counter is unaffected. TS behaviour is strictly more correct. Not a gap.
+
+### B128 regression check
+
+B128 (PR #124) is not a regression — turret tile placement is unchanged. B128 correctly moved dormant monsters from the `monsters` list (with `MB_IS_DORMANT`) to the `dormantMonsters` list; turrets are still placed via `MF_BUILD_IN_WALLS` in wall tiles with terrain set to `TURRET_DORMANT`.
 
