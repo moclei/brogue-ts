@@ -28,17 +28,18 @@ import { monstersFall as monstersFallFn } from "./time/creature-effects.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
 import { updateEnvironment as updateEnvironmentFn, promoteTile as promoteTileFn, activateMachine as activateMachineFn, circuitBreakersPreventActivation as circuitBreakersPreventActivationFn, exposeTileToFire as exposeTileToFireFn } from "./time/environment.js";
 import type { EnvironmentContext } from "./time/environment.js";
-import { buildMessageFns, buildRefreshDungeonCellFn } from "./io-wiring.js";
+import { buildMessageFns, buildRefreshDungeonCellFn, buildWakeUpFn, buildColorFlashFn } from "./io-wiring.js";
 import { buildUpdateFloorItemsFn } from "./items/floor-items-wiring.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
 import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machines.js";
+import type { SpawnDungeonFeatureRefreshCallbacks, FillSpawnMapRefreshCallbacks } from "./architect/machines.js";
 import { lightCatalog } from "./globals/light-catalog.js";
-import { itemMessageColor, badMessageColor, goodMessageColor, red } from "./globals/colors.js";
+import { itemMessageColor, badMessageColor, goodMessageColor, red, gray } from "./globals/colors.js";
 import { DCOLS, DROWS } from "./types/constants.js";
 import { TileFlag } from "./types/flags.js";
-import { CreatureState, DungeonLayer } from "./types/enums.js";
-import type { Creature, Pos, Color } from "./types/types.js";
+import { CreatureState, DungeonLayer, StatusEffect } from "./types/enums.js";
+import type { Creature, Item, Pos, Color } from "./types/types.js";
 import { LightType } from "./types/enums.js";
 import { coordinatesAreInMap } from "./globals/tables.js";
 import { randRange, randPercent, randClumpedRange, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "./math/rng.js";
@@ -61,6 +62,13 @@ import { INVALID_POS } from "./types/types.js";
 import { IS_IN_MACHINE, MonsterBookkeepingFlag, TerrainMechFlag, DFFlag } from "./types/flags.js";
 import { toggleMonsterDormancy } from "./monsters/monster-ops.js";
 import { buildUpdateVisionFn } from "./vision-wiring.js";
+import { buildApplyInstantTileEffectsFn } from "./tile-effects-wiring.js";
+import { aggravateMonsters as aggravateMonstersFn } from "./items/monster-spell-effects.js";
+import type { AggravateContext } from "./items/monster-spell-effects.js";
+import { alertMonster as alertMonsterFn } from "./monsters/monster-state.js";
+import { flavorMessage as flavorMessageFn } from "./io/messages.js";
+import { buildMessageContext } from "./ui.js";
+import { ANY_KIND_OF_VISIBLE } from "./types/flags.js";
 import { getQualifyingPathLocNear as getQualifyingPathLocNearFn } from "./movement/path-qualifying.js";
 import { monstersTurn as monstersTurnFn } from "./monsters/monster-actions.js";
 import { buildMonstersTurnContext } from "./turn-monster-ai.js";
@@ -134,7 +142,84 @@ export function buildUpdateEnvironmentFn(combatCtx: CombatDamageContext): () => 
             coordinatesAreInMap: (x, y) => coordinatesAreInMap(x, y),
             refreshDungeonCell,
             spawnDungeonFeature: (x, y, feat, v, o) => {
-                const spawned = spawnDungeonFeatureFn(
+                // Build runtime callbacks for refresh=true path
+                const applyInstant = buildApplyInstantTileEffectsFn();
+                const colorFlashFn = buildColorFlashFn();
+                const fillSpawnMapCbs: FillSpawnMapRefreshCallbacks = {
+                    flavorMessage: (msg: string) => {
+                        const msgCtx = buildMessageContext();
+                        flavorMessageFn(msgCtx, msg);
+                    },
+                    applyInstantTileEffectsToCreature: (monst) => applyInstant(monst as Creature),
+                    burnItem: (item) => {
+                        // Inline burn matching burnItem in creature-effects.ts
+                        const theItem = item as Item;
+                        const { x: ix, y: iy } = theItem.loc;
+                        const idx = floorItems.indexOf(theItem);
+                        if (idx >= 0) floorItems.splice(idx, 1);
+                        pmap[ix][iy].flags &= ~(TileFlag.HAS_ITEM | TileFlag.ITEM_DETECTED);
+                        if (pmap[ix]?.[iy]?.flags & (ANY_KIND_OF_VISIBLE | TileFlag.DISCOVERED | TileFlag.ITEM_DETECTED)) {
+                            refreshDungeonCell({ x: ix, y: iy });
+                        }
+                        if (pmap[ix]?.[iy]?.flags & TileFlag.VISIBLE) {
+                            const buf: string[] = [""];
+                            buf[0] = itemNameFn(theItem, false, true, namingCtx);
+                            void io.messageWithColor(`${buf[0]} burn${theItem.quantity === 1 ? "s" : ""} up!`, itemMessageColor, 0);
+                        }
+                    },
+                    playerState: {
+                        loc: player.loc,
+                        isLevitating: player.status[StatusEffect.Levitating] > 0,
+                    },
+                    monsterAtLoc: (loc: Pos) => {
+                        if (loc.x === player.loc.x && loc.y === player.loc.y) return player;
+                        for (const m of monsters) {
+                            if (m.loc.x === loc.x && m.loc.y === loc.y) return m;
+                        }
+                        return null;
+                    },
+                    itemAtLoc: (loc: Pos) => {
+                        for (const it of floorItems) {
+                            if (it.loc.x === loc.x && it.loc.y === loc.y) return it as { flags: number };
+                        }
+                        return null;
+                    },
+                    tileFlavor: () => tileCatalog[pmap[player.loc.x][player.loc.y].layers[DungeonLayer.Dungeon]]?.flavorText ?? "",
+                };
+                const aggCtx = {
+                    player,
+                    monsters,
+                    scentMap: pmap.map(col => col.map(() => 0)),
+                    getPathDistances: (_gx: number, _gy: number) => pmap.map(col => col.map(() => 0)),
+                    refreshWaypoint: () => {},
+                    wakeUp: buildWakeUpFn(player, monsters),
+                    alertMonster: (m: Creature) => alertMonsterFn(m, player),
+                    addScentToCell: () => {},
+                    setStealthRange: (r: number) => { rogue.stealthRange = r; },
+                    currentStealthRange: () => rogue.stealthRange,
+                    discover: (dx: number, dy: number) => { if (coordinatesAreInMap(dx, dy)) pmap[dx][dy].flags |= TileFlag.DISCOVERED; },
+                    discoverCell: (_dx: number, _dy: number) => {},
+                    colorFlash: colorFlashFn,
+                    playerCanSee: (px: number, py: number) => !!(pmap[px]?.[py]?.flags & TileFlag.VISIBLE),
+                    message: io.message,
+                } as AggravateContext;
+                const refreshCbs: SpawnDungeonFeatureRefreshCallbacks = {
+                    message: (msg, flags) => { void io.message(msg, flags); },
+                    playerCanSee: (px, py) => !!(pmap[px]?.[py]?.flags & TileFlag.VISIBLE),
+                    aggravateMonsters: (radius, ax, ay, color) => {
+                        void aggravateMonstersFn(radius, ax, ay, color, aggCtx);
+                    },
+                    gray,
+                    colorFlash: (color, tableRow, tileFlags, frames, radius, cx, cy) => {
+                        void colorFlashFn(color, tableRow, tileFlags, frames, radius, cx, cy);
+                    },
+                    colorFlashTileFlags: TileFlag.IN_FIELD_OF_VIEW | TileFlag.CLAIRVOYANT_VISIBLE,
+                    createFlare: (fx, fy, lightType) => {
+                        createFlareFn(fx, fy, lightType as LightType, rogue, lightCatalog);
+                    },
+                    fillSpawnMapCallbacks: fillSpawnMapCbs,
+                };
+                return spawnDungeonFeatureFn(
                     pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, v, o,
                     refreshDungeonCell,
                     (fx, fy, appliedFeat, blockingMap) => {
@@ -154,17 +239,10 @@ export function buildUpdateEnvironmentFn(combatCtx: CombatDamageContext): () => 
                             }
                         }
                     },
+                    undefined,
+                    undefined,
+                    refreshCbs,
                 );
-                if (spawned) {
-                    if (v && feat.lightFlare) {
-                        createFlareFn(x, y, feat.lightFlare as LightType, rogue, lightCatalog);
-                    }
-                    if (feat.description && !feat.messageDisplayed && (pmap[x]?.[y]?.flags & TileFlag.VISIBLE)) {
-                        void io.message(feat.description, 0);
-                        feat.messageDisplayed = true;
-                    }
-                }
-                return spawned;
             },
             monstersFall: () => monstersFallFn({
                 monsters, pmap, levels,
