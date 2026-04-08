@@ -190,11 +190,17 @@ export function activateMachine(
     );
     const activeCandidates = ctx.monsters.filter(isActivationMonster);
     const dormantCandidates = (ctx.dormantMonsters ?? []).filter(isActivationMonster);
+    const anyMachineHomeMatches = ctx.monsters.filter((monst) => monst.machineHome === machineNumber);
+    const anyActivationFlag = ctx.monsters.filter(
+        (monst) => !!(monst.info.flags & MonsterBehaviorFlag.MONST_GETS_TURN_ON_ACTIVATION),
+    );
     b131Log("activateMachine candidate scan", {
         machineNumber,
         depthLevel: ctx.rogue.depthLevel,
         activeCount: activeCandidates.length,
         dormantCount: dormantCandidates.length,
+        machineHomeMatchCount: anyMachineHomeMatches.length,
+        activationFlagCount: anyActivationFlag.length,
         activeMonsters: activeCandidates.map((m) => ({
             name: m.info.monsterName,
             loc: m.loc,
@@ -208,6 +214,20 @@ export function activateMachine(
             machineHome: m.machineHome,
             spawnDepth: m.spawnDepth,
             bookkeepingFlags: m.bookkeepingFlags,
+        })),
+        machineHomeMatches: anyMachineHomeMatches.map((m) => ({
+            name: m.info.monsterName,
+            loc: m.loc,
+            machineHome: m.machineHome,
+            spawnDepth: m.spawnDepth,
+            hasActivationFlag: !!(m.info.flags & MonsterBehaviorFlag.MONST_GETS_TURN_ON_ACTIVATION),
+        })),
+        activationFlagMonsters: anyActivationFlag.map((m) => ({
+            name: m.info.monsterName,
+            loc: m.loc,
+            machineHome: m.machineHome,
+            spawnDepth: m.spawnDepth,
+            matchesMachine: m.machineHome === machineNumber,
         })),
     });
 

@@ -81,9 +81,16 @@
       NO GAP — full chain verified faithful: tile flags, DF catalog entries, monster catalog, and
       activateMachine→monstersTurn wiring all match C. Guardian takes one step (not teleport) when
       glyph fires; "teleport" in task description was a mischaracterization of C behavior.
-- [ ] Verify arrow turret room after systemic fixes: turrets should remain dormant until lever
+- [x] Verify arrow turret room after systemic fixes: turrets should remain dormant until lever
       trigger, then activate and take an immediate turn. Depends on dormant activation and
       `monstersTurn` fixes above.
+      NO GAP — full chain verified faithful: TURRET_DORMANT tile (TM_IS_WIRED + DF_TURRET_EMERGE),
+      TURRET_LEVER tile (TM_PROMOTES_ON_PLAYER_ENTRY + DF_TURRET_LEVER), DF_TURRET_EMERGE catalog
+      entry (DFF_ACTIVATE_DORMANT_MONSTER), DF_TURRET_LEVER catalog entry
+      (DFF_ACTIVATE_DORMANT_MONSTER), MONST_TURRET flag set, toggleMonsterDormancy (ticksUntilTurn=200),
+      and dormant-activation wiring in turn-env-wiring.ts all match C. Turrets do NOT get an immediate
+      turn via MONST_GETS_TURN_ON_ACTIVATION (that flag is guardians/totems only); they wake with
+      ticksUntilTurn=200 and fire on their next regular turn — C-faithful.
 - [ ] Verify dormant statue vault after systemic fixes: monster should appear when statue
       shatters. Depends on dormant activation fix above.
 
