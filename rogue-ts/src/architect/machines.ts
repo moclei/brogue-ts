@@ -969,6 +969,61 @@ export function fillSpawnMap(
 }
 
 /**
+ * Minimal creature interface needed for evacuateCreatures.
+ * Structurally compatible with the full `Creature` type from types.ts.
+ */
+export interface EvacuateCreature {
+    loc: Pos;
+    /** True if this creature is the player. */
+    isPlayer: boolean;
+    /** Forbidden terrain flags for pathfinding (from forbiddenFlagsForMonster). */
+    forbiddenTerrainFlags: number;
+}
+
+/**
+ * Displace any creature (monster or player) occupying a cell that is marked in
+ * blockingMap, before terrain is written.
+ *
+ * C equivalent: `evacuateCreatures(blockingMap)` in Architect.c line 3332
+ *
+ * @param pmap        - The dungeon cell grid (updated in place)
+ * @param blockingMap - Cells scheduled to receive new terrain
+ * @param creatures   - All creatures to check (monsters + player)
+ * @param getQualifyingLocNear - Find a nearby passable cell
+ */
+export function evacuateCreatures(
+    pmap: Pcell[][],
+    blockingMap: Grid,
+    creatures: EvacuateCreature[],
+    getQualifyingLocNear: (
+        pos: Pos,
+        blockingMap: Grid,
+        forbiddenTerrainFlags: number,
+        forbiddenMapFlags: number,
+    ) => Pos | null,
+): void {
+    const forbiddenMapFlags = TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER;
+    for (const creature of creatures) {
+        const { x, y } = creature.loc;
+        if (blockingMap[x][y] && (pmap[x][y].flags & forbiddenMapFlags)) {
+            const newLoc = getQualifyingLocNear(
+                creature.loc,
+                blockingMap,
+                creature.forbiddenTerrainFlags,
+                forbiddenMapFlags,
+            );
+            if (newLoc) {
+                pmap[x][y].flags &= ~forbiddenMapFlags;
+                creature.loc = newLoc;
+                pmap[newLoc.x][newLoc.y].flags |= creature.isPlayer
+                    ? TileFlag.HAS_PLAYER
+                    : TileFlag.HAS_MONSTER;
+            }
+        }
+    }
+}
+
+/**
  * Spawn a dungeon feature at the given location.
  * Simplified version for dungeon generation (refreshCell=false path).
  *
@@ -988,6 +1043,7 @@ export function spawnDungeonFeature(
     abortIfBlocking: boolean,
     refreshDungeonCell?: (loc: Pos) => void,
     onFeatureApplied?: (x: number, y: number, feat: DungeonFeature, blockingMap: Grid) => void,
+    evacuateCreaturesFn?: (blockingMap: Grid) => void,
 ): boolean {
     const blockingMap = allocGrid();
     fillGrid(blockingMap, 0);
@@ -1019,6 +1075,10 @@ export function spawnDungeonFeature(
             );
 
             if (!blocking || !levelIsDisconnectedWithBlockingMap(pmap, blockingMap, false)) {
+                // C: Architect.c:3399 — evacuate creatures before filling terrain
+                if ((feat.flags & DFFlag.DFF_EVACUATE_CREATURES_FIRST) && evacuateCreaturesFn) {
+                    evacuateCreaturesFn(blockingMap);
+                }
                 fillSpawnMap(
                     pmap,
                     tCatalog,
@@ -1038,6 +1098,10 @@ export function spawnDungeonFeature(
     } else {
         blockingMap[x][y] = 1;
         succeeded = true;
+        // C: Architect.c:3418 — evacuate creatures in the no-tile path too
+        if ((feat.flags & DFFlag.DFF_EVACUATE_CREATURES_FIRST) && evacuateCreaturesFn) {
+            evacuateCreaturesFn(blockingMap);
+        }
     }
 
     if (succeeded && (feat.flags & (DFFlag.DFF_CLEAR_LOWER_PRIORITY_TERRAIN | DFFlag.DFF_CLEAR_OTHER_TERRAIN))) {
@@ -1076,6 +1140,7 @@ export function spawnDungeonFeature(
                             abortIfBlocking,
                             refreshDungeonCell,
                             onFeatureApplied,
+                            evacuateCreaturesFn,
                         );
                     }
                 }
@@ -1092,6 +1157,7 @@ export function spawnDungeonFeature(
                 abortIfBlocking,
                 refreshDungeonCell,
                 onFeatureApplied,
+                evacuateCreaturesFn,
             );
         }
     }

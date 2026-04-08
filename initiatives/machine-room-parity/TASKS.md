@@ -63,7 +63,7 @@
       (`turn-env-wiring.ts:149`): wire `monstersTurn` using the same pattern as
       `tile-effects-wiring.ts`. Affects machines where trigger comes via `updateEnvironment`
       (e.g. key-missing reversal `TM_PROMOTES_WITHOUT_KEY`).
-- [ ] Implement `evacuateCreatures` in `spawnDungeonFeature`: before applying blocking terrain,
+- [x] Implement `evacuateCreatures` in `spawnDungeonFeature`: before applying blocking terrain,
       displace any creature occupying a target cell. C ref: `Architect.c evacuateCreatures`.
 - [ ] Fix `staleLoopMap` not set in `fillSpawnMap`: after writing a pathfinding-blocking tile,
       set `ctx.rogue.staleLoopMap = true`. C ref: `Architect.c fillSpawnMap`.

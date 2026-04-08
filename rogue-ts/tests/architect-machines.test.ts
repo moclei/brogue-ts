@@ -14,10 +14,12 @@ import {
     spawnMapDF,
     fillSpawnMap,
     spawnDungeonFeature,
+    evacuateCreatures,
     addLocationToKey,
     addMachineNumberToKey,
     itemIsADuplicate,
     type MachineItem,
+    type EvacuateCreature,
 } from "../src/architect/machines.js";
 import { TileType, DungeonLayer, DungeonFeatureType } from "../src/types/enums.js";
 import { DCOLS, DROWS, NUMBER_TERRAIN_LAYERS } from "../src/types/constants.js";
@@ -749,6 +751,210 @@ describe("spawnDungeonFeature", () => {
         expect(result).toBe(true);
         expect(pmap[10][10].layers[DungeonLayer.Gas]).toBe(TileType.POISON_GAS);
         expect(pmap[10][10].volume).toBe(50);
+    });
+});
+
+// =============================================================================
+// Tests: evacuateCreatures
+// =============================================================================
+
+describe("evacuateCreatures", () => {
+    let pmap: Pcell[][];
+
+    beforeEach(() => {
+        pmap = makePmap();
+        carveRoom(pmap, 5, 5, 25, 20);
+    });
+
+    /**
+     * Simple getQualifyingLocNear stub: returns the first cell not in
+     * blockingMap that has no HAS_MONSTER or HAS_PLAYER flag.
+     */
+    function makeGetQualifyingLocNear(pmapRef: Pcell[][]) {
+        return (
+            pos: { x: number; y: number },
+            blockingMap: Grid,
+            _forbiddenTerrainFlags: number,
+            forbiddenMapFlags: number,
+        ) => {
+            for (let i = 0; i < DCOLS; i++) {
+                for (let j = 0; j < DROWS; j++) {
+                    if (
+                        !blockingMap[i][j]
+                        && !(pmapRef[i][j].flags & forbiddenMapFlags)
+                    ) {
+                        return { x: i, y: j };
+                    }
+                }
+            }
+            return null;
+        };
+    }
+
+    it("relocates a monster from a blocked cell", () => {
+        // Place a monster at (10, 10)
+        pmap[10][10].flags |= TileFlag.HAS_MONSTER;
+        const creature: EvacuateCreature = {
+            loc: { x: 10, y: 10 },
+            isPlayer: false,
+            forbiddenTerrainFlags: 0,
+        };
+
+        const blockingMap = allocGrid();
+        fillGrid(blockingMap, 0);
+        blockingMap[10][10] = 1;
+
+        evacuateCreatures(pmap, blockingMap, [creature], makeGetQualifyingLocNear(pmap));
+
+        // Creature should have moved away from (10,10)
+        expect(creature.loc.x !== 10 || creature.loc.y !== 10).toBe(true);
+        // Old cell should no longer have HAS_MONSTER
+        expect(pmap[10][10].flags & TileFlag.HAS_MONSTER).toBe(0);
+        // New cell should have HAS_MONSTER
+        expect(pmap[creature.loc.x][creature.loc.y].flags & TileFlag.HAS_MONSTER).not.toBe(0);
+    });
+
+    it("relocates the player from a blocked cell", () => {
+        pmap[12][12].flags |= TileFlag.HAS_PLAYER;
+        const player: EvacuateCreature = {
+            loc: { x: 12, y: 12 },
+            isPlayer: true,
+            forbiddenTerrainFlags: 0,
+        };
+
+        const blockingMap = allocGrid();
+        fillGrid(blockingMap, 0);
+        blockingMap[12][12] = 1;
+
+        evacuateCreatures(pmap, blockingMap, [player], makeGetQualifyingLocNear(pmap));
+
+        expect(player.loc.x !== 12 || player.loc.y !== 12).toBe(true);
+        expect(pmap[12][12].flags & TileFlag.HAS_PLAYER).toBe(0);
+        expect(pmap[player.loc.x][player.loc.y].flags & TileFlag.HAS_PLAYER).not.toBe(0);
+    });
+
+    it("does not move a creature not in the blocking map", () => {
+        pmap[10][10].flags |= TileFlag.HAS_MONSTER;
+        const creature: EvacuateCreature = {
+            loc: { x: 10, y: 10 },
+            isPlayer: false,
+            forbiddenTerrainFlags: 0,
+        };
+
+        const blockingMap = allocGrid();
+        fillGrid(blockingMap, 0);
+        // blockingMap[10][10] is 0 — creature should NOT move
+
+        evacuateCreatures(pmap, blockingMap, [creature], makeGetQualifyingLocNear(pmap));
+
+        expect(creature.loc).toEqual({ x: 10, y: 10 });
+        expect(pmap[10][10].flags & TileFlag.HAS_MONSTER).not.toBe(0);
+    });
+});
+
+describe("spawnDungeonFeature with DFF_EVACUATE_CREATURES_FIRST", () => {
+    let pmap: Pcell[][];
+
+    beforeEach(() => {
+        seedRandomGenerator(12345n);
+        pmap = makePmap();
+        carveRoom(pmap, 5, 5, 25, 20);
+    });
+
+    it("calls evacuateCreaturesFn before writing terrain when flag is set", () => {
+        let evacuateCalled = false;
+        const evacuateCreaturesFn = (_blockingMap: Grid) => {
+            evacuateCalled = true;
+        };
+
+        const feat: DungeonFeature = {
+            tile: TileType.TORCH_WALL,
+            layer: DungeonLayer.Surface,
+            startProbability: 100,
+            probabilityDecrement: 100,
+            flags: DFFlag.DFF_EVACUATE_CREATURES_FIRST,
+            description: "",
+            lightFlare: 0 as any,
+            flashColor: null,
+            effectRadius: 0,
+            propagationTerrain: 0 as any,
+            subsequentDF: 0 as any,
+            messageDisplayed: false,
+        };
+
+        const emptyFeatureCatalog: DungeonFeature[] = [feat];
+
+        spawnDungeonFeature(
+            pmap, tileCatalog, emptyFeatureCatalog,
+            10, 10, feat, false, false,
+            undefined, undefined, evacuateCreaturesFn,
+        );
+
+        expect(evacuateCalled).toBe(true);
+    });
+
+    it("does not call evacuateCreaturesFn when flag is absent", () => {
+        let evacuateCalled = false;
+        const evacuateCreaturesFn = (_blockingMap: Grid) => {
+            evacuateCalled = true;
+        };
+
+        const feat: DungeonFeature = {
+            tile: TileType.TORCH_WALL,
+            layer: DungeonLayer.Surface,
+            startProbability: 100,
+            probabilityDecrement: 100,
+            flags: 0, // no DFF_EVACUATE_CREATURES_FIRST
+            description: "",
+            lightFlare: 0 as any,
+            flashColor: null,
+            effectRadius: 0,
+            propagationTerrain: 0 as any,
+            subsequentDF: 0 as any,
+            messageDisplayed: false,
+        };
+
+        const emptyFeatureCatalog: DungeonFeature[] = [feat];
+
+        spawnDungeonFeature(
+            pmap, tileCatalog, emptyFeatureCatalog,
+            10, 10, feat, false, false,
+            undefined, undefined, evacuateCreaturesFn,
+        );
+
+        expect(evacuateCalled).toBe(false);
+    });
+
+    it("calls evacuateCreaturesFn in no-tile path", () => {
+        let evacuateCalled = false;
+        const evacuateCreaturesFn = (_blockingMap: Grid) => {
+            evacuateCalled = true;
+        };
+
+        const feat: DungeonFeature = {
+            tile: 0 as any, // no-tile path
+            layer: DungeonLayer.Dungeon,
+            startProbability: 0,
+            probabilityDecrement: 0,
+            flags: DFFlag.DFF_EVACUATE_CREATURES_FIRST,
+            description: "",
+            lightFlare: 0 as any,
+            flashColor: null,
+            effectRadius: 0,
+            propagationTerrain: 0 as any,
+            subsequentDF: 0 as any,
+            messageDisplayed: false,
+        };
+
+        const emptyFeatureCatalog: DungeonFeature[] = [feat];
+
+        spawnDungeonFeature(
+            pmap, tileCatalog, emptyFeatureCatalog,
+            10, 10, feat, false, false,
+            undefined, undefined, evacuateCreaturesFn,
+        );
+
+        expect(evacuateCalled).toBe(true);
     });
 });
 
