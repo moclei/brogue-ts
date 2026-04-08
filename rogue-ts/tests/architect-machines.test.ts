@@ -1010,6 +1010,151 @@ describe("spawnDungeonFeature with DFF_EVACUATE_CREATURES_FIRST", () => {
 });
 
 // =============================================================================
+// Tests: spawnDungeonFeature with DFF_RESURRECT_ALLY
+// =============================================================================
+
+describe("spawnDungeonFeature with DFF_RESURRECT_ALLY", () => {
+    let pmap: Pcell[][];
+
+    beforeEach(() => {
+        seedRandomGenerator(12345n);
+        pmap = makePmap();
+        carveRoom(pmap, 5, 5, 25, 20);
+    });
+
+    it("returns false when DFF_RESURRECT_ALLY is set and resurrectAllyFn returns false", () => {
+        const resurrectAllyFn = (_x: number, _y: number) => false;
+
+        const feat: DungeonFeature = {
+            tile: 0 as any, // no-tile path
+            layer: DungeonLayer.Dungeon,
+            startProbability: 0,
+            probabilityDecrement: 0,
+            flags: DFFlag.DFF_RESURRECT_ALLY,
+            description: "",
+            lightFlare: 0 as any,
+            flashColor: null,
+            effectRadius: 0,
+            propagationTerrain: 0 as any,
+            subsequentDF: 0 as any,
+            messageDisplayed: false,
+        };
+
+        const emptyFeatureCatalog: DungeonFeature[] = [feat];
+
+        const result = spawnDungeonFeature(
+            pmap, tileCatalog, emptyFeatureCatalog,
+            10, 10, feat, false, false,
+            undefined, undefined, undefined, resurrectAllyFn,
+        );
+
+        expect(result).toBe(false);
+    });
+
+    it("continues and returns true when DFF_RESURRECT_ALLY is set and resurrectAllyFn returns true", () => {
+        let resurrectCalled = false;
+        let resurrectCalledX = -1;
+        let resurrectCalledY = -1;
+        const resurrectAllyFn = (x: number, y: number) => {
+            resurrectCalled = true;
+            resurrectCalledX = x;
+            resurrectCalledY = y;
+            return true;
+        };
+
+        const feat: DungeonFeature = {
+            tile: 0 as any, // no-tile path
+            layer: DungeonLayer.Dungeon,
+            startProbability: 0,
+            probabilityDecrement: 0,
+            flags: DFFlag.DFF_RESURRECT_ALLY,
+            description: "",
+            lightFlare: 0 as any,
+            flashColor: null,
+            effectRadius: 0,
+            propagationTerrain: 0 as any,
+            subsequentDF: 0 as any,
+            messageDisplayed: false,
+        };
+
+        const emptyFeatureCatalog: DungeonFeature[] = [feat];
+
+        const result = spawnDungeonFeature(
+            pmap, tileCatalog, emptyFeatureCatalog,
+            10, 10, feat, false, false,
+            undefined, undefined, undefined, resurrectAllyFn,
+        );
+
+        expect(result).toBe(true);
+        expect(resurrectCalled).toBe(true);
+        expect(resurrectCalledX).toBe(10);
+        expect(resurrectCalledY).toBe(10);
+    });
+
+    it("skips resurrectAllyFn when DFF_RESURRECT_ALLY flag is absent", () => {
+        let resurrectCalled = false;
+        const resurrectAllyFn = (_x: number, _y: number) => {
+            resurrectCalled = true;
+            return true;
+        };
+
+        const feat: DungeonFeature = {
+            tile: 0 as any,
+            layer: DungeonLayer.Dungeon,
+            startProbability: 0,
+            probabilityDecrement: 0,
+            flags: 0, // no DFF_RESURRECT_ALLY
+            description: "",
+            lightFlare: 0 as any,
+            flashColor: null,
+            effectRadius: 0,
+            propagationTerrain: 0 as any,
+            subsequentDF: 0 as any,
+            messageDisplayed: false,
+        };
+
+        const emptyFeatureCatalog: DungeonFeature[] = [feat];
+
+        spawnDungeonFeature(
+            pmap, tileCatalog, emptyFeatureCatalog,
+            10, 10, feat, false, false,
+            undefined, undefined, undefined, resurrectAllyFn,
+        );
+
+        expect(resurrectCalled).toBe(false);
+    });
+
+    it("proceeds when DFF_RESURRECT_ALLY is set but no resurrectAllyFn provided", () => {
+        // Without a resurrectAllyFn, the check is skipped (purgatory not available in this context).
+        // The feature should still attempt to spawn normally.
+        const feat: DungeonFeature = {
+            tile: 0 as any,
+            layer: DungeonLayer.Dungeon,
+            startProbability: 0,
+            probabilityDecrement: 0,
+            flags: DFFlag.DFF_RESURRECT_ALLY,
+            description: "",
+            lightFlare: 0 as any,
+            flashColor: null,
+            effectRadius: 0,
+            propagationTerrain: 0 as any,
+            subsequentDF: 0 as any,
+            messageDisplayed: false,
+        };
+
+        const emptyFeatureCatalog: DungeonFeature[] = [feat];
+
+        // Should not throw; returns true (no-tile path succeeds by default)
+        const result = spawnDungeonFeature(
+            pmap, tileCatalog, emptyFeatureCatalog,
+            10, 10, feat, false, false,
+        );
+
+        expect(result).toBe(true);
+    });
+});
+
+// =============================================================================
 // Tests: fillInteriorForVestibuleMachine
 // =============================================================================
 

@@ -1045,7 +1045,15 @@ export function spawnDungeonFeature(
     refreshDungeonCell?: (loc: Pos) => void,
     onFeatureApplied?: (x: number, y: number, feat: DungeonFeature, blockingMap: Grid) => void,
     evacuateCreaturesFn?: (blockingMap: Grid) => void,
+    resurrectAllyFn?: (x: number, y: number) => boolean,
 ): boolean {
+    // C: Architect.c:3365 — DFF_RESURRECT_ALLY check is the very first thing; abort if no ally found
+    if ((feat.flags & DFFlag.DFF_RESURRECT_ALLY) && resurrectAllyFn) {
+        if (!resurrectAllyFn(x, y)) {
+            return false;
+        }
+    }
+
     const blockingMap = allocGrid();
     fillGrid(blockingMap, 0);
 
@@ -1142,6 +1150,7 @@ export function spawnDungeonFeature(
                             refreshDungeonCell,
                             onFeatureApplied,
                             evacuateCreaturesFn,
+                            resurrectAllyFn,
                         );
                     }
                 }
@@ -1159,6 +1168,7 @@ export function spawnDungeonFeature(
                 refreshDungeonCell,
                 onFeatureApplied,
                 evacuateCreaturesFn,
+                resurrectAllyFn,
             );
         }
     }

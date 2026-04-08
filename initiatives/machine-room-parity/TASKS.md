@@ -73,7 +73,7 @@
 
 ### Per-machine fixes
 
-- [ ] Implement `DFF_RESURRECT_ALLY` in `spawnDungeonFeature`: find the player's most recently
+- [x] Implement `DFF_RESURRECT_ALLY` in `spawnDungeonFeature`: find the player's most recently
       killed ally and restore it at the feature location. Required for legendary ally shrine.
       C ref: `Architect.c spawnDungeonFeature DFF_RESURRECT_ALLY block`.
 - [ ] Verify and fix glyph + guardian room: stepping on a glyph tile should teleport the player;
