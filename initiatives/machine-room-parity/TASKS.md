@@ -91,8 +91,17 @@
       and dormant-activation wiring in turn-env-wiring.ts all match C. Turrets do NOT get an immediate
       turn via MONST_GETS_TURN_ON_ACTIVATION (that flag is guardians/totems only); they wake with
       ticksUntilTurn=200 and fire on their next regular turn — C-faithful.
-- [ ] Verify dormant statue vault after systemic fixes: monster should appear when statue
+- [x] Verify dormant statue vault after systemic fixes: monster should appear when statue
       shatters. Depends on dormant activation fix above.
+      NO GAP — full chain verified faithful: STATUE_DORMANT tile (TM_IS_WIRED + DF_CRACKING_STATUE),
+      STATUE_CRACKING tile (promoteChance=3500 + DF_STATUE_SHATTER), STATUE_INSTACRACK tile
+      (TM_IS_WIRED + DF_STATUE_SHATTER direct), DF_CRACKING_STATUE (entry 187) and
+      DF_STATUE_SHATTER (entry 188, DFF_ACTIVATE_DORMANT_MONSTER, no DFF_EVACUATE_CREATURES_FIRST
+      — correct, C does not set it for statues), onFeatureApplied dormant-activation wired in
+      turn-env-wiring.ts (lines 140-156), toggleMonsterDormancy called with dormancyCtx.
+      Activation path: activateMachine → promoteTile(STATUE_DORMANT) → DF_CRACKING_STATUE →
+      tile becomes STATUE_CRACKING → subsequent turns random promote → DF_STATUE_SHATTER →
+      DFF_ACTIVATE_DORMANT_MONSTER → toggleMonsterDormancy. All C-faithful.
 
 ### Cosmetic / low-priority
 
