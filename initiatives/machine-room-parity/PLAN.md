@@ -75,6 +75,19 @@ Selecting a group opens a per-blueprint toggle list ([ ] / [x] prefix, letter ho
 The tool modifies blueprint `frequency` and `depthRange[0]` values in-memory before
 game generation begins.
 
+## Technical Notes (Phase 4)
+
+### Rat trap "no rats" root cause (confirmed 2026-04-07)
+
+The dormant activation `onFeatureApplied` callback is correctly propagated through `subsequentDF`
+chains inside `spawnDungeonFeature`. The bug is in `turn-env-wiring.ts`: the `spawnDungeonFeature`
+closure passes no `onFeatureApplied` callback. When `activateMachine → promoteTile →
+ctx.spawnDungeonFeature` fires `DF_WALL_SHATTER` (which carries `DFF_ACTIVATE_DORMANT_MONSTER`),
+there is no handler to iterate `dormantMonsters`. Fix: wire the identical `onFeatureApplied`
+pattern from `tile-effects-wiring.ts:178` into the `turn-env-wiring.ts` closure, using
+`dormantMonsters` from `getGameState()`. This also covers turrets, statues, and any other
+dormant-monster machine whose activation comes via the `updateEnvironment` path.
+
 ## Rejected Approaches
 
 - Force-spawn specific blueprints: bypasses `blueprintQualifies`, could produce

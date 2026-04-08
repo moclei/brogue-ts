@@ -49,17 +49,48 @@
 
 ## Phase 4: Fixes
 
-*Tasks below are provisional — refine after Phase 3 gap list is complete.*
+*Revised after Phase 3 gap analysis and rat trap playtesting (2026-04-07).*
 
-- [ ] Implement `evacuateCreatures` (systemic: affects all machines with terrain spawning)
-- [ ] Fix the key-pickup → machine-trigger mechanism (systemic: affects all key-gated machines)
-- [ ] Fix dormant monster activation (systemic: affects guardian, statue, rat, turret rooms)
-- [ ] Fix glyph + guardian room: guardian spawn and teleport-on-glyph-step behavior
-- [ ] Fix rat trap room: batched wall shattering sequence and rat spawning
-- [ ] Fix arrow turret room: dormant-until-key behavior; correct tile placement
-      (includes assessing and potentially reverting B128 regression)
-- [ ] Fix dormant statue vault: monster revealed correctly on statue shatter
-- [ ] Address any remaining per-machine gaps from the Phase 3 gap list
+### Systemic fixes
+
+- [ ] Fix dormant activation missing from `turn-env-wiring.ts` `spawnDungeonFeature` closure:
+      add the same `onFeatureApplied` dormant-activation callback used in `tile-effects-wiring.ts`
+      (line 178) and `movement.ts` (line 248). Wire `dormantMonsters` from `getGameState()`.
+      Root cause of rat trap "no rats" bug — `DF_WALL_SHATTER` (`DFF_ACTIVATE_DORMANT_MONSTER`)
+      is called via `promoteTile → ctx.spawnDungeonFeature` in the `updateEnvironment` path,
+      which currently has no handler for that flag.
+- [ ] Fix `activateMachine → monstersTurn` no-op in `updateEnvironment` path
+      (`turn-env-wiring.ts:149`): wire `monstersTurn` using the same pattern as
+      `tile-effects-wiring.ts`. Affects machines where trigger comes via `updateEnvironment`
+      (e.g. key-missing reversal `TM_PROMOTES_WITHOUT_KEY`).
+- [ ] Implement `evacuateCreatures` in `spawnDungeonFeature`: before applying blocking terrain,
+      displace any creature occupying a target cell. C ref: `Architect.c evacuateCreatures`.
+- [ ] Fix `staleLoopMap` not set in `fillSpawnMap`: after writing a pathfinding-blocking tile,
+      set `ctx.rogue.staleLoopMap = true`. C ref: `Architect.c fillSpawnMap`.
+- [ ] Fix `keyOnTileAt` duplication: consolidate the 4 closures to a shared helper and fix
+      `item-helper-context.ts` variant which uses `ItemCategory.KEY` instead of
+      `ItemFlag.ITEM_IS_KEY` and omits the monster-carried item check.
+
+### Per-machine fixes
+
+- [ ] Implement `DFF_RESURRECT_ALLY` in `spawnDungeonFeature`: find the player's most recently
+      killed ally and restore it at the feature location. Required for legendary ally shrine.
+      C ref: `Architect.c spawnDungeonFeature DFF_RESURRECT_ALLY block`.
+- [ ] Verify and fix glyph + guardian room: stepping on a glyph tile should teleport the player;
+      trace `DF_GUARDIAN_STEP` / `DF_INACTIVE_GLYPH` / `DF_ACTIVE_GLYPH` feature chain in TS vs C.
+- [ ] Verify arrow turret room after systemic fixes: turrets should remain dormant until lever
+      trigger, then activate and take an immediate turn. Depends on dormant activation and
+      `monstersTurn` fixes above.
+- [ ] Verify dormant statue vault after systemic fixes: monster should appear when statue
+      shatters. Depends on dormant activation fix above.
+
+### Cosmetic / low-priority
+
+- [ ] Runtime-only gaps batch: `applyInstantTileEffectsToCreature`, `burnItem`, `flavorMessage`
+      (fillSpawnMap); `aggravateMonsters`/`DFF_AGGRAVATES_MONSTERS`, `colorFlash`/`createFlare`,
+      feature description `message` (spawnDungeonFeature). No generation-time impact.
+- [ ] Add `fadeInMonster` to `toggleMonsterDormancy` wakeup: wire into `DormancyContext`;
+      cosmetic only.
 
 # --- handoff point ---
 
