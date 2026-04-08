@@ -27,6 +27,7 @@ import {
     TerrainMechFlag,
     MonsterBehaviorFlag,
     MonsterBookkeepingFlag,
+    DFFlag,
 } from "../../src/types/flags.js";
 import type { Creature, Pcell, Pos, Item, Color, LevelData, FloorTileType, DungeonFeature } from "../../src/types/types.js";
 import { CreatureState } from "../../src/types/enums.js";
@@ -774,5 +775,95 @@ describe("B22 regression — spawnDungeonFeature calls refreshDungeonCell when r
 
         expect(pmap[3][4].layers[DungeonLayer.Dungeon]).toBe(10);
         expect(refreshSpy).not.toHaveBeenCalled();
+    });
+});
+
+// =============================================================================
+// turn-env-wiring dormant activation — onFeatureApplied callback
+// Root cause fix: turn-env-wiring.ts spawnDungeonFeature closure was missing
+// the onFeatureApplied callback, so DFF_ACTIVATE_DORMANT_MONSTER was silently
+// ignored (rat trap "no rats" bug). Verify spawnDungeonFeature fires the
+// callback when DFF_ACTIVATE_DORMANT_MONSTER is set.
+// =============================================================================
+
+describe("spawnDungeonFeature — onFeatureApplied fires for DFF_ACTIVATE_DORMANT_MONSTER", () => {
+    function makeMinimalPmap2(dcols: number, drows: number): Pcell[][] {
+        const pmap: Pcell[][] = [];
+        for (let x = 0; x < dcols; x++) {
+            pmap[x] = [];
+            for (let y = 0; y < drows; y++) {
+                pmap[x][y] = makeCell();
+            }
+        }
+        return pmap;
+    }
+
+    function makeMinimalTileCatalog2(tileCount: number): FloorTileType[] {
+        return Array.from({ length: tileCount }, () => ({
+            displayChar: 0,
+            foreColor: dummyColor,
+            backColor: dummyColor,
+            drawPriority: 50,
+            chanceToIgnite: 0,
+            fireType: 0,
+            discoverType: 0,
+            promoteType: 0,
+            promoteChance: 0,
+            glowLight: 0 as any,
+            flags: 0,
+            mechFlags: 0,
+            description: "tile",
+            flavorText: "you see a tile.",
+        }));
+    }
+
+    it("fires onFeatureApplied with the feature when DFF_ACTIVATE_DORMANT_MONSTER is set", () => {
+        const DCOLS = 10, DROWS = 10;
+        const pmap = makeMinimalPmap2(DCOLS, DROWS);
+        const tileCatalog = makeMinimalTileCatalog2(20);
+        pmap[3][4].layers[DungeonLayer.Dungeon] = 5;
+
+        const feat: DungeonFeature = {
+            tile: 10,
+            layer: DungeonLayer.Dungeon,
+            startProbability: 0,
+            probabilityDecrement: 0,
+            flags: DFFlag.DFF_ACTIVATE_DORMANT_MONSTER,
+            propagationTerrain: 0,
+            subsequentDF: 0,
+        } as unknown as DungeonFeature;
+
+        const callbackSpy = vi.fn();
+        spawnDungeonFeature(pmap, tileCatalog, [], 3, 4, feat, false, false, undefined, callbackSpy);
+
+        expect(callbackSpy).toHaveBeenCalledOnce();
+        const [fx, fy, appliedFeat] = callbackSpy.mock.calls[0];
+        expect(fx).toBe(3);
+        expect(fy).toBe(4);
+        expect(appliedFeat.flags & DFFlag.DFF_ACTIVATE_DORMANT_MONSTER).toBeTruthy();
+    });
+
+    it("fires onFeatureApplied even when DFF_ACTIVATE_DORMANT_MONSTER is not set (caller checks the flag inside the callback)", () => {
+        const DCOLS = 10, DROWS = 10;
+        const pmap = makeMinimalPmap2(DCOLS, DROWS);
+        const tileCatalog = makeMinimalTileCatalog2(20);
+        pmap[3][4].layers[DungeonLayer.Dungeon] = 5;
+
+        const feat: DungeonFeature = {
+            tile: 10,
+            layer: DungeonLayer.Dungeon,
+            startProbability: 0,
+            probabilityDecrement: 0,
+            flags: 0,
+            propagationTerrain: 0,
+            subsequentDF: 0,
+        } as unknown as DungeonFeature;
+
+        const callbackSpy = vi.fn();
+        spawnDungeonFeature(pmap, tileCatalog, [], 3, 4, feat, false, false, undefined, callbackSpy);
+
+        // spawnDungeonFeature fires onFeatureApplied unconditionally on success.
+        // The wiring callback (turn-env-wiring/tile-effects-wiring) checks the flag inside.
+        expect(callbackSpy).toHaveBeenCalledOnce();
     });
 });

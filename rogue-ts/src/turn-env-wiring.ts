@@ -58,7 +58,10 @@ import { getFOVMask as getFOVMaskFn } from "./light/fov.js";
 import { forbiddenFlagsForMonster as forbiddenFlagsForMonsterFn, avoidedFlagsForMonster as avoidedFlagsForMonsterFn } from "./monsters/monster-spawning.js";
 import { startLevel as startLevelFn } from "./lifecycle.js";
 import { INVALID_POS } from "./types/types.js";
-import { IS_IN_MACHINE, MonsterBookkeepingFlag, TerrainMechFlag } from "./types/flags.js";
+import { IS_IN_MACHINE, MonsterBookkeepingFlag, TerrainMechFlag, DFFlag } from "./types/flags.js";
+import { toggleMonsterDormancy } from "./monsters/monster-ops.js";
+import { buildUpdateVisionFn } from "./vision-wiring.js";
+import { getQualifyingPathLocNear as getQualifyingPathLocNearFn } from "./movement/path-qualifying.js";
 
 // =============================================================================
 // buildUpdateEnvironmentFn
@@ -69,7 +72,7 @@ import { IS_IN_MACHINE, MonsterBookkeepingFlag, TerrainMechFlag } from "./types/
 export function buildUpdateEnvironmentFn(combatCtx: CombatDamageContext): () => void {
     return function updateEnvironment() {
         const {
-            player, rogue, monsters, pmap, levels, floorItems, packItems,
+            player, rogue, monsters, dormantMonsters, pmap, levels, floorItems, packItems,
             gameConst, mutableScrollTable, mutablePotionTable,
         } = getGameState();
 
@@ -87,6 +90,22 @@ export function buildUpdateEnvironmentFn(combatCtx: CombatDamageContext): () => 
             charmTable: charmTable as unknown as ItemTable[],
             playbackOmniscience: rogue.playbackOmniscience,
             monsterClassName: (_classId: number) => "creature",
+        };
+
+        const updateVision = buildUpdateVisionFn();
+        const cellHasTerrainFlag = (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags);
+        const dormancyCtx = {
+            monsters,
+            dormantMonsters,
+            pmap,
+            getQualifyingPathLocNear: (target: Pos, hallwaysAllowed: boolean, btf: number, bmf: number, ftf: number, fmf: number, det: boolean) =>
+                getQualifyingPathLocNearFn(target, hallwaysAllowed, btf, bmf, ftf, fmf, det, {
+                    pmap,
+                    cellHasTerrainFlag,
+                    cellFlags: (pos: Pos) => pmap[pos.x][pos.y].flags,
+                    rng: { randRange: (lo: number, hi: number) => randRange(lo, hi) },
+                    getQualifyingLocNear: (t: Pos) => t,
+                }),
         };
 
         const mqCtx = {
@@ -113,7 +132,27 @@ export function buildUpdateEnvironmentFn(combatCtx: CombatDamageContext): () => 
             coordinatesAreInMap: (x, y) => coordinatesAreInMap(x, y),
             refreshDungeonCell,
             spawnDungeonFeature: (x, y, feat, v, o) => {
-                const spawned = spawnDungeonFeatureFn(pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, v, o, refreshDungeonCell);
+                const spawned = spawnDungeonFeatureFn(
+                    pmap, tileCatalog, dungeonFeatureCatalog, x, y, feat as never, v, o,
+                    refreshDungeonCell,
+                    (fx, fy, appliedFeat, blockingMap) => {
+                        if (!(appliedFeat.flags & DFFlag.DFF_ACTIVATE_DORMANT_MONSTER)) {
+                            return;
+                        }
+                        for (const monst of [...dormantMonsters]) {
+                            if (
+                                (monst.loc.x === fx && monst.loc.y === fy)
+                                || !!blockingMap[monst.loc.x]?.[monst.loc.y]
+                            ) {
+                                toggleMonsterDormancy(monst, dormancyCtx);
+                                if (monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_MARKED_FOR_SACRIFICE) {
+                                    updateVision(true);
+                                }
+                                refreshDungeonCell(monst.loc);
+                            }
+                        }
+                    },
+                );
                 if (spawned) {
                     if (v && feat.lightFlare) {
                         createFlareFn(x, y, feat.lightFlare as LightType, rogue, lightCatalog);

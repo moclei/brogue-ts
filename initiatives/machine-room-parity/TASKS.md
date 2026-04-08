@@ -53,7 +53,7 @@
 
 ### Systemic fixes
 
-- [ ] Fix dormant activation missing from `turn-env-wiring.ts` `spawnDungeonFeature` closure:
+- [x] Fix dormant activation missing from `turn-env-wiring.ts` `spawnDungeonFeature` closure:
       add the same `onFeatureApplied` dormant-activation callback used in `tile-effects-wiring.ts`
       (line 178) and `movement.ts` (line 248). Wire `dormantMonsters` from `getGameState()`.
       Root cause of rat trap "no rats" bug — `DF_WALL_SHATTER` (`DFF_ACTIVATE_DORMANT_MONSTER`)
