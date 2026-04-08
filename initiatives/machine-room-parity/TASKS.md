@@ -76,8 +76,11 @@
 - [x] Implement `DFF_RESURRECT_ALLY` in `spawnDungeonFeature`: find the player's most recently
       killed ally and restore it at the feature location. Required for legendary ally shrine.
       C ref: `Architect.c spawnDungeonFeature DFF_RESURRECT_ALLY block`.
-- [ ] Verify and fix glyph + guardian room: stepping on a glyph tile should teleport the player;
+- [x] Verify and fix glyph + guardian room: stepping on a glyph tile should teleport the player;
       trace `DF_GUARDIAN_STEP` / `DF_INACTIVE_GLYPH` / `DF_ACTIVE_GLYPH` feature chain in TS vs C.
+      NO GAP — full chain verified faithful: tile flags, DF catalog entries, monster catalog, and
+      activateMachine→monstersTurn wiring all match C. Guardian takes one step (not teleport) when
+      glyph fires; "teleport" in task description was a mischaracterization of C behavior.
 - [ ] Verify arrow turret room after systemic fixes: turrets should remain dormant until lever
       trigger, then activate and take an immediate turn. Depends on dormant activation and
       `monstersTurn` fixes above.
