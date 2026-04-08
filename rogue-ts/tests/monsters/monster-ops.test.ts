@@ -9,9 +9,11 @@ import {
     toggleMonsterDormancy,
 } from "../../src/monsters/monster-ops.js";
 import type { MonsterOpsContext } from "../../src/monsters/monster-ops.js";
-import type { Creature, Pos } from "../../src/types/types.js";
-import { CreatureState } from "../../src/types/enums.js";
-import { MonsterBookkeepingFlag } from "../../src/types/flags.js";
+import type { Creature, Pcell, Pos } from "../../src/types/types.js";
+import { CreatureState, DungeonLayer } from "../../src/types/enums.js";
+import { MonsterBookkeepingFlag, TileFlag } from "../../src/types/flags.js";
+import { DCOLS, DROWS } from "../../src/types/constants.js";
+import { NUMBER_TERRAIN_LAYERS } from "../../src/types/constants.js";
 
 // ───────────────────────────────────────────────────────────────
 // Helpers
@@ -234,5 +236,71 @@ describe("toggleMonsterDormancy", () => {
         toggleMonsterDormancy(monst);
         expect(monst.bookkeepingFlags & otherFlag).toBeTruthy();
         expect(monst.bookkeepingFlags & MonsterBookkeepingFlag.MB_IS_DORMANT).toBeTruthy();
+    });
+
+    it("calls fadeInMonster when waking a dormant monster (C parity: Monsters.c:4147)", () => {
+        const monst = makeCreature({
+            loc: { x: 5, y: 5 },
+            bookkeepingFlags: MonsterBookkeepingFlag.MB_IS_DORMANT,
+        });
+        // Build a minimal pmap with HAS_DORMANT_MONSTER set at the monster's cell
+        const pmap: Pcell[][] = [];
+        for (let i = 0; i < DCOLS; i++) {
+            pmap[i] = [];
+            for (let j = 0; j < DROWS; j++) {
+                const layers = new Array(NUMBER_TERRAIN_LAYERS).fill(0);
+                pmap[i][j] = { layers, flags: 0, volume: 0, machineNumber: 0,
+                    rememberedAppearance: { character: 0, foreColor: { red: 0, green: 0, blue: 0, rand: 0, colorDances: false }, backColor: { red: 0, green: 0, blue: 0, rand: 0, colorDances: false } },
+                    rememberedItemCategory: 0, rememberedItemKind: 0,
+                    rememberedItemQuantity: 0, rememberedItemOriginDepth: 0,
+                    rememberedTerrain: 0 } as unknown as Pcell;
+            }
+        }
+        pmap[5][5].flags |= TileFlag.HAS_DORMANT_MONSTER;
+
+        const fadeInMonster = vi.fn();
+        const dormancyCtx = {
+            monsters: [],
+            dormantMonsters: [monst],
+            pmap,
+            fadeInMonster,
+        };
+
+        toggleMonsterDormancy(monst, dormancyCtx);
+
+        expect(fadeInMonster).toHaveBeenCalledOnce();
+        expect(fadeInMonster).toHaveBeenCalledWith(monst);
+    });
+
+    it("does not call fadeInMonster when putting a monster into dormancy", () => {
+        const monst = makeCreature({
+            loc: { x: 5, y: 5 },
+            bookkeepingFlags: 0,
+        });
+        const pmap: Pcell[][] = [];
+        for (let i = 0; i < DCOLS; i++) {
+            pmap[i] = [];
+            for (let j = 0; j < DROWS; j++) {
+                const layers = new Array(NUMBER_TERRAIN_LAYERS).fill(0);
+                pmap[i][j] = { layers, flags: 0, volume: 0, machineNumber: 0,
+                    rememberedAppearance: { character: 0, foreColor: { red: 0, green: 0, blue: 0, rand: 0, colorDances: false }, backColor: { red: 0, green: 0, blue: 0, rand: 0, colorDances: false } },
+                    rememberedItemCategory: 0, rememberedItemKind: 0,
+                    rememberedItemQuantity: 0, rememberedItemOriginDepth: 0,
+                    rememberedTerrain: 0 } as unknown as Pcell;
+            }
+        }
+        pmap[5][5].flags |= TileFlag.HAS_MONSTER;
+
+        const fadeInMonster = vi.fn();
+        const dormancyCtx = {
+            monsters: [monst],
+            dormantMonsters: [],
+            pmap,
+            fadeInMonster,
+        };
+
+        toggleMonsterDormancy(monst, dormancyCtx);
+
+        expect(fadeInMonster).not.toHaveBeenCalled();
     });
 });

@@ -17,7 +17,7 @@
  */
 
 import { getGameState, setVictory } from "./core.js";
-import { buildCombatAttackContext } from "./combat.js";
+import { buildCombatAttackContext, buildFadeInMonsterFn } from "./combat.js";
 import { buildMonsterStateContext } from "./monsters.js";
 import { buildTurnProcessingContext } from "./turn.js";
 import {
@@ -230,6 +230,7 @@ export function buildMovementContext(): PlayerMoveContext {
                 rng: { randRange: (lo: number, hi: number) => randRange(lo, hi) },
                 getQualifyingLocNear: (t: Pos) => t,
             }),
+        fadeInMonster: buildFadeInMonsterFn(),
     };
 
     // Runtime spawnDungeonFeature: calls the base function then shows feature messages

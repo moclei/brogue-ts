@@ -24,6 +24,7 @@ import {
     killCreature as killCreatureFn,
 } from "./combat/combat-damage.js";
 import type { CombatDamageContext } from "./combat/combat-damage.js";
+import { buildFadeInMonsterFn } from "./combat.js";
 import { monstersFall as monstersFallFn } from "./time/creature-effects.js";
 import type { CreatureEffectsContext } from "./time/creature-effects.js";
 import { updateEnvironment as updateEnvironmentFn, promoteTile as promoteTileFn, activateMachine as activateMachineFn, circuitBreakersPreventActivation as circuitBreakersPreventActivationFn, exposeTileToFire as exposeTileToFireFn } from "./time/environment.js";
@@ -116,6 +117,7 @@ export function buildUpdateEnvironmentFn(combatCtx: CombatDamageContext): () => 
                     rng: { randRange: (lo: number, hi: number) => randRange(lo, hi) },
                     getQualifyingLocNear: (t: Pos) => t,
                 }),
+            fadeInMonster: buildFadeInMonsterFn(),
         };
 
         const mqCtx = {

@@ -108,7 +108,7 @@
 - [x] Runtime-only gaps batch: `applyInstantTileEffectsToCreature`, `burnItem`, `flavorMessage`
       (fillSpawnMap); `aggravateMonsters`/`DFF_AGGRAVATES_MONSTERS`, `colorFlash`/`createFlare`,
       feature description `message` (spawnDungeonFeature). No generation-time impact.
-- [ ] Add `fadeInMonster` to `toggleMonsterDormancy` wakeup: wire into `DormancyContext`;
+- [x] Add `fadeInMonster` to `toggleMonsterDormancy` wakeup: wire into `DormancyContext`;
       cosmetic only.
 
 # --- handoff point ---

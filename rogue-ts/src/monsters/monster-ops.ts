@@ -73,7 +73,10 @@ export interface MonsterOpsContext {
 }
 
 type DormancyContext = Pick<MonsterOpsContext, "monsters" | "dormantMonsters" | "pmap"> &
-Partial<Pick<MonsterOpsContext, "getQualifyingPathLocNear" | "makeMonsterDropItem">>;
+Partial<Pick<MonsterOpsContext, "getQualifyingPathLocNear" | "makeMonsterDropItem">> & {
+    /** C parity: fadeInMonster() is the last step when waking a dormant monster (Monsters.c:4147). */
+    fadeInMonster?: (monst: Creature) => void;
+};
 
 // =============================================================================
 // Factory
@@ -195,6 +198,8 @@ export function toggleMonsterDormancy(monst: Creature, ctx?: DormancyContext): v
         monst.ticksUntilTurn = 200;
         ctx.pmap[monst.loc.x][monst.loc.y].flags |= TileFlag.HAS_MONSTER;
         monst.bookkeepingFlags &= ~MonsterBookkeepingFlag.MB_IS_DORMANT;
+        // C parity: fadeInMonster() is the last step when waking (Monsters.c:4147).
+        ctx.fadeInMonster?.(monst);
         return;
     }
 

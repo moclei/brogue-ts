@@ -103,6 +103,7 @@ import type { ItemTable } from "./types/types.js";
 import { monstersTurn as monstersTurnFn } from "./monsters/monster-actions.js";
 import { buildMonstersTurnContext } from "./turn-monster-ai.js";
 import { toggleMonsterDormancy } from "./monsters/monster-ops.js";
+import { buildFadeInMonsterFn } from "./combat.js";
 
 // =============================================================================
 // buildApplyInstantTileEffectsFn
@@ -143,6 +144,7 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
                 getQualifyingLocNear: (t: Pos) => t,
             }),
         makeMonsterDropItem: (monst: Creature) => doMakeMonsterDropItem(monst, pmap, floorItems, cellHasTerrainFlag, refreshDungeonCell),
+        fadeInMonster: buildFadeInMonsterFn(),
     };
 
     // naming context for itemName / autoIdentify
