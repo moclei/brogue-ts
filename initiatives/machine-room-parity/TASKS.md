@@ -59,7 +59,7 @@
       Root cause of rat trap "no rats" bug — `DF_WALL_SHATTER` (`DFF_ACTIVATE_DORMANT_MONSTER`)
       is called via `promoteTile → ctx.spawnDungeonFeature` in the `updateEnvironment` path,
       which currently has no handler for that flag.
-- [ ] Fix `activateMachine → monstersTurn` no-op in `updateEnvironment` path
+- [x] Fix `activateMachine → monstersTurn` no-op in `updateEnvironment` path
       (`turn-env-wiring.ts:149`): wire `monstersTurn` using the same pattern as
       `tile-effects-wiring.ts`. Affects machines where trigger comes via `updateEnvironment`
       (e.g. key-missing reversal `TM_PROMOTES_WITHOUT_KEY`).

@@ -62,6 +62,8 @@ import { IS_IN_MACHINE, MonsterBookkeepingFlag, TerrainMechFlag, DFFlag } from "
 import { toggleMonsterDormancy } from "./monsters/monster-ops.js";
 import { buildUpdateVisionFn } from "./vision-wiring.js";
 import { getQualifyingPathLocNear as getQualifyingPathLocNearFn } from "./movement/path-qualifying.js";
+import { monstersTurn as monstersTurnFn } from "./monsters/monster-actions.js";
+import { buildMonstersTurnContext } from "./turn-monster-ai.js";
 
 // =============================================================================
 // buildUpdateEnvironmentFn
@@ -185,7 +187,7 @@ export function buildUpdateEnvironmentFn(combatCtx: CombatDamageContext): () => 
                 prependCreature: (list: Creature[], monst: Creature) => { list.unshift(monst); },
                 refreshDungeonCell,
             } as unknown as CreatureEffectsContext),
-            monstersTurn: () => {},     // permanent-defer — environment update does not re-enter per-monster turn
+            monstersTurn: (monst: Creature) => monstersTurnFn(monst, buildMonstersTurnContext()),
             updateFloorItems: buildUpdateFloorItemsFn({
                 floorItems, pmap,
                 rogue: { absoluteTurnNumber: rogue.absoluteTurnNumber, depthLevel: rogue.depthLevel },
