@@ -107,7 +107,7 @@ export function buildUpdateEnvironmentFn(combatCtx: CombatDamageContext): () => 
         const cellHasTerrainFlag = (pos: Pos, flags: number) => cellHasTerrainFlagFn(pmap, pos, flags);
         const dormancyCtx = {
             monsters,
-            dormantMonsters,
+            dormantMonsters: () => dormantMonsters,
             pmap,
             getQualifyingPathLocNear: (target: Pos, hallwaysAllowed: boolean, btf: number, bmf: number, ftf: number, fmf: number, det: boolean) =>
                 getQualifyingPathLocNearFn(target, hallwaysAllowed, btf, bmf, ftf, fmf, det, {

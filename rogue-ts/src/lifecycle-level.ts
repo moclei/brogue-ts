@@ -181,7 +181,7 @@ export function buildLevelContext(): LevelContext {
     // ---- Architect context ---------------------------------------------------
     const monsterOps = createMonsterOps({
         monsters,
-        dormantMonsters,
+        dormantMonsters: () => getGameState().dormantMonsters,
         pmap,
         spawnHorde(leaderID, pos, forbiddenFlags, requiredFlags) {
             return spawnHordeFn(leaderID, pos, forbiddenFlags, requiredFlags, buildMonsterSpawningContext());

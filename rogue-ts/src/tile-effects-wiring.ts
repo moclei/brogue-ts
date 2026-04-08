@@ -133,7 +133,7 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
     const canSeeMonster = (m: Creature) => !!(pmap[m.loc.x]?.[m.loc.y]?.flags & TileFlag.VISIBLE);
     const dormancyCtx = {
         monsters,
-        dormantMonsters,
+        dormantMonsters: () => dormantMonsters,
         pmap,
         getQualifyingPathLocNear: (target: Pos, hallwaysAllowed: boolean, btf: number, bmf: number, ftf: number, fmf: number, det: boolean) =>
             getQualifyingPathLocNearFn(target, hallwaysAllowed, btf, bmf, ftf, fmf, det, {

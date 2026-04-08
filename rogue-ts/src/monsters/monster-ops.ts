@@ -34,8 +34,13 @@ import { CreatureState } from "../types/enums.js";
 export interface MonsterOpsContext {
     /** Mutable list of all monsters on the current level. */
     monsters: Creature[];
-    /** Mutable list of dormant monsters on the current level. */
-    dormantMonsters: Creature[];
+    /**
+     * Getter for the mutable list of dormant monsters on the current level.
+     * Called as a function at use time so that callers can return a fresh
+     * reference from getGameState() — avoiding stale captures when
+     * setDormantMonsters() replaces the array between levels.
+     */
+    dormantMonsters: () => Creature[];
     /** Current floor pmap for HAS_MONSTER/HAS_DORMANT_MONSTER bookkeeping. */
     pmap: Pcell[][];
 
@@ -168,7 +173,7 @@ export function toggleMonsterDormancy(monst: Creature, ctx?: DormancyContext): v
         }
         return;
     }
-    if (removeFrom(ctx.dormantMonsters, monst)) {
+    if (removeFrom(ctx.dormantMonsters(), monst)) {
         // Wake dormant monster: move to active list.
         ctx.monsters.unshift(monst);
         ctx.pmap[monst.loc.x][monst.loc.y].flags &= ~TileFlag.HAS_DORMANT_MONSTER;
@@ -205,7 +210,7 @@ export function toggleMonsterDormancy(monst: Creature, ctx?: DormancyContext): v
 
     if (removeFrom(ctx.monsters, monst)) {
         // Put active monster into dormancy.
-        ctx.dormantMonsters.unshift(monst);
+        ctx.dormantMonsters().unshift(monst);
         ctx.pmap[monst.loc.x][monst.loc.y].flags &= ~TileFlag.HAS_MONSTER;
         ctx.pmap[monst.loc.x][monst.loc.y].flags |= TileFlag.HAS_DORMANT_MONSTER;
         monst.bookkeepingFlags |= MonsterBookkeepingFlag.MB_IS_DORMANT;

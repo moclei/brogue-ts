@@ -78,6 +78,7 @@ function makeCreature(overrides: Partial<Creature> = {}): Creature {
 function makeOpsCtx(overrides: Partial<MonsterOpsContext> = {}): MonsterOpsContext {
     return {
         monsters: [],
+        dormantMonsters: () => [],
         spawnHorde: vi.fn().mockReturnValue(null),
         monsterAtLoc: vi.fn().mockReturnValue(null),
         killCreature: vi.fn(),
@@ -259,9 +260,10 @@ describe("toggleMonsterDormancy", () => {
         pmap[5][5].flags |= TileFlag.HAS_DORMANT_MONSTER;
 
         const fadeInMonster = vi.fn();
+        const dormantMonsters: Creature[] = [monst];
         const dormancyCtx = {
-            monsters: [],
-            dormantMonsters: [monst],
+            monsters: [] as Creature[],
+            dormantMonsters: () => dormantMonsters,
             pmap,
             fadeInMonster,
         };
@@ -292,9 +294,10 @@ describe("toggleMonsterDormancy", () => {
         pmap[5][5].flags |= TileFlag.HAS_MONSTER;
 
         const fadeInMonster = vi.fn();
+        const dormantMonsters: Creature[] = [];
         const dormancyCtx = {
-            monsters: [monst],
-            dormantMonsters: [],
+            monsters: [monst] as Creature[],
+            dormantMonsters: () => dormantMonsters,
             pmap,
             fadeInMonster,
         };

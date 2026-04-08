@@ -220,7 +220,7 @@ export function buildMovementContext(): PlayerMoveContext {
     const updateVision = buildUpdateVisionFn();
     const dormancyCtx = {
         monsters,
-        dormantMonsters,
+        dormantMonsters: () => dormantMonsters,
         pmap,
         getQualifyingPathLocNear: (target: Pos, hallwaysAllowed: boolean, btf: number, bmf: number, ftf: number, fmf: number, det: boolean) =>
             getQualifyingPathLocNearFn(target, hallwaysAllowed, btf, bmf, ftf, fmf, det, {
