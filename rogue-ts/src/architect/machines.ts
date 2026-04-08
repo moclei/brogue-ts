@@ -928,6 +928,7 @@ export function fillSpawnMap(
     refresh: boolean,
     superpriority: boolean,
     refreshDungeonCell?: (loc: Pos) => void,
+    setStaleLoopMap?: () => void,
 ): boolean {
     let accomplishedSomething = false;
 
@@ -951,7 +952,7 @@ export function fillSpawnMap(
                     (tCatalog[pmap[i][j].layers[layer]].flags & T_PATHING_BLOCKER)
                     !== (tCatalog[surfaceTileType].flags & T_PATHING_BLOCKER)
                 ) {
-                    // staleLoopMap would be set on rogue state
+                    setStaleLoopMap?.();
                 }
 
                 pmap[i][j].layers[layer] = surfaceTileType;

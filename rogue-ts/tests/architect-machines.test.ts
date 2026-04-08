@@ -658,6 +658,57 @@ describe("fillSpawnMap", () => {
 
         expect(result).toBe(false);
     });
+
+    it("calls setStaleLoopMap when pathing-blocker status changes", () => {
+        // Cell [10][10] is in the carved room (FLOOR on dungeon layer, NOTHING on surface).
+        // Writing TORCH_WALL (T_OBSTRUCTS_PASSABILITY → pathing blocker) over NOTHING (no flags)
+        // changes the pathing-blocker status, so setStaleLoopMap must be called.
+        const spawnMap = allocGrid();
+        fillGrid(spawnMap, 0);
+        spawnMap[10][10] = 1;
+
+        let staleLoopMapSet = false;
+        fillSpawnMap(
+            pmap, tileCatalog,
+            DungeonLayer.Surface,
+            TileType.TORCH_WALL,
+            spawnMap,
+            false, false, false,
+            undefined,
+            () => { staleLoopMapSet = true; },
+        );
+
+        expect(staleLoopMapSet).toBe(true);
+    });
+
+    it("does not call setStaleLoopMap when pathing-blocker status unchanged", () => {
+        // Cell [10][10] surface layer already has TORCH_WALL (a pathing blocker).
+        // Writing TORCH_WALL again would be skipped (same tile). Instead, write GRANITE
+        // (also a pathing blocker) over TORCH_WALL: blocker→blocker, no change expected.
+        // But drawPriority(TORCH_WALL)=0 < drawPriority(GRANITE)=0 → same, passes condition.
+        // Use a cell with NOTHING on both sides (FLOOR → FLOOR) instead: both non-blocking.
+        const spawnMap = allocGrid();
+        fillGrid(spawnMap, 0);
+        spawnMap[10][10] = 1;
+
+        // Pre-set the surface layer to FLOOR (non-blocking), write FLOOR again — same tile,
+        // condition fails (same tile type). So set a different non-blocking tile first.
+        // FLOOR_FLOODABLE is also non-blocking (flags: 0), drawPriority 95 >= FLOOR 95.
+        pmap[10][10].layers[DungeonLayer.Surface] = TileType.FLOOR_FLOODABLE;
+
+        let staleLoopMapSet = false;
+        fillSpawnMap(
+            pmap, tileCatalog,
+            DungeonLayer.Surface,
+            TileType.FLOOR,          // non-blocking → non-blocking: no status change
+            spawnMap,
+            false, false, false,
+            undefined,
+            () => { staleLoopMapSet = true; },
+        );
+
+        expect(staleLoopMapSet).toBe(false);
+    });
 });
 
 // =============================================================================

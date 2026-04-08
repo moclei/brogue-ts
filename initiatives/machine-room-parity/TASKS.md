@@ -65,7 +65,7 @@
       (e.g. key-missing reversal `TM_PROMOTES_WITHOUT_KEY`).
 - [x] Implement `evacuateCreatures` in `spawnDungeonFeature`: before applying blocking terrain,
       displace any creature occupying a target cell. C ref: `Architect.c evacuateCreatures`.
-- [ ] Fix `staleLoopMap` not set in `fillSpawnMap`: after writing a pathfinding-blocking tile,
+- [x] Fix `staleLoopMap` not set in `fillSpawnMap`: after writing a pathfinding-blocking tile,
       set `ctx.rogue.staleLoopMap = true`. C ref: `Architect.c fillSpawnMap`.
 - [ ] Fix `keyOnTileAt` duplication: consolidate the 4 closures to a shared helper and fix
       `item-helper-context.ts` variant which uses `ItemCategory.KEY` instead of
