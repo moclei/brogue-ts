@@ -36,7 +36,7 @@ import { spawnDungeonFeature as spawnDungeonFeatureFn } from "./architect/machin
 import { lightCatalog } from "./globals/light-catalog.js";
 import { itemMessageColor, badMessageColor, goodMessageColor, red } from "./globals/colors.js";
 import { DCOLS, DROWS } from "./types/constants.js";
-import { TileFlag, ItemFlag } from "./types/flags.js";
+import { TileFlag } from "./types/flags.js";
 import { CreatureState, DungeonLayer } from "./types/enums.js";
 import type { Creature, Pos, Color } from "./types/types.js";
 import { LightType } from "./types/enums.js";
@@ -44,7 +44,7 @@ import { coordinatesAreInMap } from "./globals/tables.js";
 import { randRange, randPercent, randClumpedRange, fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn } from "./math/rng.js";
 import { itemAtLoc as itemAtLocFn } from "./items/item-inventory.js";
 import { itemName as itemNameFn } from "./items/item-naming.js";
-import { keyMatchesLocation as keyMatchesLocationFn } from "./items/item-utils.js";
+import { keyOnTileAt as keyOnTileAtFn } from "./items/item-utils.js";
 import { createFlare as createFlareFn } from "./light/flares.js";
 import { wandTable, staffTable, ringTable, charmTable } from "./globals/item-catalog.js";
 import { demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "./monsters/monster-ally-ops.js";
@@ -204,20 +204,8 @@ export function buildUpdateEnvironmentFn(combatCtx: CombatDamageContext): () => 
                 activateMachine: (mn) => activateMachineFn(mn, envCtx),
                 circuitBreakersPreventActivation: (mn) => circuitBreakersPreventActivationFn(mn, envCtx),
             }),
-            keyOnTileAt: (loc: Pos) => {
-                const machineNum = pmap[loc.x]?.[loc.y]?.machineNumber ?? 0;
-                if (player.loc.x === loc.x && player.loc.y === loc.y) {
-                    const k = packItems.find(it => (it.flags & ItemFlag.ITEM_IS_KEY) && keyMatchesLocationFn(it, loc, rogue.depthLevel, machineNum));
-                    if (k) return k;
-                }
-                if (pmap[loc.x][loc.y].flags & TileFlag.HAS_ITEM) {
-                    const fi = itemAtLocFn(loc, floorItems);
-                    if (fi && (fi.flags & ItemFlag.ITEM_IS_KEY) && keyMatchesLocationFn(fi, loc, rogue.depthLevel, machineNum)) return fi;
-                }
-                const monst = monsters.find(m => m.loc.x === loc.x && m.loc.y === loc.y);
-                if (monst?.carriedItem && (monst.carriedItem.flags & ItemFlag.ITEM_IS_KEY) && keyMatchesLocationFn(monst.carriedItem, loc, rogue.depthLevel, machineNum)) return monst.carriedItem;
-                return null;
-            },
+            keyOnTileAt: (loc: Pos) =>
+                keyOnTileAtFn(loc, pmap, player, packItems, floorItems, monsters, rogue.depthLevel, itemAtLocFn),
             removeCreature: (list, m) => { const i = list.indexOf(m); if (i >= 0) { list.splice(i, 1); return true; } return false; },
             prependCreature: (list, m) => { list.unshift(m); },
             rand_range: randRange, rand_percent: randPercent, max: Math.max, min: Math.min,

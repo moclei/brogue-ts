@@ -10,6 +10,7 @@ import {
     lotteryDraw,
     describeMonsterClass,
     keyMatchesLocation,
+    keyOnTileAt,
     monsterClassHasAcidicMonster,
     beckonMonster,
     itemCanBeCalled,
@@ -425,5 +426,98 @@ describe("itemCanBeCalled", () => {
     });
     it("returns false for GEM", () => {
         expect(itemCanBeCalled(makeItem({ category: ItemCategory.GEM }))).toBe(false);
+    });
+});
+
+// =============================================================================
+// keyOnTileAt
+// =============================================================================
+
+describe("keyOnTileAt", () => {
+    /** Minimal itemAtLoc: return the first floor item at loc, or null. */
+    function itemAtLoc(loc: { x: number; y: number }, items: readonly Item[]): Item | null {
+        return items.find(it => it.loc.x === loc.x && it.loc.y === loc.y) ?? null;
+    }
+
+    function makeKeyItem(loc: { x: number; y: number }, depthLevel = 1, machine = 0): Item {
+        const item = makeItem({
+            flags: ItemFlag.ITEM_IS_KEY,
+            originDepth: depthLevel,
+            loc: { x: loc.x, y: loc.y },
+        });
+        item.keyLoc[0] = { loc: { x: loc.x, y: loc.y }, machine, disposableHere: false };
+        return item;
+    }
+
+    it("returns null when no key is present anywhere", () => {
+        const pmap = makePmap();
+        const player = makeCreature(5, 5);
+        const loc = { x: 3, y: 3 };
+        expect(keyOnTileAt(loc, pmap, player, [], [], [], 1, itemAtLoc)).toBeNull();
+    });
+
+    it("finds key in player pack when player is on loc", () => {
+        const pmap = makePmap();
+        const player = makeCreature(5, 5);
+        const key = makeKeyItem({ x: 5, y: 5 }, 1, 0);
+        // machine 0 → loc match required
+        expect(keyOnTileAt({ x: 5, y: 5 }, pmap, player, [key], [], [], 1, itemAtLoc)).toBe(key);
+    });
+
+    it("does not find pack key when player is not on loc", () => {
+        const pmap = makePmap();
+        const player = makeCreature(5, 5);
+        const key = makeKeyItem({ x: 3, y: 3 }, 1, 0);
+        // Player is at (5,5), loc is (3,3) — pack key should not be found
+        expect(keyOnTileAt({ x: 3, y: 3 }, pmap, player, [key], [], [], 1, itemAtLoc)).toBeNull();
+    });
+
+    it("finds floor item when HAS_ITEM flag is set", () => {
+        const pmap = makePmap();
+        const player = makeCreature(0, 0);
+        const loc = { x: 7, y: 8 };
+        pmap[loc.x][loc.y].flags |= TileFlag.HAS_ITEM;
+        const key = makeKeyItem(loc, 1, 0);
+        expect(keyOnTileAt(loc, pmap, player, [], [key], [], 1, itemAtLoc)).toBe(key);
+    });
+
+    it("does not find floor item when HAS_ITEM flag is not set", () => {
+        const pmap = makePmap();
+        const player = makeCreature(0, 0);
+        const loc = { x: 7, y: 8 };
+        // HAS_ITEM not set
+        const key = makeKeyItem(loc, 1, 0);
+        expect(keyOnTileAt(loc, pmap, player, [], [key], [], 1, itemAtLoc)).toBeNull();
+    });
+
+    it("finds monster carried item at loc", () => {
+        const pmap = makePmap();
+        const player = makeCreature(0, 0);
+        const loc = { x: 4, y: 4 };
+        const key = makeKeyItem(loc, 1, 0);
+        const monst = makeCreature(loc.x, loc.y, { carriedItem: key });
+        expect(keyOnTileAt(loc, pmap, player, [], [], [monst], 1, itemAtLoc)).toBe(key);
+    });
+
+    it("does not find monster carried item when flag is not ITEM_IS_KEY", () => {
+        const pmap = makePmap();
+        const player = makeCreature(0, 0);
+        const loc = { x: 4, y: 4 };
+        // A non-key item carried by monster
+        const nonKey = makeItem({ flags: 0, originDepth: 1, loc: { x: loc.x, y: loc.y } });
+        const monst = makeCreature(loc.x, loc.y, { carriedItem: nonKey });
+        expect(keyOnTileAt(loc, pmap, player, [], [], [monst], 1, itemAtLoc)).toBeNull();
+    });
+
+    it("pack key takes priority over floor item", () => {
+        const pmap = makePmap();
+        const player = makeCreature(5, 5);
+        const loc = { x: 5, y: 5 };
+        pmap[loc.x][loc.y].flags |= TileFlag.HAS_ITEM;
+        const packKey = makeKeyItem(loc, 1, 0);
+        const floorKey = makeKeyItem(loc, 1, 0);
+        // Both present — pack key should be returned first
+        const result = keyOnTileAt(loc, pmap, player, [packKey], [floorKey], [], 1, itemAtLoc);
+        expect(result).toBe(packKey);
     });
 });

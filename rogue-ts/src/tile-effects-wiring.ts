@@ -70,7 +70,7 @@ import {
     itemAtLoc as itemAtLocFn,
     numberOfMatchingPackItems as numberOfMatchingPackItemsFn,
 } from "./items/item-inventory.js";
-import { keyMatchesLocation as keyMatchesLocationFn } from "./items/item-utils.js";
+import { keyOnTileAt as keyOnTileAtFn } from "./items/item-utils.js";
 import { monstersAreEnemies as monstersAreEnemiesFn } from "./monsters/monster-queries.js";
 import { demoteMonsterFromLeadership as demoteMonsterFromLeadershipFn } from "./monsters/monster-ally-ops.js";
 import { doMakeMonsterDropItem } from "./monsters/monster-drop.js";
@@ -88,7 +88,7 @@ import {
     fillSequentialList as fillSequentialListFn, shuffleList as shuffleListFn,
 } from "./math/rng.js";
 import { DCOLS, DROWS, STOMACH_SIZE } from "./types/constants.js";
-import { TileFlag, ItemFlag, DFFlag, MonsterBookkeepingFlag } from "./types/flags.js";
+import { TileFlag, DFFlag, MonsterBookkeepingFlag } from "./types/flags.js";
 import { recalculateEquipmentBonuses as recalculateEquipmentBonusesFn, updateEncumbrance as updateEncumbranceFn } from "./items/item-usage.js";
 import { buildEquipState, syncEquipBonuses } from "./items/equip-helpers.js";
 import { dropItem as dropItemFn } from "./items/floor-items.js";
@@ -229,25 +229,8 @@ export function buildApplyInstantTileEffectsFn(): (monst: Creature) => void {
         ) ?? null;
     };
 
-    const keyOnTileAt = (loc: Pos) => {
-        const machineNum = pmap[loc.x]?.[loc.y]?.machineNumber ?? 0;
-        if (player.loc.x === loc.x && player.loc.y === loc.y) {
-            const k = packItems.find(it =>
-                (it.flags & ItemFlag.ITEM_IS_KEY) &&
-                keyMatchesLocationFn(it, loc, rogue.depthLevel, machineNum));
-            if (k) return k;
-        }
-        if (pmap[loc.x]?.[loc.y]?.flags & TileFlag.HAS_ITEM) {
-            const fi = itemAtLocFn(loc, floorItems);
-            if (fi && (fi.flags & ItemFlag.ITEM_IS_KEY) &&
-                keyMatchesLocationFn(fi, loc, rogue.depthLevel, machineNum)) return fi;
-        }
-        const monst = monsterAtLoc(loc);
-        if (monst?.carriedItem && (monst.carriedItem.flags & ItemFlag.ITEM_IS_KEY) &&
-            keyMatchesLocationFn(monst.carriedItem, loc, rogue.depthLevel, machineNum))
-            return monst.carriedItem;
-        return null;
-    };
+    const keyOnTileAt = (loc: Pos) =>
+        keyOnTileAtFn(loc, pmap, player, packItems, floorItems, monsters, rogue.depthLevel, itemAtLocFn);
 
     const itemHelperCtx = {
         pmap, player, tileCatalog, packItems, floorItems,

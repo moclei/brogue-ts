@@ -67,7 +67,7 @@
       displace any creature occupying a target cell. C ref: `Architect.c evacuateCreatures`.
 - [x] Fix `staleLoopMap` not set in `fillSpawnMap`: after writing a pathfinding-blocking tile,
       set `ctx.rogue.staleLoopMap = true`. C ref: `Architect.c fillSpawnMap`.
-- [ ] Fix `keyOnTileAt` duplication: consolidate the 4 closures to a shared helper and fix
+- [x] Fix `keyOnTileAt` duplication: consolidate the 4 closures to a shared helper and fix
       `item-helper-context.ts` variant which uses `ItemCategory.KEY` instead of
       `ItemFlag.ITEM_IS_KEY` and omits the monster-carried item check.
 
