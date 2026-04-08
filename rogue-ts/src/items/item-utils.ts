@@ -63,10 +63,10 @@ export function keyOnTileAt(
     pmap: Pcell[][],
     player: Creature,
     packItems: readonly Item[],
-    floorItems: readonly Item[],
+    floorItems: Item[],
     monsters: readonly Creature[],
     depthLevel: number,
-    itemAtLoc: (loc: Pos, items: readonly Item[]) => Item | null,
+    itemAtLoc: (loc: Pos, items: Item[]) => Item | null,
 ): Item | null {
     const machineNum = pmap[loc.x]?.[loc.y]?.machineNumber ?? 0;
 
