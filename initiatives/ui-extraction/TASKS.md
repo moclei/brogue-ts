@@ -102,7 +102,7 @@ a parent overlay is DOM but a child is still buffer-based.
 
 ### Phase 3b: Alerts + Text Boxes
 
-- [ ] Convert alert functions (`flashTemporaryAlert`,
+- [x] Convert alert functions (`flashTemporaryAlert`,
   `displayCenteredAlert`) to HTML toast/overlay with CSS fade
   animation and `setTimeout`. `flashTemporaryAlert` currently
   snapshots individual cells and animates with `pauseBrogue` —
