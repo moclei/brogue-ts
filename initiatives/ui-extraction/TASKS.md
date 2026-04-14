@@ -115,7 +115,7 @@ a parent overlay is DOM but a child is still buffer-based.
   plus styled `<button>` elements. DOM click/keyboard handlers
   resolve the async promise with the button index. This is the
   first `buttonInputLoop` replacement — validate carefully.
-- [ ] Convert `confirm` dialog (`input-dispatch.ts`,
+- [x] Convert `confirm` dialog (`input-dispatch.ts`,
   `io-wiring.ts` `buildConfirmFn`): these wrap `printTextBox` with
   save/restore. After extraction, `confirm` calls `printTextBox`
   (now DOM) and the save/restore of the display buffer becomes

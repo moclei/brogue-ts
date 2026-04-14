@@ -113,6 +113,7 @@ import {
 } from "./io/inventory-display.js";
 import { commitDraws as commitDrawsFn, pauseAndCheckForEvent } from "./platform.js";
 import { buildItemDetailsFn } from "./io/item-details-wiring.js";
+import { isDOMModalEnabled } from "./platform/ui-modal.js";
 
 /** Returns a getCellAppearance closure using the full pipeline. */
 export function buildGetCellAppearanceFn(): (loc: Pos) => { glyph: DisplayGlyph; foreColor: Color; backColor: Color } {
@@ -515,7 +516,8 @@ export function buildConfirmFn(): (prompt: string, defaultYes: boolean) => Promi
         btn1.flags |= ButtonFlag.B_WIDE_CLICK_AREA | ButtonFlag.B_KEYPRESS_HIGHLIGHT;
 
         const invCtx = buildInventoryContext();
-        const rbuf = saveDisplayBufferFn(displayBuffer);
+        // DOM path: printTextBox renders as a modal; no display buffer save/restore needed.
+        const rbuf = isDOMModalEnabled() ? null : saveDisplayBufferFn(displayBuffer);
         const retVal = await printTextBoxFn(
             prompt,
             Math.floor(COLS / 3),
@@ -527,7 +529,7 @@ export function buildConfirmFn(): (prompt: string, defaultYes: boolean) => Promi
             [btn0, btn1],
             2,
         );
-        restoreDisplayBufferFn(displayBuffer, rbuf);
+        if (rbuf) restoreDisplayBufferFn(displayBuffer, rbuf);
         return retVal !== -1 && retVal !== 1;
     };
 }

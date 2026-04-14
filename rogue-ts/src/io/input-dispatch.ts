@@ -17,6 +17,7 @@ import type { BrogueButton, RogueEvent, SavedDisplayBuffer } from "../types/type
 import type { DisplayGlyph } from "../types/enums.js";
 import { EventType, Direction, TextEntryType } from "../types/enums.js";
 import { ButtonFlag } from "../types/flags.js";
+import { isDOMModalEnabled } from "../platform/ui-modal.js";
 import {
     COLS, ROWS, KEYBOARD_LABELS,
     UP_KEY, DOWN_KEY, LEFT_KEY, RIGHT_KEY,
@@ -77,7 +78,8 @@ export async function confirm(ctx: InputContext, prompt: string, alsoDuringPlayb
     btn1.flags |= ButtonFlag.B_WIDE_CLICK_AREA | ButtonFlag.B_KEYPRESS_HIGHLIGHT;
     buttons.push(btn1);
 
-    const rbuf = ctx.saveDisplayBuffer();
+    // DOM path: printTextBox renders as a modal; no display buffer save/restore needed.
+    const rbuf = isDOMModalEnabled() ? null : ctx.saveDisplayBuffer();
     const retVal = await ctx.printTextBox(
         prompt,
         Math.floor(COLS / 3),
@@ -88,7 +90,7 @@ export async function confirm(ctx: InputContext, prompt: string, alsoDuringPlayb
         buttons,
         2,
     );
-    ctx.restoreDisplayBuffer(rbuf);
+    if (rbuf) ctx.restoreDisplayBuffer(rbuf);
 
     return retVal !== -1 && retVal !== 1;
 }
