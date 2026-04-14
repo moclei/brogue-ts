@@ -209,6 +209,14 @@ export function setGraphicsMode(mode: GraphicsMode): GraphicsMode {
     setDOMMessagesEnabled(useDOM);
     setDOMBottomBarEnabled(useDOM);
     setDOMModalEnabled(useDOM);
+    // If gameplay is active, also show/hide the DOM elements so they don't remain
+    // visible but stale when switching to ASCII mode. _menuState !== null is used
+    // as a proxy for "gameplay is running" (same lifecycle as mainGameLoop).
+    if (_menuState !== null) {
+        setSidebarVisible(useDOM);
+        setMessagesVisible(useDOM);
+        setBottomBarVisible(useDOM);
+    }
     return _graphicsMode;
 }
 
@@ -541,17 +549,34 @@ export async function mainGameLoop(): Promise<void> {
     // Switch canvas to dungeon-only (DCOLS×DROWS) mode for gameplay.
     _onCanvasModeChange?.(true);
 
-    // Register DOM bottom bar button click → inject MouseUp at button coords
+    // Register DOM bottom bar button click → inject the button's hotkey directly.
+    // Bypasses the MouseUp → findClickedMenuButton coordinate hit-test, which
+    // can fail when the dungeon-only canvas remaps the coordinate space.
+    // The Menu button (index 3 in normal mode, index 3 in playback mode) has no
+    // hotkey, so we fall back to a MouseUp at its window coords so that
+    // handleLeftClick → actionMenu fires correctly.
     setBottomBarClickCallback((buttonIndex: number) => {
         const btn = _menuState?.buttons[buttonIndex];
         if (!btn) return;
-        injectGameEvent({
-            eventType: EventType.MouseUp,
-            param1: btn.x,
-            param2: btn.y,
-            controlKey: false,
-            shiftKey: false,
-        });
+        const hotkey = btn.hotkey[0] ?? -1;
+        if (hotkey === -1) {
+            // No hotkey (Menu button) — inject MouseUp so handleLeftClick → actionMenu fires
+            injectGameEvent({
+                eventType: EventType.MouseUp,
+                param1: btn.x,
+                param2: btn.y,
+                controlKey: false,
+                shiftKey: false,
+            });
+        } else {
+            injectGameEvent({
+                eventType: EventType.Keystroke,
+                param1: hotkey,
+                param2: 0,
+                controlKey: false,
+                shiftKey: false,
+            });
+        }
     });
 
     while (!rogue.gameHasEnded) {

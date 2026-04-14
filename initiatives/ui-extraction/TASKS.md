@@ -235,3 +235,23 @@ will break after the canvas is resized to dungeon-only.
 - Continue / Playback / Recording modes: require `openFile` implementation (DEFER: port-v2-persistence). DOM extraction is already wired for these modes; they will work once `openFile` is implemented.
 - `irisFadeBetweenBuffers` caller: level-transition iris animation is not yet called from game code. When implemented, caller must call `setSidebarVisible(false)` before and `setSidebarVisible(true)` after (documented in JSDoc on the function).
 - `_renderEntityList` diff-update optimisation: current clear-and-rebuild is acceptable for ≤15 entities. Future optimisation: diff entities against previous render to avoid full rebuild.
+
+---
+
+## Post-Playtesting Fixes
+
+Bugs discovered during playtesting of the fully extracted UI. Fixed after Phase 5 completion.
+
+- [x] **Bug 1: Bottom bar buttons do nothing when clicked.** Root cause: click callback was injecting `MouseUp` events routed through `findClickedMenuButton` coordinate hit-test, which could fail due to dungeon-only canvas coordinate remapping. Fix: inject `Keystroke` events directly for buttons that have hotkeys; fall back to `MouseUp` injection only for the Menu button (no hotkey, triggers `actionMenu`). (`platform.ts`)
+
+- [x] **Bug 2: Hotkey letters display with `}` chars around them.** Root cause: local `_parseButtonLabel` function in `ui-bottom-bar.ts` duplicated parsing logic that may behave differently from the proven `parseColorEscapes` in `ui-messages.ts`. Fix: replaced `_parseButtonLabel` with a wrapper that delegates to `parseColorEscapes(raw, 1.0)` and maps segments to `_Segment` by checking if the CSS color string is pure white. (`platform/ui-bottom-bar.ts`)
+
+- [x] **Bug 3: ASCII mode — DOM elements stay visible but stop updating.** Root cause: `setGraphicsMode` called `setDOMXxxEnabled(useDOM)` but did not call `setXxxVisible(useDOM)` to hide the DOM elements. Fix: when `_menuState !== null` (gameplay is active), also call `setSidebarVisible/setMessagesVisible/setBottomBarVisible(useDOM)`. (`platform.ts`)
+
+- [x] **Bug 4: Relabel crashes the game.** Root cause: `relabel()` calls `waitForEvent()` directly to get a keystroke, which conflicts with the DOM inventory modal's own event listeners. Fix: when `isDOMModalEnabled()`, use `showInputModal("New inventory letter?", "", 1, false)` to get the new label via an HTML input, bypassing `waitForEvent()`. (`io/inventory-actions.ts`)
+
+- [x] **Bug 5 (CSS): Messages/bottom-bar containers clip content.** Root cause: both `#brogue-messages` and `#brogue-bottom-bar` had `overflow: hidden`, clipping the message archive panel (which expands below the messages container) and tall flavor-text+button rows. Fix: changed both to `overflow: visible`; added `box-sizing: border-box`. (`index.html`)
+
+- [ ] **Bug 5 (--MORE-- sign not showing):** `displayMoreSign` only fires when `REQUIRE_ACKNOWLEDGMENT` or `cautiousMode` is set — correct C parity. Regular game messages do not trigger `--MORE--`. No change needed. (by design)
+
+- [ ] **Bug 5 (message archive Shift+M):** `displayMessageArchive` returns early when `length <= MESSAGE_LINES` (≤3 messages in archive) — correct C parity. After a few game turns the archive opens normally. Archive panel was additionally clipped by `overflow:hidden` — fixed by Bug 5 CSS fix above.

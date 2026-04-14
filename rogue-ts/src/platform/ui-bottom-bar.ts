@@ -22,7 +22,7 @@
  *  License, or (at your option) any later version.
  */
 
-import { COLOR_ESCAPE, COLOR_VALUE_INTERCEPT } from "../types/constants.js";
+import { parseColorEscapes } from "./ui-messages.js";
 
 // =============================================================================
 // Data types
@@ -156,57 +156,27 @@ export function initBottomBarDOM(container: HTMLElement): void {
 }
 
 // =============================================================================
-// Color escape helpers (local, no dep on io/)
+// Color escape helpers (delegates to ui-messages parseColorEscapes)
 // =============================================================================
 
 interface _Segment { text: string; isHotkey: boolean; cssColor: string }
 
 /**
  * Parse a button label (with COLOR_ESCAPE sequences) into segments.
- * A "hotkey" segment is one that appears between a non-white color escape
- * and the next escape or end of string, and is typically a single char.
+ * Delegates to the proven parseColorEscapes implementation used by the
+ * message renderer, then maps segments to button-specific types.
+ *
+ * A segment is treated as a "hotkey" if its color is not near-white
+ * (i.e., the CSS color string is not the pure white produced by white=100,100,100).
  */
 function _parseButtonLabel(raw: string): _Segment[] {
-    const segs: _Segment[] = [];
-    const WHITE = "rgb(255,255,255)";
-    const GOLD = "rgb(255,204,0)";   // yellow in Brogue palette (close enough)
-
-    let curColor = WHITE;
-    let textStart = 0;
-    let i = 0;
-
-    function _toRgb(r: number, g: number, b: number): string {
-        return `rgb(${Math.round(r * 2.55)},${Math.round(g * 2.55)},${Math.round(b * 2.55)})`;
-    }
-
-    function flush(end: number): void {
-        if (end > textStart) {
-            segs.push({ text: raw.slice(textStart, end), isHotkey: curColor !== WHITE, cssColor: curColor });
-        }
-    }
-
-    while (i < raw.length) {
-        if (raw.charCodeAt(i) === COLOR_ESCAPE) {
-            flush(i);
-            i++;
-            if (i + 3 <= raw.length) {
-                const r = Math.max(0, Math.min(100, raw.charCodeAt(i++) - COLOR_VALUE_INTERCEPT));
-                const g = Math.max(0, Math.min(100, raw.charCodeAt(i++) - COLOR_VALUE_INTERCEPT));
-                const b = Math.max(0, Math.min(100, raw.charCodeAt(i++) - COLOR_VALUE_INTERCEPT));
-                curColor = _toRgb(r, g, b);
-                // Treat near-white as white for hotkey detection
-                if (r >= 90 && g >= 90 && b >= 90) curColor = WHITE;
-            }
-            textStart = i;
-        } else {
-            i++;
-        }
-    }
-    flush(i);
-
-    // Unused but keep reference to avoid TS warning
-    void GOLD;
-    return segs;
+    const WHITE_CSS = "rgb(255,255,255)";
+    const msgSegs = parseColorEscapes(raw, 1.0);
+    return msgSegs.map(seg => ({
+        text: seg.text,
+        cssColor: seg.color,
+        isHotkey: seg.color !== WHITE_CSS,
+    }));
 }
 
 // =============================================================================

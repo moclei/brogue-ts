@@ -75,10 +75,11 @@
             top: 0;
             left: 0;
             background: #000;
-            overflow: hidden;
+            overflow: visible; /* allow archive panel to expand below into dungeon area */
             pointer-events: none; /* allow clicks to pass to canvas except archive */
             z-index: 5;
             padding: 1px 3px;
+            box-sizing: border-box;
         }
 
         /* Re-enable pointer events for interactive children inside messages */
@@ -99,9 +100,10 @@
             bottom: 0;
             left: 0;
             background: #111;
-            overflow: hidden;
+            overflow: visible; /* allow flavor text + buttons to show even if taller than 2*cellSize */
             pointer-events: auto;
             z-index: 5;
+            box-sizing: border-box;
         }
     </style>
 </head>
