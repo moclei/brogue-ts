@@ -43,6 +43,7 @@ import { toggleCheatPanel } from "./platform/game-debug-panel.js";
 import { initSidebarDOM, setDOMSidebarEnabled } from "./platform/ui-sidebar.js";
 import { initMessagesDOM, setDOMMessagesEnabled } from "./platform/ui-messages.js";
 import { initBottomBarDOM, setDOMBottomBarEnabled } from "./platform/ui-bottom-bar.js";
+import { setDOMModalEnabled } from "./platform/ui-modal.js";
 
 // =============================================================================
 // Canvas setup
@@ -207,6 +208,9 @@ async function main(): Promise<void> {
         initBottomBarDOM(bottomBarEl as HTMLElement);
         setDOMBottomBarEnabled(true);
     }
+
+    // 3e. Enable DOM modals (Phase 3a). Modals attach to document.body directly.
+    setDOMModalEnabled(true);
 
     // 4. Build the menu DI context
     const menuCtx = buildMenuContext();

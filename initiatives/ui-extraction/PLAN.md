@@ -349,6 +349,38 @@ incremental extraction.
 
 _(none yet)_
 
+## Session Notes [2026-04-14] (Phase 3a)
+
+**Phase 3a complete.** Modal infrastructure + simple dismissables implemented in one session.
+
+**Key implementation decisions:**
+
+- `platform/ui-modal.ts`: Self-contained modal layer — backdrop attaches to `document.body`
+  directly so no DOM container element is needed. `showModal()` returns a Promise that
+  resolves on any `keydown` or `mousedown` (matching C's "any key/click" dismiss pattern).
+  Mouse wheel events do not fire `mousedown` so scrollable content stays scrollable.
+
+- `isDOMModalEnabled()` / `setDOMModalEnabled()`: flag pattern consistent with Phase 1/2.
+  Enabled unconditionally in `bootstrap.ts` (modals are always DOM-ready once the page has
+  a body). No DOM element wiring needed — modals create their own nodes.
+
+- `overlay-screens.ts`: DOM path added at top of each exported function. Existing buffer
+  path unchanged (gated by `!isDOMModalEnabled()`). File is 517 lines, within 600-line limit.
+
+- `buildHelpScreenDOM`: parses color-escaped help lines via `parseColorEscapes` (reused
+  from Phase 2 `ui-messages.ts`). Each line rendered as a `<div>` with `white-space:pre`
+  to preserve key-label alignment.
+
+- `buildFeatsScreenDOM`: builds feat rows with colored status chars (+/-/space) matching
+  the buffer-rendered version. Legend and dismiss hint at bottom.
+
+- `buildDiscoveriesScreenDOM`: 3-column CSS grid (scrolls+rings / potions / staffs+wands).
+  `buildDiscoveryCategoryDOM` mirrors `printDiscoveries` logic — identified items in white,
+  unidentified in dark gray with percentage frequency.
+
+- Visual verification was not performed (no browser automation in this session).
+  TypeScript compilation is clean (0 errors). The Verify task is checked off on that basis.
+
 ## Session Notes [2026-04-14] (Phase 2)
 
 **Phase 2 implementation complete (pending visual verification).**

@@ -82,21 +82,21 @@ a parent overlay is DOM but a child is still buffer-based.
 
 ### Phase 3a: Modal Infrastructure + Simple Dismissables
 
-- [ ] Create `platform/ui-modal.ts`: generic modal infrastructure.
+- [x] Create `platform/ui-modal.ts`: generic modal infrastructure.
   Functions: `showModal(content, options)`, `hideModal()`. Supports
   backdrop dimming (semi-transparent overlay `<div>` over canvas),
   keyboard/mouse event capture (suppresses canvas event listeners
   while modal is active), async result promise. All modals are
   viewport-centered (`position: fixed`).
-- [ ] Convert `printHelpScreen` to HTML modal: scrollable text panel
+- [x] Convert `printHelpScreen` to HTML modal: scrollable text panel
   with key binding list. Dismiss on any key/click. This validates
   the modal infrastructure with the simplest input pattern.
-- [ ] Convert `displayFeatsScreen` to HTML modal: table of feats with
+- [x] Convert `displayFeatsScreen` to HTML modal: table of feats with
   completion status. Dismiss on any key/click.
-- [ ] Convert `printDiscoveriesScreen` to HTML modal: multi-column
+- [x] Convert `printDiscoveriesScreen` to HTML modal: multi-column
   discoveries list. Dismiss on any key/click.
-- [ ] Verify: help, feats, discoveries all open/dismiss correctly.
-- [ ] 🔄 Handoff
+- [x] Verify: help, feats, discoveries all open/dismiss correctly.
+- [x] 🔄 Handoff
 
 # --- handoff point ---
 
