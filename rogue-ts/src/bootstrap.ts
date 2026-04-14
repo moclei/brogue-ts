@@ -58,7 +58,14 @@ const MIN_CELL_SIZE = 12;
  */
 function sizeCanvas(canvas: HTMLCanvasElement): { cellSize: number; dpr: number } {
     const dpr = window.devicePixelRatio || 1;
-    const cellWidth = Math.floor(window.innerWidth / COLS);
+    const sidebarEl = document.getElementById("brogue-sidebar") as HTMLElement | null;
+    const sidebarVisible = sidebarEl && sidebarEl.style.display !== "none";
+
+    // When the DOM sidebar is visible it occupies STAT_BAR_WIDTH additional columns
+    // alongside the canvas. Reserve that space when computing cell size so the
+    // total layout fits within the viewport without scrolling.
+    const totalCols = sidebarVisible ? COLS + STAT_BAR_WIDTH : COLS;
+    const cellWidth = Math.floor(window.innerWidth / totalCols);
     const cellHeight = Math.floor(window.innerHeight / ROWS);
     const cellSize = Math.max(MIN_CELL_SIZE, Math.min(cellWidth, cellHeight));
 
@@ -70,7 +77,6 @@ function sizeCanvas(canvas: HTMLCanvasElement): { cellSize: number; dpr: number 
     canvas.height = Math.round(cssHeight * dpr);
 
     // Size the DOM sidebar to match the sidebar columns (STAT_BAR_WIDTH cells).
-    const sidebarEl = document.getElementById("brogue-sidebar") as HTMLElement | null;
     if (sidebarEl) {
         const sidebarCssWidth = cellSize * STAT_BAR_WIDTH;
         sidebarEl.style.width = `${sidebarCssWidth}px`;
