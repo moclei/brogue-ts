@@ -34,7 +34,8 @@ What's in:
 - DOM-based message display (including message archive scroll)
 - DOM-based bottom bar (game menu buttons, flavor line)
 - HTML modal/panel overlays for: inventory, help screen, feats,
-  discoveries, text boxes (monster/item detail)
+  discoveries, text boxes (monster/item detail), confirm dialogs,
+  system/escape menu, text entry dialogs
 - Bridging layer: functions that currently write to `displayBuffer` for
   UI regions get replaced with functions that update DOM elements
 - Styling that matches the current dark monospace aesthetic
@@ -43,6 +44,10 @@ What's out:
 - Changes to game logic or the dungeon rendering pipeline
 - The dungeon camera system (separate initiative, depends on this one)
 - Main menu / title screen extraction (stays on canvas)
+- Pre-game menus (character select, file picker, game stats) — stay
+  on canvas; they run before gameplay starts
+- Wizard mode / machine debug overlays — development tools, stay
+  buffer-based
 - Redesigning the UI layout or information architecture — this is a
   faithful extraction, not a redesign
 - Mobile/touch support (future initiative)
@@ -52,9 +57,15 @@ What's out:
 - **600 lines max per file.** Split components into focused modules.
 - **Incremental extraction.** Each phase must leave the game playable.
   UI regions not yet extracted continue rendering via the canvas buffer.
+- **Buffer-write fallback.** Keep existing buffer-write code paths
+  gated behind a flag rather than deleting them. This preserves the
+  option to ship the base game with terminal-style rendering and avoids
+  hard-to-reverse deletions during incremental extraction.
 - **No game logic changes.** The sidebar data (what entities to show,
   their stats, health percentages) is still computed by the existing
   functions. Only the rendering output target changes.
-- **Visual fidelity.** The extracted HTML UI should look indistinguishable
-  from the canvas version at default zoom. We're not redesigning — we're
-  re-rendering.
+- **Visual parity, not pixel-identical.** The extracted HTML UI should
+  convey the same information and match the dark monospace aesthetic,
+  but DOM modals will naturally look different from buffer-drawn panels
+  (no distance-based opacity falloff, different text rendering). This
+  is expected and acceptable.

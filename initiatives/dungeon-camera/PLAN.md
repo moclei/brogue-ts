@@ -137,6 +137,27 @@ with a key (M) or settings.
 
 ---
 
+## Dependencies on UI Extraction
+
+The camera assumes UI extraction is complete through Phase 4 (canvas
+is dungeon-only). Key interactions to be aware of:
+
+- **DOM overlays are viewport-centered.** The UI extraction initiative
+  positions all modals with `position: fixed` centered on the viewport.
+  This means no overlay positioning depends on the camera transform.
+  If a future enhancement wants to anchor a tooltip to a dungeon cell,
+  it would need `dungeonToScreen(camera, ...)` — but that's not in
+  scope for either initiative.
+- **Targeting + DOM detail panels.** During targeting, trajectory
+  highlights are canvas-based and the camera applies to them. Monster/
+  item detail panels are DOM-based (post UI extraction) and not
+  affected by the camera. No special integration needed.
+- **Buffer-write fallback.** UI extraction keeps buffer-write paths
+  behind a flag. At camera time, when `useDOM` is on, `commitDraws`
+  only needs to handle dungeon cells. When `useDOM` is off, the full
+  100×34 grid is drawn without the camera (1x zoom, no panning) — the
+  camera only applies to dungeon cells in DOM mode.
+
 ## Open Questions
 
 - **Zoom level persistence:** Store per-mode zoom preference in
@@ -151,3 +172,7 @@ with a key (M) or settings.
 - **Exact zoom steps:** Start with 1x, 2x, 3x. If playtesting shows
   intermediate levels are needed (1.5x), consider adding them for
   ASCII mode only (where integer pixel scaling is less critical).
+
+## Rejected Approaches
+
+_(none yet)_
