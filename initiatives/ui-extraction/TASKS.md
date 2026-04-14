@@ -35,7 +35,7 @@
   gameplay — fill with black or skip in `plotChar`.
 - [x] Verify: gameplay with HTML sidebar, canvas dungeon, all
   interactions (hover highlight, entity click) working.
-- [ ] 🔄 Handoff
+- [x] 🔄 Handoff
 
 # --- handoff point ---
 

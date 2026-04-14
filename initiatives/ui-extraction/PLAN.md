@@ -348,3 +348,34 @@ incremental extraction.
 ## Rejected Approaches
 
 _(none yet)_
+
+## Session Notes [2026-04-14]
+
+**Phase 1 complete.** All tasks executed in one session.
+
+**Key implementation decisions:**
+
+- `SidebarRenderData` lives in `platform/ui-sidebar.ts`; the data builder
+  (`io/sidebar-dom-builder.ts`) uses `SidebarContext` to extract pre-computed
+  CSS colors and entity data. The builder calls `collectSidebarEntities` a
+  second time (the buffer path already called it), which is redundant but correct.
+  Caching across both paths is a Phase 5 optimisation.
+
+- `setSidebarCanvasSuppression(active)` is separate from `isDOMSidebarEnabled()`
+  so the title screen retains full canvas rendering even after `initSidebarDOM`
+  is called at startup. Suppression is toggled in `mainGameLoop` lifecycle.
+
+- `sizeCanvas()` accounts for `STAT_BAR_WIDTH` additional columns when the DOM
+  sidebar is visible, keeping the layout within the viewport. In Phase 1 the
+  canvas still renders 100 columns (sidebar suppressed to black). Phase 4 will
+  shrink the canvas to dungeon-only and remove this workaround.
+
+- Hover wiring uses `setSidebarHoverCallbacks(onHover, onClear)` registered in
+  `mainGameLoop`. DOM entity `mouseenter` calls the hover handler with dungeon
+  coordinates; `mouseleave` on the entity list calls the clear handler. Canvas
+  dungeon hover already updates DOM sidebar focus because `refreshSideBar` is
+  called with `focusX, focusY` which feeds into `buildSidebarRenderData`.
+
+- Visual verification via browser tool was partial (screenshots timed out due
+  to canvas rendering). Evidence of correct operation: clean TypeScript (0
+  errors), no runtime console errors, "[mainGameLoop] started" logged.
