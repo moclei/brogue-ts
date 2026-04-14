@@ -38,9 +38,10 @@ import {
 } from "./io/menu-bar.js";
 import { actionMenu } from "./io/input-mouse.js";
 import { buildHoverHandlerFn, buildClearHoverPathFn } from "./io/hover-wiring.js";
-import { setSidebarHoverCallbacks, setSidebarCanvasSuppression, setSidebarVisible } from "./platform/ui-sidebar.js";
-import { setMessagesCanvasSuppression, setMessagesVisible } from "./platform/ui-messages.js";
-import { setBottomBarClickCallback, setBottomBarCanvasSuppression, setBottomBarVisible } from "./platform/ui-bottom-bar.js";
+import { setSidebarHoverCallbacks, setSidebarCanvasSuppression, setSidebarVisible, setDOMSidebarEnabled } from "./platform/ui-sidebar.js";
+import { setMessagesCanvasSuppression, setMessagesVisible, setDOMMessagesEnabled } from "./platform/ui-messages.js";
+import { setBottomBarClickCallback, setBottomBarCanvasSuppression, setBottomBarVisible, setDOMBottomBarEnabled } from "./platform/ui-bottom-bar.js";
+import { setDOMModalEnabled } from "./platform/ui-modal.js";
 import { GraphicsMode } from "./types/enums.js";
 import type { CellSpriteDataProvider } from "./platform/browser-renderer.js";
 import { buildCellSpriteDataProvider } from "./sprite-data-wiring.js";
@@ -194,12 +195,20 @@ export function getGraphicsMode(): GraphicsMode {
 /**
  * Set graphics mode and notify the console if it supports it. Returns the mode set.
  * Schedules a full redraw so the new mode is visible immediately (matches C behavior).
+ *
+ * Text mode disables DOM extraction so the player gets a pure canvas/buffer experience.
+ * Tiles mode enables DOM extraction for sidebar, messages, bottom bar, and modals.
  */
 export function setGraphicsMode(mode: GraphicsMode): GraphicsMode {
     _graphicsMode = mode;
     const c = _console as PlatformConsoleWithGraphics | null;
     if (c?.setGraphicsMode) c.setGraphicsMode(mode);
     _forceFullRedraw = true;
+    const useDOM = mode === GraphicsMode.Tiles;
+    setDOMSidebarEnabled(useDOM);
+    setDOMMessagesEnabled(useDOM);
+    setDOMBottomBarEnabled(useDOM);
+    setDOMModalEnabled(useDOM);
     return _graphicsMode;
 }
 
