@@ -17,7 +17,7 @@ import type { BrogueButton, RogueEvent, SavedDisplayBuffer } from "../types/type
 import type { DisplayGlyph } from "../types/enums.js";
 import { EventType, Direction, TextEntryType } from "../types/enums.js";
 import { ButtonFlag } from "../types/flags.js";
-import { isDOMModalEnabled } from "../platform/ui-modal.js";
+import { isDOMModalEnabled, showInputModal } from "../platform/ui-modal.js";
 import {
     COLS, ROWS, KEYBOARD_LABELS,
     UP_KEY, DOWN_KEY, LEFT_KEY, RIGHT_KEY,
@@ -112,6 +112,18 @@ export async function getInputTextString(
     textEntryType: TextEntryType,
     useDialogBox: boolean,
 ): Promise<string | null> {
+    // DOM path: use a native <input> modal instead of the custom keystroke loop.
+    if (useDialogBox && isDOMModalEnabled()) {
+        const numericOnly = textEntryType === TextEntryType.Numbers;
+        const result = await showInputModal(prompt, defaultEntry, maxLength, numericOnly);
+        if (result === null) return null;
+        // Append to displayed message log, matching C behavior.
+        if (ctx.displayedMessage.length > 0) {
+            ctx.displayedMessage[0] += result + promptSuffix;
+        }
+        return result;
+    }
+
     const textEntryBounds: [number, number][] = [
         [" ".charCodeAt(0), "~".charCodeAt(0)],
         [" ".charCodeAt(0), "~".charCodeAt(0)],

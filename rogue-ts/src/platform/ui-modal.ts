@@ -404,3 +404,118 @@ function _dismissTextBox(): void {
     _tbCleanup = null;
     cleanup?.();
 }
+
+// =============================================================================
+// Text-entry modal (getInputTextString DOM replacement)
+// =============================================================================
+
+/**
+ * Show a text-entry dialog as a DOM modal with an `<input>` element.
+ *
+ * @param prompt      — Label shown above the input.
+ * @param defaultText — Pre-filled default value.
+ * @param maxLength   — Maximum character count.
+ * @param numericOnly — If true, only digits are allowed.
+ *
+ * Returns the entered string, or null if the user pressed Escape.
+ */
+export function showInputModal(
+    prompt: string,
+    defaultText: string,
+    maxLength: number,
+    numericOnly: boolean,
+): Promise<string | null> {
+    return new Promise<string | null>(resolve => {
+        _dismissTextBox();
+        if (_backdrop) _dismiss();
+
+        _tbBackdrop = document.createElement("div");
+        _tbBackdrop.style.cssText = [
+            "position:fixed",
+            "inset:0",
+            "background:rgba(0,0,0,0.80)",
+            "z-index:1000",
+            "display:flex",
+            "align-items:center",
+            "justify-content:center",
+        ].join(";");
+
+        const panel = document.createElement("div");
+        panel.style.cssText = [
+            "background:#0a0a0a",
+            "border:1px solid #444",
+            "padding:1.5em 2em",
+            "min-width:300px",
+            "max-width:min(90vw,600px)",
+            "font-family:monospace",
+            "font-size:14px",
+            "color:#ccc",
+            "display:flex",
+            "flex-direction:column",
+            "gap:0.75em",
+        ].join(";");
+
+        const label = document.createElement("div");
+        label.textContent = prompt;
+        label.style.color = "#ffffff";
+        panel.appendChild(label);
+
+        const inputEl = document.createElement("input");
+        inputEl.type = "text";
+        inputEl.value = defaultText;
+        inputEl.maxLength = maxLength;
+        if (numericOnly) inputEl.pattern = "[0-9]*";
+        inputEl.style.cssText = [
+            "background:#000",
+            "color:#fff",
+            "border:1px solid #555",
+            "padding:0.3em 0.5em",
+            "font-family:monospace",
+            "font-size:14px",
+            "width:100%",
+            "box-sizing:border-box",
+        ].join(";");
+        panel.appendChild(inputEl);
+
+        const hint = document.createElement("div");
+        hint.textContent = "Enter to confirm · Escape to cancel";
+        hint.style.cssText = "font-size:11px;color:#666";
+        panel.appendChild(hint);
+
+        _tbBackdrop.appendChild(panel);
+        document.body.appendChild(_tbBackdrop);
+
+        let _resolved = false;
+        const finish = (result: string | null): void => {
+            if (_resolved) return;
+            _resolved = true;
+            inputEl.removeEventListener("keydown", onKey);
+            _tbBackdrop?.remove();
+            _tbBackdrop = null;
+            _tbCleanup = null;
+            resolve(result);
+        };
+
+        _tbCleanup = () => finish(null);
+
+        const onKey = (e: KeyboardEvent): void => {
+            e.stopPropagation();
+            if (e.key === "Enter") {
+                e.preventDefault();
+                finish(inputEl.value.slice(0, maxLength));
+            } else if (e.key === "Escape") {
+                e.preventDefault();
+                finish(null);
+            }
+            // All other keys: let the input element handle them natively.
+        };
+
+        inputEl.addEventListener("keydown", onKey);
+
+        // Focus the input and move cursor to end.
+        requestAnimationFrame(() => {
+            inputEl.focus();
+            inputEl.setSelectionRange(inputEl.value.length, inputEl.value.length);
+        });
+    });
+}

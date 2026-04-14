@@ -122,7 +122,7 @@ a parent overlay is DOM but a child is still buffer-based.
   unnecessary for the modal itself (but may still be needed for
   underlying canvas state). Verify critical confirm dialogs:
   throw item, descend stairs, quit game.
-- [ ] Convert text entry dialog (`getInputTextString` with
+- [x] Convert text entry dialog (`getInputTextString` with
   `useDialogBox: true`): replace `rectangularShading` + custom
   keystroke loop with a DOM modal containing an `<input>` element.
   Used for item inscription and seed entry.
