@@ -149,7 +149,7 @@ Use this decision tree when investigating code:
 ```
 Need to understand a system or trace a bug?
 │
-├── Research doc exists in .context/research/?
+├── Research doc exists in docs/research/?
 │   └── YES → Read it. Done. Skip CodeQL/grep entirely.
 │
 ├── Need to know what functions a file contains?

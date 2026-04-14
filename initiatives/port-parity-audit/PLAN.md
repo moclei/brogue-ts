@@ -27,7 +27,7 @@ The classification method for each unique stub name:
    acceptable gap.
 
 Output: a classification table appended to this file or stored in
-`.context/analysis/stub-classification.json`.
+`docs/analysis/stub-classification.json`.
 
 ### Phase 2: Wire stubs
 

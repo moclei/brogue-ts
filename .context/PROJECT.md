@@ -2,10 +2,9 @@
 
 ## System
 
-This project uses a structured agent workflow. Read these before working:
+This project uses a structured agent workflow. Read before working:
 
-- `.context/WORKFLOW.md` — initiative and document structure
-- `.context/AGENTS.md` — roles, protocols, escalations
+- `.context/PROTOCOL.md` — initiative structure, roles, protocols, escalations
 
 ### Role Activation
 
@@ -15,8 +14,8 @@ If the user begins their message with a role prefix, adopt that role fully for t
 
 | Prefix              | Role         | Behaviour                                                                   |
 | ------------------- | ------------ | --------------------------------------------------------------------------- |
-| `role:planner`      | Planner      | Create or revise initiative docs. See AGENTS.md.                            |
-| `role:orchestrator` | Orchestrator | Run the Task tool loop for the named initiative. Unattended. See AGENTS.md. |
+| `role:planner`      | Planner      | Create or revise initiative docs. See PROTOCOL.md.                            |
+| `role:orchestrator` | Orchestrator | Run the Task tool loop for the named initiative. Unattended. See PROTOCOL.md. |
 
 `role:orchestrator` always means unattended execution via the Task tool loop. It does not pause for confirmation between tasks. It stops only when all tasks are complete or an escalation condition is met.
 
@@ -25,8 +24,8 @@ The Worker role is never invoked by the user. Only the Orchestrator spawns Worke
 When a role is active:
 
 - Announce it once at the start: _"Acting as [Role]."_
-- Operate strictly within that role's responsibilities as defined in AGENTS.md
-- Escalate according to the escalation paths in AGENTS.md
+- Operate strictly within that role's responsibilities as defined in PROTOCOL.md
+- Escalate according to the escalation paths in PROTOCOL.md
 - When the role's work is complete, say so explicitly and stop
 
 ## Purpose
@@ -76,8 +75,8 @@ rogue-ts/            Second port attempt — active work
 tools/               Dev tools — sprite assigner, sheet generators (see tools/CONTEXT.md)
 initiatives/         Active and not-yet-started initiative docs (BRIEF / PLAN / TASKS)
 initiatives/archive/ Completed and abandoned initiatives
-docs/                Reference: PORT_V2.md, FIRST_PORT_ANALYSIS.md
-.context/            PROJECT.md (this file), WORKFLOW.md
+docs/                Reference docs, research notes, analysis indexes (PORT_V2.md, etc.)
+.context/            PROJECT.md (this file), PROTOCOL.md, manifest.yaml
 codeql/              CodeQL databases + query library (see codeql/CONTEXT.md); databases/ gitignored
 ```
 
@@ -96,7 +95,7 @@ cover domain-specific details. Load them on demand, not by default.
 | `tools/dungeon-cake/CONTEXT.md`       | Dungeon Cake — standalone sprite evaluation tool with debug controls           |
 | `codeql/CONTEXT.md`                   | CodeQL databases, query reference, shell workflow                              |
 | `tools/analysis/CONTEXT.md`           | Code analysis tools — C manifest, TS stub scanner, port health reporter       |
-| `.context/research/INDEX.md`          | Pre-computed mechanic/system research — load before investigating              |
+| `docs/research/INDEX.md`              | Pre-computed mechanic/system research — load before investigating              |
 
 When working in a subdirectory, read its `CONTEXT.md` first. When adding a new
 tool or subsystem, add a `CONTEXT.md` if it would save a future reader from
@@ -130,9 +129,9 @@ The C codebase is ~49K lines, split across three layers:
 
 **Priority order** when investigating code:
 
-1. **Check `.context/research/INDEX.md`** — if a research doc exists for the topic, read
+1. **Check `docs/research/INDEX.md`** — if a research doc exists for the topic, read
    it and skip everything below. This is pre-computed understanding.
-2. **Check `.context/analysis/`** — pre-computed data indexes (file reads, not scans):
+2. **Check `docs/analysis/`** — pre-computed data indexes (file reads, not scans):
    - `c-manifest.json`: C function callers, callees, params, system classification (818 functions)
    - `stub-report.json`: current TS stub status by file, function, and context builder
    - `port-health.json` / `PORT_HEALTH.md`: cross-referenced port health by system

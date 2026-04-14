@@ -96,6 +96,6 @@ Only one initiative is active at a time. An initiative is not done until all its
 ## Reference
 
 - First attempt retrospective: `docs/FIRST_PORT_ANALYSIS.md`
-- Workflow rules: `.context/WORKFLOW.md`
+- Agent workflow: `.context/PROTOCOL.md`
 - First attempt source (preserved): `ts/`
 - C source (ground truth): `src/brogue/`

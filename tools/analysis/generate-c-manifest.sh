@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Generate the C function manifest from CodeQL queries.
-# Output: .context/analysis/c-manifest.json
+# Output: docs/analysis/c-manifest.json
 #
 # Requires: codeql on PATH, codeql/databases/brogue-c extracted.
 # Run from repo root: tools/analysis/generate-c-manifest.sh
@@ -10,7 +10,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-OUT_DIR="$REPO_ROOT/.context/analysis"
+OUT_DIR="$REPO_ROOT/docs/analysis"
 RUNNER="$REPO_ROOT/codeql/run-query.sh"
 MERGER="$SCRIPT_DIR/merge-codeql-results.mjs"
 

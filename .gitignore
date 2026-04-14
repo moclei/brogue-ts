@@ -42,6 +42,6 @@ rogue-ts/assets/tilesets/rf-catacombs/
 codeql/databases/
 
 # Analysis — dynamic reports regenerated on demand (c-manifest.json is committed)
-.context/analysis/stub-report.json
-.context/analysis/port-health.json
-.context/analysis/PORT_HEALTH.md
+docs/analysis/stub-report.json
+docs/analysis/port-health.json
+docs/analysis/PORT_HEALTH.md
