@@ -59,6 +59,9 @@ import {
     createScreenDisplayBuffer as createScreenDisplayBufferFn,
 } from "./io/display.js";
 import { buildMessageContext, buildButtonContext } from "./ui.js";
+import { isDOMModalEnabled, showTextBoxModal } from "./platform/ui-modal.js";
+import type { ModalButton } from "./platform/ui-modal.js";
+import { stripColorEscapes } from "./io/inventory.js";
 
 // =============================================================================
 // buildInventoryContext
@@ -189,6 +192,17 @@ export function buildInventoryContext(): FullInventoryContext {
                 }
                 return bs;
             })() : [];
+
+            // DOM path: show item text + action buttons in a modal, bypassing buffer rendering.
+            if (isDOMModalEnabled()) {
+                const modalBtns: ModalButton[] = actionButtons.map(btn => ({
+                    label: stripColorEscapes(btn.text),
+                    hotkeys: [...btn.hotkey].filter(k => k > 0),
+                }));
+                const idx = await showTextBoxModal(textBuf, modalBtns);
+                if (idx === -1) return -1;
+                return actionButtons[idx]?.hotkey[0] ?? -1;
+            }
 
             // Invisible up/down navigation buttons (C: printCarriedItemDetails).
             const navUp   = initializeButtonFn();
