@@ -11,16 +11,16 @@
   region (left), canvas + message + bottom bar region (right). Style
   with dark background, monospace font. Canvas retains current sizing
   logic for now.
-- [ ] Create `platform/ui-sidebar.ts`: DOM rendering module for the
+- [x] Create `platform/ui-sidebar.ts`: DOM rendering module for the
   sidebar. Functions: `initSidebarDOM(container)`, `renderSidebar(data)`.
-- [ ] Extract sidebar data interface: define a `SidebarRenderData` type
+- [x] Extract sidebar data interface: define a `SidebarRenderData` type
   that captures everything needed to render the sidebar (player stats,
   entity list with names/glyphs/colors, health percentages, depth).
   Keep it serializable (plain objects, no functions or closures).
-- [ ] Implement `renderSidebar`: creates/updates DOM elements for player
+- [x] Implement `renderSidebar`: creates/updates DOM elements for player
   stats block (HP bar, nutrition, str, armor, gold, stealth), entity
   list entries (glyph + name with colors), and depth footer.
-- [ ] Implement progress bars as styled `<div>` elements with percentage
+- [x] Implement progress bars as styled `<div>` elements with percentage
   fill widths, matching current 20-column bar appearance.
 - [ ] Wire `refreshSideBar` call sites to produce `SidebarRenderData`
   and call `renderSidebar` instead of (or in addition to) buffer writes.
