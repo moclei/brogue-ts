@@ -107,11 +107,11 @@ a parent overlay is DOM but a child is still buffer-based.
   animation and `setTimeout`. `flashTemporaryAlert` currently
   snapshots individual cells and animates with `pauseBrogue` —
   the DOM version is a positioned `<div>` with opacity transition.
-- [ ] Convert `printTextBox` (without buttons) to HTML modal: text
+- [x] Convert `printTextBox` (without buttons) to HTML modal: text
   content in a styled centered panel. This validates the shading/
   backdrop replacement — DOM uses a simple backdrop `<div>` instead
   of `rectangularShading`'s distance-based opacity falloff.
-- [ ] Convert `printTextBox` (with buttons) to HTML modal: same panel
+- [x] Convert `printTextBox` (with buttons) to HTML modal: same panel
   plus styled `<button>` elements. DOM click/keyboard handlers
   resolve the async promise with the button index. This is the
   first `buttonInputLoop` replacement — validate carefully.
