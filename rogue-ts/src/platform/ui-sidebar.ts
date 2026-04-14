@@ -138,6 +138,12 @@ let depthFooterEl: HTMLElement | null = null;
 let domSidebarEnabled = false;
 
 /**
+ * True when canvas sidebar columns (0–STAT_BAR_WIDTH) should be suppressed.
+ * Only active during gameplay (mainGameLoop) — not during title/menu screens.
+ */
+let canvasSidebarSuppressed = false;
+
+/**
  * Callback invoked when the pointer enters a sidebar entity card.
  * Receives the entity's dungeon map coordinates (mapX, mapY).
  * Typically routes through the main game hover handler to trigger
@@ -159,6 +165,22 @@ export function setDOMSidebarEnabled(enabled: boolean): void {
 /** Returns true if DOM sidebar rendering is currently enabled. */
 export function isDOMSidebarEnabled(): boolean {
     return domSidebarEnabled;
+}
+
+/**
+ * Enable or disable suppression of canvas sidebar columns.
+ * Call `setSidebarCanvasSuppression(true)` when gameplay starts and
+ * `setSidebarCanvasSuppression(false)` when it ends (return to menu).
+ * Suppression is separate from DOM enablement so the title screen retains
+ * full canvas access even when DOM sidebar is initialized.
+ */
+export function setSidebarCanvasSuppression(active: boolean): void {
+    canvasSidebarSuppressed = active;
+}
+
+/** Returns true when canvas sidebar columns should be suppressed. */
+export function isSidebarCanvasSuppressed(): boolean {
+    return canvasSidebarSuppressed;
 }
 
 /**

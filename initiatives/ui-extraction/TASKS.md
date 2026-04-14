@@ -31,7 +31,7 @@
 - [x] Wire sidebar DOM hover events to trigger dungeon cell highlighting
   (reuse existing hover handler pathway). Also wire canvas dungeon cell
   hover to update sidebar DOM highlighting (reverse direction).
-- [ ] Suppress canvas rendering of sidebar columns (0–20) during
+- [x] Suppress canvas rendering of sidebar columns (0–20) during
   gameplay — fill with black or skip in `plotChar`.
 - [ ] Verify: gameplay with HTML sidebar, canvas dungeon, all
   interactions (hover highlight, entity click) working.

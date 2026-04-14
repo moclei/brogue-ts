@@ -12,6 +12,7 @@
  */
 
 import type { BrogueConsole } from "../types/platform.js";
+import { isSidebarCanvasSuppressed } from "./ui-sidebar.js";
 import type { RogueEvent, PauseBehavior } from "../types/types.js";
 import { EventType, GraphicsMode, DisplayGlyph } from "../types/enums.js";
 import type { TileType } from "../types/enums.js";
@@ -494,6 +495,14 @@ export function createBrowserConsole(
       backBlue: number,
       tileType?: TileType,
     ): void {
+      // Suppress sidebar columns during gameplay when DOM sidebar is active
+      if (isSidebarCanvasSuppressed() && x < STAT_BAR_WIDTH) {
+        const cr = getCellRect(x, y);
+        ctx2d.fillStyle = "#000000";
+        ctx2d.fillRect(cr.x, cr.y, cr.width, cr.height);
+        return;
+      }
+
       const cr = getCellRect(x, y);
 
       const useTiles =
