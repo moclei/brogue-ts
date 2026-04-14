@@ -349,6 +349,43 @@ incremental extraction.
 
 _(none yet)_
 
+## Session Notes [2026-04-14] (Phase 3d)
+
+**Phase 3d complete.** All tasks executed in one session. TypeScript compilation clean (0 errors).
+
+**Key implementation decisions:**
+
+- `platform/ui-inventory-modal.ts`: new standalone module `showInventoryModal`. Displays a
+  `position:fixed` centered panel with styled item rows (letter / magic-indicator / glyph /
+  name). Equipped separator drawn after `equippedCount` rows. ArrowUp/Down move an
+  in-panel focus highlight. Letter keys (a–z) select by inventory letter; Shift/Ctrl
+  detected on both click and keypress. Escape + click-outside cancel. Pack-space hint and
+  instruction text rendered when `waitForAcknowledge`. Uses its own backdrop state
+  (independent of `_tbBackdrop` in `ui-modal.ts`).
+
+- `io/inventory-display.ts`: DOM path inserted before the button-array initialization.
+  Builds `InventoryModalItem[]` from `itemList` (calls `glyphToUnicode` from `glyph-map.ts`
+  for item glyphs). Drives the same two-level loop as the buffer path: outer inventory
+  list → `showInventoryModal`; inner drill-down → `ctx.printCarriedItemDetails` with
+  Up/Down cycling and `repeatDisplay` on dismiss. Action dispatch (apply/equip/unequip/
+  drop/throw/relabel/call) executes and returns `""` immediately. Cancelled at any level
+  returns `""`. Selected without modifier returns `inventoryLetter`.
+
+- `platform/ui-modal.ts` `showTextBoxModal`: two fixes for the drill-down detail modal:
+  (1) Buttons with empty labels are skipped in the rendered button row (invisible
+  nav/escape slots wire hotkeys only). (2) Keyboard handler now maps `ArrowUp` →
+  63232 and `ArrowDown` → 63233 so detail-view arrow navigation fires correctly.
+
+- `ui-inventory.ts` `printCarriedItemDetails` DOM path: three invisible `ModalButton`
+  entries appended after action buttons — up-nav (k/8/↑ → `UP_KEY`), down-nav
+  (j/2/↓ → `DOWN_KEY`), escape (Esc → -1). Return value mapped by index range.
+  Backdrop click also fires Esc via the escape button's hotkey 27.
+
+- Verification via code-path analysis (no browser automation). All call contexts
+  (`waitForAcknowledge` true/false, `includeButtons` true/false, `promptForItemOfType`
+  filtered selection, death screen review) traced through the DOM path. `buttonInputLoop`
+  is bypassed entirely in the DOM path — `ButtonInputResult` type concern is N/A.
+
 ## Session Notes [2026-04-14] (Phase 3c)
 
 **Phase 3c complete.** All tasks executed in one session. TypeScript compilation clean (0 errors).

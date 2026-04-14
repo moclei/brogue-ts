@@ -158,7 +158,7 @@ a parent overlay is DOM but a child is still buffer-based.
 
 ### Phase 3d: Inventory
 
-- [ ] Convert `displayInventory` to HTML modal: item list as styled
+- [x] Convert `displayInventory` to HTML modal: item list as styled
   rows with glyph/name/letter. Requirements:
   - Letter-key selection (a-z maps to inventory slots)
   - Shift/control click or keypress triggers drill-down to item
@@ -170,18 +170,18 @@ a parent overlay is DOM but a child is still buffer-based.
   - Escape to cancel
   - Pack space hint and instruction text when `waitForAcknowledge`
   - Equipped item separator line
-- [ ] Implement inventory drill-down: when an item is selected with
+- [x] Implement inventory drill-down: when an item is selected with
   modifier or in acknowledge mode, show `printCarriedItemDetails`
   (DOM, from Phase 3c). Up/down arrows in detail view cycle items
   without closing the inventory. Return to list on dismiss.
-- [ ] Verify inventory in all call contexts: pick up item (choose
+- [x] Verify inventory in all call contexts: pick up item (choose
   slot), apply item, equip/unequip, throw, drop, examine (from
   sidebar), death screen inventory review.
-- [ ] Verify `InputContext.buttonInputLoop` return type: some callers
+- [x] Verify `InputContext.buttonInputLoop` return type: some callers
   need only `chosenButton` (number), others need the full
   `ButtonInputResult` (chosenButton + event). Ensure the DOM
   replacement provides both where needed.
-- [ ] 🔄 Handoff
+- [x] 🔄 Handoff
 
 # --- handoff point ---
 
