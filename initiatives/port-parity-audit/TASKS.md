@@ -6,7 +6,7 @@
 - [x] For each of the 220 unique stub names, determine if a real (non-stub) implementation
       exists anywhere in the TS codebase. Method: for each name, grep for non-trivial
       assignments (not `() => {}` / `() => false` / `() => 0` / `() => null`). Record
-      results in `.context/analysis/stub-classification.json` with categories:
+      results in `docs/analysis/stub-classification.json` with categories:
       `wire-up`, `needs-porting`, `recording`, `intentional-gap`.
 - [x] Review the `needs-porting` list against the C manifest. For each, note the C system,
       caller count, and whether it's on a critical path. Estimate effort.
@@ -152,7 +152,7 @@ All needs-porting functions from sub-phase 2a must exist before starting this su
 - [x] Run full test suite: `npx vitest run` — all passing, no new skips.
 - [ ] Playtest: complete game on a known seed. Note any behavioral anomalies. **[USER ACTION REQUIRED]**
 - [x] Update `docs/BACKLOG.md` with final port status and any remaining gaps.
-- [x] Update `.context/analysis/PORT_HEALTH.md` as the final health snapshot.
+- [x] Update `docs/analysis/PORT_HEALTH.md` as the final health snapshot.
 
 ## Deferred
 

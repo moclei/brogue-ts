@@ -13,7 +13,7 @@ context window bloat during bug investigation and cross-language (C→TS) tracin
 - TypeScript database built from `rogue-ts/` with a documented refresh procedure
 - A CodeQL MCP server wired to Claude Code's MCP settings and verified working
 - A small query library of common patterns for this project
-- WORKFLOW.md updated with CodeQL-first investigation instructions for AI agents
+- Protocol doc updated with CodeQL-first investigation instructions for AI agents (today: `.context/PROTOCOL.md`)
 - All new infrastructure documented in `codeql/CONTEXT.md`; PROJECT.md updated
 
 ## Scope

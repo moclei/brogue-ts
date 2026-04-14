@@ -7,7 +7,7 @@
  * trivial constant: () => {}, () => false, () => 0, () => null, etc.
  *
  * Usage: npx tsx tools/analysis/scan-stubs.ts [--out <path>]
- *        Default output: .context/analysis/stub-report.json
+ *        Default output: docs/analysis/stub-report.json
  */
 
 import * as ts from 'typescript';
@@ -16,7 +16,7 @@ import { join, relative, resolve } from 'path';
 
 const REPO_ROOT = resolve(import.meta.dirname, '../..');
 const TS_SRC = join(REPO_ROOT, 'rogue-ts/src');
-const DEFAULT_OUT = join(REPO_ROOT, '.context/analysis/stub-report.json');
+const DEFAULT_OUT = join(REPO_ROOT, 'docs/analysis/stub-report.json');
 
 interface StubEntry {
   file: string;

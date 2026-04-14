@@ -2,7 +2,7 @@
 
 ## Phase 1: Research
 
-- [x] Create `.context/research/machines.md` from template; add entry to INDEX.md
+- [x] Create `docs/research/machines.md` from template; add entry to INDEX.md
 - [x] Use CodeQL to map the full C call chain from `addMachines` and `buildAMachine`;
       document in research doc
 - [x] Document blueprint data structures, flags (`BP_*`), and the blueprint catalog

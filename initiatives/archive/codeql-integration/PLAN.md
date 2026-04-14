@@ -113,7 +113,7 @@ new developer can reproduce the setup.
 
 ## Phase 4: Query library + documentation
 
-**Goal:** Common QL queries written and tested; WORKFLOW.md updated; all docs complete.
+**Goal:** Common QL queries written and tested; protocol doc updated; all docs complete.
 
 ### Common queries (`codeql/queries/`)
 
@@ -135,9 +135,9 @@ To find the TypeScript equivalent of a C function: grep rogue-ts/src/ for the C 
 name as a comment. Convention in this project: ports include a `// C: FunctionName()`
 reference comment. This is manual but effective and doesn't require CodeQL.
 
-### WORKFLOW.md update
+### Protocol doc update
 
-Add "CodeQL-first investigation protocol" to `.context/WORKFLOW.md`:
+Add "CodeQL-first investigation protocol" to `.context/PROTOCOL.md` (supersedes former `WORKFLOW.md`):
 > Before reading any file during bug investigation:
 > 1. Use CodeQL to find the function definition (find-definition query)
 > 2. Use CodeQL to get callers and callees
