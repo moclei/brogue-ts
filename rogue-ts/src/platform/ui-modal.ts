@@ -1,21 +1,10 @@
 /*
  *  platform/ui-modal.ts — Generic DOM modal infrastructure
- *  Port V2 — rogue-ts / ui-extraction Phase 3a
+ *  Port V2 — rogue-ts / ui-extraction Phase 3a–3c
  *
- *  Provides:
- *    showModal(content)      — display a viewport-centered modal and await dismiss
- *    hideModal()             — programmatically dismiss any open modal
- *    setDOMModalEnabled(v)   — enable/disable DOM modal rendering
- *    isDOMModalEnabled()     — query enabled state
- *
- *  All modals use position:fixed centering and are independent of dungeon
- *  cell coordinates or canvas dimensions. A semi-transparent backdrop sits
- *  over the entire viewport while the modal is open. Any keydown or
- *  mousedown on the backdrop (outside the modal panel) dismisses the modal;
- *  for simple dismissables, mousedown inside the panel also dismisses.
- *
- *  Event capture: while a modal is open, keyboard and mouse events are
- *  consumed by the modal layer and do not reach the canvas / game loop.
+ *  Exports: showModal, hideModal, showTextBoxModal, hideTextPanel,
+ *           showMenuModal, showInputModal, setDOMModalEnabled, isDOMModalEnabled.
+ *  All modals use position:fixed centering, independent of canvas dimensions.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -420,14 +409,9 @@ export interface MenuModalItem {
 }
 
 /**
- * Show a vertical action menu as a DOM modal.
- *
- * Items are indexed in parallel with the caller's button array so the
- * returned index can be used directly to look up the original button.
- * Separator items cannot be clicked or triggered by hotkey.
- *
- * Returns the index of the chosen item, or -1 if cancelled (Escape /
- * click outside the panel).
+ * Show a vertical action menu as a DOM modal. Items are indexed in parallel
+ * with the caller's button array so the returned index maps directly.
+ * Returns the chosen item index, or -1 if cancelled.
  */
 export function showMenuModal(items: MenuModalItem[]): Promise<number> {
     return new Promise<number>(resolve => {

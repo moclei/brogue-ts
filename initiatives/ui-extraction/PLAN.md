@@ -349,6 +349,36 @@ incremental extraction.
 
 _(none yet)_
 
+## Session Notes [2026-04-14] (Phase 3c)
+
+**Phase 3c complete.** All tasks executed in one session. TypeScript compilation clean (0 errors).
+
+**Key implementation decisions:**
+
+- `platform/ui-modal.ts` extended with `showMenuModal(items: MenuModalItem[])`: vertical DOM menu
+  with separator support. Items array is indexed in parallel with the caller's `BrogueButton[]`
+  so the returned index maps directly to the button index — no separate mapping needed.
+  Uses the same `_tbBackdrop`/`_tbCleanup` shared state as `showTextBoxModal`.
+  File kept under 600 lines by trimming header comment.
+
+- `io/input-mouse.ts` `actionMenu`: DOM path added before buffer path in the `do...while` loop.
+  Disabled buttons (`~B_ENABLED`) become separators in the `MenuModalItem[]`. `takeActionOurselves`
+  toggle loop (for trueColorMode/stealthRange/graphics) continues to work in DOM mode — the loop
+  re-shows the menu on the next iteration. `stripColorEscapes` exported from `io/inventory.ts`.
+
+- `ui-inventory.ts` `buildInventoryContext().printCarriedItemDetails`: DOM path added before buffer
+  path. Builds `ModalButton[]` from `actionButtons` (all have `B_DRAW` set), calls
+  `showTextBoxModal(textBuf, modalBtns)`, returns hotkey. Nav buttons (up/down) are excluded
+  from the modal — item cycling is a Phase 3d concern. Return type is `number` matching interface.
+
+- `printMonsterDetails` and `printFloorItemDetails` required NO code changes. They already call
+  `ctx.printTextBox()`, which routes to DOM via `isDOMModalEnabled()` → `showTextBoxModal` (no-button
+  floating panel). `hideTextPanel()` was imported into `input-cursor.ts` and called in the
+  cursor loop cleanup block whenever `textDisplayed` is true, removing the floating panel when
+  the cursor moves to a new cell.
+
+- Visual verification not performed (no browser automation). TypeScript compilation is clean (0 errors).
+
 ## Session Notes [2026-04-14] (Phase 3b)
 
 **Phase 3b complete.** All tasks executed in one session. TypeScript compilation clean (0 errors).

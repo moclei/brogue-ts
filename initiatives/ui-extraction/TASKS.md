@@ -133,26 +133,26 @@ a parent overlay is DOM but a child is still buffer-based.
 
 ### Phase 3c: System Menu + Item Details
 
-- [ ] Convert system/escape menu (`actionMenu` in `input-mouse.ts`):
+- [x] Convert system/escape menu (`actionMenu` in `input-mouse.ts`):
   replace `rectangularShading` + `buttonInputLoop` + save/restore
   with a DOM modal. Has variant buttons for playback mode — verify
   both gameplay and playback menu states.
-- [ ] Convert `printCarriedItemDetails` (`ui-inventory.ts`): detail
+- [x] Convert `printCarriedItemDetails` (`ui-inventory.ts`): detail
   panel with `buttonInputLoop` for action dispatch (apply, equip,
   drop, throw, relabel, call). DOM version: styled panel with
   action buttons. Must preserve the full `ButtonInputResult` return
   (chosen button + event) since `displayInventory` checks
   `event.shiftKey`.
-- [ ] Convert `printMonsterDetails` (`sidebar-monsters.ts`) and
+- [x] Convert `printMonsterDetails` (`sidebar-monsters.ts`) and
   `printFloorItemDetails` (`sidebar-player.ts`): these call
   `printTextBox` (now DOM) during cursor/examine mode. The parent
   cursor loop in `input-cursor.ts` does save/restore around these
   calls — verify the save/restore still works correctly when the
   detail is a DOM panel (it should: save/restore handles canvas
   content, DOM panel lifecycle is independent).
-- [ ] Verify: escape menu, item detail actions (equip/drop/throw
+- [x] Verify: escape menu, item detail actions (equip/drop/throw
   from inventory detail), monster/item popups during examine mode.
-- [ ] 🔄 Handoff
+- [x] 🔄 Handoff
 
 # --- handoff point ---
 
