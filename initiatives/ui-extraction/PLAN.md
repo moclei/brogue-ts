@@ -349,6 +349,48 @@ incremental extraction.
 
 _(none yet)_
 
+## Session Notes [2026-04-14] (Phase 4)
+
+**Phase 4 complete.** All tasks executed in one session. TypeScript compilation clean (0 errors).
+
+**Key implementation decisions:**
+
+- Canvas mode state (`_canvasGameplayMode`) lives in `platform/browser-renderer.ts`, exported as
+  `isCanvasGameplayMode()` / `setCanvasGameplayMode()`. Both `bootstrap.ts` (for `sizeCanvas`)
+  and `browser-renderer.ts` (for `plotChar`/`pixelToCell`/`getCellRect`) read this flag directly.
+
+- Mode switching wired via `registerCanvasModeCallback(fn)` in `platform.ts`. The callback is
+  registered inside `initBrowserConsole` (where `rendererOptions` and `browserConsole` are in scope)
+  so it can correctly update `rendererOptions.fontSize/devicePixelRatio` and call `browserConsole.handleResize()`.
+  `mainGameLoop` calls `_onCanvasModeChange?.(true/false)` at start/end.
+
+- `sizeCanvas` (bootstrap.ts) now reads `isCanvasGameplayMode()` and sizes the canvas to
+  DCOLS×DROWS in gameplay mode or COLS×ROWS in menu mode. In gameplay mode, `#brogue-canvas-wrap`
+  gets `paddingTop = MESSAGE_LINES * cellSize` and `paddingBottom = 2 * cellSize` so DOM messages
+  (`position:absolute top:0`) and DOM bottom-bar (`position:absolute bottom:0`) continue to occupy
+  the correct visual rows above and below the dungeon canvas.
+
+- `plotChar` in gameplay mode: maps full-grid window coords to dungeon-relative canvas coords
+  (`canvasCol = x - (STAT_BAR_WIDTH + 1), canvasRow = y - MESSAGE_LINES`), skips all
+  non-dungeon cells (sidebar, message rows, bottom rows), and calls `cellRect` with
+  DCOLS×DROWS grid. The existing suppression-flag path (for menu mode) is unchanged.
+
+- `pixelToCell` in gameplay mode: translates DCOLS×DROWS canvas pixel → dungeon cell, then
+  adds back the window-coord offset so all existing event handlers (`handleLeftClick`,
+  `handleHover`, etc.) continue to receive full-grid window coordinates unchanged.
+
+- `mapToWindowX/mapToWindowY` audit: all 30+ call sites are buffer-coordinate calculations or
+  event-injection with window coords. None compute canvas pixel positions. No changes needed.
+
+- Click-to-inspect debug handler in bootstrap.ts updated to use DCOLS×DROWS grid in gameplay mode.
+
+- Buffer-write fallback paths for sidebar/messages/bottom bar remain intact in code (not deleted),
+  gated behind existing suppression flags. In gameplay mode, `plotChar` skips non-dungeon cells
+  entirely, superseding the individual flags.
+
+- Verification via TypeScript compilation (0 errors). Runtime visual verification (menu → new game →
+  gameplay → die → menu cycle) requires a browser and is deferred to Phase 5.
+
 ## Session Notes [2026-04-14] (Phase 3d)
 
 **Phase 3d complete.** All tasks executed in one session. TypeScript compilation clean (0 errors).

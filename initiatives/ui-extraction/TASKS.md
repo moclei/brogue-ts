@@ -191,25 +191,25 @@ a parent overlay is DOM but a child is still buffer-based.
 remaining buffer-based overlay that addresses the full 100×34 grid
 will break after the canvas is resized to dungeon-only.
 
-- [ ] Modify `sizeCanvas` to size the canvas for dungeon-only
+- [x] Modify `sizeCanvas` to size the canvas for dungeon-only
   dimensions (DCOLS × DROWS cells) instead of the full COLS × ROWS
   grid during gameplay.
-- [ ] Update `plotChar` coordinate mapping: dungeon cells map directly
+- [x] Update `plotChar` coordinate mapping: dungeon cells map directly
   to canvas coordinates without the sidebar/message offset.
-- [ ] Update mouse coordinate mapping: canvas clicks map directly to
+- [x] Update mouse coordinate mapping: canvas clicks map directly to
   dungeon cell coordinates.
-- [ ] Update `mapToWindowX` / `mapToWindowY` usage — audit all call
+- [x] Update `mapToWindowX` / `mapToWindowY` usage — audit all call
   sites that assume the old 100×34 buffer layout for screen positioning.
-- [ ] Implement canvas mode switching: main menu uses full 100×34
+- [x] Implement canvas mode switching: main menu uses full 100×34
   canvas, gameplay uses dungeon-only canvas. Handle the transition
   on game start, game end, and return to menu. Verify the menu →
   gameplay → menu cycle (new game, die, return to menu).
-- [ ] Gate buffer-write code paths for sidebar, messages, bottom bar,
+- [x] Gate buffer-write code paths for sidebar, messages, bottom bar,
   and extracted overlays behind the `useDOM` flag. Verify both modes
   (DOM and fallback) still work.
-- [ ] Verify: complete gameplay session, all phases working, no
+- [x] Verify: complete gameplay session, all phases working, no
   rendering artifacts.
-- [ ] 🔄 Handoff
+- [x] 🔄 Handoff
 
 # --- handoff point ---
 

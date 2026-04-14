@@ -84,6 +84,20 @@ let _clearHoverPath: (() => void) | null = null;
  *  highlight after idle displayLevel() redraws overwrite it. */
 let _lastHoverPos: { x: number; y: number } | null = null;
 
+/**
+ * Callback invoked when mainGameLoop starts (gameplay=true) and ends (gameplay=false).
+ * Registered by bootstrap.ts to resize the canvas and update renderer state.
+ */
+let _onCanvasModeChange: ((gameplay: boolean) => void) | null = null;
+
+/**
+ * Register a callback that is invoked when gameplay mode changes.
+ * bootstrap.ts uses this to resize the canvas between menu and dungeon sizes.
+ */
+export function registerCanvasModeCallback(fn: (gameplay: boolean) => void): void {
+    _onCanvasModeChange = fn;
+}
+
 /** Optional plotChar from the browser console (absent in test mocks). */
 type PlotCharFn = (
     inputChar: number, x: number, y: number,
@@ -513,6 +527,8 @@ export async function mainGameLoop(): Promise<void> {
     setBottomBarCanvasSuppression(true);
     setMessagesVisible(true);
     setBottomBarVisible(true);
+    // Switch canvas to dungeon-only (DCOLS×DROWS) mode for gameplay.
+    _onCanvasModeChange?.(true);
 
     // Register DOM bottom bar button click → inject MouseUp at button coords
     setBottomBarClickCallback((buttonIndex: number) => {
@@ -560,5 +576,7 @@ export async function mainGameLoop(): Promise<void> {
     setMessagesVisible(false);
     setBottomBarVisible(false);
     setBottomBarClickCallback(null);
+    // Restore full 100×34 canvas for the main menu.
+    _onCanvasModeChange?.(false);
     console.log("[mainGameLoop] ended");
 }
