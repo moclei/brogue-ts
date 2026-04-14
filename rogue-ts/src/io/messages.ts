@@ -37,6 +37,13 @@ import {
     formatRecentMessages,
     addMessageToArchive,
 } from "./messages-state.js";
+import {
+    isDOMMessagesEnabled,
+    renderMessages as renderMessagesDOM,
+    showMoreSign as showMoreSignDOM,
+    hideMoreSign as hideMoreSignDOM,
+    showMessageArchiveDOM,
+} from "../platform/ui-messages.js";
 
 // Re-export types and state helpers for consumers that previously imported
 // everything from a single messages module.
@@ -63,6 +70,13 @@ export {
 export function updateMessageDisplay(ctx: MessageContext): void {
     const state = ctx.messageState;
 
+    // DOM path — render messages as styled HTML spans
+    if (isDOMMessagesEnabled()) {
+        renderMessagesDOM(state.displayedMessage, state.messagesUnconfirmed);
+        return;
+    }
+
+    // Buffer path (kept for fallback / non-DOM builds)
     for (let i = 0; i < MESSAGE_LINES; i++) {
         let messageColor: Color = { ...white };
 
@@ -179,6 +193,14 @@ export async function displayMoreSign(ctx: MessageContext): Promise<void> {
 
     const state = ctx.messageState;
 
+    if (isDOMMessagesEnabled()) {
+        showMoreSignDOM();
+        await ctx.waitForAcknowledgment();
+        hideMoreSignDOM();
+        return;
+    }
+
+    // Buffer path
     if (strLenWithoutEscapes(state.displayedMessage[0]) < DCOLS - 8 || state.messagesUnconfirmed > 0) {
         printString("--MORE--", COLS - 8, MESSAGE_LINES - 1, white, black, ctx.displayBuffer);
         await ctx.waitForAcknowledgment();
@@ -569,6 +591,18 @@ export async function displayMessageArchive(ctx: MessageContext): Promise<void> 
         return;
     }
 
+    if (isDOMMessagesEnabled()) {
+        // DOM path: scrollable overlay panel, replaces the buffer-animated version.
+        // Pass only the non-empty lines (oldest first).
+        const lines = messageBuffer.slice(0, length);
+        await showMessageArchiveDOM(lines);
+        ctx.updateFlavorText();
+        confirmMessages(ctx);
+        updateMessageDisplay(ctx);
+        return;
+    }
+
+    // Buffer path (kept for fallback)
     const height = Math.min(length, MESSAGE_ARCHIVE_VIEW_LINES);
     let offset = height;
 
