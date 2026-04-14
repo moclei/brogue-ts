@@ -180,7 +180,9 @@ export function buildLevelContext(): LevelContext {
 
     // ---- Architect context ---------------------------------------------------
     const monsterOps = createMonsterOps({
-        monsters,
+        // Use a getter so setMonsters() calls in game-level.ts don't stale this
+        // reference — same pattern as dormantMonsters (dca63af fix).
+        get monsters() { return getGameState().monsters; },
         dormantMonsters: () => getGameState().dormantMonsters,
         pmap,
         spawnHorde(leaderID, pos, forbiddenFlags, requiredFlags) {
@@ -188,7 +190,7 @@ export function buildLevelContext(): LevelContext {
         },
         monsterAtLoc(pos) {
             if (pos.x === player.loc.x && pos.y === player.loc.y) return player;
-            return monsters.find(m => m.loc.x === pos.x && m.loc.y === pos.y) ?? null;
+            return getGameState().monsters.find(m => m.loc.x === pos.x && m.loc.y === pos.y) ?? null;
         },
         killCreature: (creature, quiet) => {
             void killCreatureFn(creature as unknown as import("./types/types.js").Creature, quiet, buildCombatDamageContext());
