@@ -324,6 +324,8 @@ export function showTextBoxModal(
         _tbCleanup = () => resolveWith(-1);
 
         buttons.forEach((btn, idx) => {
+            // Empty label = invisible nav/hotkey button — wires the hotkey but renders nothing.
+            if (!btn.label) return;
             const el = document.createElement("button");
             el.textContent = btn.label;
             el.style.cssText = [
@@ -352,6 +354,8 @@ export function showTextBoxModal(
                 : e.key === "Escape" ? 27
                 : e.key === " " ? 32
                 : e.key === "Backspace" ? 8
+                : e.key === "ArrowUp" ? 63232   // UP_ARROW
+                : e.key === "ArrowDown" ? 63233  // DOWN_ARROW
                 : e.key.length === 1 ? e.key.charCodeAt(0)
                 : -1;
             for (let i = 0; i < buttons.length; i++) {

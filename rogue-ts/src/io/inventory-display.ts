@@ -40,6 +40,9 @@ import {
     type InventoryContext,
     displayMagicCharForItem,
 } from "./inventory.js";
+import { isDOMModalEnabled } from "../platform/ui-modal.js";
+import { showInventoryModal } from "../platform/ui-inventory-modal.js";
+import { glyphToUnicode } from "../platform/glyph-map.js";
 
 // =============================================================================
 // displayInventory — Items.c:2770
@@ -117,6 +120,123 @@ export async function displayInventory(
     }
 
     const itemNumber = itemList.length;
+
+    // =========================================================================
+    // DOM path — HTML inventory modal (bypasses buffer rendering)
+    // =========================================================================
+
+    if (isDOMModalEnabled()) {
+        // Build item descriptors for the modal
+        const invItems = itemList.map((item) => {
+            const isSelectable = !!(
+                (item.category & categoryMask) &&
+                !(~item.flags & requiredFlags) &&
+                !(item.flags & forbiddenFlags)
+            );
+
+            // Magic detection indicator
+            let magicChar = "";
+            let magicColor = "#ddbb44";
+            if (magicDetected && displayMagicCharForItem(item) &&
+                (item.flags & ItemFlag.ITEM_MAGIC_DETECTED)) {
+                const polarity = ctx.itemMagicPolarity(item);
+                if (polarity === 0) {
+                    magicChar = "-"; magicColor = "#ddbb44";
+                } else if (polarity === 1) {
+                    magicChar = String.fromCodePoint(glyphToUnicode(ctx.G_GOOD_MAGIC));
+                    magicColor = "#44bb66";
+                } else {
+                    magicChar = String.fromCodePoint(glyphToUnicode(ctx.G_BAD_MAGIC));
+                    magicColor = "#bb4444";
+                }
+            }
+
+            const equippedSuffix = (item.flags & ItemFlag.ITEM_EQUIPPED)
+                ? (item.category & ItemCategory.WEAPON ? "(in hand)" : "(worn)")
+                : "";
+
+            return {
+                letter: item.inventoryLetter,
+                glyphChar: String.fromCodePoint(
+                    glyphToUnicode(item.displayChar as unknown as DisplayGlyph)
+                ),
+                name: ctx.upperCase(ctx.itemName(item, true, true)),
+                equippedSuffix,
+                selectable: isSelectable,
+                magicChar,
+                magicColor,
+            };
+        });
+
+        // Pack space hint (shown when waitForAcknowledge)
+        const itemSpaceRemaining = MAX_PACK_ITEMS - ctx.numberOfItemsInPack();
+        const packSpaceHint = itemSpaceRemaining > 0
+            ? `You have room for ${itemSpaceRemaining} more item${itemSpaceRemaining === 1 ? "" : "s"}.`
+            : "Your pack is full.";
+        const instructionText = KEYBOARD_LABELS
+            ? " -- press (a-z) for more info -- "
+            : " -- touch an item for more info -- ";
+
+        let theKey = "";
+        let repeatDisplay = true;
+
+        while (repeatDisplay) {
+            repeatDisplay = false;
+
+            const result = await showInventoryModal(invItems, {
+                equippedCount: equippedItemCount,
+                waitForAcknowledge,
+                packSpaceHint,
+                instructionText,
+            });
+
+            if (result.chosenIndex < 0) return ""; // cancelled
+
+            const selectedIdx = result.chosenIndex;
+            theKey = itemList[selectedIdx].inventoryLetter;
+
+            // Drill-down: shift/ctrl modifier or waitForAcknowledge
+            if (result.shiftKey || result.controlKey || waitForAcknowledge) {
+                let currentIdx = selectedIdx;
+                let actionKey: number;
+
+                do {
+                    actionKey = await ctx.printCarriedItemDetails(
+                        itemList[currentIdx],
+                        Math.max(2, ctx.mapToWindowX(COLS - 42 - 20)),
+                        ctx.mapToWindowY(2),
+                        40,
+                        includeButtons,
+                    );
+
+                    if (actionKey === UP_KEY) {
+                        currentIdx = (currentIdx - 1 + itemNumber) % itemNumber;
+                        theKey = itemList[currentIdx].inventoryLetter;
+                    } else if (actionKey === DOWN_KEY) {
+                        currentIdx = (currentIdx + 1) % itemNumber;
+                        theKey = itemList[currentIdx].inventoryLetter;
+                    } else if (actionKey === -1) {
+                        // Dismissed — return to inventory list
+                        repeatDisplay = true;
+                    } else {
+                        // Action taken — dispatch and close
+                        switch (actionKey) {
+                            case APPLY_KEY:   await ctx.apply(itemList[currentIdx]);               break;
+                            case EQUIP_KEY:   await ctx.equip(itemList[currentIdx]);              break;
+                            case UNEQUIP_KEY: await ctx.unequip(itemList[currentIdx]);            break;
+                            case DROP_KEY:    await ctx.drop(itemList[currentIdx]);               break;
+                            case THROW_KEY:   await ctx.throwCommand(itemList[currentIdx], false); break;
+                            case RELABEL_KEY: await ctx.relabel(itemList[currentIdx]);            break;
+                            case CALL_KEY:    await ctx.call(itemList[currentIdx]);               break;
+                        }
+                        return "";
+                    }
+                } while (actionKey === UP_KEY || actionKey === DOWN_KEY);
+            }
+        }
+
+        return theKey;
+    }
 
     // Initialize buttons
     const buttons: BrogueButton[] = [];
