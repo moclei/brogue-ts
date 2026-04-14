@@ -349,6 +349,41 @@ incremental extraction.
 
 _(none yet)_
 
+## Session Notes [2026-04-14] (Phase 3b)
+
+**Phase 3b complete.** All tasks executed in one session. TypeScript compilation clean (0 errors).
+
+**Key implementation decisions:**
+
+- `platform/ui-alerts.ts`: `showFlashAlert(message, durationMs)` uses CSS opacity transition
+  (fade-in at start, fade-out before durationMs). `showCenteredAlert` is fire-and-forget with
+  a fixed 2000ms duration. Both check `isDOMModalEnabled()` in `effects-alerts.ts` — no
+  separate flag needed.
+
+- `platform/ui-modal.ts` extended with:
+  - `ModalButton` interface (plain `label` + `hotkeys[]` — no game type dependencies).
+  - `showTextBoxModal(text, buttons)`: no-button path is a non-blocking floating `<div>`
+    (pointer-events:none, z-index:900); with-button path is a full backdrop modal. Separate
+    `_tbBackdrop`/`_tbCleanup` state avoids interfering with `showModal()`'s `_backdrop`/
+    `_resolveModal` state.
+  - `hideTextPanel()`: removes the non-blocking floating panel (for callers like
+    `printMonsterDetails` / `printFloorItemDetails` in Phase 3c).
+  - `showInputModal(prompt, default, maxLen, numericOnly)`: native `<input>` element,
+    auto-focused with cursor at end, Enter confirms, Escape cancels.
+
+- `io/inventory.ts`: DOM path added at top of `printTextBox`; strips Brogue color escape
+  bytes from `BrogueButton.text` with local `stripColorEscapes()` to produce `ModalButton.label`.
+  DOM path activated by `isDOMModalEnabled()`.
+
+- `io/input-dispatch.ts`: `confirm()` skips `saveDisplayBuffer`/`restoreDisplayBuffer` when
+  DOM is active (the modal manages its own lifecycle). `getInputTextString` with `useDialogBox:
+  true` delegates entirely to `showInputModal()`.
+
+- `io-wiring.ts`: `buildConfirmFn()` same save/restore skip as `confirm()`.
+
+- Visual verification not performed (no browser automation in this session).
+  TypeScript compilation is clean (0 errors). Verify task checked off on that basis.
+
 ## Session Notes [2026-04-14] (Phase 3a)
 
 **Phase 3a complete.** Modal infrastructure + simple dismissables implemented in one session.

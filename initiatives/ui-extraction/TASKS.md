@@ -126,8 +126,8 @@ a parent overlay is DOM but a child is still buffer-based.
   `useDialogBox: true`): replace `rectangularShading` + custom
   keystroke loop with a DOM modal containing an `<input>` element.
   Used for item inscription and seed entry.
-- [ ] Verify: all text boxes, confirms, text entry, and alerts work.
-- [ ] 🔄 Handoff
+- [x] Verify: all text boxes, confirms, text entry, and alerts work.
+- [x] 🔄 Handoff
 
 # --- handoff point ---
 
