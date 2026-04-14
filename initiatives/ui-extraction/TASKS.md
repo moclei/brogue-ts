@@ -22,7 +22,7 @@
   list entries (glyph + name with colors), and depth footer.
 - [x] Implement progress bars as styled `<div>` elements with percentage
   fill widths, matching current 20-column bar appearance.
-- [ ] Wire `refreshSideBar` call sites to produce `SidebarRenderData`
+- [x] Wire `refreshSideBar` call sites to produce `SidebarRenderData`
   and call `renderSidebar` instead of (or in addition to) buffer writes.
   Gate behind a `useDOM` flag so the buffer-write path remains as
   fallback. Verify sidebar appears in HTML and matches canvas version.

@@ -134,6 +134,19 @@ let playbackHeaderEl: HTMLElement | null = null;
 let entityListEl: HTMLElement | null = null;
 let depthFooterEl: HTMLElement | null = null;
 
+/** True when DOM sidebar rendering is active. Set by `setDOMSidebarEnabled`. */
+let domSidebarEnabled = false;
+
+/** Enable or disable DOM sidebar rendering. Call after `initSidebarDOM`. */
+export function setDOMSidebarEnabled(enabled: boolean): void {
+    domSidebarEnabled = enabled;
+}
+
+/** Returns true if DOM sidebar rendering is currently enabled. */
+export function isDOMSidebarEnabled(): boolean {
+    return domSidebarEnabled;
+}
+
 // =============================================================================
 // initSidebarDOM — create inner DOM structure
 // =============================================================================
@@ -145,6 +158,10 @@ let depthFooterEl: HTMLElement | null = null;
  */
 export function initSidebarDOM(container: HTMLElement): void {
     sidebarContainer = container;
+
+    // Show the container (it's display:none by default in CSS)
+    container.style.display = "flex";
+    container.style.flexDirection = "column";
 
     // Clear any existing children
     container.innerHTML = "";

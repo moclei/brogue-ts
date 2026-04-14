@@ -40,6 +40,7 @@ import { TextRenderer } from "./platform/text-renderer.js";
 import { SpriteRenderer } from "./platform/sprite-renderer.js";
 import { spriteDebug } from "./platform/sprite-debug.js";
 import { toggleCheatPanel } from "./platform/game-debug-panel.js";
+import { initSidebarDOM, setDOMSidebarEnabled } from "./platform/ui-sidebar.js";
 
 // =============================================================================
 // Canvas setup
@@ -67,6 +68,15 @@ function sizeCanvas(canvas: HTMLCanvasElement): { cellSize: number; dpr: number 
     canvas.style.height = `${cssHeight}px`;
     canvas.width = Math.round(cssWidth * dpr);
     canvas.height = Math.round(cssHeight * dpr);
+
+    // Size the DOM sidebar to match the sidebar columns (STAT_BAR_WIDTH cells).
+    const sidebarEl = document.getElementById("brogue-sidebar") as HTMLElement | null;
+    if (sidebarEl) {
+        const sidebarCssWidth = cellSize * STAT_BAR_WIDTH;
+        sidebarEl.style.width = `${sidebarCssWidth}px`;
+        sidebarEl.style.height = `${cssHeight}px`;
+        sidebarEl.style.fontSize = `${Math.max(8, cellSize - 2)}px`;
+    }
 
     return { cellSize, dpr };
 }
@@ -145,6 +155,15 @@ async function main(): Promise<void> {
 
     // 3. Wire the platform module (event queue + plotChar for commitDraws)
     initPlatform(browserConsole);
+
+    // 3b. Wire the DOM sidebar if the sidebar element exists in the page.
+    //     The sidebar is hidden by default (CSS display:none); setDOMSidebarEnabled
+    //     activates it and the container is shown via CSS once gameplay starts.
+    const sidebarEl = document.getElementById("brogue-sidebar");
+    if (sidebarEl) {
+        initSidebarDOM(sidebarEl as HTMLElement);
+        setDOMSidebarEnabled(true);
+    }
 
     // 4. Build the menu DI context
     const menuCtx = buildMenuContext();

@@ -38,6 +38,9 @@ import {
     displayLevel as displayLevelFn,
 } from "./io/cell-appearance.js";
 import { refreshSideBar as refreshSideBarFn } from "./io/sidebar-monsters.js";
+import { isDOMSidebarEnabled, renderSidebar } from "./platform/ui-sidebar.js";
+import { buildSidebarContext } from "./io/sidebar-wiring.js";
+import { buildSidebarRenderData } from "./io/sidebar-dom-builder.js";
 import {
     message as messageFn,
     messageWithColor as messageWithColorFn,
@@ -314,6 +317,10 @@ export function buildRefreshSideBarFn(): () => void {
     return () => {
         const { player: p } = getGameState();
         refreshSideBarFn(p.loc.x, p.loc.y, false, sidebarCtx);
+        if (isDOMSidebarEnabled()) {
+            const freshCtx = buildSidebarContext();
+            renderSidebar(buildSidebarRenderData(freshCtx, p.loc.x, p.loc.y));
+        }
     };
 }
 
