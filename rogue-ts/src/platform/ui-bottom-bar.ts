@@ -1,0 +1,307 @@
+/*
+ *  platform/ui-bottom-bar.ts — DOM-based bottom bar renderer
+ *  Port V2 — rogue-ts / ui-extraction Phase 2
+ *
+ *  Provides:
+ *    initBottomBarDOM(el)            — create DOM structure in the bottom bar container
+ *    renderBottomBarButtons(buttons) — update button elements from BottomBarButtonData[]
+ *    updateFlavorTextDOM(text)       — update the flavor text line
+ *    setBottomBarClickCallback(fn)   — register handler for button clicks (index)
+ *    setDOMBottomBarEnabled(v)       — enable/disable DOM bottom bar rendering
+ *    isDOMBottomBarEnabled()         — query enabled state
+ *    setBottomBarCanvasSuppression(v) — suppress canvas rows 32–33 during gameplay
+ *    isBottomBarCanvasSuppressed()   — query suppression state
+ *
+ *  The bottom bar container is #brogue-bottom-bar in index.html.
+ *  Click events dispatch via a registered callback — platform.ts registers
+ *  the callback in mainGameLoop and injects the corresponding keystroke.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or (at your option) any later version.
+ */
+
+import { COLOR_ESCAPE, COLOR_VALUE_INTERCEPT } from "../types/constants.js";
+
+// =============================================================================
+// Data types
+// =============================================================================
+
+/**
+ * Serializable description of one bottom-bar button.
+ * Built from ButtonState by the wiring layer in platform.ts.
+ */
+export interface BottomBarButtonData {
+    /** Button index within the ButtonState array (0–4). */
+    index: number;
+    /** Full label text with color escape sequences included. */
+    rawText: string;
+    /** Primary hotkey character code (0 = none). */
+    hotkey: number;
+    /** Window-coordinate X of the button (for click dispatch). */
+    windowX: number;
+    /** Window-coordinate Y of the button (for click dispatch). */
+    windowY: number;
+    enabled: boolean;
+}
+
+// =============================================================================
+// Internal module state
+// =============================================================================
+
+let buttonRowEl: HTMLElement | null = null;
+let flavorTextEl: HTMLElement | null = null;
+
+/** Registered callback invoked when a DOM button is clicked. Receives button index. */
+let _onButtonClick: ((buttonIndex: number) => void) | null = null;
+
+/** True when DOM bottom bar rendering is active. */
+let domBottomBarEnabled = false;
+
+/** True when canvas rows 32–33 (bottom rows) should be suppressed during gameplay. */
+let canvasBottomBarSuppressed = false;
+
+// =============================================================================
+// Public flag accessors
+// =============================================================================
+
+/** Enable or disable DOM bottom bar rendering. Call after `initBottomBarDOM`. */
+export function setDOMBottomBarEnabled(enabled: boolean): void {
+    domBottomBarEnabled = enabled;
+}
+
+/** Returns true if DOM bottom bar rendering is currently enabled. */
+export function isDOMBottomBarEnabled(): boolean {
+    return domBottomBarEnabled;
+}
+
+/**
+ * Enable or disable canvas suppression of bottom rows (32–33).
+ * Call `setBottomBarCanvasSuppression(true)` when gameplay starts.
+ */
+export function setBottomBarCanvasSuppression(active: boolean): void {
+    canvasBottomBarSuppressed = active;
+}
+
+/** Returns true when canvas bottom rows should be suppressed. */
+export function isBottomBarCanvasSuppressed(): boolean {
+    return canvasBottomBarSuppressed;
+}
+
+/**
+ * Register a callback invoked when a bottom bar button is clicked.
+ * The callback receives the button index (0–4).
+ * Set to null to deregister. Call from `mainGameLoop` in platform.ts.
+ */
+export function setBottomBarClickCallback(fn: ((buttonIndex: number) => void) | null): void {
+    _onButtonClick = fn;
+}
+
+// =============================================================================
+// setBottomBarVisible — show/hide during gameplay
+// =============================================================================
+
+let _bottomBarEl: HTMLElement | null = null;
+
+/**
+ * Show or hide the DOM bottom bar.
+ * Call `setBottomBarVisible(true)` when mainGameLoop starts and false when it ends.
+ */
+export function setBottomBarVisible(visible: boolean): void {
+    if (!_bottomBarEl) return;
+    _bottomBarEl.style.display = visible ? "flex" : "none";
+}
+
+// =============================================================================
+// initBottomBarDOM — create inner DOM structure
+// =============================================================================
+
+/**
+ * Initialise the bottom bar DOM inside `container` (#brogue-bottom-bar).
+ * Creates a button row and a flavor text line.
+ * Safe to call multiple times. Container starts hidden; call setBottomBarVisible(true)
+ * when gameplay begins.
+ */
+export function initBottomBarDOM(container: HTMLElement): void {
+    _bottomBarEl = container;
+    container.style.display = "none"; // hidden until gameplay starts
+    container.style.flexDirection = "column";
+    container.innerHTML = "";
+
+    // Flavor text line (above button row, matching canvas row 32)
+    flavorTextEl = document.createElement("div");
+    flavorTextEl.className = "bb-flavor";
+    flavorTextEl.style.cssText = [
+        "min-height:1.4em",
+        "line-height:1.4",
+        "padding:0 4px",
+        "white-space:pre-wrap",
+        "overflow:hidden",
+        "color:#9d9d9d",
+    ].join(";");
+    container.appendChild(flavorTextEl);
+
+    // Button row (canvas row 33)
+    buttonRowEl = document.createElement("div");
+    buttonRowEl.className = "bb-buttons";
+    buttonRowEl.style.cssText = [
+        "display:flex",
+        "flex-direction:row",
+        "gap:2px",
+        "padding:1px 2px",
+        "align-items:center",
+    ].join(";");
+    container.appendChild(buttonRowEl);
+}
+
+// =============================================================================
+// Color escape helpers (local, no dep on io/)
+// =============================================================================
+
+interface _Segment { text: string; isHotkey: boolean; cssColor: string }
+
+/**
+ * Parse a button label (with COLOR_ESCAPE sequences) into segments.
+ * A "hotkey" segment is one that appears between a non-white color escape
+ * and the next escape or end of string, and is typically a single char.
+ */
+function _parseButtonLabel(raw: string): _Segment[] {
+    const segs: _Segment[] = [];
+    const WHITE = "rgb(255,255,255)";
+    const GOLD = "rgb(255,204,0)";   // yellow in Brogue palette (close enough)
+
+    let curColor = WHITE;
+    let textStart = 0;
+    let i = 0;
+
+    function _toRgb(r: number, g: number, b: number): string {
+        return `rgb(${Math.round(r * 2.55)},${Math.round(g * 2.55)},${Math.round(b * 2.55)})`;
+    }
+
+    function flush(end: number): void {
+        if (end > textStart) {
+            segs.push({ text: raw.slice(textStart, end), isHotkey: curColor !== WHITE, cssColor: curColor });
+        }
+    }
+
+    while (i < raw.length) {
+        if (raw.charCodeAt(i) === COLOR_ESCAPE) {
+            flush(i);
+            i++;
+            if (i + 3 <= raw.length) {
+                const r = Math.max(0, Math.min(100, raw.charCodeAt(i++) - COLOR_VALUE_INTERCEPT));
+                const g = Math.max(0, Math.min(100, raw.charCodeAt(i++) - COLOR_VALUE_INTERCEPT));
+                const b = Math.max(0, Math.min(100, raw.charCodeAt(i++) - COLOR_VALUE_INTERCEPT));
+                curColor = _toRgb(r, g, b);
+                // Treat near-white as white for hotkey detection
+                if (r >= 90 && g >= 90 && b >= 90) curColor = WHITE;
+            }
+            textStart = i;
+        } else {
+            i++;
+        }
+    }
+    flush(i);
+
+    // Unused but keep reference to avoid TS warning
+    void GOLD;
+    return segs;
+}
+
+// =============================================================================
+// renderBottomBarButtons — update button DOM elements
+// =============================================================================
+
+/**
+ * Rebuild the button row elements to reflect `buttons`.
+ * Called by the wiring layer alongside (or instead of) `drawGameMenuButtons`.
+ */
+export function renderBottomBarButtons(buttons: BottomBarButtonData[]): void {
+    if (!buttonRowEl) return;
+
+    buttonRowEl.innerHTML = "";
+
+    for (const btn of buttons) {
+        const segs = _parseButtonLabel(btn.rawText.trim());
+        const btnEl = document.createElement("button");
+        btnEl.className = "bb-btn";
+        btnEl.dataset.index = String(btn.index);
+        btnEl.disabled = !btn.enabled;
+        btnEl.style.cssText = [
+            "background:#1a1a2e",
+            "border:1px solid #444",
+            "border-radius:2px",
+            "padding:2px 6px",
+            "cursor:pointer",
+            "font-family:monospace",
+            "font-size:0.9em",
+            "color:#ccc",
+            "white-space:nowrap",
+            btn.enabled ? "" : "opacity:0.5",
+        ].filter(Boolean).join(";");
+
+        // Hover styles via mouseenter/mouseleave
+        btnEl.addEventListener("mouseenter", () => {
+            if (btn.enabled) btnEl.style.background = "#2a2a4e";
+        });
+        btnEl.addEventListener("mouseleave", () => {
+            btnEl.style.background = "#1a1a2e";
+        });
+        btnEl.addEventListener("mousedown", () => {
+            if (btn.enabled) btnEl.style.background = "#0a0a1e";
+        });
+        btnEl.addEventListener("mouseup", () => {
+            if (btn.enabled) btnEl.style.background = "#2a2a4e";
+        });
+
+        // Populate label with styled spans for hotkey chars
+        for (const seg of segs) {
+            if (!seg.text) continue;
+            const sp = document.createElement("span");
+            sp.textContent = seg.text;
+            if (seg.isHotkey) {
+                sp.style.cssText = [
+                    `color:${seg.cssColor}`,
+                    "font-weight:bold",
+                ].join(";");
+            }
+            btnEl.appendChild(sp);
+        }
+
+        btnEl.addEventListener("click", (e) => {
+            e.preventDefault();
+            if (!btn.enabled) return;
+            _onButtonClick?.(btn.index);
+        });
+
+        buttonRowEl.appendChild(btnEl);
+    }
+}
+
+// =============================================================================
+// updateFlavorTextDOM — update the flavor text line
+// =============================================================================
+
+/**
+ * Update the flavor text line with the provided plain text (color escapes stripped).
+ * Called by the wiring layer when `flavorMessage` runs.
+ *
+ * `rawText` may contain Brogue color escape sequences; they are parsed and
+ * rendered as styled spans, matching the canvas flavorTextColor palette.
+ */
+export function updateFlavorTextDOM(rawText: string): void {
+    if (!flavorTextEl) return;
+    flavorTextEl.innerHTML = "";
+
+    if (!rawText) return;
+
+    const segs = _parseButtonLabel(rawText);
+    for (const seg of segs) {
+        if (!seg.text) continue;
+        const sp = document.createElement("span");
+        sp.textContent = seg.text;
+        sp.style.color = seg.isHotkey ? seg.cssColor : "#9d9d9d";
+        flavorTextEl.appendChild(sp);
+    }
+}

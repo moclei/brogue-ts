@@ -41,32 +41,32 @@
 
 ## Phase 2: Messages + Bottom Bar
 
-- [ ] Create `platform/ui-messages.ts`: DOM rendering module for the
+- [x] Create `platform/ui-messages.ts`: DOM rendering module for the
   message area. Functions: `initMessagesDOM(container)`,
   `renderMessages(messages)`, `showMoreSign()`, `hideMoreSign()`.
-- [ ] Extract message display data: define types for message content
+- [x] Extract message display data: define types for message content
   with color markup (reuse existing color escape processing).
-- [ ] Implement `renderMessages`: updates a message container with
+- [x] Implement `renderMessages`: updates a message container with
   styled text spans, preserving Brogue's color escape sequences as
   inline CSS colors.
-- [ ] Wire `updateMessageDisplay` to call DOM renderer instead of
+- [x] Wire `updateMessageDisplay` to call DOM renderer instead of
   buffer writes (gated behind `useDOM` flag). Verify messages appear
   in HTML.
-- [ ] Implement message archive as a scrollable panel (CSS overflow-y)
+- [x] Implement message archive as a scrollable panel (CSS overflow-y)
   with slide-in animation (CSS transition), replacing the
   buffer-animated `displayMessageArchive`. The archive currently uses
   a custom `nextBrogueEvent` loop with up/down/page keys and mouse
   wheel — the DOM version replaces this with native scroll + keyboard
   listeners on the scrollable container.
-- [ ] Create `platform/ui-bottom-bar.ts`: DOM rendering for game menu
+- [x] Create `platform/ui-bottom-bar.ts`: DOM rendering for game menu
   buttons and flavor text line.
-- [ ] Implement bottom bar buttons as styled `<button>` elements with
+- [x] Implement bottom bar buttons as styled `<button>` elements with
   the same labels and hotkeys. Wire click events to the same actions
   as the current `findClickedMenuButton` dispatch. Note:
   `drawGameMenuButtons` currently uses `applyOverlay` — the DOM
   version replaces this entirely.
-- [ ] Implement flavor text line as a `<div>` updated by `flavorMessage`.
-- [ ] Suppress canvas rendering of message rows (0–2) and bottom rows
+- [x] Implement flavor text line as a `<div>` updated by `flavorMessage`.
+- [x] Suppress canvas rendering of message rows (0–2) and bottom rows
   (32–33) during gameplay.
 - [ ] Verify: messages, --MORE-- prompt, message archive, bottom bar
   buttons, and flavor text all working in HTML.

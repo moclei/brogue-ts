@@ -93,17 +93,31 @@ export function isMessagesCanvasSuppressed(): boolean {
 }
 
 // =============================================================================
+// setMessagesVisible / setBottomBarVisible — show/hide during gameplay
+// =============================================================================
+
+/**
+ * Show or hide the DOM message area.
+ * Call `setMessagesVisible(true)` when mainGameLoop starts and false when it ends.
+ */
+export function setMessagesVisible(visible: boolean): void {
+    if (!messagesContainer) return;
+    messagesContainer.style.display = visible ? "block" : "none";
+}
+
+// =============================================================================
 // initMessagesDOM — create inner DOM structure
 // =============================================================================
 
 /**
  * Initialise the messages DOM inside `container` (#brogue-messages).
  * Creates three message line elements and the --MORE-- indicator.
- * Safe to call multiple times.
+ * Safe to call multiple times. Container starts hidden; call setMessagesVisible(true)
+ * when gameplay begins.
  */
 export function initMessagesDOM(container: HTMLElement): void {
     messagesContainer = container;
-    container.style.display = "block";
+    container.style.display = "none"; // hidden until gameplay starts
     container.style.position = "relative";
     container.innerHTML = "";
 

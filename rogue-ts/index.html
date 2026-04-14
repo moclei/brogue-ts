@@ -64,23 +64,44 @@
         }
 
         /*
-         * #brogue-messages: message area (Phase 2). Hidden until extracted.
+         * #brogue-messages: message area (Phase 2).
+         * Positioned absolutely within #brogue-canvas-wrap, overlaying the
+         * canvas message rows (rows 0–2, suppressed to black during gameplay).
+         * Width and top/height are set dynamically by bootstrap.ts.
          */
         #brogue-messages {
             display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
             background: #000;
-            padding: 2px 4px;
-            font-size: 14px;
-            line-height: 1.4;
+            overflow: hidden;
+            pointer-events: none; /* allow clicks to pass to canvas except archive */
+            z-index: 5;
+            padding: 1px 3px;
+        }
+
+        /* Re-enable pointer events for interactive children inside messages */
+        #brogue-messages .msg-archive-panel,
+        #brogue-messages .msg-more {
+            pointer-events: auto;
         }
 
         /*
-         * #brogue-bottom-bar: bottom action bar (Phase 2). Hidden until extracted.
+         * #brogue-bottom-bar: bottom action bar (Phase 2).
+         * Positioned absolutely within #brogue-canvas-wrap, overlaying the
+         * canvas bottom rows (rows 32–33, suppressed to black during gameplay).
+         * Width and bottom/height are set dynamically by bootstrap.ts.
          */
         #brogue-bottom-bar {
             display: none;
+            position: absolute;
+            bottom: 0;
+            left: 0;
             background: #111;
-            padding: 2px 4px;
+            overflow: hidden;
+            pointer-events: auto;
+            z-index: 5;
         }
     </style>
 </head>
@@ -90,9 +111,9 @@
         <div id="brogue-main">
             <div id="brogue-canvas-wrap">
                 <canvas id="brogue-canvas"></canvas>
+                <div id="brogue-messages" role="log" aria-live="polite" aria-label="Messages"></div>
+                <div id="brogue-bottom-bar" role="toolbar" aria-label="Game controls"></div>
             </div>
-            <div id="brogue-messages" role="log" aria-live="polite" aria-label="Messages"></div>
-            <div id="brogue-bottom-bar" role="toolbar" aria-label="Game controls"></div>
         </div>
     </div>
     <script type="module" src="./src/bootstrap.ts"></script>

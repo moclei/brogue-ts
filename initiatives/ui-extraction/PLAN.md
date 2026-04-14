@@ -349,6 +349,40 @@ incremental extraction.
 
 _(none yet)_
 
+## Session Notes [2026-04-14] (Phase 2)
+
+**Phase 2 implementation complete (pending visual verification).**
+
+**Key implementation decisions:**
+
+- `platform/ui-messages.ts`: message area DOM renderer with `parseColorEscapes`
+  applying dim factor per line (matching canvas `applyColorAverage` math).
+  `showMessageArchiveDOM` is async — resolves on Escape/Space/click-outside.
+  Archive panel overlays the canvas message rows via absolute positioning inside
+  `#brogue-canvas-wrap`.
+
+- `platform/ui-bottom-bar.ts`: bottom bar DOM renderer. Buttons dispatch clicks
+  via `setBottomBarClickCallback` — registered in `mainGameLoop` as an injector
+  that synthesises a `MouseUp` event at the button's window coordinates. This
+  reuses the existing `handleLeftClick → findClickedMenuButton` dispatch path.
+
+- `platform/browser-renderer.ts`: added `injectEvent: enqueueEvent` to the
+  browser console object. `initPlatform` captures it as `_injectEvent`;
+  `injectGameEvent(ev)` exposed from `platform.ts` for DOM → game event injection.
+
+- DOM layout: messages and bottom bar are `position:absolute` overlays inside
+  `#brogue-canvas-wrap`, covering the canvas rows they replace (rows 0–2 and
+  32–33). Canvas suppresses those rows to black during gameplay. Phase 4 will
+  properly resize the canvas to dungeon-only dimensions.
+
+- File splits: `io/messages-archive-buffer.ts` extracted from `messages.ts`
+  (buffer-based archive functions). `platform/browser-key-translation.ts`
+  extracted from `browser-renderer.ts` (`translateKey` pure function).
+  Both parent files now under 600 lines.
+
+- Visual verification was not performed (no browser automation in this session).
+  The "Verify" task is left open for the Orchestrator to confirm or dispatch.
+
 ## Session Notes [2026-04-14]
 
 **Phase 1 complete.** All tasks executed in one session.

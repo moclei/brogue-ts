@@ -41,6 +41,8 @@ import { SpriteRenderer } from "./platform/sprite-renderer.js";
 import { spriteDebug } from "./platform/sprite-debug.js";
 import { toggleCheatPanel } from "./platform/game-debug-panel.js";
 import { initSidebarDOM, setDOMSidebarEnabled } from "./platform/ui-sidebar.js";
+import { initMessagesDOM, setDOMMessagesEnabled } from "./platform/ui-messages.js";
+import { initBottomBarDOM, setDOMBottomBarEnabled } from "./platform/ui-bottom-bar.js";
 
 // =============================================================================
 // Canvas setup
@@ -82,6 +84,27 @@ function sizeCanvas(canvas: HTMLCanvasElement): { cellSize: number; dpr: number 
         sidebarEl.style.width = `${sidebarCssWidth}px`;
         sidebarEl.style.height = `${cssHeight}px`;
         sidebarEl.style.fontSize = `${Math.max(8, cellSize - 2)}px`;
+    }
+
+    // Size DOM messages area: absolutely overlays the top MESSAGE_LINES canvas rows.
+    const messagesEl = document.getElementById("brogue-messages") as HTMLElement | null;
+    if (messagesEl) {
+        const msgHeight = cellSize * MESSAGE_LINES;
+        messagesEl.style.width = `${cssWidth}px`;
+        messagesEl.style.height = `${msgHeight}px`;
+        messagesEl.style.top = "0px";
+        messagesEl.style.fontSize = `${Math.max(8, cellSize - 2)}px`;
+        messagesEl.style.lineHeight = `${cellSize}px`;
+    }
+
+    // Size DOM bottom bar: absolutely overlays the bottom 2 canvas rows.
+    const bottomBarEl = document.getElementById("brogue-bottom-bar") as HTMLElement | null;
+    if (bottomBarEl) {
+        const bbHeight = cellSize * 2; // ROWS - MESSAGE_LINES - DROWS = 2
+        bottomBarEl.style.width = `${cssWidth}px`;
+        bottomBarEl.style.height = `${bbHeight}px`;
+        bottomBarEl.style.bottom = "0px";
+        bottomBarEl.style.fontSize = `${Math.max(8, cellSize - 2)}px`;
     }
 
     return { cellSize, dpr };
@@ -169,6 +192,20 @@ async function main(): Promise<void> {
     if (sidebarEl) {
         initSidebarDOM(sidebarEl as HTMLElement);
         setDOMSidebarEnabled(true);
+    }
+
+    // 3c. Wire DOM messages area (Phase 2).
+    const messagesEl = document.getElementById("brogue-messages");
+    if (messagesEl) {
+        initMessagesDOM(messagesEl as HTMLElement);
+        setDOMMessagesEnabled(true);
+    }
+
+    // 3d. Wire DOM bottom bar (Phase 2).
+    const bottomBarEl = document.getElementById("brogue-bottom-bar");
+    if (bottomBarEl) {
+        initBottomBarDOM(bottomBarEl as HTMLElement);
+        setDOMBottomBarEnabled(true);
     }
 
     // 4. Build the menu DI context

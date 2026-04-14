@@ -39,6 +39,8 @@ import {
 import { actionMenu } from "./io/input-mouse.js";
 import { buildHoverHandlerFn, buildClearHoverPathFn } from "./io/hover-wiring.js";
 import { setSidebarHoverCallbacks, setSidebarCanvasSuppression } from "./platform/ui-sidebar.js";
+import { setMessagesCanvasSuppression, setMessagesVisible } from "./platform/ui-messages.js";
+import { setBottomBarClickCallback, setBottomBarCanvasSuppression, setBottomBarVisible } from "./platform/ui-bottom-bar.js";
 import { GraphicsMode } from "./types/enums.js";
 import type { CellSpriteDataProvider } from "./platform/browser-renderer.js";
 import { buildCellSpriteDataProvider } from "./sprite-data-wiring.js";
@@ -67,6 +69,9 @@ let _graphicsMode: GraphicsMode = GraphicsMode.Tiles;
 
 /** True when the console supports setGraphicsMode (e.g. browser renderer). */
 let _hasGraphics = false;
+
+/** If the console supports injectEvent, this is wired up at initPlatform time. */
+let _injectEvent: ((ev: RogueEvent) => void) | null = null;
 
 /** Bottom-bar action button state. Initialized once when mainGameLoop starts. */
 let _menuState: ButtonState | null = null;
@@ -144,14 +149,25 @@ export function initPlatform(browserConsole: PlatformConsole & {
     plotChar?: PlotCharFn;
     setGraphicsMode?: (mode: GraphicsMode) => GraphicsMode;
     setCellSpriteDataProvider?: SetProviderFn;
+    injectEvent?: (ev: RogueEvent) => void;
 }): void {
     _console = browserConsole;
     _plotChar = browserConsole.plotChar ?? null;
     _setCellSpriteDataProvider = browserConsole.setCellSpriteDataProvider ?? null;
     _hasGraphics = typeof (browserConsole as PlatformConsoleWithGraphics).setGraphicsMode === "function";
+    _injectEvent = browserConsole.injectEvent ?? null;
     _prevBuffer = createScreenDisplayBuffer();
     registerPauseAndCheckForEvent(pauseAndCheckForEvent);
     registerPauseIgnoringHover(pauseAndCheckForEventIgnoringHover);
+}
+
+/**
+ * Inject a synthetic event into the game's input queue.
+ * Used by DOM UI elements (e.g. bottom bar buttons) to trigger game actions
+ * without going through the canvas event listener path.
+ */
+export function injectGameEvent(ev: RogueEvent): void {
+    _injectEvent?.(ev);
 }
 
 /**
@@ -493,6 +509,23 @@ export async function mainGameLoop(): Promise<void> {
     _clearHoverPath = buildClearHoverPathFn();
     setSidebarHoverCallbacks(_hoverHandler, _clearHoverPath);
     setSidebarCanvasSuppression(true);
+    setMessagesCanvasSuppression(true);
+    setBottomBarCanvasSuppression(true);
+    setMessagesVisible(true);
+    setBottomBarVisible(true);
+
+    // Register DOM bottom bar button click → inject MouseUp at button coords
+    setBottomBarClickCallback((buttonIndex: number) => {
+        const btn = _menuState?.buttons[buttonIndex];
+        if (!btn) return;
+        injectGameEvent({
+            eventType: EventType.MouseUp,
+            param1: btn.x,
+            param2: btn.y,
+            controlKey: false,
+            shiftKey: false,
+        });
+    });
 
     while (!rogue.gameHasEnded) {
         // Defect 3 fix: idle animation loop — animate dancing terrain between inputs.
@@ -522,5 +555,10 @@ export async function mainGameLoop(): Promise<void> {
     _lastHoverPos = null;
     setSidebarHoverCallbacks(null, null);
     setSidebarCanvasSuppression(false);
+    setMessagesCanvasSuppression(false);
+    setBottomBarCanvasSuppression(false);
+    setMessagesVisible(false);
+    setBottomBarVisible(false);
+    setBottomBarClickCallback(null);
     console.log("[mainGameLoop] ended");
 }
