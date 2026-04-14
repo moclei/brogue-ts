@@ -406,6 +406,97 @@ function _dismissTextBox(): void {
 }
 
 // =============================================================================
+// Menu modal (actionMenu DOM replacement)
+// =============================================================================
+
+/** A single item in a vertical action menu. */
+export interface MenuModalItem {
+    /** Displayed label (plain text, no Brogue color escapes). */
+    label: string;
+    /** Key char codes that trigger this item (Brogue hotkey convention). */
+    hotkeys: number[];
+    /** If true, renders as a visual separator and cannot be selected. */
+    separator?: boolean;
+}
+
+/**
+ * Show a vertical action menu as a DOM modal.
+ *
+ * Items are indexed in parallel with the caller's button array so the
+ * returned index can be used directly to look up the original button.
+ * Separator items cannot be clicked or triggered by hotkey.
+ *
+ * Returns the index of the chosen item, or -1 if cancelled (Escape /
+ * click outside the panel).
+ */
+export function showMenuModal(items: MenuModalItem[]): Promise<number> {
+    return new Promise<number>(resolve => {
+        _dismissTextBox();
+        if (_backdrop) _dismiss();
+
+        _tbBackdrop = document.createElement("div");
+        _tbBackdrop.style.cssText = [
+            "position:fixed", "inset:0", "background:rgba(0,0,0,0.75)",
+            "z-index:1000", "display:flex", "align-items:center", "justify-content:center",
+        ].join(";");
+
+        const panel = document.createElement("div");
+        panel.style.cssText = [
+            "background:#0a0a0a", "border:1px solid #555",
+            "padding:0.25em 0", "min-width:200px", "max-width:min(90vw,420px)",
+            "max-height:85vh", "overflow-y:auto", "font-family:monospace",
+            "font-size:14px", "color:#ccc", "display:flex", "flex-direction:column",
+        ].join(";");
+
+        let _resolved = false;
+        const resolveWith = (index: number): void => {
+            if (_resolved) return;
+            _resolved = true;
+            document.removeEventListener("keydown", onKey, { capture: true });
+            _tbBackdrop?.remove();
+            _tbBackdrop = null;
+            _tbCleanup = null;
+            resolve(index);
+        };
+        _tbCleanup = () => resolveWith(-1);
+
+        items.forEach((item, idx) => {
+            if (item.separator) {
+                const sep = document.createElement("div");
+                sep.style.cssText = "height:1px;background:#333;margin:0.2em 0;pointer-events:none";
+                panel.appendChild(sep);
+                return;
+            }
+            const el = document.createElement("div");
+            el.textContent = item.label;
+            el.style.cssText = "padding:0.35em 1.5em;cursor:pointer;white-space:nowrap";
+            el.addEventListener("mouseover", () => { el.style.background = "#1e3a2f"; el.style.color = "#00dd99"; });
+            el.addEventListener("mouseout", () => { el.style.background = ""; el.style.color = "#ccc"; });
+            el.addEventListener("click", () => resolveWith(idx));
+            panel.appendChild(el);
+        });
+
+        _tbBackdrop.appendChild(panel);
+        document.body.appendChild(_tbBackdrop);
+
+        const onKey = (e: KeyboardEvent): void => {
+            const code = e.key === "Escape" ? 27 : e.key.length === 1 ? e.key.charCodeAt(0) : -1;
+            e.preventDefault();
+            e.stopPropagation();
+            if (code === 27) { resolveWith(-1); return; }
+            for (let i = 0; i < items.length; i++) {
+                if (!items[i].separator && items[i].hotkeys.includes(code)) {
+                    resolveWith(i);
+                    return;
+                }
+            }
+        };
+        document.addEventListener("keydown", onKey, { capture: true });
+        _tbBackdrop.addEventListener("mousedown", (e) => { if (e.target === _tbBackdrop) resolveWith(-1); });
+    });
+}
+
+// =============================================================================
 // Text-entry modal (getInputTextString DOM replacement)
 // =============================================================================
 

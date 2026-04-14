@@ -21,6 +21,9 @@ import type { BrogueButton, ButtonState, RogueEvent, WindowPos } from "../types/
 import { EventType } from "../types/enums.js";
 import { ButtonFlag } from "../types/flags.js";
 import { initializeButtonState } from "./buttons.js";
+import { isDOMModalEnabled, showMenuModal } from "../platform/ui-modal.js";
+import type { MenuModalItem } from "../platform/ui-modal.js";
+import { stripColorEscapes } from "./inventory.js";
 import {
     COLS, ROWS, KEYBOARD_LABELS, DCOLS, INTERFACE_OPACITY,
     EXPLORE_KEY, REST_KEY, SEARCH_KEY, INVENTORY_KEY,
@@ -333,13 +336,29 @@ export async function actionMenu(ctx: InputContext, x: number, playingBack: bool
             buttons[i].text += " ".repeat(padLen);
         }
 
-        const rbuf = ctx.saveDisplayBuffer();
-        const dbuf = ctx.createScreenDisplayBuffer();
-        ctx.clearDisplayBuffer(dbuf);
-        ctx.rectangularShading(x - 1, y, longestName + 2, buttonCount, black, Math.floor(INTERFACE_OPACITY / 2), dbuf);
-        ctx.overlayDisplayBuffer(dbuf);
-        buttonChosen = await ctx.buttonInputLoop(buttons, buttonCount, x - 1, y, longestName + 2, buttonCount, null);
-        ctx.restoreDisplayBuffer(rbuf);
+        if (isDOMModalEnabled()) {
+            // DOM path: vertical menu modal — buttons[] and MenuModalItem[] share the same index.
+            const menuItems: MenuModalItem[] = [];
+            for (let i = 0; i < buttonCount; i++) {
+                if (!(buttons[i].flags & ButtonFlag.B_ENABLED)) {
+                    menuItems.push({ label: "", hotkeys: [], separator: true });
+                } else {
+                    menuItems.push({
+                        label: stripColorEscapes(buttons[i].text),
+                        hotkeys: [...buttons[i].hotkey].filter(k => k > 0),
+                    });
+                }
+            }
+            buttonChosen = await showMenuModal(menuItems);
+        } else {
+            const rbuf = ctx.saveDisplayBuffer();
+            const dbuf = ctx.createScreenDisplayBuffer();
+            ctx.clearDisplayBuffer(dbuf);
+            ctx.rectangularShading(x - 1, y, longestName + 2, buttonCount, black, Math.floor(INTERFACE_OPACITY / 2), dbuf);
+            ctx.overlayDisplayBuffer(dbuf);
+            buttonChosen = await ctx.buttonInputLoop(buttons, buttonCount, x - 1, y, longestName + 2, buttonCount, null);
+            ctx.restoreDisplayBuffer(rbuf);
+        }
 
         if (buttonChosen === -1) {
             return -1;
