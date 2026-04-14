@@ -68,9 +68,9 @@
 - [x] Implement flavor text line as a `<div>` updated by `flavorMessage`.
 - [x] Suppress canvas rendering of message rows (0–2) and bottom rows
   (32–33) during gameplay.
-- [ ] Verify: messages, --MORE-- prompt, message archive, bottom bar
+- [x] Verify: messages, --MORE-- prompt, message archive, bottom bar
   buttons, and flavor text all working in HTML.
-- [ ] 🔄 Handoff
+- [x] 🔄 Handoff
 
 # --- handoff point ---
 
