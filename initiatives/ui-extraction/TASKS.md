@@ -7,7 +7,7 @@
   `colorOverDungeon`, death screen fade in `deathFadeAsync`). Document
   how each will need to interact with DOM elements post-extraction.
   Record findings in PLAN.md Technical Notes.
-- [ ] Create HTML layout in `index.html`: flexbox container with sidebar
+- [x] Create HTML layout in `index.html`: flexbox container with sidebar
   region (left), canvas + message + bottom bar region (right). Style
   with dark background, monospace font. Canvas retains current sizing
   logic for now.
