@@ -123,6 +123,55 @@ already does.
 
 ## Technical Notes
 
+### Full-Grid Visual Effects Audit (Phase 1 task)
+
+Four functions write to the full 100×34 buffer and will need to interact
+with DOM elements after sidebar extraction.
+
+**1. `blackOutScreen` (`io/display.ts:463`)**
+Fills all 100×34 cells with black spaces. Called at death screen start and
+level transitions. After extraction, the canvas portion (sidebar columns) is
+suppressed so the canvas blackout is a no-op for those columns. The DOM
+sidebar must also be cleared/hidden.
+- **Post-extraction**: call `hideSidebarDOM()` or `clearSidebarDOM()` after
+  `blackOutScreen`. During death, the sidebar is already set to HP=0 via
+  `buildRefreshSideBarFn()()` before `deathFadeAsync`, so hiding is fine.
+
+**2. `irisFadeBetweenBuffers` (`io/effects.ts:169`)**
+Radial iris-fade from one full buffer to another. Blends every cell
+(including sidebar columns 0–20) in both buffers and plots them to canvas.
+Used at level transitions (new floor entry). After extraction, sidebar canvas
+columns are suppressed — the iris fade writes to them in the buffer but
+`plotChar` skips them. The DOM sidebar would show through during the fade,
+creating a jarring mismatch.
+- **Post-extraction**: hide DOM sidebar before `irisFadeBetweenBuffers` and
+  restore after. The fade's output buffer becomes the new display state so
+  `refreshSideBar` will run on the next game tick and update the DOM.
+
+**3. `colorOverDungeon` (`io/display.ts:484`)**
+Fills only the dungeon viewport (DCOLS×DROWS cells, offsets by
+`mapToWindow`) with a solid color. Does **not** touch sidebar columns or
+message rows. Safe after extraction — targets only cells in the dungeon
+region, which remain canvas-rendered in all phases.
+- **Post-extraction**: no special DOM interaction needed.
+
+**4. `deathFadeAsync` (`lifecycle-gameover.ts:146`)**
+Async radial fade to black from player position across all COLS×ROWS cells.
+Iterates the full buffer and scales color components toward zero. Ends with
+`blackOutScreen`. After Phase 1 sidebar suppression, canvas sidebar columns
+render black regardless — but the DOM sidebar remains visible during the
+fade.
+- **Post-extraction**: hide DOM sidebar at the start of `deathFadeAsync` (or
+  at `runDeathScreen` entry). The sidebar DOM is not needed during the death
+  sequence. Restore only if the player returns to gameplay (which they don't
+  — death leads to the title screen, which re-runs on canvas).
+
+**Summary for Phase 5 verification**: All four effects need DOM sidebar
+hidden/suppressed before they run. A single `setSidebarDOMVisible(false)`
+call at the entry point of each effect (or at their shared callers) is
+sufficient. Sidebar DOM is restored on the next `refreshSideBar` call when
+gameplay resumes.
+
 ### Sidebar Entity List
 
 `refreshSideBar` calls `collectSidebarEntities` (pure data) then
@@ -286,19 +335,15 @@ incremental extraction.
 
 ## Open Questions
 
-- **Message area positioning:** Should messages appear above or below
-  the dungeon canvas? Currently they're rows 0–2 (above the dungeon).
-  Keeping them above seems natural, but below could work for a more
-  immersive feel. Default to above (matching current layout).
-- **Sidebar hover → dungeon highlight:** Currently, hovering a sidebar
-  entity highlights the corresponding dungeon cell (and vice versa).
-  With the sidebar as DOM, we need mouse events on sidebar DOM elements
-  to trigger dungeon cell highlighting on the canvas. This should work
-  via the existing `sidebarLocationList` mapping.
-- **Flavor text line:** Currently on row `ROWS - 2`, this shows
-  contextual descriptions when hovering dungeon cells. Should it be
-  part of the bottom bar (Phase 2) or its own element? Lean toward
-  bottom bar.
+- ~~**Message area positioning:** Above the dungeon canvas (matching
+  current layout).~~ **Decided: above.**
+- ~~**Sidebar hover → dungeon highlight:** DOM hover events on sidebar
+  entities trigger canvas highlighting via the existing
+  `sidebarLocationList` mapping. Canvas hover triggers DOM sidebar
+  highlighting in reverse.~~ **Decided: bidirectional via
+  sidebarLocationList.**
+- ~~**Flavor text line:** Part of the bottom bar (Phase 2).~~
+  **Decided: bottom bar.**
 
 ## Rejected Approaches
 

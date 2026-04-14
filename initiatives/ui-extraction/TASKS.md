@@ -2,7 +2,7 @@
 
 ## Phase 1: Layout + Sidebar
 
-- [ ] Audit full-grid visual effects: enumerate all functions that write
+- [x] Audit full-grid visual effects: enumerate all functions that write
   to the full 100×34 buffer (`blackOutScreen`, `irisFadeBetweenBuffers`,
   `colorOverDungeon`, death screen fade in `deathFadeAsync`). Document
   how each will need to interact with DOM elements post-extraction.
@@ -35,7 +35,7 @@
   gameplay — fill with black or skip in `plotChar`.
 - [ ] Verify: gameplay with HTML sidebar, canvas dungeon, all
   interactions (hover highlight, entity click) working.
-- [ ] Commit Phase 1
+- [ ] 🔄 Handoff
 
 # --- handoff point ---
 
@@ -70,7 +70,7 @@
   (32–33) during gameplay.
 - [ ] Verify: messages, --MORE-- prompt, message archive, bottom bar
   buttons, and flavor text all working in HTML.
-- [ ] Commit Phase 2
+- [ ] 🔄 Handoff
 
 # --- handoff point ---
 
@@ -96,7 +96,7 @@ a parent overlay is DOM but a child is still buffer-based.
 - [ ] Convert `printDiscoveriesScreen` to HTML modal: multi-column
   discoveries list. Dismiss on any key/click.
 - [ ] Verify: help, feats, discoveries all open/dismiss correctly.
-- [ ] Commit Phase 3a
+- [ ] 🔄 Handoff
 
 # --- handoff point ---
 
@@ -127,7 +127,7 @@ a parent overlay is DOM but a child is still buffer-based.
   keystroke loop with a DOM modal containing an `<input>` element.
   Used for item inscription and seed entry.
 - [ ] Verify: all text boxes, confirms, text entry, and alerts work.
-- [ ] Commit Phase 3b
+- [ ] 🔄 Handoff
 
 # --- handoff point ---
 
@@ -152,7 +152,7 @@ a parent overlay is DOM but a child is still buffer-based.
   content, DOM panel lifecycle is independent).
 - [ ] Verify: escape menu, item detail actions (equip/drop/throw
   from inventory detail), monster/item popups during examine mode.
-- [ ] Commit Phase 3c
+- [ ] 🔄 Handoff
 
 # --- handoff point ---
 
@@ -181,7 +181,7 @@ a parent overlay is DOM but a child is still buffer-based.
   need only `chosenButton` (number), others need the full
   `ButtonInputResult` (chosenButton + event). Ensure the DOM
   replacement provides both where needed.
-- [ ] Commit Phase 3d
+- [ ] 🔄 Handoff
 
 # --- handoff point ---
 
@@ -209,7 +209,7 @@ will break after the canvas is resized to dungeon-only.
   (DOM and fallback) still work.
 - [ ] Verify: complete gameplay session, all phases working, no
   rendering artifacts.
-- [ ] Commit Phase 4
+- [ ] 🔄 Handoff
 
 # --- handoff point ---
 
@@ -228,7 +228,7 @@ will break after the canvas is resized to dungeon-only.
   remain readable while dungeon scales.
 - [ ] Performance check: DOM updates should not cause jank during
   rapid sidebar refreshes (e.g., combat with many visible monsters).
-- [ ] Commit Phase 5
+- [ ] 🔄 Handoff
 
 ## Deferred
 
