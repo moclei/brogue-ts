@@ -137,6 +137,20 @@ let depthFooterEl: HTMLElement | null = null;
 /** True when DOM sidebar rendering is active. Set by `setDOMSidebarEnabled`. */
 let domSidebarEnabled = false;
 
+/**
+ * Callback invoked when the pointer enters a sidebar entity card.
+ * Receives the entity's dungeon map coordinates (mapX, mapY).
+ * Typically routes through the main game hover handler to trigger
+ * path highlighting and sidebar focus update.
+ */
+let _onSidebarHover: ((mapX: number, mapY: number) => void) | null = null;
+
+/**
+ * Callback invoked when the pointer leaves the sidebar entity list.
+ * Used to clear the hover highlight on the canvas and sidebar.
+ */
+let _onSidebarClear: (() => void) | null = null;
+
 /** Enable or disable DOM sidebar rendering. Call after `initSidebarDOM`. */
 export function setDOMSidebarEnabled(enabled: boolean): void {
     domSidebarEnabled = enabled;
@@ -145,6 +159,24 @@ export function setDOMSidebarEnabled(enabled: boolean): void {
 /** Returns true if DOM sidebar rendering is currently enabled. */
 export function isDOMSidebarEnabled(): boolean {
     return domSidebarEnabled;
+}
+
+/**
+ * Register hover callbacks for DOM sidebar → canvas interaction.
+ *
+ * `onHover(mapX, mapY)` is called when the pointer enters a sidebar entity
+ * card; it should trigger the canvas hover handler (path highlight + sidebar
+ * focus update). Typically the return value of `buildHoverHandlerFn()`.
+ *
+ * `onClear()` is called when the pointer leaves the entity list; it should
+ * clear the hover path highlight. Pass `null` to deregister both.
+ */
+export function setSidebarHoverCallbacks(
+    onHover: ((mapX: number, mapY: number) => void) | null,
+    onClear: (() => void) | null,
+): void {
+    _onSidebarHover = onHover;
+    _onSidebarClear = onClear;
 }
 
 // =============================================================================
@@ -181,6 +213,12 @@ export function initSidebarDOM(container: HTMLElement): void {
     entityListEl = document.createElement("div");
     entityListEl.className = "sb-entity-list";
     entityListEl.style.cssText = "flex:1;overflow:hidden";
+
+    // When the pointer leaves the whole entity list, clear hover highlight
+    entityListEl.addEventListener("mouseleave", () => {
+        if (_onSidebarClear) _onSidebarClear();
+    });
+
     container.appendChild(entityListEl);
 
     // Depth footer
@@ -309,8 +347,16 @@ function _makeEntityCard(entity: SidebarEntityData): HTMLElement {
     card.style.cssText = [
         "padding:1px 0",
         "border-bottom:1px solid #1a1a1a",
+        "cursor:default",
         entity.focused ? "background:#1c1c1c" : "",
     ].filter(Boolean).join(";");
+
+    // DOM hover → dungeon cell highlighting: route through the canvas hover handler
+    card.addEventListener("mouseenter", () => {
+        if (_onSidebarHover) {
+            _onSidebarHover(entity.mapX, entity.mapY);
+        }
+    });
 
     // Name / glyph header row
     const header = document.createElement("div");

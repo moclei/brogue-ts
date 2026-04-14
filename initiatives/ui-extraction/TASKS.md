@@ -26,9 +26,9 @@
   and call `renderSidebar` instead of (or in addition to) buffer writes.
   Gate behind a `useDOM` flag so the buffer-write path remains as
   fallback. Verify sidebar appears in HTML and matches canvas version.
-- [ ] Add data attributes to sidebar entity DOM elements mapping to
+- [x] Add data attributes to sidebar entity DOM elements mapping to
   `sidebarLocationList` positions, so hover interaction continues to work.
-- [ ] Wire sidebar DOM hover events to trigger dungeon cell highlighting
+- [x] Wire sidebar DOM hover events to trigger dungeon cell highlighting
   (reuse existing hover handler pathway). Also wire canvas dungeon cell
   hover to update sidebar DOM highlighting (reverse direction).
 - [ ] Suppress canvas rendering of sidebar columns (0–20) during

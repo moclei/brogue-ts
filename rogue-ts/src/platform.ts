@@ -38,6 +38,7 @@ import {
 } from "./io/menu-bar.js";
 import { actionMenu } from "./io/input-mouse.js";
 import { buildHoverHandlerFn, buildClearHoverPathFn } from "./io/hover-wiring.js";
+import { setSidebarHoverCallbacks } from "./platform/ui-sidebar.js";
 import { GraphicsMode } from "./types/enums.js";
 import type { CellSpriteDataProvider } from "./platform/browser-renderer.js";
 import { buildCellSpriteDataProvider } from "./sprite-data-wiring.js";
@@ -490,6 +491,7 @@ export async function mainGameLoop(): Promise<void> {
     _menuState = buildGameMenuButtonState(rogue.playbackMode);
     _hoverHandler = buildHoverHandlerFn();
     _clearHoverPath = buildClearHoverPathFn();
+    setSidebarHoverCallbacks(_hoverHandler, _clearHoverPath);
 
     while (!rogue.gameHasEnded) {
         // Defect 3 fix: idle animation loop — animate dancing terrain between inputs.
@@ -517,5 +519,6 @@ export async function mainGameLoop(): Promise<void> {
     _hoverHandler = null;
     _clearHoverPath = null;
     _lastHoverPos = null;
+    setSidebarHoverCallbacks(null, null);
     console.log("[mainGameLoop] ended");
 }
