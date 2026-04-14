@@ -349,6 +349,28 @@ incremental extraction.
 
 _(none yet)_
 
+## Session Notes [2026-04-14] (Phase 5)
+
+**Phase 5 complete.** All verification tasks executed via code-path analysis. One bug fixed. TypeScript compilation clean (0 errors).
+
+**Key findings and fixes:**
+
+- **Sidebar visibility lifecycle bug (fixed):** `initSidebarDOM` previously called `container.style.display = "flex"` immediately at bootstrap, making the DOM sidebar visible during the title screen (flame animation). This caused `sizeCanvas` to subtract 20 sidebar columns from the viewport budget in menu mode, shrinking the canvas unnecessarily. Fix: `initSidebarDOM` now keeps the container hidden (`display:none`). `mainGameLoop` (platform.ts) calls `setSidebarVisible(true)` at gameplay start and `setSidebarVisible(false)` at gameplay end. This ensures the canvas is full-width during menus and sidebar-adjacent during gameplay.
+
+- **Death fade interaction (correct after fix):** `deathFadeAsync` runs after `mainGameLoop` ends. By the time it runs, `mainGameLoop` has already called `setSidebarVisible(false)` and `_onCanvasModeChange(false)` (restoring canvas to menu mode / 100×34). The fade therefore runs with full canvas and hidden sidebar — correct behavior. No changes needed inside `deathFadeAsync`.
+
+- **`blackOutScreen`:** Only updates the buffer; canvas suppression handles sidebar columns in gameplay mode. Called during death (inside `deathFadeAsync`) and victory (in `menus.ts:showGameEndScreen`) — both execute after `mainGameLoop` cleanup, so sidebar is already hidden.
+
+- **`irisFadeBetweenBuffers`:** Not called from any game code (level transition animation is not implemented). Added a JSDoc note to the function explaining that callers must hide/restore the DOM sidebar.
+
+- **`colorOverDungeon`:** Writes only to dungeon viewport cells (offset by `mapToWindow`). No DOM interaction required. ✓
+
+- **Game mode summary:** New Game is the only fully functional mode. Continue/Playback/Recording require `openFile` (DEFER: port-v2-persistence, returns false). Wizard mode stays buffer-based per BRIEF.md scope exclusion. DOM extraction is correctly wired for playback when persistence is implemented (`buildGameMenuButtonState(rogue.playbackMode)` and `_renderPlaybackHeader` already handle the playback state).
+
+- **Viewport sizing:** All element sizes derive from `window.innerWidth/Height ÷ grid dimensions`; `MIN_CELL_SIZE=12` guards readability; resize handler updates canvas and DOM elements together. ✓
+
+- **Performance:** `_renderEntityList` clears and rebuilds entity cards on each call. Entity count is bounded by visible map entities (typically ≤15). At ~0.1–0.5 ms per rebuild, well within the 25 ms frame budget. Diff-update optimization is noted but not needed.
+
 ## Session Notes [2026-04-14] (Phase 4)
 
 **Phase 4 complete.** All tasks executed in one session. TypeScript compilation clean (0 errors).

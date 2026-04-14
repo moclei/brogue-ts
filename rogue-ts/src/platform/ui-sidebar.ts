@@ -213,8 +213,9 @@ export function setSidebarHoverCallbacks(
 export function initSidebarDOM(container: HTMLElement): void {
     sidebarContainer = container;
 
-    // Show the container (it's display:none by default in CSS)
-    container.style.display = "flex";
+    // Keep the container hidden until gameplay starts (mainGameLoop calls setSidebarVisible(true)).
+    // initSidebarDOM may be called at bootstrap before the title screen runs.
+    container.style.display = "none";
     container.style.flexDirection = "column";
 
     // Clear any existing children

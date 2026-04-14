@@ -38,7 +38,7 @@ import {
 } from "./io/menu-bar.js";
 import { actionMenu } from "./io/input-mouse.js";
 import { buildHoverHandlerFn, buildClearHoverPathFn } from "./io/hover-wiring.js";
-import { setSidebarHoverCallbacks, setSidebarCanvasSuppression } from "./platform/ui-sidebar.js";
+import { setSidebarHoverCallbacks, setSidebarCanvasSuppression, setSidebarVisible } from "./platform/ui-sidebar.js";
 import { setMessagesCanvasSuppression, setMessagesVisible } from "./platform/ui-messages.js";
 import { setBottomBarClickCallback, setBottomBarCanvasSuppression, setBottomBarVisible } from "./platform/ui-bottom-bar.js";
 import { GraphicsMode } from "./types/enums.js";
@@ -525,6 +525,8 @@ export async function mainGameLoop(): Promise<void> {
     setSidebarCanvasSuppression(true);
     setMessagesCanvasSuppression(true);
     setBottomBarCanvasSuppression(true);
+    // Show DOM sidebar before switching canvas mode so sizeCanvas accounts for it.
+    setSidebarVisible(true);
     setMessagesVisible(true);
     setBottomBarVisible(true);
     // Switch canvas to dungeon-only (DCOLS×DROWS) mode for gameplay.
@@ -573,6 +575,8 @@ export async function mainGameLoop(): Promise<void> {
     setSidebarCanvasSuppression(false);
     setMessagesCanvasSuppression(false);
     setBottomBarCanvasSuppression(false);
+    // Hide DOM sidebar before switching canvas mode so sizeCanvas doesn't subtract sidebar columns.
+    setSidebarVisible(false);
     setMessagesVisible(false);
     setBottomBarVisible(false);
     setBottomBarClickCallback(null);

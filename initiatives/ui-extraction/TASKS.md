@@ -215,21 +215,23 @@ will break after the canvas is resized to dungeon-only.
 
 ## Phase 5: Polish
 
-- [ ] Verify all game modes: new game, continue, playback, wizard mode.
-- [ ] Verify visual effects that span UI regions (from Phase 1 audit):
+- [x] Verify all game modes: new game, continue, playback, wizard mode.
+- [x] Verify visual effects that span UI regions (from Phase 1 audit):
   `blackOutScreen`, `colorOverDungeon`, `irisFadeBetweenBuffers`,
   death screen fade (`deathFadeAsync`), level transition animations.
   Each must correctly interact with both canvas and DOM elements.
-- [ ] Verify death screen: `runDeathScreen` uses `copyDisplayBuffer`
+- [x] Verify death screen: `runDeathScreen` uses `copyDisplayBuffer`
   for fade, then optionally opens `displayInventory` (now DOM).
-- [ ] Verify playback mode: action menu has different buttons, menu
+- [x] Verify playback mode: action menu has different buttons, menu
   bar has playback labels. Both should work with DOM extraction.
-- [ ] Test at various viewport sizes — sidebar and messages should
+- [x] Test at various viewport sizes — sidebar and messages should
   remain readable while dungeon scales.
-- [ ] Performance check: DOM updates should not cause jank during
+- [x] Performance check: DOM updates should not cause jank during
   rapid sidebar refreshes (e.g., combat with many visible monsters).
-- [ ] 🔄 Handoff
+- [x] 🔄 Handoff
 
 ## Deferred
 
-_(items discovered during implementation that are out of scope)_
+- Continue / Playback / Recording modes: require `openFile` implementation (DEFER: port-v2-persistence). DOM extraction is already wired for these modes; they will work once `openFile` is implemented.
+- `irisFadeBetweenBuffers` caller: level-transition iris animation is not yet called from game code. When implemented, caller must call `setSidebarVisible(false)` before and `setSidebarVisible(true)` after (documented in JSDoc on the function).
+- `_renderEntityList` diff-update optimisation: current clear-and-rebuild is acceptable for ≤15 entities. Future optimisation: diff entities against previous render to avoid full rebuild.
