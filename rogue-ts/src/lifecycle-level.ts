@@ -19,6 +19,7 @@ import { meteredItemsGenerationTable, lumenstoneDistribution,
     scrollTable, potionTable, armorTable } from "./globals/item-catalog.js";
 import { autoGeneratorCatalog } from "./globals/autogenerator-catalog.js";
 import { blueprintCatalog } from "./globals/blueprint-catalog.js";
+import { getDebugBlueprintCatalog } from "./menus/machine-debug.js";
 import { dungeonFeatureCatalog } from "./globals/dungeon-feature-catalog.js";
 import { dungeonProfileCatalog } from "./globals/dungeon-profile-catalog.js";
 import { tileCatalog } from "./globals/tile-catalog.js";
@@ -179,15 +180,17 @@ export function buildLevelContext(): LevelContext {
 
     // ---- Architect context ---------------------------------------------------
     const monsterOps = createMonsterOps({
-        monsters,
-        dormantMonsters,
+        // Use a getter so setMonsters() calls in game-level.ts don't stale this
+        // reference — same pattern as dormantMonsters (dca63af fix).
+        get monsters() { return getGameState().monsters; },
+        dormantMonsters: () => getGameState().dormantMonsters,
         pmap,
         spawnHorde(leaderID, pos, forbiddenFlags, requiredFlags) {
             return spawnHordeFn(leaderID, pos, forbiddenFlags, requiredFlags, buildMonsterSpawningContext());
         },
         monsterAtLoc(pos) {
             if (pos.x === player.loc.x && pos.y === player.loc.y) return player;
-            return monsters.find(m => m.loc.x === pos.x && m.loc.y === pos.y) ?? null;
+            return getGameState().monsters.find(m => m.loc.x === pos.x && m.loc.y === pos.y) ?? null;
         },
         killCreature: (creature, quiet) => {
             void killCreatureFn(creature as unknown as import("./types/types.js").Creature, quiet, buildCombatDamageContext());
@@ -210,15 +213,16 @@ export function buildLevelContext(): LevelContext {
             }),
     });
 
+    const activeBlueprintCatalog = getDebugBlueprintCatalog(blueprintCatalog);
     const archCtx = {
         pmap, depthLevel: rogue.depthLevel, gameConstants: gameConst,
-        dungeonProfileCatalog, dungeonFeatureCatalog, blueprintCatalog, autoGeneratorCatalog, tileCatalog,
+        dungeonProfileCatalog, dungeonFeatureCatalog, blueprintCatalog: activeBlueprintCatalog, autoGeneratorCatalog, tileCatalog,
         machineNumber: rogue.rewardRoomsGenerated,
         rewardRoomsGenerated: rogue.rewardRoomsGenerated,
         staleLoopMap: rogue.staleLoopMap,
         machineContext: {
             pmap, chokeMap: chokeMap!, tileCatalog,
-            blueprintCatalog, dungeonFeatureCatalog, dungeonProfileCatalog, autoGeneratorCatalog,
+            blueprintCatalog: activeBlueprintCatalog, dungeonFeatureCatalog, dungeonProfileCatalog, autoGeneratorCatalog,
             depthLevel: rogue.depthLevel,
             machineNumber: rogue.rewardRoomsGenerated,
             rewardRoomsGenerated: rogue.rewardRoomsGenerated,

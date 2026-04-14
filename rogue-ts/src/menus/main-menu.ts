@@ -27,11 +27,12 @@ import { updateMenuFlames, drawMenuFlames, initializeMenuFlames } from "./menu-f
 import {
     chooseGameMode, chooseGameVariant, dialogChooseFile, viewGameStats,
 } from "./character-select.js";
+import { showMachineDebugMenu } from "./machine-debug.js";
 
 // Re-export for use by character-select and other modules
 export { initializeMainMenuButton };
 
-const MAIN_MENU_BUTTON_COUNT = 4;
+const MAIN_MENU_BUTTON_COUNT = 5;
 const FLYOUT_X = 59;
 
 // =============================================================================
@@ -48,13 +49,13 @@ export function initializeMainMenuButtons(ctx: MenuContext): BrogueButton[] {
         initializeMainMenuButton("     %sN%sew Game     ", "n".charCodeAt(0), "N".charCodeAt(0), NGCommand.NewGame, ctx),
         initializeMainMenuButton(" *     %sP%slay       ", "p".charCodeAt(0), "P".charCodeAt(0), NGCommand.FlyoutPlay, ctx),
         initializeMainMenuButton(" *     %sV%siew       ", "v".charCodeAt(0), "V".charCodeAt(0), NGCommand.FlyoutView, ctx),
+        initializeMainMenuButton("    %sD%sebug Menu    ", "d".charCodeAt(0), "D".charCodeAt(0), NGCommand.MachineDebug, ctx),
         initializeMainMenuButton("       %sQ%suit       ", "q".charCodeAt(0), "Q".charCodeAt(0), NGCommand.Quit, ctx),
     ];
 
-    // Add a left-facing triangle to all buttons except Quit
-    for (let i = 0; i < MAIN_MENU_BUTTON_COUNT - 1; i++) {
-        buttons[i].symbol = [ctx.G_LEFT_TRIANGLE];
-    }
+    // Add a left-facing triangle to flyout buttons (Play, View)
+    buttons[1].symbol = [ctx.G_LEFT_TRIANGLE];
+    buttons[2].symbol = [ctx.G_LEFT_TRIANGLE];
 
     return buttons;
 }
@@ -345,6 +346,11 @@ export async function mainBrogueJunction(ctx: MenuContext, displayBuffer: Screen
             case NGCommand.GameVariant:
                 ctx.rogue.nextGame = NGCommand.Nothing;
                 ctx.initializeGameVariant();
+                break;
+
+            case NGCommand.MachineDebug:
+                await showMachineDebugMenu(ctx);
+                ctx.rogue.nextGame = NGCommand.Nothing;
                 break;
 
             case NGCommand.NewGame:

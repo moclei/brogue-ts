@@ -17,7 +17,7 @@
  */
 
 import { getGameState, setVictory } from "./core.js";
-import { buildCombatAttackContext } from "./combat.js";
+import { buildCombatAttackContext, buildFadeInMonsterFn } from "./combat.js";
 import { buildMonsterStateContext } from "./monsters.js";
 import { buildTurnProcessingContext } from "./turn.js";
 import {
@@ -87,7 +87,7 @@ import {
 } from "./items/item-inventory.js";
 import { wandTable, staffTable, ringTable, charmTable } from "./globals/item-catalog.js";
 import type { ItemTable } from "./types/types.js";
-import { keyMatchesLocation as keyMatchesLocationFn } from "./items/item-utils.js";
+import { keyMatchesLocation as keyMatchesLocationFn, keyOnTileAt as keyOnTileAtFn } from "./items/item-utils.js";
 import { layerWithTMFlag as layerWithTMFlagFn, layerWithFlag as layerWithFlagFn } from "./movement/map-queries.js";
 import {
     handleWhipAttacks as handleWhipAttacksFn,
@@ -220,7 +220,7 @@ export function buildMovementContext(): PlayerMoveContext {
     const updateVision = buildUpdateVisionFn();
     const dormancyCtx = {
         monsters,
-        dormantMonsters,
+        dormantMonsters: () => dormantMonsters,
         pmap,
         getQualifyingPathLocNear: (target: Pos, hallwaysAllowed: boolean, btf: number, bmf: number, ftf: number, fmf: number, det: boolean) =>
             getQualifyingPathLocNearFn(target, hallwaysAllowed, btf, bmf, ftf, fmf, det, {
@@ -230,6 +230,7 @@ export function buildMovementContext(): PlayerMoveContext {
                 rng: { randRange: (lo: number, hi: number) => randRange(lo, hi) },
                 getQualifyingLocNear: (t: Pos) => t,
             }),
+        fadeInMonster: buildFadeInMonsterFn(),
     };
 
     // Runtime spawnDungeonFeature: calls the base function then shows feature messages
@@ -318,20 +319,8 @@ export function buildMovementContext(): PlayerMoveContext {
         discover: (x: number, y: number) => { if (coordinatesAreInMap(x, y)) pmap[x][y].flags |= TileFlag.DISCOVERED; },
         randPercent,
         posEq: (a: Pos, b: Pos) => a.x === b.x && a.y === b.y,
-        keyOnTileAt: (loc: Pos) => {
-            const machineNum = pmap[loc.x]?.[loc.y]?.machineNumber ?? 0;
-            if (player.loc.x === loc.x && player.loc.y === loc.y) {
-                const k = packItems.find(it => (it.flags & ItemFlag.ITEM_IS_KEY) && keyMatchesLocationFn(it, loc, rogue.depthLevel, machineNum));
-                if (k) return k;
-            }
-            if (pmap[loc.x][loc.y].flags & TileFlag.HAS_ITEM) {
-                const fi = itemAtLocFn(loc, floorItems);
-                if (fi && (fi.flags & ItemFlag.ITEM_IS_KEY) && keyMatchesLocationFn(fi, loc, rogue.depthLevel, machineNum)) return fi;
-            }
-            const monst = monsterAtLoc(loc);
-            if (monst?.carriedItem && (monst.carriedItem.flags & ItemFlag.ITEM_IS_KEY) && keyMatchesLocationFn(monst.carriedItem, loc, rogue.depthLevel, machineNum)) return monst.carriedItem;
-            return null;
-        },
+        keyOnTileAt: (loc: Pos) =>
+            keyOnTileAtFn(loc, pmap, player, packItems, floorItems, monsters, rogue.depthLevel, itemAtLocFn),
         initializeItem: () => ({}) as any,
         itemName: (item: any, buf: string[], inclDetails: boolean, inclArticle: boolean) => { buf[0] = itemNameFn(item, inclDetails, inclArticle, namingCtx); },
         describeHallucinatedItem: (buf: string[]) => { buf[0] = "something"; },

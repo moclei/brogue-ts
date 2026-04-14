@@ -18,7 +18,7 @@
  *  License, or (at your option) any later version.
  */
 
-import type { Pcell, Pos, FloorTileType, Blueprint, DungeonFeature, DungeonProfile, AutoGenerator } from "../types/types.js";
+import type { Pcell, Pos, Color, FloorTileType, Blueprint, DungeonFeature, DungeonProfile, AutoGenerator } from "../types/types.js";
 import { DungeonLayer, TileType, MachineType, CreatureState, CreatureMode, ItemCategory } from "../types/enums.js";
 import { DCOLS, DROWS, NUMBER_TERRAIN_LAYERS, MACHINES_BUFFER_LENGTH, PDS_FORBIDDEN, PDS_OBSTRUCTION } from "../types/constants.js";
 import {
@@ -909,9 +909,30 @@ export function spawnMapDF(
 }
 
 /**
+ * Runtime callbacks for fillSpawnMap — only used when refresh=true.
+ * All fields are optional; generation-time callers leave them undefined.
+ */
+export interface FillSpawnMapRefreshCallbacks {
+    /** Show flavor text when the player's tile changes (C: flavorMessage). */
+    flavorMessage?: (msg: string) => void;
+    /** Apply instant tile effects to the creature on the just-written cell (C: applyInstantTileEffectsToCreature). */
+    applyInstantTileEffectsToCreature?: (monst: unknown) => void;
+    /** Burn a flammable item on a newly written fire tile (C: burnItem). */
+    burnItem?: (item: unknown) => void;
+    /** Player state used by flavorMessage check: location and levitation flag. */
+    playerState?: { loc: Pos; isLevitating: boolean };
+    /** Return the creature at loc, or null. Used by applyInstantTileEffects check. */
+    monsterAtLoc?: (loc: Pos) => unknown | null;
+    /** Return the item at loc, or null (for burnItem check). */
+    itemAtLoc?: (loc: Pos) => { flags: number } | null;
+    /** Flavor text for the surfaceTileType (from tileCatalog[surfaceTileType].flavorText). */
+    tileFlavor?: () => string;
+}
+
+/**
  * Fill the spawn map into the pmap, placing terrain tiles where appropriate.
- * This is the non-runtime version used during dungeon generation
- * (refresh=false, so no creature/item effects).
+ * Pass refreshCallbacks to activate the runtime-only creature/item effects
+ * (refresh=true path). Generation-time callers pass no refreshCallbacks.
  *
  * C equivalent: `fillSpawnMap(layer, surfaceTileType, spawnMap, blockedByOtherLayers,
  *   refresh, superpriority)` in Architect.c line 3208
@@ -928,6 +949,8 @@ export function fillSpawnMap(
     refresh: boolean,
     superpriority: boolean,
     refreshDungeonCell?: (loc: Pos) => void,
+    setStaleLoopMap?: () => void,
+    refreshCallbacks?: FillSpawnMapRefreshCallbacks,
 ): boolean {
     let accomplishedSomething = false;
 
@@ -951,14 +974,53 @@ export function fillSpawnMap(
                     (tCatalog[pmap[i][j].layers[layer]].flags & T_PATHING_BLOCKER)
                     !== (tCatalog[surfaceTileType].flags & T_PATHING_BLOCKER)
                 ) {
-                    // staleLoopMap would be set on rogue state
+                    setStaleLoopMap?.();
                 }
 
                 pmap[i][j].layers[layer] = surfaceTileType;
                 accomplishedSomething = true;
 
-                if (refresh && refreshDungeonCell) {
-                    refreshDungeonCell({ x: i, y: j });
+                if (refresh) {
+                    refreshDungeonCell?.({ x: i, y: j });
+                    if (refreshCallbacks) {
+                        const cb = refreshCallbacks;
+                        // C: Architect.c:3251-3253 — flavorMessage when player stands on changed cell
+                        // and is not levitating
+                        if (
+                            cb.flavorMessage
+                            && cb.playerState
+                            && cb.playerState.loc.x === i
+                            && cb.playerState.loc.y === j
+                            && !cb.playerState.isLevitating
+                            && cb.tileFlavor
+                        ) {
+                            cb.flavorMessage(cb.tileFlavor());
+                        }
+                        // C: Architect.c:3254-3260 — applyInstantTileEffectsToCreature for
+                        // creature on newly written cell
+                        if (
+                            cb.applyInstantTileEffectsToCreature
+                            && cb.monsterAtLoc
+                            && (pmap[i][j].flags & (TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER))
+                        ) {
+                            const monst = cb.monsterAtLoc({ x: i, y: j });
+                            if (monst !== null && monst !== undefined) {
+                                cb.applyInstantTileEffectsToCreature(monst);
+                            }
+                        }
+                        // C: Architect.c:3261-3267 — burnItem for flammable item on fire tile
+                        if (
+                            cb.burnItem
+                            && cb.itemAtLoc
+                            && (tCatalog[surfaceTileType].flags & TerrainFlag.T_IS_FIRE)
+                            && (pmap[i][j].flags & TileFlag.HAS_ITEM)
+                        ) {
+                            const theItem = cb.itemAtLoc({ x: i, y: j });
+                            if (theItem && (theItem.flags & ItemFlag.ITEM_FLAMMABLE)) {
+                                cb.burnItem(theItem);
+                            }
+                        }
+                    }
                 }
             } else {
                 spawnMap[i][j] = 0;
@@ -969,8 +1031,106 @@ export function fillSpawnMap(
 }
 
 /**
+ * Minimal creature interface needed for evacuateCreatures.
+ * Structurally compatible with the full `Creature` type from types.ts.
+ */
+export interface EvacuateCreature {
+    loc: Pos;
+    /** True if this creature is the player. */
+    isPlayer: boolean;
+    /** Forbidden terrain flags for pathfinding (from forbiddenFlagsForMonster). */
+    forbiddenTerrainFlags: number;
+}
+
+/**
+ * Displace any creature (monster or player) occupying a cell that is marked in
+ * blockingMap, before terrain is written.
+ *
+ * C equivalent: `evacuateCreatures(blockingMap)` in Architect.c line 3332
+ *
+ * @param pmap        - The dungeon cell grid (updated in place)
+ * @param blockingMap - Cells scheduled to receive new terrain
+ * @param creatures   - All creatures to check (monsters + player)
+ * @param getQualifyingLocNear - Find a nearby passable cell
+ */
+export function evacuateCreatures(
+    pmap: Pcell[][],
+    blockingMap: Grid,
+    creatures: EvacuateCreature[],
+    getQualifyingLocNear: (
+        pos: Pos,
+        blockingMap: Grid,
+        forbiddenTerrainFlags: number,
+        forbiddenMapFlags: number,
+    ) => Pos | null,
+): void {
+    const forbiddenMapFlags = TileFlag.HAS_MONSTER | TileFlag.HAS_PLAYER;
+    for (const creature of creatures) {
+        const { x, y } = creature.loc;
+        if (blockingMap[x][y] && (pmap[x][y].flags & forbiddenMapFlags)) {
+            const newLoc = getQualifyingLocNear(
+                creature.loc,
+                blockingMap,
+                creature.forbiddenTerrainFlags,
+                forbiddenMapFlags,
+            );
+            if (newLoc) {
+                pmap[x][y].flags &= ~forbiddenMapFlags;
+                creature.loc = newLoc;
+                pmap[newLoc.x][newLoc.y].flags |= creature.isPlayer
+                    ? TileFlag.HAS_PLAYER
+                    : TileFlag.HAS_MONSTER;
+            }
+        }
+    }
+}
+
+/**
+ * Runtime callbacks for spawnDungeonFeature — only used when refreshCell=true.
+ * All fields are optional; generation-time callers leave them undefined.
+ */
+export interface SpawnDungeonFeatureRefreshCallbacks {
+    /** Show feature description message (C: Architect.c:3370 — before tile placement). */
+    message?: (msg: string, flags: number) => void;
+    /** Check if player can see the feature location. */
+    playerCanSee?: (x: number, y: number) => boolean;
+    /**
+     * Alert all monsters within radius (C: aggravateMonsters, Architect.c:3443).
+     * Called when DFF_AGGRAVATES_MONSTERS is set and feature has an effectRadius.
+     */
+    aggravateMonsters?: (radius: number, x: number, y: number, color: Color) => void;
+    /** Gray color reference (passed to aggravateMonsters in C). */
+    gray?: Color;
+    /**
+     * Flash a color at the feature location (C: colorFlash, Architect.c:3447).
+     * Called when refreshCell=true and feat.flashColor is set.
+     */
+    colorFlash?: (
+        color: Color,
+        tableRow: number,
+        tileFlags: number,
+        frames: number,
+        radius: number,
+        x: number,
+        y: number,
+    ) => void;
+    /**
+     * Create a light flare at the feature location (C: createFlare, Architect.c:3450).
+     * Called when refreshCell=true and feat.lightFlare is set.
+     */
+    createFlare?: (x: number, y: number, lightType: number) => void;
+    /** Tile flags for the colorFlash call (C: IN_FIELD_OF_VIEW | CLAIRVOYANT_VISIBLE). */
+    colorFlashTileFlags?: number;
+    /** Callbacks forwarded to fillSpawnMap for per-cell creature/item effects. */
+    fillSpawnMapCallbacks?: FillSpawnMapRefreshCallbacks;
+}
+
+/**
  * Spawn a dungeon feature at the given location.
- * Simplified version for dungeon generation (refreshCell=false path).
+ * Pass refreshCbs to activate the runtime-only effects (refreshCell=true path):
+ * description message, aggravateMonsters, colorFlash, createFlare, and
+ * per-cell creature/item effects via fillSpawnMapCallbacks.
+ * Generation-time callers omit refreshCbs entirely.
  *
  * C equivalent: `spawnDungeonFeature(x, y, feat, refreshCell, abortIfBlocking)`
  *   in Architect.c line 3359
@@ -988,7 +1148,29 @@ export function spawnDungeonFeature(
     abortIfBlocking: boolean,
     refreshDungeonCell?: (loc: Pos) => void,
     onFeatureApplied?: (x: number, y: number, feat: DungeonFeature, blockingMap: Grid) => void,
+    evacuateCreaturesFn?: (blockingMap: Grid) => void,
+    resurrectAllyFn?: (x: number, y: number) => boolean,
+    refreshCbs?: SpawnDungeonFeatureRefreshCallbacks,
 ): boolean {
+    // C: Architect.c:3365 — DFF_RESURRECT_ALLY check is the very first thing; abort if no ally found
+    if ((feat.flags & DFFlag.DFF_RESURRECT_ALLY) && resurrectAllyFn) {
+        if (!resurrectAllyFn(x, y)) {
+            return false;
+        }
+    }
+
+    // C: Architect.c:3370-3373 — description message BEFORE tile placement
+    if (
+        refreshCell
+        && refreshCbs?.message
+        && feat.description
+        && !feat.messageDisplayed
+        && refreshCbs.playerCanSee?.(x, y)
+    ) {
+        feat.messageDisplayed = true;
+        refreshCbs.message(feat.description, 0);
+    }
+
     const blockingMap = allocGrid();
     fillGrid(blockingMap, 0);
 
@@ -1019,6 +1201,10 @@ export function spawnDungeonFeature(
             );
 
             if (!blocking || !levelIsDisconnectedWithBlockingMap(pmap, blockingMap, false)) {
+                // C: Architect.c:3399 — evacuate creatures before filling terrain
+                if ((feat.flags & DFFlag.DFF_EVACUATE_CREATURES_FIRST) && evacuateCreaturesFn) {
+                    evacuateCreaturesFn(blockingMap);
+                }
                 fillSpawnMap(
                     pmap,
                     tCatalog,
@@ -1029,6 +1215,8 @@ export function spawnDungeonFeature(
                     refreshCell,
                     !!(feat.flags & DFFlag.DFF_SUPERPRIORITY),
                     refreshDungeonCell,
+                    undefined,
+                    refreshCbs?.fillSpawnMapCallbacks,
                 );
                 succeeded = true;
             } else {
@@ -1038,6 +1226,10 @@ export function spawnDungeonFeature(
     } else {
         blockingMap[x][y] = 1;
         succeeded = true;
+        // C: Architect.c:3418 — evacuate creatures in the no-tile path too
+        if ((feat.flags & DFFlag.DFF_EVACUATE_CREATURES_FIRST) && evacuateCreaturesFn) {
+            evacuateCreaturesFn(blockingMap);
+        }
     }
 
     if (succeeded && (feat.flags & (DFFlag.DFF_CLEAR_LOWER_PRIORITY_TERRAIN | DFFlag.DFF_CLEAR_OTHER_TERRAIN))) {
@@ -1059,6 +1251,32 @@ export function spawnDungeonFeature(
         }
     }
 
+    if (succeeded) {
+        // C: Architect.c:3443 — aggravateMonsters when DFF_AGGRAVATES_MONSTERS set
+        if (
+            (feat.flags & DFFlag.DFF_AGGRAVATES_MONSTERS)
+            && feat.effectRadius
+            && refreshCbs?.aggravateMonsters
+            && refreshCbs.gray
+        ) {
+            refreshCbs.aggravateMonsters(feat.effectRadius, x, y, refreshCbs.gray);
+        }
+        // C: Architect.c:3446-3448 — colorFlash when refreshCell and flashColor set
+        if (
+            refreshCell
+            && feat.flashColor
+            && feat.effectRadius
+            && refreshCbs?.colorFlash
+        ) {
+            const tileFlags = refreshCbs.colorFlashTileFlags ?? 0;
+            refreshCbs.colorFlash(feat.flashColor, 0, tileFlags, 4, feat.effectRadius, x, y);
+        }
+        // C: Architect.c:3449-3451 — createFlare when refreshCell and lightFlare set
+        if (refreshCell && feat.lightFlare && refreshCbs?.createFlare) {
+            refreshCbs.createFlare(x, y, feat.lightFlare);
+        }
+    }
+
     // Handle subsequent DFs
     if (succeeded && feat.subsequentDF) {
         if (feat.flags & DFFlag.DFF_SUBSEQ_EVERYWHERE) {
@@ -1076,6 +1294,9 @@ export function spawnDungeonFeature(
                             abortIfBlocking,
                             refreshDungeonCell,
                             onFeatureApplied,
+                            evacuateCreaturesFn,
+                            resurrectAllyFn,
+                            refreshCbs,
                         );
                     }
                 }
@@ -1092,6 +1313,9 @@ export function spawnDungeonFeature(
                 abortIfBlocking,
                 refreshDungeonCell,
                 onFeatureApplied,
+                evacuateCreaturesFn,
+                resurrectAllyFn,
+                refreshCbs,
             );
         }
     }

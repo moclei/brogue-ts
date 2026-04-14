@@ -193,6 +193,7 @@ export {
     lotteryDraw,
     describeMonsterClass,
     keyMatchesLocation,
+    keyOnTileAt,
     monsterClassHasAcidicMonster,
     beckonMonster,
     itemCanBeCalled,

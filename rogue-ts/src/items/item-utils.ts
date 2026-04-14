@@ -32,6 +32,70 @@ import { staffBlinkDistance } from "../power/power-tables.js";
 import { getImpactLoc } from "./bolt-geometry.js";
 
 // =============================================================================
+// keyOnTileAt — from Items.c:3331
+// =============================================================================
+
+/**
+ * Returns the first key item that can open the given map location, or null.
+ *
+ * Checks three sources in order (matching C keyOnTileAt):
+ *   1. Player's pack: player is on loc and pack contains an ITEM_IS_KEY that
+ *      matches loc.
+ *   2. Floor item at loc: HAS_ITEM flag set and floor item is ITEM_IS_KEY
+ *      matching loc.
+ *   3. Monster's carried item at loc: HAS_MONSTER set, monster has carriedItem
+ *      that is ITEM_IS_KEY matching loc.
+ *
+ * C: item *keyOnTileAt(pos loc)  — Items.c:3331
+ *
+ * @param loc        Map position to check.
+ * @param pmap       Column-major dungeon map.
+ * @param player     The player creature.
+ * @param packItems  Items in the player's pack.
+ * @param floorItems Items on the floor.
+ * @param monsters   All live monsters.
+ * @param depthLevel Current dungeon depth (rogue.depthLevel).
+ * @param itemAtLoc  Function to retrieve the floor item at a position.
+ * @returns          Matching key item, or null.
+ */
+export function keyOnTileAt(
+    loc: Pos,
+    pmap: Pcell[][],
+    player: Creature,
+    packItems: readonly Item[],
+    floorItems: Item[],
+    monsters: readonly Creature[],
+    depthLevel: number,
+    itemAtLoc: (loc: Pos, items: Item[]) => Item | null,
+): Item | null {
+    const machineNum = pmap[loc.x]?.[loc.y]?.machineNumber ?? 0;
+
+    // 1. Player's pack
+    if (player.loc.x === loc.x && player.loc.y === loc.y) {
+        const k = packItems.find(it =>
+            (it.flags & ItemFlag.ITEM_IS_KEY) &&
+            keyMatchesLocation(it, loc, depthLevel, machineNum));
+        if (k) return k;
+    }
+
+    // 2. Floor item
+    if (pmap[loc.x]?.[loc.y]?.flags & TileFlag.HAS_ITEM) {
+        const fi = itemAtLoc(loc, floorItems);
+        if (fi && (fi.flags & ItemFlag.ITEM_IS_KEY) &&
+            keyMatchesLocation(fi, loc, depthLevel, machineNum)) return fi;
+    }
+
+    // 3. Monster's carried item
+    const monst = monsters.find(m => m.loc.x === loc.x && m.loc.y === loc.y);
+    if (monst?.carriedItem &&
+        (monst.carriedItem.flags & ItemFlag.ITEM_IS_KEY) &&
+        keyMatchesLocation(monst.carriedItem, loc, depthLevel, machineNum))
+        return monst.carriedItem;
+
+    return null;
+}
+
+// =============================================================================
 // lotteryDraw — from Items.c:6857
 // =============================================================================
 
