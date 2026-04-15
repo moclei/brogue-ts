@@ -41,6 +41,8 @@ import { ringTable, staffTable, wandTable } from "../globals/item-catalog.js";
 import { featCatalog } from "../globals/feat-catalog.js";
 import { clamp } from "../math/rng.js";
 import type { ScreenDisplayBuffer, ItemTable } from "../types/types.js";
+import { isDOMModalEnabled, showModal } from "../platform/ui-modal.js";
+import { parseColorEscapes } from "../platform/ui-messages.js";
 
 // =============================================================================
 // Internal helpers
@@ -63,6 +65,185 @@ function applyOverlay(displayBuffer: ScreenDisplayBuffer, dbuf: ScreenDisplayBuf
         cell.backColorComponents[1] = clamp(r.backColor.green, 0, 100);
         cell.backColorComponents[2] = clamp(r.backColor.blue, 0, 100);
     }
+}
+
+// =============================================================================
+// DOM content builders — used when isDOMModalEnabled() is true
+// =============================================================================
+
+/**
+ * Build a single styled line element from a Brogue color-escaped string.
+ * Leading/trailing whitespace is preserved (`white-space: pre`).
+ */
+function buildColorLine(text: string): HTMLElement {
+    const div = document.createElement("div");
+    div.style.cssText = "white-space:pre;min-height:1.4em;";
+    const segments = parseColorEscapes(text || " ", 1.0);
+    for (const seg of segments) {
+        if (!seg.text) continue;
+        const span = document.createElement("span");
+        span.style.color = seg.color;
+        span.textContent = seg.text;
+        div.appendChild(span);
+    }
+    return div;
+}
+
+/** Build the help screen DOM content element. */
+function buildHelpScreenDOM(helpText: string[]): HTMLElement {
+    const root = document.createElement("div");
+    root.style.cssText = "min-width:min(600px,85vw);";
+    for (const line of helpText) {
+        root.appendChild(buildColorLine(line));
+    }
+    return root;
+}
+
+/** Build the feats screen DOM content element. */
+function buildFeatsScreenDOM(
+    featRecord: boolean[],
+    numFeats: number,
+): HTMLElement {
+    const root = document.createElement("div");
+    root.style.cssText = "min-width:min(560px,85vw);";
+
+    const title = document.createElement("div");
+    title.style.cssText = "text-align:center;color:#9e9;margin-bottom:0.5em;";
+    title.textContent = "-- FEATS --";
+    root.appendChild(title);
+
+    for (let i = 0; i < numFeats && i < featCatalog.length; i++) {
+        const feat = featCatalog[i];
+        const isInitial = featRecord[i] === feat.initialValue;
+        const achieved = !isInitial && featRecord[i];
+
+        const statusChar = isInitial ? " " : (achieved ? "+" : "-");
+        const statusColor = isInitial ? "#888" : (achieved ? "#8f8" : "#f66");
+        const nameColor = "#bbb";
+
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex;gap:0.5em;white-space:pre;";
+
+        const name = document.createElement("span");
+        name.style.color = nameColor;
+        name.textContent = feat.name.padStart(FEAT_NAME_LENGTH);
+        row.appendChild(name);
+
+        const sep = document.createElement("span");
+        sep.style.color = statusColor;
+        sep.textContent = ` ${statusChar} `;
+        row.appendChild(sep);
+
+        const desc = document.createElement("span");
+        desc.style.color = "#ccc";
+        desc.textContent = feat.description;
+        row.appendChild(desc);
+
+        root.appendChild(row);
+    }
+
+    const legendSection = document.createElement("div");
+    legendSection.style.cssText = "margin-top:1em;text-align:center;";
+
+    const legendTitle = document.createElement("div");
+    legendTitle.style.color = "#888";
+    legendTitle.textContent = "-- LEGEND --";
+    legendSection.appendChild(legendTitle);
+
+    const legendLine = document.createElement("div");
+    legendLine.innerHTML =
+        `<span style="color:#f66">Failed(-)</span>  ` +
+        `<span style="color:#8f8">Achieved(+)</span>`;
+    legendSection.appendChild(legendLine);
+
+    const cont = document.createElement("div");
+    cont.style.cssText = "margin-top:0.8em;color:#bbb;";
+    cont.textContent = KEYBOARD_LABELS ? "-- press any key to continue --" : "-- touch anywhere to continue --";
+    legendSection.appendChild(cont);
+
+    root.appendChild(legendSection);
+    return root;
+}
+
+/** Render one discovery category column into a container element. */
+function buildDiscoveryCategoryDOM(
+    container: HTMLElement,
+    title: string,
+    category: number,
+    count: number,
+    table: readonly Pick<ItemTable, "name" | "identified" | "frequency">[],
+): void {
+    const hdr = document.createElement("div");
+    hdr.style.cssText = "color:#9e9;margin-bottom:0.2em;";
+    hdr.textContent = title;
+    container.appendChild(hdr);
+
+    let totalFrequency = 0;
+    for (let i = 0; i < count; i++) {
+        if (!table[i].identified) totalFrequency += table[i].frequency;
+    }
+
+    for (let i = 0; i < count; i++) {
+        const identified = table[i].identified;
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex;gap:0.4em;white-space:pre;";
+
+        const glyph = document.createElement("span");
+        const magic = identified ? 0 : magicCharDiscoverySuffix(category, i, { boltCatalog });
+        glyph.textContent = identified ? "=" : (magic === 1 ? "+" : (magic === -1 ? "-" : " "));
+        glyph.style.color = identified ? "#ddaa44" : (magic === 1 ? "#8f8" : (magic === -1 ? "#f88" : "#555"));
+        row.appendChild(glyph);
+
+        const name = document.createElement("span");
+        let label = upperCase(table[i].name);
+        if (!identified && table[i].frequency > 0 && totalFrequency > 0) {
+            label += ` (${Math.trunc(table[i].frequency * 100 / totalFrequency)}%)`;
+        }
+        name.textContent = label;
+        name.style.color = identified ? "#ccc" : "#555";
+        row.appendChild(name);
+
+        container.appendChild(row);
+    }
+}
+
+/** Build the discoveries screen DOM content element. */
+function buildDiscoveriesScreenDOM(
+    numberScrollKinds: number,
+    numberPotionKinds: number,
+    numberWandKinds: number,
+    scrollTable: readonly Pick<ItemTable, "name" | "identified" | "frequency">[],
+    potionTable: readonly Pick<ItemTable, "name" | "identified" | "frequency">[],
+): HTMLElement {
+    const root = document.createElement("div");
+    root.style.cssText = "display:grid;grid-template-columns:1fr 1fr 1fr;gap:1em 2em;min-width:min(700px,85vw);";
+
+    const leftCol = document.createElement("div");
+    buildDiscoveryCategoryDOM(leftCol, "-- SCROLLS --", ItemCategory.SCROLL, numberScrollKinds, scrollTable);
+    const ringGap = document.createElement("div");
+    ringGap.style.height = "0.6em";
+    leftCol.appendChild(ringGap);
+    buildDiscoveryCategoryDOM(leftCol, "-- RINGS --", ItemCategory.RING, ringTable.length, ringTable as ItemTable[]);
+    root.appendChild(leftCol);
+
+    const midCol = document.createElement("div");
+    buildDiscoveryCategoryDOM(midCol, "-- POTIONS --", ItemCategory.POTION, numberPotionKinds, potionTable);
+    root.appendChild(midCol);
+
+    const rightCol = document.createElement("div");
+    buildDiscoveryCategoryDOM(rightCol, "-- STAFFS --", ItemCategory.STAFF, staffTable.length, staffTable as ItemTable[]);
+    const wandGap = document.createElement("div");
+    wandGap.style.height = "0.6em";
+    rightCol.appendChild(wandGap);
+    buildDiscoveryCategoryDOM(rightCol, "-- WANDS --", ItemCategory.WAND, numberWandKinds, wandTable as ItemTable[]);
+    root.appendChild(rightCol);
+
+    const footer = document.createElement("div");
+    footer.style.cssText = "grid-column:1/-1;text-align:center;color:#bbb;margin-top:0.4em;";
+    footer.textContent = KEYBOARD_LABELS ? "-- press any key to continue --" : "-- touch anywhere to continue --";
+    root.appendChild(footer);
+
+    return root;
 }
 
 /**
@@ -164,6 +345,11 @@ export async function printHelpScreen(waitFn?: () => Promise<void>): Promise<voi
         "        -- press space or click to continue --",
     ];
 
+    if (isDOMModalEnabled()) {
+        await showModal(buildHelpScreenDOM(helpText));
+        return;
+    }
+
     const rbuf = saveDisplayBuffer(displayBuffer);
     const dbuf = createScreenDisplayBuffer();
     clearDisplayBuffer(dbuf);
@@ -197,6 +383,12 @@ export async function printHelpScreen(waitFn?: () => Promise<void>): Promise<voi
  */
 export async function displayFeatsScreen(waitFn?: () => Promise<void>): Promise<void> {
     const { rogue, gameConst, displayBuffer } = getGameState();
+
+    if (isDOMModalEnabled()) {
+        const numFeats = Math.min(gameConst.numberFeats, featCatalog.length);
+        await showModal(buildFeatsScreenDOM(rogue.featRecord, numFeats));
+        return;
+    }
 
     const availableEscape = encodeMessageColor(white);
     const achievedEscape = encodeMessageColor(advancementMessageColor);
@@ -264,6 +456,17 @@ export async function displayFeatsScreen(waitFn?: () => Promise<void>): Promise<
  */
 export async function printDiscoveriesScreen(waitFn?: () => Promise<void>): Promise<void> {
     const { gameConst, mutableScrollTable, mutablePotionTable, displayBuffer } = getGameState();
+
+    if (isDOMModalEnabled()) {
+        await showModal(buildDiscoveriesScreenDOM(
+            gameConst.numberScrollKinds,
+            gameConst.numberPotionKinds,
+            gameConst.numberWandKinds,
+            mutableScrollTable,
+            mutablePotionTable,
+        ));
+        return;
+    }
 
     const rbuf = saveDisplayBuffer(displayBuffer);
     const dbuf = createScreenDisplayBuffer();

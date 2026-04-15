@@ -30,6 +30,8 @@ import {
 } from "../types/constants.js";
 import { ButtonFlag } from "../types/flags.js";
 import { ItemFlag } from "../types/flags.js";
+import { isDOMModalEnabled, showTextBoxModal } from "../platform/ui-modal.js";
+import type { ModalButton } from "../platform/ui-modal.js";
 
 // =============================================================================
 // Constants
@@ -157,6 +159,27 @@ export interface InventoryContext {
 }
 
 // =============================================================================
+// DOM helpers
+// =============================================================================
+
+import { COLOR_ESCAPE } from "../types/constants.js";
+
+/** Strip Brogue color escape sequences from a button label for DOM display. */
+export function stripColorEscapes(s: string): string {
+    let out = "";
+    let i = 0;
+    while (i < s.length) {
+        if (s.charCodeAt(i) === COLOR_ESCAPE) {
+            i += 4; // skip escape + 3 color bytes
+        } else {
+            out += s[i];
+            i++;
+        }
+    }
+    return out.trim();
+}
+
+// =============================================================================
 // displayMagicCharForItem — Items.c:2761
 // =============================================================================
 
@@ -238,9 +261,29 @@ export async function printTextBox(
     buttons?: BrogueButton[],
     buttonCount?: number,
 ): Promise<number> {
+    const bCount = buttonCount ?? 0;
+
+    // DOM path: replace buffer rendering with HTML modal.
+    if (isDOMModalEnabled()) {
+        const modalButtons: ModalButton[] = [];
+        if (bCount > 0 && buttons) {
+            for (let i = 0; i < bCount; i++) {
+                if (buttons[i].flags & ButtonFlag.B_DRAW) {
+                    modalButtons.push({
+                        label: stripColorEscapes(buttons[i].text),
+                        hotkeys: [...buttons[i].hotkey].filter(k => k > 0),
+                    });
+                } else {
+                    // Keep index alignment even for non-drawn buttons.
+                    modalButtons.push({ label: "", hotkeys: [...buttons[i].hotkey].filter(k => k > 0) });
+                }
+            }
+        }
+        return showTextBoxModal(textBuf, modalButtons);
+    }
+
     let x2: number;
     let y2: number;
-    const bCount = buttonCount ?? 0;
 
     if (width <= 0) {
         // Auto-calculate y and width

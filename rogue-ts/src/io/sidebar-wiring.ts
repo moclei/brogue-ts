@@ -91,6 +91,8 @@ import type { Color, Pos, ItemTable, Creature, ScreenDisplayBuffer } from "../ty
 import { DungeonLayer } from "../types/enums.js";
 import type { DisplayGlyph } from "../types/enums.js";
 import { buildItemDetailsFn } from "./item-details-wiring.js";
+import { isDOMSidebarEnabled, renderSidebar } from "../platform/ui-sidebar.js";
+import { buildSidebarRenderData } from "./sidebar-dom-builder.js";
 
 // =============================================================================
 // buildSidebarContext — build a fresh SidebarContext from live game state
@@ -289,7 +291,11 @@ export function buildSidebarContext(): SidebarContext {
  */
 export function buildRefreshSideBarWithFocusFn(): (x: number, y: number, justClearing: boolean) => void {
     return (x, y, justClearing) => {
-        refreshSideBarFn(x, y, justClearing, buildSidebarContext());
+        const ctx = buildSidebarContext();
+        refreshSideBarFn(x, y, justClearing, ctx);
+        if (isDOMSidebarEnabled()) {
+            renderSidebar(buildSidebarRenderData(ctx, x, y));
+        }
     };
 }
 

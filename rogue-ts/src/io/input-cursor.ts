@@ -24,6 +24,7 @@ import { executeEvent } from "./input-dispatch.js";
 import {
     initializeMenuButtons, actionMenu, executeMouseClick,
 } from "./input-mouse.js";
+import { hideTextPanel } from "../platform/ui-modal.js";
 
 const MAX_MENU_BUTTON_COUNT = 5;
 
@@ -262,8 +263,10 @@ export async function mainInputLoop(ctx: InputContext): Promise<void> {
                 focusedOnMonster = false;
                 focusedOnItem = false;
                 focusedOnTerrain = false;
-                if (textDisplayed && rbuf) {
-                    ctx.restoreDisplayBuffer(rbuf);
+                if (textDisplayed) {
+                    // DOM: remove the floating text panel shown by printMonsterDetails/printFloorItemDetails.
+                    hideTextPanel();
+                    if (rbuf) ctx.restoreDisplayBuffer(rbuf);
                 }
                 ctx.rogue.playbackMode = playingBack;
                 ctx.refreshSideBar(-1, -1, false);

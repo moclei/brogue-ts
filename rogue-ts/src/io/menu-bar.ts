@@ -43,6 +43,11 @@ import {
     ACKNOWLEDGE_KEY, TAB_KEY, RIGHT_KEY,
 } from "../types/constants.js";
 import type { ButtonState, BrogueButton, ScreenDisplayBuffer } from "../types/types.js";
+import {
+    isDOMBottomBarEnabled,
+    renderBottomBarButtons,
+    type BottomBarButtonData,
+} from "../platform/ui-bottom-bar.js";
 
 const MAX_MENU_BUTTON_COUNT = 5;
 
@@ -169,6 +174,26 @@ export function buildGameMenuButtonState(playbackMode: boolean): ButtonState {
  * C: equivalent to the drawButtonsInState call inside cursor-mode moveCursor().
  */
 export function drawGameMenuButtons(state: ButtonState): void {
+    if (isDOMBottomBarEnabled()) {
+        // DOM path — render buttons as HTML elements
+        const domButtons: BottomBarButtonData[] = [];
+        for (let i = 0; i < state.buttonCount; i++) {
+            const btn = state.buttons[i];
+            if (!(btn.flags & ButtonFlag.B_DRAW)) continue;
+            domButtons.push({
+                index: i,
+                rawText: btn.text,
+                hotkey: btn.hotkey[0] ?? 0,
+                windowX: btn.x,
+                windowY: btn.y,
+                enabled: !!(btn.flags & ButtonFlag.B_ENABLED),
+            });
+        }
+        renderBottomBarButtons(domButtons);
+        return;
+    }
+
+    // Buffer path (kept for fallback)
     const { displayBuffer } = getGameState();
     const ctx = buildMenuBarButtonCtx();
     const dbuf: ScreenDisplayBuffer = createScreenDisplayBuffer();

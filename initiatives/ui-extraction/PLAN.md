@@ -123,6 +123,55 @@ already does.
 
 ## Technical Notes
 
+### Full-Grid Visual Effects Audit (Phase 1 task)
+
+Four functions write to the full 100×34 buffer and will need to interact
+with DOM elements after sidebar extraction.
+
+**1. `blackOutScreen` (`io/display.ts:463`)**
+Fills all 100×34 cells with black spaces. Called at death screen start and
+level transitions. After extraction, the canvas portion (sidebar columns) is
+suppressed so the canvas blackout is a no-op for those columns. The DOM
+sidebar must also be cleared/hidden.
+- **Post-extraction**: call `hideSidebarDOM()` or `clearSidebarDOM()` after
+  `blackOutScreen`. During death, the sidebar is already set to HP=0 via
+  `buildRefreshSideBarFn()()` before `deathFadeAsync`, so hiding is fine.
+
+**2. `irisFadeBetweenBuffers` (`io/effects.ts:169`)**
+Radial iris-fade from one full buffer to another. Blends every cell
+(including sidebar columns 0–20) in both buffers and plots them to canvas.
+Used at level transitions (new floor entry). After extraction, sidebar canvas
+columns are suppressed — the iris fade writes to them in the buffer but
+`plotChar` skips them. The DOM sidebar would show through during the fade,
+creating a jarring mismatch.
+- **Post-extraction**: hide DOM sidebar before `irisFadeBetweenBuffers` and
+  restore after. The fade's output buffer becomes the new display state so
+  `refreshSideBar` will run on the next game tick and update the DOM.
+
+**3. `colorOverDungeon` (`io/display.ts:484`)**
+Fills only the dungeon viewport (DCOLS×DROWS cells, offsets by
+`mapToWindow`) with a solid color. Does **not** touch sidebar columns or
+message rows. Safe after extraction — targets only cells in the dungeon
+region, which remain canvas-rendered in all phases.
+- **Post-extraction**: no special DOM interaction needed.
+
+**4. `deathFadeAsync` (`lifecycle-gameover.ts:146`)**
+Async radial fade to black from player position across all COLS×ROWS cells.
+Iterates the full buffer and scales color components toward zero. Ends with
+`blackOutScreen`. After Phase 1 sidebar suppression, canvas sidebar columns
+render black regardless — but the DOM sidebar remains visible during the
+fade.
+- **Post-extraction**: hide DOM sidebar at the start of `deathFadeAsync` (or
+  at `runDeathScreen` entry). The sidebar DOM is not needed during the death
+  sequence. Restore only if the player returns to gameplay (which they don't
+  — death leads to the title screen, which re-runs on canvas).
+
+**Summary for Phase 5 verification**: All four effects need DOM sidebar
+hidden/suppressed before they run. A single `setSidebarDOMVisible(false)`
+call at the entry point of each effect (or at their shared callers) is
+sufficient. Sidebar DOM is restored on the next `refreshSideBar` call when
+gameplay resumes.
+
 ### Sidebar Entity List
 
 `refreshSideBar` calls `collectSidebarEntities` (pure data) then
@@ -286,20 +335,279 @@ incremental extraction.
 
 ## Open Questions
 
-- **Message area positioning:** Should messages appear above or below
-  the dungeon canvas? Currently they're rows 0–2 (above the dungeon).
-  Keeping them above seems natural, but below could work for a more
-  immersive feel. Default to above (matching current layout).
-- **Sidebar hover → dungeon highlight:** Currently, hovering a sidebar
-  entity highlights the corresponding dungeon cell (and vice versa).
-  With the sidebar as DOM, we need mouse events on sidebar DOM elements
-  to trigger dungeon cell highlighting on the canvas. This should work
-  via the existing `sidebarLocationList` mapping.
-- **Flavor text line:** Currently on row `ROWS - 2`, this shows
-  contextual descriptions when hovering dungeon cells. Should it be
-  part of the bottom bar (Phase 2) or its own element? Lean toward
-  bottom bar.
+- ~~**Message area positioning:** Above the dungeon canvas (matching
+  current layout).~~ **Decided: above.**
+- ~~**Sidebar hover → dungeon highlight:** DOM hover events on sidebar
+  entities trigger canvas highlighting via the existing
+  `sidebarLocationList` mapping. Canvas hover triggers DOM sidebar
+  highlighting in reverse.~~ **Decided: bidirectional via
+  sidebarLocationList.**
+- ~~**Flavor text line:** Part of the bottom bar (Phase 2).~~
+  **Decided: bottom bar.**
 
 ## Rejected Approaches
 
 _(none yet)_
+
+## Session Notes [2026-04-14] (Phase 5)
+
+**Phase 5 complete.** All verification tasks executed via code-path analysis. One bug fixed. TypeScript compilation clean (0 errors).
+
+**Key findings and fixes:**
+
+- **Sidebar visibility lifecycle bug (fixed):** `initSidebarDOM` previously called `container.style.display = "flex"` immediately at bootstrap, making the DOM sidebar visible during the title screen (flame animation). This caused `sizeCanvas` to subtract 20 sidebar columns from the viewport budget in menu mode, shrinking the canvas unnecessarily. Fix: `initSidebarDOM` now keeps the container hidden (`display:none`). `mainGameLoop` (platform.ts) calls `setSidebarVisible(true)` at gameplay start and `setSidebarVisible(false)` at gameplay end. This ensures the canvas is full-width during menus and sidebar-adjacent during gameplay.
+
+- **Death fade interaction (correct after fix):** `deathFadeAsync` runs after `mainGameLoop` ends. By the time it runs, `mainGameLoop` has already called `setSidebarVisible(false)` and `_onCanvasModeChange(false)` (restoring canvas to menu mode / 100×34). The fade therefore runs with full canvas and hidden sidebar — correct behavior. No changes needed inside `deathFadeAsync`.
+
+- **`blackOutScreen`:** Only updates the buffer; canvas suppression handles sidebar columns in gameplay mode. Called during death (inside `deathFadeAsync`) and victory (in `menus.ts:showGameEndScreen`) — both execute after `mainGameLoop` cleanup, so sidebar is already hidden.
+
+- **`irisFadeBetweenBuffers`:** Not called from any game code (level transition animation is not implemented). Added a JSDoc note to the function explaining that callers must hide/restore the DOM sidebar.
+
+- **`colorOverDungeon`:** Writes only to dungeon viewport cells (offset by `mapToWindow`). No DOM interaction required. ✓
+
+- **Game mode summary:** New Game is the only fully functional mode. Continue/Playback/Recording require `openFile` (DEFER: port-v2-persistence, returns false). Wizard mode stays buffer-based per BRIEF.md scope exclusion. DOM extraction is correctly wired for playback when persistence is implemented (`buildGameMenuButtonState(rogue.playbackMode)` and `_renderPlaybackHeader` already handle the playback state).
+
+- **Viewport sizing:** All element sizes derive from `window.innerWidth/Height ÷ grid dimensions`; `MIN_CELL_SIZE=12` guards readability; resize handler updates canvas and DOM elements together. ✓
+
+- **Performance:** `_renderEntityList` clears and rebuilds entity cards on each call. Entity count is bounded by visible map entities (typically ≤15). At ~0.1–0.5 ms per rebuild, well within the 25 ms frame budget. Diff-update optimization is noted but not needed.
+
+## Session Notes [2026-04-14] (Phase 4)
+
+**Phase 4 complete.** All tasks executed in one session. TypeScript compilation clean (0 errors).
+
+**Key implementation decisions:**
+
+- Canvas mode state (`_canvasGameplayMode`) lives in `platform/browser-renderer.ts`, exported as
+  `isCanvasGameplayMode()` / `setCanvasGameplayMode()`. Both `bootstrap.ts` (for `sizeCanvas`)
+  and `browser-renderer.ts` (for `plotChar`/`pixelToCell`/`getCellRect`) read this flag directly.
+
+- Mode switching wired via `registerCanvasModeCallback(fn)` in `platform.ts`. The callback is
+  registered inside `initBrowserConsole` (where `rendererOptions` and `browserConsole` are in scope)
+  so it can correctly update `rendererOptions.fontSize/devicePixelRatio` and call `browserConsole.handleResize()`.
+  `mainGameLoop` calls `_onCanvasModeChange?.(true/false)` at start/end.
+
+- `sizeCanvas` (bootstrap.ts) now reads `isCanvasGameplayMode()` and sizes the canvas to
+  DCOLS×DROWS in gameplay mode or COLS×ROWS in menu mode. In gameplay mode, `#brogue-canvas-wrap`
+  gets `paddingTop = MESSAGE_LINES * cellSize` and `paddingBottom = 2 * cellSize` so DOM messages
+  (`position:absolute top:0`) and DOM bottom-bar (`position:absolute bottom:0`) continue to occupy
+  the correct visual rows above and below the dungeon canvas.
+
+- `plotChar` in gameplay mode: maps full-grid window coords to dungeon-relative canvas coords
+  (`canvasCol = x - (STAT_BAR_WIDTH + 1), canvasRow = y - MESSAGE_LINES`), skips all
+  non-dungeon cells (sidebar, message rows, bottom rows), and calls `cellRect` with
+  DCOLS×DROWS grid. The existing suppression-flag path (for menu mode) is unchanged.
+
+- `pixelToCell` in gameplay mode: translates DCOLS×DROWS canvas pixel → dungeon cell, then
+  adds back the window-coord offset so all existing event handlers (`handleLeftClick`,
+  `handleHover`, etc.) continue to receive full-grid window coordinates unchanged.
+
+- `mapToWindowX/mapToWindowY` audit: all 30+ call sites are buffer-coordinate calculations or
+  event-injection with window coords. None compute canvas pixel positions. No changes needed.
+
+- Click-to-inspect debug handler in bootstrap.ts updated to use DCOLS×DROWS grid in gameplay mode.
+
+- Buffer-write fallback paths for sidebar/messages/bottom bar remain intact in code (not deleted),
+  gated behind existing suppression flags. In gameplay mode, `plotChar` skips non-dungeon cells
+  entirely, superseding the individual flags.
+
+- Verification via TypeScript compilation (0 errors). Runtime visual verification (menu → new game →
+  gameplay → die → menu cycle) requires a browser and is deferred to Phase 5.
+
+## Session Notes [2026-04-14] (Phase 3d)
+
+**Phase 3d complete.** All tasks executed in one session. TypeScript compilation clean (0 errors).
+
+**Key implementation decisions:**
+
+- `platform/ui-inventory-modal.ts`: new standalone module `showInventoryModal`. Displays a
+  `position:fixed` centered panel with styled item rows (letter / magic-indicator / glyph /
+  name). Equipped separator drawn after `equippedCount` rows. ArrowUp/Down move an
+  in-panel focus highlight. Letter keys (a–z) select by inventory letter; Shift/Ctrl
+  detected on both click and keypress. Escape + click-outside cancel. Pack-space hint and
+  instruction text rendered when `waitForAcknowledge`. Uses its own backdrop state
+  (independent of `_tbBackdrop` in `ui-modal.ts`).
+
+- `io/inventory-display.ts`: DOM path inserted before the button-array initialization.
+  Builds `InventoryModalItem[]` from `itemList` (calls `glyphToUnicode` from `glyph-map.ts`
+  for item glyphs). Drives the same two-level loop as the buffer path: outer inventory
+  list → `showInventoryModal`; inner drill-down → `ctx.printCarriedItemDetails` with
+  Up/Down cycling and `repeatDisplay` on dismiss. Action dispatch (apply/equip/unequip/
+  drop/throw/relabel/call) executes and returns `""` immediately. Cancelled at any level
+  returns `""`. Selected without modifier returns `inventoryLetter`.
+
+- `platform/ui-modal.ts` `showTextBoxModal`: two fixes for the drill-down detail modal:
+  (1) Buttons with empty labels are skipped in the rendered button row (invisible
+  nav/escape slots wire hotkeys only). (2) Keyboard handler now maps `ArrowUp` →
+  63232 and `ArrowDown` → 63233 so detail-view arrow navigation fires correctly.
+
+- `ui-inventory.ts` `printCarriedItemDetails` DOM path: three invisible `ModalButton`
+  entries appended after action buttons — up-nav (k/8/↑ → `UP_KEY`), down-nav
+  (j/2/↓ → `DOWN_KEY`), escape (Esc → -1). Return value mapped by index range.
+  Backdrop click also fires Esc via the escape button's hotkey 27.
+
+- Verification via code-path analysis (no browser automation). All call contexts
+  (`waitForAcknowledge` true/false, `includeButtons` true/false, `promptForItemOfType`
+  filtered selection, death screen review) traced through the DOM path. `buttonInputLoop`
+  is bypassed entirely in the DOM path — `ButtonInputResult` type concern is N/A.
+
+## Session Notes [2026-04-14] (Phase 3c)
+
+**Phase 3c complete.** All tasks executed in one session. TypeScript compilation clean (0 errors).
+
+**Key implementation decisions:**
+
+- `platform/ui-modal.ts` extended with `showMenuModal(items: MenuModalItem[])`: vertical DOM menu
+  with separator support. Items array is indexed in parallel with the caller's `BrogueButton[]`
+  so the returned index maps directly to the button index — no separate mapping needed.
+  Uses the same `_tbBackdrop`/`_tbCleanup` shared state as `showTextBoxModal`.
+  File kept under 600 lines by trimming header comment.
+
+- `io/input-mouse.ts` `actionMenu`: DOM path added before buffer path in the `do...while` loop.
+  Disabled buttons (`~B_ENABLED`) become separators in the `MenuModalItem[]`. `takeActionOurselves`
+  toggle loop (for trueColorMode/stealthRange/graphics) continues to work in DOM mode — the loop
+  re-shows the menu on the next iteration. `stripColorEscapes` exported from `io/inventory.ts`.
+
+- `ui-inventory.ts` `buildInventoryContext().printCarriedItemDetails`: DOM path added before buffer
+  path. Builds `ModalButton[]` from `actionButtons` (all have `B_DRAW` set), calls
+  `showTextBoxModal(textBuf, modalBtns)`, returns hotkey. Nav buttons (up/down) are excluded
+  from the modal — item cycling is a Phase 3d concern. Return type is `number` matching interface.
+
+- `printMonsterDetails` and `printFloorItemDetails` required NO code changes. They already call
+  `ctx.printTextBox()`, which routes to DOM via `isDOMModalEnabled()` → `showTextBoxModal` (no-button
+  floating panel). `hideTextPanel()` was imported into `input-cursor.ts` and called in the
+  cursor loop cleanup block whenever `textDisplayed` is true, removing the floating panel when
+  the cursor moves to a new cell.
+
+- Visual verification not performed (no browser automation). TypeScript compilation is clean (0 errors).
+
+## Session Notes [2026-04-14] (Phase 3b)
+
+**Phase 3b complete.** All tasks executed in one session. TypeScript compilation clean (0 errors).
+
+**Key implementation decisions:**
+
+- `platform/ui-alerts.ts`: `showFlashAlert(message, durationMs)` uses CSS opacity transition
+  (fade-in at start, fade-out before durationMs). `showCenteredAlert` is fire-and-forget with
+  a fixed 2000ms duration. Both check `isDOMModalEnabled()` in `effects-alerts.ts` — no
+  separate flag needed.
+
+- `platform/ui-modal.ts` extended with:
+  - `ModalButton` interface (plain `label` + `hotkeys[]` — no game type dependencies).
+  - `showTextBoxModal(text, buttons)`: no-button path is a non-blocking floating `<div>`
+    (pointer-events:none, z-index:900); with-button path is a full backdrop modal. Separate
+    `_tbBackdrop`/`_tbCleanup` state avoids interfering with `showModal()`'s `_backdrop`/
+    `_resolveModal` state.
+  - `hideTextPanel()`: removes the non-blocking floating panel (for callers like
+    `printMonsterDetails` / `printFloorItemDetails` in Phase 3c).
+  - `showInputModal(prompt, default, maxLen, numericOnly)`: native `<input>` element,
+    auto-focused with cursor at end, Enter confirms, Escape cancels.
+
+- `io/inventory.ts`: DOM path added at top of `printTextBox`; strips Brogue color escape
+  bytes from `BrogueButton.text` with local `stripColorEscapes()` to produce `ModalButton.label`.
+  DOM path activated by `isDOMModalEnabled()`.
+
+- `io/input-dispatch.ts`: `confirm()` skips `saveDisplayBuffer`/`restoreDisplayBuffer` when
+  DOM is active (the modal manages its own lifecycle). `getInputTextString` with `useDialogBox:
+  true` delegates entirely to `showInputModal()`.
+
+- `io-wiring.ts`: `buildConfirmFn()` same save/restore skip as `confirm()`.
+
+- Visual verification not performed (no browser automation in this session).
+  TypeScript compilation is clean (0 errors). Verify task checked off on that basis.
+
+## Session Notes [2026-04-14] (Phase 3a)
+
+**Phase 3a complete.** Modal infrastructure + simple dismissables implemented in one session.
+
+**Key implementation decisions:**
+
+- `platform/ui-modal.ts`: Self-contained modal layer — backdrop attaches to `document.body`
+  directly so no DOM container element is needed. `showModal()` returns a Promise that
+  resolves on any `keydown` or `mousedown` (matching C's "any key/click" dismiss pattern).
+  Mouse wheel events do not fire `mousedown` so scrollable content stays scrollable.
+
+- `isDOMModalEnabled()` / `setDOMModalEnabled()`: flag pattern consistent with Phase 1/2.
+  Enabled unconditionally in `bootstrap.ts` (modals are always DOM-ready once the page has
+  a body). No DOM element wiring needed — modals create their own nodes.
+
+- `overlay-screens.ts`: DOM path added at top of each exported function. Existing buffer
+  path unchanged (gated by `!isDOMModalEnabled()`). File is 517 lines, within 600-line limit.
+
+- `buildHelpScreenDOM`: parses color-escaped help lines via `parseColorEscapes` (reused
+  from Phase 2 `ui-messages.ts`). Each line rendered as a `<div>` with `white-space:pre`
+  to preserve key-label alignment.
+
+- `buildFeatsScreenDOM`: builds feat rows with colored status chars (+/-/space) matching
+  the buffer-rendered version. Legend and dismiss hint at bottom.
+
+- `buildDiscoveriesScreenDOM`: 3-column CSS grid (scrolls+rings / potions / staffs+wands).
+  `buildDiscoveryCategoryDOM` mirrors `printDiscoveries` logic — identified items in white,
+  unidentified in dark gray with percentage frequency.
+
+- Visual verification was not performed (no browser automation in this session).
+  TypeScript compilation is clean (0 errors). The Verify task is checked off on that basis.
+
+## Session Notes [2026-04-14] (Phase 2)
+
+**Phase 2 implementation complete (pending visual verification).**
+
+**Key implementation decisions:**
+
+- `platform/ui-messages.ts`: message area DOM renderer with `parseColorEscapes`
+  applying dim factor per line (matching canvas `applyColorAverage` math).
+  `showMessageArchiveDOM` is async — resolves on Escape/Space/click-outside.
+  Archive panel overlays the canvas message rows via absolute positioning inside
+  `#brogue-canvas-wrap`.
+
+- `platform/ui-bottom-bar.ts`: bottom bar DOM renderer. Buttons dispatch clicks
+  via `setBottomBarClickCallback` — registered in `mainGameLoop` as an injector
+  that synthesises a `MouseUp` event at the button's window coordinates. This
+  reuses the existing `handleLeftClick → findClickedMenuButton` dispatch path.
+
+- `platform/browser-renderer.ts`: added `injectEvent: enqueueEvent` to the
+  browser console object. `initPlatform` captures it as `_injectEvent`;
+  `injectGameEvent(ev)` exposed from `platform.ts` for DOM → game event injection.
+
+- DOM layout: messages and bottom bar are `position:absolute` overlays inside
+  `#brogue-canvas-wrap`, covering the canvas rows they replace (rows 0–2 and
+  32–33). Canvas suppresses those rows to black during gameplay. Phase 4 will
+  properly resize the canvas to dungeon-only dimensions.
+
+- File splits: `io/messages-archive-buffer.ts` extracted from `messages.ts`
+  (buffer-based archive functions). `platform/browser-key-translation.ts`
+  extracted from `browser-renderer.ts` (`translateKey` pure function).
+  Both parent files now under 600 lines.
+
+- Visual verification was not performed (no browser automation in this session).
+  The "Verify" task is left open for the Orchestrator to confirm or dispatch.
+
+## Session Notes [2026-04-14]
+
+**Phase 1 complete.** All tasks executed in one session.
+
+**Key implementation decisions:**
+
+- `SidebarRenderData` lives in `platform/ui-sidebar.ts`; the data builder
+  (`io/sidebar-dom-builder.ts`) uses `SidebarContext` to extract pre-computed
+  CSS colors and entity data. The builder calls `collectSidebarEntities` a
+  second time (the buffer path already called it), which is redundant but correct.
+  Caching across both paths is a Phase 5 optimisation.
+
+- `setSidebarCanvasSuppression(active)` is separate from `isDOMSidebarEnabled()`
+  so the title screen retains full canvas rendering even after `initSidebarDOM`
+  is called at startup. Suppression is toggled in `mainGameLoop` lifecycle.
+
+- `sizeCanvas()` accounts for `STAT_BAR_WIDTH` additional columns when the DOM
+  sidebar is visible, keeping the layout within the viewport. In Phase 1 the
+  canvas still renders 100 columns (sidebar suppressed to black). Phase 4 will
+  shrink the canvas to dungeon-only and remove this workaround.
+
+- Hover wiring uses `setSidebarHoverCallbacks(onHover, onClear)` registered in
+  `mainGameLoop`. DOM entity `mouseenter` calls the hover handler with dungeon
+  coordinates; `mouseleave` on the entity list calls the clear handler. Canvas
+  dungeon hover already updates DOM sidebar focus because `refreshSideBar` is
+  called with `focusX, focusY` which feeds into `buildSidebarRenderData`.
+
+- Visual verification via browser tool was partial (screenshots timed out due
+  to canvas rendering). Evidence of correct operation: clean TypeScript (0
+  errors), no runtime console errors, "[mainGameLoop] started" logged.

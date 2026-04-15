@@ -50,6 +50,7 @@ import { ItemCategory, ALL_ITEMS, EventType } from "../types/enums.js";
 import { ItemFlag, TileFlag } from "../types/flags.js";
 import { KEYBOARD_LABELS } from "../types/constants.js";
 import type { Item, ItemTable, Pos } from "../types/types.js";
+import { isDOMModalEnabled, showInputModal } from "../platform/ui-modal.js";
 
 // =============================================================================
 // Shared helpers
@@ -321,21 +322,28 @@ export async function relabel(theItem: Item | null): Promise<void> {
     }
     if (!theItem) return;
 
-    io.temporaryMessage("New letter? (a-z)", 0);
-
-    // Await a keystroke event for the new label.
+    // In DOM mode, use a text input modal to avoid conflicting with the
+    // inventory modal's own event listeners (both would compete for waitForEvent()).
     let newLabel = "";
-    while (true) {
-        let ev: import("../types/types.js").RogueEvent;
-        try {
-            const { waitForEvent } = await import("../platform.js");
-            ev = await waitForEvent();
-        } catch {
-            return; // platform not initialized (tests) — silently abort
-        }
-        if (ev.eventType === EventType.Keystroke) {
-            newLabel = String.fromCharCode(ev.param1);
-            break;
+    if (isDOMModalEnabled()) {
+        const result = await showInputModal("New inventory letter? (a–z)", "", 1, false);
+        if (!result) return; // user cancelled
+        newLabel = result.trim();
+    } else {
+        io.temporaryMessage("New letter? (a-z)", 0);
+        // Await a keystroke event for the new label.
+        while (true) {
+            let ev: import("../types/types.js").RogueEvent;
+            try {
+                const { waitForEvent } = await import("../platform.js");
+                ev = await waitForEvent();
+            } catch {
+                return; // platform not initialized (tests) — silently abort
+            }
+            if (ev.eventType === EventType.Keystroke) {
+                newLabel = String.fromCharCode(ev.param1);
+                break;
+            }
         }
     }
 

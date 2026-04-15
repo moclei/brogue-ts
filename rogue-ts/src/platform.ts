@@ -38,6 +38,10 @@ import {
 } from "./io/menu-bar.js";
 import { actionMenu } from "./io/input-mouse.js";
 import { buildHoverHandlerFn, buildClearHoverPathFn } from "./io/hover-wiring.js";
+import { setSidebarHoverCallbacks, setSidebarCanvasSuppression, setSidebarVisible, setDOMSidebarEnabled } from "./platform/ui-sidebar.js";
+import { setMessagesCanvasSuppression, setMessagesVisible, setDOMMessagesEnabled } from "./platform/ui-messages.js";
+import { setBottomBarClickCallback, setBottomBarCanvasSuppression, setBottomBarVisible, setDOMBottomBarEnabled } from "./platform/ui-bottom-bar.js";
+import { setDOMModalEnabled } from "./platform/ui-modal.js";
 import { GraphicsMode } from "./types/enums.js";
 import type { CellSpriteDataProvider } from "./platform/browser-renderer.js";
 import { buildCellSpriteDataProvider } from "./sprite-data-wiring.js";
@@ -67,6 +71,9 @@ let _graphicsMode: GraphicsMode = GraphicsMode.Tiles;
 /** True when the console supports setGraphicsMode (e.g. browser renderer). */
 let _hasGraphics = false;
 
+/** If the console supports injectEvent, this is wired up at initPlatform time. */
+let _injectEvent: ((ev: RogueEvent) => void) | null = null;
+
 /** Bottom-bar action button state. Initialized once when mainGameLoop starts. */
 let _menuState: ButtonState | null = null;
 
@@ -77,6 +84,20 @@ let _clearHoverPath: (() => void) | null = null;
 /** Last hovered map cell, or null if no hover is active. Used to re-apply the
  *  highlight after idle displayLevel() redraws overwrite it. */
 let _lastHoverPos: { x: number; y: number } | null = null;
+
+/**
+ * Callback invoked when mainGameLoop starts (gameplay=true) and ends (gameplay=false).
+ * Registered by bootstrap.ts to resize the canvas and update renderer state.
+ */
+let _onCanvasModeChange: ((gameplay: boolean) => void) | null = null;
+
+/**
+ * Register a callback that is invoked when gameplay mode changes.
+ * bootstrap.ts uses this to resize the canvas between menu and dungeon sizes.
+ */
+export function registerCanvasModeCallback(fn: (gameplay: boolean) => void): void {
+    _onCanvasModeChange = fn;
+}
 
 /** Optional plotChar from the browser console (absent in test mocks). */
 type PlotCharFn = (
@@ -143,14 +164,25 @@ export function initPlatform(browserConsole: PlatformConsole & {
     plotChar?: PlotCharFn;
     setGraphicsMode?: (mode: GraphicsMode) => GraphicsMode;
     setCellSpriteDataProvider?: SetProviderFn;
+    injectEvent?: (ev: RogueEvent) => void;
 }): void {
     _console = browserConsole;
     _plotChar = browserConsole.plotChar ?? null;
     _setCellSpriteDataProvider = browserConsole.setCellSpriteDataProvider ?? null;
     _hasGraphics = typeof (browserConsole as PlatformConsoleWithGraphics).setGraphicsMode === "function";
+    _injectEvent = browserConsole.injectEvent ?? null;
     _prevBuffer = createScreenDisplayBuffer();
     registerPauseAndCheckForEvent(pauseAndCheckForEvent);
     registerPauseIgnoringHover(pauseAndCheckForEventIgnoringHover);
+}
+
+/**
+ * Inject a synthetic event into the game's input queue.
+ * Used by DOM UI elements (e.g. bottom bar buttons) to trigger game actions
+ * without going through the canvas event listener path.
+ */
+export function injectGameEvent(ev: RogueEvent): void {
+    _injectEvent?.(ev);
 }
 
 /**
@@ -163,12 +195,33 @@ export function getGraphicsMode(): GraphicsMode {
 /**
  * Set graphics mode and notify the console if it supports it. Returns the mode set.
  * Schedules a full redraw so the new mode is visible immediately (matches C behavior).
+ *
+ * Text mode disables DOM extraction so the player gets a pure canvas/buffer experience.
+ * Tiles mode enables DOM extraction for sidebar, messages, bottom bar, and modals.
  */
 export function setGraphicsMode(mode: GraphicsMode): GraphicsMode {
     _graphicsMode = mode;
     const c = _console as PlatformConsoleWithGraphics | null;
     if (c?.setGraphicsMode) c.setGraphicsMode(mode);
     _forceFullRedraw = true;
+    const useDOM = mode === GraphicsMode.Tiles;
+    setDOMSidebarEnabled(useDOM);
+    setDOMMessagesEnabled(useDOM);
+    setDOMBottomBarEnabled(useDOM);
+    setDOMModalEnabled(useDOM);
+    // If gameplay is active, also show/hide the DOM elements so they don't remain
+    // visible but stale when switching to ASCII mode. _menuState !== null is used
+    // as a proxy for "gameplay is running" (same lifecycle as mainGameLoop).
+    if (_menuState !== null) {
+        setSidebarVisible(useDOM);
+        setMessagesVisible(useDOM);
+        setBottomBarVisible(useDOM);
+        // Canvas suppression must mirror DOM state: when DOM is off (ASCII mode),
+        // the canvas must render those rows again instead of blacking them out.
+        setSidebarCanvasSuppression(useDOM);
+        setMessagesCanvasSuppression(useDOM);
+        setBottomBarCanvasSuppression(useDOM);
+    }
     return _graphicsMode;
 }
 
@@ -490,6 +543,46 @@ export async function mainGameLoop(): Promise<void> {
     _menuState = buildGameMenuButtonState(rogue.playbackMode);
     _hoverHandler = buildHoverHandlerFn();
     _clearHoverPath = buildClearHoverPathFn();
+    setSidebarHoverCallbacks(_hoverHandler, _clearHoverPath);
+    setSidebarCanvasSuppression(true);
+    setMessagesCanvasSuppression(true);
+    setBottomBarCanvasSuppression(true);
+    // Show DOM sidebar before switching canvas mode so sizeCanvas accounts for it.
+    setSidebarVisible(true);
+    setMessagesVisible(true);
+    setBottomBarVisible(true);
+    // Switch canvas to dungeon-only (DCOLS×DROWS) mode for gameplay.
+    _onCanvasModeChange?.(true);
+
+    // Register DOM bottom bar button click → inject the button's hotkey directly.
+    // Bypasses the MouseUp → findClickedMenuButton coordinate hit-test, which
+    // can fail when the dungeon-only canvas remaps the coordinate space.
+    // The Menu button (index 3 in normal mode, index 3 in playback mode) has no
+    // hotkey, so we fall back to a MouseUp at its window coords so that
+    // handleLeftClick → actionMenu fires correctly.
+    setBottomBarClickCallback((buttonIndex: number) => {
+        const btn = _menuState?.buttons[buttonIndex];
+        if (!btn) return;
+        const hotkey = btn.hotkey[0] ?? -1;
+        if (hotkey === -1) {
+            // No hotkey (Menu button) — inject MouseUp so handleLeftClick → actionMenu fires
+            injectGameEvent({
+                eventType: EventType.MouseUp,
+                param1: btn.x,
+                param2: btn.y,
+                controlKey: false,
+                shiftKey: false,
+            });
+        } else {
+            injectGameEvent({
+                eventType: EventType.Keystroke,
+                param1: hotkey,
+                param2: 0,
+                controlKey: false,
+                shiftKey: false,
+            });
+        }
+    });
 
     while (!rogue.gameHasEnded) {
         // Defect 3 fix: idle animation loop — animate dancing terrain between inputs.
@@ -517,5 +610,16 @@ export async function mainGameLoop(): Promise<void> {
     _hoverHandler = null;
     _clearHoverPath = null;
     _lastHoverPos = null;
+    setSidebarHoverCallbacks(null, null);
+    setSidebarCanvasSuppression(false);
+    setMessagesCanvasSuppression(false);
+    setBottomBarCanvasSuppression(false);
+    // Hide DOM sidebar before switching canvas mode so sizeCanvas doesn't subtract sidebar columns.
+    setSidebarVisible(false);
+    setMessagesVisible(false);
+    setBottomBarVisible(false);
+    setBottomBarClickCallback(null);
+    // Restore full 100×34 canvas for the main menu.
+    _onCanvasModeChange?.(false);
     console.log("[mainGameLoop] ended");
 }

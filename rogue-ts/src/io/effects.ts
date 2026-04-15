@@ -165,6 +165,12 @@ export function blendAppearancesCtx(
  * Radial iris-fade from one display buffer to another.
  *
  * C: `irisFadeBetweenBuffers` in IO.c
+ *
+ * Phase 5 note: callers must call setSidebarVisible(false) before this
+ * function and setSidebarVisible(true) after, because it blends across
+ * the full COLS×ROWS buffer including sidebar columns. The DOM sidebar
+ * would show through during the blend otherwise.
+ * This function is not yet called by any level-transition code.
  */
 export function irisFadeBetweenBuffers(
     fromBuf: ScreenDisplayBuffer,

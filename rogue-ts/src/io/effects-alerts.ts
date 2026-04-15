@@ -19,6 +19,8 @@ import { black, teal } from "../globals/colors.js";
 import { MonsterBookkeepingFlag } from "../types/flags.js";
 import type { EffectsContext } from "./effects.js";
 import { flashForeground } from "./effects.js";
+import { isDOMModalEnabled } from "../platform/ui-modal.js";
+import { showFlashAlert, showCenteredAlert } from "../platform/ui-alerts.js";
 
 // =============================================================================
 // displayCenteredAlert — IO.c:2841
@@ -33,6 +35,10 @@ export function displayCenteredAlert(
     message: string,
     ctx: EffectsContext,
 ): void {
+    if (isDOMModalEnabled()) {
+        showCenteredAlert(message);
+        return;
+    }
     const x = Math.trunc((COLS - ctx.strLenWithoutEscapes(message)) / 2);
     ctx.printString(message, x, Math.trunc(ROWS / 2), teal, black, null);
 }
@@ -136,6 +142,10 @@ export async function flashTemporaryAlert(
     time: number,
     ctx: EffectsContext,
 ): Promise<void> {
+    if (isDOMModalEnabled()) {
+        await showFlashAlert(message, time);
+        return;
+    }
     await flashMessage(
         message,
         Math.trunc((COLS - ctx.strLenWithoutEscapes(message)) / 2),

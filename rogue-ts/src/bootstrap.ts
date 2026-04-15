@@ -21,8 +21,10 @@
 import {
     createBrowserConsole,
     type BrowserRendererOptions,
+    isCanvasGameplayMode,
+    setCanvasGameplayMode,
 } from "./platform/browser-renderer.js";
-import { initPlatform, forceFullRedraw, commitDraws } from "./platform.js";
+import { initPlatform, forceFullRedraw, commitDraws, registerCanvasModeCallback } from "./platform.js";
 import { getGameState } from "./core.js";
 import { buildMenuContext } from "./menus.js";
 import { mainBrogueJunction } from "./menus/main-menu.js";
@@ -40,6 +42,10 @@ import { TextRenderer } from "./platform/text-renderer.js";
 import { SpriteRenderer } from "./platform/sprite-renderer.js";
 import { spriteDebug } from "./platform/sprite-debug.js";
 import { toggleCheatPanel } from "./platform/game-debug-panel.js";
+import { initSidebarDOM, setDOMSidebarEnabled } from "./platform/ui-sidebar.js";
+import { initMessagesDOM, setDOMMessagesEnabled } from "./platform/ui-messages.js";
+import { initBottomBarDOM, setDOMBottomBarEnabled } from "./platform/ui-bottom-bar.js";
+import { setDOMModalEnabled } from "./platform/ui-modal.js";
 
 // =============================================================================
 // Canvas setup
@@ -51,22 +57,71 @@ const MIN_CELL_SIZE = 12;
  * Find the canvas element and size it for the current viewport and DPR.
  * Returns { cellSize, dpr } so the renderer can set the correct font size.
  *
+ * In menu mode the canvas is the full COLS×ROWS grid (100×34).
+ * In gameplay mode the canvas is dungeon-only DCOLS×DROWS (79×29); the
+ * canvas-wrap gains padding so DOM messages (top:0) and DOM bottom-bar
+ * (bottom:0) continue to occupy the correct visual rows.
+ *
  * Enforces MIN_CELL_SIZE so the game never becomes unreadably small.
- * When the viewport is too narrow, the canvas exceeds the viewport and
- * the page becomes scrollable (see overflow: auto on <body>).
  */
 function sizeCanvas(canvas: HTMLCanvasElement): { cellSize: number; dpr: number } {
     const dpr = window.devicePixelRatio || 1;
-    const cellWidth = Math.floor(window.innerWidth / COLS);
+    const gameplayMode = isCanvasGameplayMode();
+    const sidebarEl = document.getElementById("brogue-sidebar") as HTMLElement | null;
+    const sidebarVisible = sidebarEl && sidebarEl.style.display !== "none";
+
+    // Canvas columns depend on mode; sidebar is DOM so subtract from budget.
+    const canvasCols = gameplayMode ? DCOLS : COLS;
+    const canvasRows = gameplayMode ? DROWS : ROWS;
+    const totalCols = sidebarVisible ? canvasCols + STAT_BAR_WIDTH : canvasCols;
+
+    // Always divide height by ROWS so the full layout (messages + dungeon +
+    // bottom bar) fits within the viewport, even in gameplay mode.
+    const cellWidth = Math.floor(window.innerWidth / totalCols);
     const cellHeight = Math.floor(window.innerHeight / ROWS);
     const cellSize = Math.max(MIN_CELL_SIZE, Math.min(cellWidth, cellHeight));
 
-    const cssWidth = cellSize * COLS;
-    const cssHeight = cellSize * ROWS;
-    canvas.style.width = `${cssWidth}px`;
-    canvas.style.height = `${cssHeight}px`;
-    canvas.width = Math.round(cssWidth * dpr);
-    canvas.height = Math.round(cssHeight * dpr);
+    const canvasCssWidth = cellSize * canvasCols;
+    const canvasCssHeight = cellSize * canvasRows;
+    canvas.style.width = `${canvasCssWidth}px`;
+    canvas.style.height = `${canvasCssHeight}px`;
+    canvas.width = Math.round(canvasCssWidth * dpr);
+    canvas.height = Math.round(canvasCssHeight * dpr);
+
+    // In gameplay mode, pad canvas-wrap so DOM messages (position:absolute top:0)
+    // sit above the dungeon canvas and DOM bottom-bar (bottom:0) sits below it.
+    const canvasWrapEl = document.getElementById("brogue-canvas-wrap") as HTMLElement | null;
+    if (canvasWrapEl) {
+        canvasWrapEl.style.paddingTop = gameplayMode ? `${cellSize * MESSAGE_LINES}px` : "";
+        canvasWrapEl.style.paddingBottom = gameplayMode ? `${cellSize * 2}px` : "";
+    }
+
+    // Sidebar: always spans the full layout height (messages + dungeon + bottom bar).
+    const totalCssHeight = cellSize * ROWS;
+    if (sidebarEl) {
+        sidebarEl.style.width = `${cellSize * STAT_BAR_WIDTH}px`;
+        sidebarEl.style.height = `${totalCssHeight}px`;
+        sidebarEl.style.fontSize = `${Math.max(8, cellSize - 2)}px`;
+    }
+
+    // DOM messages: overlays the top MESSAGE_LINES rows (above canvas in gameplay mode).
+    const messagesEl = document.getElementById("brogue-messages") as HTMLElement | null;
+    if (messagesEl) {
+        messagesEl.style.width = `${canvasCssWidth}px`;
+        messagesEl.style.height = `${cellSize * MESSAGE_LINES}px`;
+        messagesEl.style.top = "0px";
+        messagesEl.style.fontSize = `${Math.max(8, cellSize - 2)}px`;
+        messagesEl.style.lineHeight = `${cellSize}px`;
+    }
+
+    // DOM bottom bar: overlays the bottom 2 rows (below canvas in gameplay mode).
+    const bottomBarEl = document.getElementById("brogue-bottom-bar") as HTMLElement | null;
+    if (bottomBarEl) {
+        bottomBarEl.style.width = `${canvasCssWidth}px`;
+        bottomBarEl.style.height = `${cellSize * 2}px`;
+        bottomBarEl.style.bottom = "0px";
+        bottomBarEl.style.fontSize = `${Math.max(8, cellSize - 2)}px`;
+    }
 
     return { cellSize, dpr };
 }
@@ -96,6 +151,17 @@ function initBrowserConsole(options: BrowserRendererOptions): ReturnType<typeof 
         rendererOptions.fontSize = Math.max(8, cs - 2);
         rendererOptions.devicePixelRatio = newDpr;
         browserConsole.handleResize();
+    });
+
+    // Phase 4: register canvas mode callback so mainGameLoop can switch the canvas
+    // between full 100×34 (menu) and dungeon-only DCOLS×DROWS (gameplay).
+    registerCanvasModeCallback((gameplay: boolean) => {
+        setCanvasGameplayMode(gameplay);
+        const { cellSize: cs, dpr: newDpr } = sizeCanvas(canvas);
+        rendererOptions.fontSize = Math.max(8, cs - 2);
+        rendererOptions.devicePixelRatio = newDpr;
+        browserConsole.handleResize();
+        forceFullRedraw();
     });
 
     // Give the canvas keyboard focus immediately so keystrokes work without
@@ -146,6 +212,32 @@ async function main(): Promise<void> {
     // 3. Wire the platform module (event queue + plotChar for commitDraws)
     initPlatform(browserConsole);
 
+    // 3b. Wire the DOM sidebar if the sidebar element exists in the page.
+    //     The sidebar is hidden by default (CSS display:none); setDOMSidebarEnabled
+    //     activates it and the container is shown via CSS once gameplay starts.
+    const sidebarEl = document.getElementById("brogue-sidebar");
+    if (sidebarEl) {
+        initSidebarDOM(sidebarEl as HTMLElement);
+        setDOMSidebarEnabled(true);
+    }
+
+    // 3c. Wire DOM messages area (Phase 2).
+    const messagesEl = document.getElementById("brogue-messages");
+    if (messagesEl) {
+        initMessagesDOM(messagesEl as HTMLElement);
+        setDOMMessagesEnabled(true);
+    }
+
+    // 3d. Wire DOM bottom bar (Phase 2).
+    const bottomBarEl = document.getElementById("brogue-bottom-bar");
+    if (bottomBarEl) {
+        initBottomBarDOM(bottomBarEl as HTMLElement);
+        setDOMBottomBarEnabled(true);
+    }
+
+    // 3e. Enable DOM modals (Phase 3a). Modals attach to document.body directly.
+    setDOMModalEnabled(true);
+
     // 4. Build the menu DI context
     const menuCtx = buildMenuContext();
 
@@ -167,10 +259,17 @@ async function main(): Promise<void> {
     canvas.addEventListener("click", (e) => {
         if (!spriteDebug.enabled || !spriteDebug.onInspect) return;
         const rect = canvas.getBoundingClientRect();
-        const cellX = Math.floor((e.clientX - rect.left) / (rect.width / COLS));
-        const cellY = Math.floor((e.clientY - rect.top) / (rect.height / ROWS));
-        const dx = cellX - (STAT_BAR_WIDTH + 1);
-        const dy = cellY - MESSAGE_LINES;
+        let dx: number, dy: number;
+        if (isCanvasGameplayMode()) {
+            // Canvas is DCOLS×DROWS; clicks map directly to dungeon coords.
+            dx = Math.floor((e.clientX - rect.left) / (rect.width / DCOLS));
+            dy = Math.floor((e.clientY - rect.top) / (rect.height / DROWS));
+        } else {
+            const cellX = Math.floor((e.clientX - rect.left) / (rect.width / COLS));
+            const cellY = Math.floor((e.clientY - rect.top) / (rect.height / ROWS));
+            dx = cellX - (STAT_BAR_WIDTH + 1);
+            dy = cellY - MESSAGE_LINES;
+        }
         if (dx >= 0 && dx < DCOLS && dy >= 0 && dy < DROWS) {
             spriteDebug.inspectTarget = { x: dx, y: dy };
             spriteDebug.dirty = true;

@@ -17,11 +17,10 @@
 
 import type { Color } from "../types/types.js";
 import type { DisplayGlyph } from "../types/enums.js";
-import { EventType } from "../types/enums.js";
 import {
     COLS, ROWS, DCOLS, MESSAGE_LINES,
     MESSAGE_ARCHIVE_ENTRIES, MESSAGE_ARCHIVE_LINES, MESSAGE_ARCHIVE_VIEW_LINES,
-    INTERFACE_OPACITY, COLOR_ESCAPE,
+    COLOR_ESCAPE,
 } from "../types/constants.js";
 import { MessageFlag } from "../types/flags.js";
 import { black, white, flavorTextColor } from "../globals/colors.js";
@@ -29,7 +28,6 @@ import { strLenWithoutEscapes, printString } from "./text.js";
 import { encodeMessageColor, decodeMessageColor, applyColorAverage } from "./color.js";
 import {
     mapToWindowX, mapToWindowY,
-    clearDisplayBuffer, createScreenDisplayBuffer,
 } from "./display.js";
 import {
     type MessageState,
@@ -37,6 +35,21 @@ import {
     formatRecentMessages,
     addMessageToArchive,
 } from "./messages-state.js";
+import {
+    animateMessageArchive,
+    scrollMessageArchive,
+} from "./messages-archive-buffer.js";
+import {
+    isDOMMessagesEnabled,
+    renderMessages as renderMessagesDOM,
+    showMoreSign as showMoreSignDOM,
+    hideMoreSign as hideMoreSignDOM,
+    showMessageArchiveDOM,
+} from "../platform/ui-messages.js";
+import {
+    isDOMBottomBarEnabled,
+    updateFlavorTextDOM,
+} from "../platform/ui-bottom-bar.js";
 
 // Re-export types and state helpers for consumers that previously imported
 // everything from a single messages module.
@@ -63,6 +76,13 @@ export {
 export function updateMessageDisplay(ctx: MessageContext): void {
     const state = ctx.messageState;
 
+    // DOM path — render messages as styled HTML spans
+    if (isDOMMessagesEnabled()) {
+        renderMessagesDOM(state.displayedMessage, state.messagesUnconfirmed);
+        return;
+    }
+
+    // Buffer path (kept for fallback / non-DOM builds)
     for (let i = 0; i < MESSAGE_LINES; i++) {
         let messageColor: Color = { ...white };
 
@@ -179,6 +199,14 @@ export async function displayMoreSign(ctx: MessageContext): Promise<void> {
 
     const state = ctx.messageState;
 
+    if (isDOMMessagesEnabled()) {
+        showMoreSignDOM();
+        await ctx.waitForAcknowledgment();
+        hideMoreSignDOM();
+        return;
+    }
+
+    // Buffer path
     if (strLenWithoutEscapes(state.displayedMessage[0]) < DCOLS - 8 || state.messagesUnconfirmed > 0) {
         printString("--MORE--", COLS - 8, MESSAGE_LINES - 1, white, black, ctx.displayBuffer);
         await ctx.waitForAcknowledgment();
@@ -273,6 +301,12 @@ export function flavorMessage(ctx: MessageContext, msg: string): void {
         text = text.substring(0, i) + text.charAt(i).toUpperCase() + text.substring(i + 1);
     }
 
+    if (isDOMBottomBarEnabled()) {
+        updateFlavorTextDOM(text);
+        return;
+    }
+
+    // Buffer path
     printString(text, mapToWindowX(0), ROWS - 2, flavorTextColor, black, ctx.displayBuffer);
 
     // Clear remainder of the line
@@ -393,166 +427,6 @@ export async function displayCombatText(ctx: MessageContext): Promise<void> {
 // =============================================================================
 
 /**
- * Draw formatted messages in the message archive overlay.
- *
- * C: `drawMessageArchive` (static) in IO.c
- */
-function drawMessageArchive(
-    ctx: MessageContext,
-    messages: string[],
-    length: number,
-    offset: number,
-    height: number,
-): void {
-    const dbuf = createScreenDisplayBuffer();
-    clearDisplayBuffer(dbuf);
-
-    for (let i = 0; (MESSAGE_ARCHIVE_LINES - offset + i) < MESSAGE_ARCHIVE_LINES && i < ROWS && i < height; i++) {
-        const msgIdx = MESSAGE_ARCHIVE_LINES - offset + i;
-        if (msgIdx >= 0 && msgIdx < messages.length) {
-            printString(messages[msgIdx], mapToWindowX(0), i, white, black, dbuf);
-        }
-
-        // Set opacity and fade from bottom to top
-        const fadePercent = Math.trunc(50 * (length - offset + i) / length) + 50;
-        for (let j = 0; j < DCOLS; j++) {
-            const wx = mapToWindowX(j);
-            dbuf.cells[wx][i].opacity = INTERFACE_OPACITY;
-            if (dbuf.cells[wx][i].character !== (32 as DisplayGlyph)) { // not a space
-                for (let k = 0; k < 3; k++) {
-                    dbuf.cells[wx][i].foreColorComponents[k] =
-                        Math.trunc(dbuf.cells[wx][i].foreColorComponents[k] * fadePercent / 100);
-                }
-            }
-        }
-    }
-
-    ctx.overlayDisplayBuffer(dbuf);
-}
-
-/**
- * Pull-down / pull-up animation for the message archive.
- *
- * C: `animateMessageArchive` (static) in IO.c
- */
-async function animateMessageArchive(
-    ctx: MessageContext,
-    opening: boolean,
-    messages: string[],
-    length: number,
-    offset: number,
-    height: number,
-): Promise<void> {
-    let fastForward = false;
-
-    for (
-        let i = opening ? MESSAGE_LINES : height;
-        opening ? i <= height : i >= MESSAGE_LINES;
-        i += opening ? 1 : -1
-    ) {
-        const rbuf = ctx.saveDisplayBuffer();
-
-        drawMessageArchive(ctx, messages, length, offset - height + i, i);
-
-        if (!fastForward && await ctx.pauseBrogue(opening ? 2 : 1, { interruptForMouseMove: false })) {
-            fastForward = true;
-            // Dequeue the event that interrupted us
-            await ctx.nextBrogueEvent(false, false, true);
-            i = opening ? height - 1 : MESSAGE_LINES + 1; // skip to end
-        }
-        ctx.restoreDisplayBuffer(rbuf);
-    }
-}
-
-/**
- * Accept keyboard input to navigate or dismiss the opened message archive.
- * Returns the new offset.
- *
- * C: `scrollMessageArchive` (static) in IO.c
- */
-async function scrollMessageArchive(
-    ctx: MessageContext,
-    messages: string[],
-    length: number,
-    startOffset: number,
-    height: number,
-): Promise<number> {
-    let offset = startOffset;
-    let lastOffset = offset - 1; // ensure first render
-
-    if (ctx.rogue.autoPlayingLevel || (ctx.rogue.playbackMode && !ctx.rogue.playbackOOS)) {
-        return offset;
-    }
-
-    const rbuf = ctx.saveDisplayBuffer();
-    let exit = false;
-
-    do {
-        if (offset !== lastOffset) {
-            ctx.restoreDisplayBuffer(rbuf);
-            drawMessageArchive(ctx, messages, length, offset, height);
-        }
-        lastOffset = offset;
-
-        const theEvent = await ctx.nextBrogueEvent(false, false, false);
-
-        if (theEvent.eventType === EventType.Keystroke) {
-            let keystroke = theEvent.param1;
-            keystroke = ctx.stripShiftFromMovementKeystroke(keystroke);
-
-            const UP_KEY = 107;    // 'k'
-            const DOWN_KEY = 106;  // 'j'
-            const UP_ARROW = 63232;
-            const DOWN_ARROW = 63233;
-            const NUMPAD_8 = 56;
-            const NUMPAD_2 = 50;
-            const ACKNOWLEDGE_KEY = 32; // space
-            const ESCAPE_KEY = 0x1b;
-
-            switch (keystroke) {
-                case UP_KEY:
-                case UP_ARROW:
-                case NUMPAD_8:
-                    if (theEvent.controlKey) {
-                        offset = length;
-                    } else if (theEvent.shiftKey) {
-                        offset++;
-                    } else {
-                        offset += Math.trunc(MESSAGE_ARCHIVE_VIEW_LINES / 3);
-                    }
-                    break;
-                case DOWN_KEY:
-                case DOWN_ARROW:
-                case NUMPAD_2:
-                    if (theEvent.controlKey) {
-                        offset = height;
-                    } else if (theEvent.shiftKey) {
-                        offset--;
-                    } else {
-                        offset -= Math.trunc(MESSAGE_ARCHIVE_VIEW_LINES / 3);
-                    }
-                    break;
-                case ACKNOWLEDGE_KEY:
-                case ESCAPE_KEY:
-                    exit = true;
-                    break;
-                default:
-                    await ctx.flashTemporaryAlert(" -- Press space or click to continue -- ", 500);
-            }
-        }
-
-        if (theEvent.eventType === EventType.MouseUp) {
-            exit = true;
-        }
-
-        offset = Math.max(height, Math.min(offset, length));
-    } while (!exit);
-
-    ctx.restoreDisplayBuffer(rbuf);
-    return offset;
-}
-
-/**
  * Display the full message archive with pull-down animation, scrolling,
  * and pull-up animation.
  *
@@ -569,6 +443,18 @@ export async function displayMessageArchive(ctx: MessageContext): Promise<void> 
         return;
     }
 
+    if (isDOMMessagesEnabled()) {
+        // DOM path: scrollable overlay panel, replaces the buffer-animated version.
+        // Pass only the non-empty lines (oldest first).
+        const lines = messageBuffer.slice(0, length);
+        await showMessageArchiveDOM(lines);
+        ctx.updateFlavorText();
+        confirmMessages(ctx);
+        updateMessageDisplay(ctx);
+        return;
+    }
+
+    // Buffer path (kept for fallback)
     const height = Math.min(length, MESSAGE_ARCHIVE_VIEW_LINES);
     let offset = height;
 

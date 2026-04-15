@@ -59,6 +59,9 @@ import {
     createScreenDisplayBuffer as createScreenDisplayBufferFn,
 } from "./io/display.js";
 import { buildMessageContext, buildButtonContext } from "./ui.js";
+import { isDOMModalEnabled, showTextBoxModal } from "./platform/ui-modal.js";
+import type { ModalButton } from "./platform/ui-modal.js";
+import { stripColorEscapes } from "./io/inventory.js";
 
 // =============================================================================
 // buildInventoryContext
@@ -189,6 +192,31 @@ export function buildInventoryContext(): FullInventoryContext {
                 }
                 return bs;
             })() : [];
+
+            // DOM path: show item text + action buttons in a modal, bypassing buffer rendering.
+            if (isDOMModalEnabled()) {
+                // Visible action buttons followed by three invisible nav/escape buttons:
+                //   [actionCount+0] up-nav   — hotkeys k / 8 / ArrowUp   → returns UP_KEY
+                //   [actionCount+1] down-nav — hotkeys j / 2 / ArrowDown → returns DOWN_KEY
+                //   [actionCount+2] escape   — hotkey Escape (27)         → returns -1
+                // Empty labels are not rendered (see showTextBoxModal); hotkeys still fire.
+                const actionCount = actionButtons.length;
+                const modalBtns: ModalButton[] = [
+                    ...actionButtons.map(btn => ({
+                        label: stripColorEscapes(btn.text),
+                        hotkeys: [...btn.hotkey].filter(k => k > 0),
+                    })),
+                    { label: "", hotkeys: [UP_KEY, NUMPAD_8, UP_ARROW] },
+                    { label: "", hotkeys: [DOWN_KEY, NUMPAD_2, DOWN_ARROW] },
+                    { label: "", hotkeys: [27] }, // Escape → dismiss
+                ];
+                const idx = await showTextBoxModal(textBuf, modalBtns);
+                if (idx < 0 || idx >= actionCount + 3) return -1;
+                if (idx === actionCount)     return UP_KEY;
+                if (idx === actionCount + 1) return DOWN_KEY;
+                if (idx === actionCount + 2) return -1; // Escape
+                return actionButtons[idx]?.hotkey[0] ?? -1;
+            }
 
             // Invisible up/down navigation buttons (C: printCarriedItemDetails).
             const navUp   = initializeButtonFn();

@@ -6,6 +6,7 @@
     <title>Brogue: Community Edition (V2)</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
             background: #000;
             display: flex;
@@ -13,11 +14,111 @@
             align-items: center;
             min-height: 100vh;
             overflow: auto;
+            font-family: monospace;
+            color: #ccc;
+        }
+
+        /*
+         * #brogue-root: outer flex row wrapping sidebar (left) + main content (right).
+         * Hidden by default during menu/title screens; shown during gameplay when
+         * DOM extraction is active. The canvas occupies #brogue-canvas-wrap.
+         */
+        #brogue-root {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            background: #000;
+        }
+
+        /*
+         * #brogue-sidebar: DOM sidebar replacing the 20 leftmost canvas columns.
+         * Width is set dynamically by bootstrap.ts to match the cell grid size.
+         * Hidden until sidebar DOM extraction is active.
+         */
+        #brogue-sidebar {
+            display: none;
+            flex-direction: column;
+            background: #000;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        /*
+         * #brogue-main: right column containing the canvas, message area, and
+         * bottom bar regions. All three stack vertically.
+         */
+        #brogue-main {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        /*
+         * #brogue-canvas-wrap: holds the canvas element.
+         * During menu screens the canvas is full 100×34; during gameplay with DOM
+         * extraction active, the canvas renders only the dungeon viewport (Phase 4).
+         * For Phase 1 the canvas retains its current full dimensions.
+         */
+        #brogue-canvas-wrap {
+            position: relative;
+        }
+
+        /*
+         * #brogue-messages: message area (Phase 2).
+         * Positioned absolutely within #brogue-canvas-wrap, overlaying the
+         * canvas message rows (rows 0–2, suppressed to black during gameplay).
+         * Width and top/height are set dynamically by bootstrap.ts.
+         */
+        #brogue-messages {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            min-height: 56px;
+            background: #000;
+            overflow: visible; /* allow archive panel to expand below into dungeon area */
+            pointer-events: none; /* allow clicks to pass to canvas except archive */
+            z-index: 5;
+            padding: 1px 3px;
+            box-sizing: border-box;
+        }
+
+        /* Re-enable pointer events for interactive children inside messages */
+        #brogue-messages .msg-archive-panel,
+        #brogue-messages .msg-more {
+            pointer-events: auto;
+        }
+
+        /*
+         * #brogue-bottom-bar: bottom action bar (Phase 2).
+         * Positioned absolutely within #brogue-canvas-wrap, overlaying the
+         * canvas bottom rows (rows 32–33, suppressed to black during gameplay).
+         * Width and bottom/height are set dynamically by bootstrap.ts.
+         */
+        #brogue-bottom-bar {
+            display: none;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            background: #111;
+            overflow: visible; /* allow flavor text + buttons to show even if taller than 2*cellSize */
+            pointer-events: auto;
+            z-index: 5;
+            box-sizing: border-box;
         }
     </style>
 </head>
 <body>
-    <canvas id="brogue-canvas"></canvas>
+    <div id="brogue-root">
+        <div id="brogue-sidebar" role="complementary" aria-label="Sidebar"></div>
+        <div id="brogue-main">
+            <div id="brogue-canvas-wrap">
+                <canvas id="brogue-canvas"></canvas>
+                <div id="brogue-messages" role="log" aria-live="polite" aria-label="Messages"></div>
+                <div id="brogue-bottom-bar" role="toolbar" aria-label="Game controls"></div>
+            </div>
+        </div>
+    </div>
     <script type="module" src="./src/bootstrap.ts"></script>
 </body>
 </html>

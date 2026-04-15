@@ -12,6 +12,9 @@
  */
 
 import type { BrogueConsole } from "../types/platform.js";
+import { isSidebarCanvasSuppressed } from "./ui-sidebar.js";
+import { isMessagesCanvasSuppressed } from "./ui-messages.js";
+import { isBottomBarCanvasSuppressed } from "./ui-bottom-bar.js";
 import type { RogueEvent, PauseBehavior } from "../types/types.js";
 import { EventType, GraphicsMode, DisplayGlyph } from "../types/enums.js";
 import type { TileType } from "../types/enums.js";
@@ -24,29 +27,11 @@ import {
   MESSAGE_LINES,
   DCOLS,
   DROWS,
-  ESCAPE_KEY,
-  RETURN_KEY,
-  DELETE_KEY,
-  TAB_KEY,
-  UP_ARROW,
-  DOWN_ARROW,
-  LEFT_ARROW,
-  RIGHT_ARROW,
-  NUMPAD_0,
-  NUMPAD_1,
-  NUMPAD_2,
-  NUMPAD_3,
-  NUMPAD_4,
-  NUMPAD_5,
-  NUMPAD_6,
-  NUMPAD_7,
-  NUMPAD_8,
-  NUMPAD_9,
-  PRINTSCREEN_KEY,
 } from "../types/constants.js";
 import { TextRenderer } from "./text-renderer.js";
 import { SpriteRenderer } from "./sprite-renderer.js";
 import type { CellRect } from "./renderer.js";
+import { translateKey } from "./browser-key-translation.js";
 
 /** Produces per-layer sprite data for a dungeon cell at (dungeonX, dungeonY). */
 export type CellSpriteDataProvider = (dungeonX: number, dungeonY: number) => CellSpriteData;
@@ -57,6 +42,12 @@ export type CellSpriteDataProvider = (dungeonX: number, dungeonY: number) => Cel
 
 /** Polling interval (ms) while waiting for input with color dance. */
 export const PAUSE_BETWEEN_EVENT_POLLING = 36;
+
+// ---- Canvas mode ----
+// false = full 100×34 menu canvas; true = dungeon-only DCOLS×DROWS gameplay canvas.
+let _canvasGameplayMode = false;
+export function isCanvasGameplayMode(): boolean { return _canvasGameplayMode; }
+export function setCanvasGameplayMode(v: boolean): void { _canvasGameplayMode = v; }
 
 // =============================================================================
 // Progressive cell sizing — pure functions (exported for testing)
@@ -209,6 +200,9 @@ export function createBrowserConsole(
   let dpr = options.devicePixelRatio ?? 1;
 
   function getCellRect(col: number, row: number): CellRect {
+    if (_canvasGameplayMode) {
+      return cellRect(col, row, cssWidth, cssHeight, DCOLS, DROWS);
+    }
     return cellRect(col, row, cssWidth, cssHeight, COLS, ROWS);
   }
 
@@ -273,64 +267,14 @@ export function createBrowserConsole(
 
   // ---- Coordinate mapping (delegates to exported pixelToCellCoord) --------
   function pixelToCell(px: number, py: number): { x: number; y: number } {
+    if (_canvasGameplayMode) {
+      const { x: dc, y: dr } = pixelToCellCoord(px, py, cssWidth, cssHeight, DCOLS, DROWS);
+      return { x: dc + STAT_BAR_WIDTH + 1, y: dr + MESSAGE_LINES };
+    }
     return pixelToCellCoord(px, py, cssWidth, cssHeight, COLS, ROWS);
   }
 
   // ---- DOM event handlers ----
-
-  function translateKey(domEvent: KeyboardEvent): number | null {
-    switch (domEvent.key) {
-      case "Escape":
-        return ESCAPE_KEY;
-      case "ArrowUp":
-        return UP_ARROW;
-      case "ArrowDown":
-        return DOWN_ARROW;
-      case "ArrowLeft":
-        return LEFT_ARROW;
-      case "ArrowRight":
-        return RIGHT_ARROW;
-      case "Enter":
-        return RETURN_KEY;
-      case "Backspace":
-        return DELETE_KEY;
-      case "Tab":
-        return TAB_KEY;
-      case "PrintScreen":
-        return PRINTSCREEN_KEY;
-      default:
-        break;
-    }
-
-    // Numpad digits
-    if (
-      domEvent.code.startsWith("Numpad") &&
-      domEvent.key.length === 1 &&
-      domEvent.key >= "0" &&
-      domEvent.key <= "9"
-    ) {
-      const numpadKeys = [
-        NUMPAD_0,
-        NUMPAD_1,
-        NUMPAD_2,
-        NUMPAD_3,
-        NUMPAD_4,
-        NUMPAD_5,
-        NUMPAD_6,
-        NUMPAD_7,
-        NUMPAD_8,
-        NUMPAD_9,
-      ];
-      return numpadKeys[parseInt(domEvent.key, 10)];
-    }
-
-    // Printable single characters
-    if (domEvent.key.length === 1) {
-      return domEvent.key.charCodeAt(0);
-    }
-
-    return null;
-  }
 
   function onKeyDown(domEvent: KeyboardEvent): void {
     const keyCode = translateKey(domEvent);
@@ -433,9 +377,11 @@ export function createBrowserConsole(
     waitForEvent(): Promise<RogueEvent>;
     handleResize(): void;
     setCellSpriteDataProvider(provider: CellSpriteDataProvider): void;
+    injectEvent(ev: RogueEvent): void;
   } = {
     waitForEvent: _waitForEvent,
     handleResize: recalcCellSize,
+    injectEvent: enqueueEvent,
 
     gameLoop(): void {
       if (onGameLoop) onGameLoop();
@@ -494,6 +440,66 @@ export function createBrowserConsole(
       backBlue: number,
       tileType?: TileType,
     ): void {
+      if (_canvasGameplayMode) {
+        // In gameplay mode the canvas is DCOLS×DROWS (dungeon only).
+        // Map full-grid window coordinates to dungeon-relative canvas coords.
+        const canvasCol = x - (STAT_BAR_WIDTH + 1);
+        const canvasRow = y - MESSAGE_LINES;
+        // Skip sidebar, message rows, and bottom rows — all rendered by DOM.
+        if (canvasCol < 0 || canvasCol >= DCOLS || canvasRow < 0 || canvasRow >= DROWS) {
+          return;
+        }
+        const cr = cellRect(canvasCol, canvasRow, cssWidth, cssHeight, DCOLS, DROWS);
+        const fr = Math.round((foreRed * 255) / 100);
+        const fg = Math.round((foreGreen * 255) / 100);
+        const fb = Math.round((foreBlue * 255) / 100);
+        const br = Math.round((backRed * 255) / 100);
+        const bg = Math.round((backGreen * 255) / 100);
+        const bb = Math.round((backBlue * 255) / 100);
+        const useTiles = spriteRenderer && currentGraphicsMode === GraphicsMode.Tiles;
+        if (useTiles) {
+          if (getCellSpriteDataFn && tileType !== undefined) {
+            if (spriteDebug.enabled) {
+              spriteDebug._renderingX = canvasCol;
+              spriteDebug._renderingY = canvasRow;
+            }
+            const spriteData = getCellSpriteDataFn(canvasCol, canvasRow);
+            spriteRenderer.drawCellLayers(cr, spriteData);
+          } else {
+            spriteRenderer.drawCell(cr, inputChar, fr, fg, fb, br, bg, bb, tileType);
+          }
+        } else {
+          textRenderer.drawCell(cr, inputChar, fr, fg, fb, br, bg, bb);
+        }
+        return;
+      }
+
+      // Menu mode (full 100×34 canvas): apply suppression for DOM-rendered regions.
+
+      // Suppress sidebar columns during gameplay when DOM sidebar is active
+      if (isSidebarCanvasSuppressed() && x < STAT_BAR_WIDTH) {
+        const cr = getCellRect(x, y);
+        ctx2d.fillStyle = "#000000";
+        ctx2d.fillRect(cr.x, cr.y, cr.width, cr.height);
+        return;
+      }
+
+      // Suppress message rows (0–MESSAGE_LINES-1) when DOM messages are active
+      if (isMessagesCanvasSuppressed() && y < MESSAGE_LINES) {
+        const cr = getCellRect(x, y);
+        ctx2d.fillStyle = "#000000";
+        ctx2d.fillRect(cr.x, cr.y, cr.width, cr.height);
+        return;
+      }
+
+      // Suppress bottom rows (ROWS-2 and ROWS-1) when DOM bottom bar is active
+      if (isBottomBarCanvasSuppressed() && y >= ROWS - 2) {
+        const cr = getCellRect(x, y);
+        ctx2d.fillStyle = "#000000";
+        ctx2d.fillRect(cr.x, cr.y, cr.width, cr.height);
+        return;
+      }
+
       const cr = getCellRect(x, y);
 
       const useTiles =
