@@ -216,6 +216,11 @@ export function setGraphicsMode(mode: GraphicsMode): GraphicsMode {
         setSidebarVisible(useDOM);
         setMessagesVisible(useDOM);
         setBottomBarVisible(useDOM);
+        // Canvas suppression must mirror DOM state: when DOM is off (ASCII mode),
+        // the canvas must render those rows again instead of blacking them out.
+        setSidebarCanvasSuppression(useDOM);
+        setMessagesCanvasSuppression(useDOM);
+        setBottomBarCanvasSuppression(useDOM);
     }
     return _graphicsMode;
 }

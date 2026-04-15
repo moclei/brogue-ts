@@ -22,7 +22,7 @@
  *  License, or (at your option) any later version.
  */
 
-import { parseColorEscapes } from "./ui-messages.js";
+import { COLOR_ESCAPE } from "../types/constants.js";
 
 // =============================================================================
 // Data types
@@ -153,30 +153,58 @@ export function initBottomBarDOM(container: HTMLElement): void {
         "align-items:center",
     ].join(";");
     container.appendChild(buttonRowEl);
+
+    // Event delegation: fire on mousedown so the handler runs before the idle
+    // animation loop (which runs every 25ms) can recreate the button elements.
+    // Per-button click listeners would break if the element is destroyed and
+    // recreated between mousedown and mouseup.
+    buttonRowEl.addEventListener("mousedown", (e) => {
+        const target = (e.target as HTMLElement).closest(".bb-btn") as HTMLButtonElement | null;
+        if (!target || target.disabled) return;
+        e.preventDefault();
+        const idx = parseInt(target.dataset.index ?? "-1", 10);
+        if (idx >= 0) _onButtonClick?.(idx);
+    });
 }
 
 // =============================================================================
-// Color escape helpers (delegates to ui-messages parseColorEscapes)
+// Color escape helpers
 // =============================================================================
 
 interface _Segment { text: string; isHotkey: boolean; cssColor: string }
 
+/** Strip Brogue 4-byte color escape sequences (COLOR_ESCAPE + 3 RGB bytes). */
+function _stripEscapes(raw: string): string {
+    let out = "";
+    let i = 0;
+    while (i < raw.length) {
+        if (raw.charCodeAt(i) === COLOR_ESCAPE) {
+            i += 4; // skip escape byte + 3 RGB bytes
+        } else {
+            out += raw[i++];
+        }
+    }
+    return out;
+}
+
 /**
- * Parse a button label (with COLOR_ESCAPE sequences) into segments.
- * Delegates to the proven parseColorEscapes implementation used by the
- * message renderer, then maps segments to button-specific types.
- *
- * A segment is treated as a "hotkey" if its color is not near-white
- * (i.e., the CSS color string is not the pure white produced by white=100,100,100).
+ * Parse a button label into segments. Strips color escape sequences and
+ * finds the hotkey character (first occurrence of the hotkey char code in
+ * the cleaned text), rendering it in gold. Everything else is white.
  */
-function _parseButtonLabel(raw: string): _Segment[] {
-    const WHITE_CSS = "rgb(255,255,255)";
-    const msgSegs = parseColorEscapes(raw, 1.0);
-    return msgSegs.map(seg => ({
-        text: seg.text,
-        cssColor: seg.color,
-        isHotkey: seg.color !== WHITE_CSS,
-    }));
+function _parseButtonLabel(raw: string, hotkeyCharCode: number): _Segment[] {
+    const GOLD = "rgb(255,204,0)";
+    const WHITE = "rgb(200,200,200)";
+    const text = _stripEscapes(raw).trim();
+    if (!hotkeyCharCode) return [{ text, isHotkey: false, cssColor: WHITE }];
+    const hotkey = String.fromCharCode(hotkeyCharCode);
+    const idx = text.indexOf(hotkey);
+    if (idx < 0) return [{ text, isHotkey: false, cssColor: WHITE }];
+    const segs: _Segment[] = [];
+    if (idx > 0) segs.push({ text: text.slice(0, idx), isHotkey: false, cssColor: WHITE });
+    segs.push({ text: hotkey, isHotkey: true, cssColor: GOLD });
+    if (idx + 1 < text.length) segs.push({ text: text.slice(idx + 1), isHotkey: false, cssColor: WHITE });
+    return segs;
 }
 
 // =============================================================================
@@ -193,8 +221,9 @@ export function renderBottomBarButtons(buttons: BottomBarButtonData[]): void {
     buttonRowEl.innerHTML = "";
 
     for (const btn of buttons) {
-        const segs = _parseButtonLabel(btn.rawText.trim());
+        const segs = _parseButtonLabel(btn.rawText, btn.hotkey);
         const btnEl = document.createElement("button");
+        btnEl.type = "button";
         btnEl.className = "bb-btn";
         btnEl.dataset.index = String(btn.index);
         btnEl.disabled = !btn.enabled;
@@ -211,18 +240,12 @@ export function renderBottomBarButtons(buttons: BottomBarButtonData[]): void {
             btn.enabled ? "" : "opacity:0.5",
         ].filter(Boolean).join(";");
 
-        // Hover styles via mouseenter/mouseleave
+        // Hover styles via mouseenter/mouseleave (visual only — click is delegated)
         btnEl.addEventListener("mouseenter", () => {
             if (btn.enabled) btnEl.style.background = "#2a2a4e";
         });
         btnEl.addEventListener("mouseleave", () => {
             btnEl.style.background = "#1a1a2e";
-        });
-        btnEl.addEventListener("mousedown", () => {
-            if (btn.enabled) btnEl.style.background = "#0a0a1e";
-        });
-        btnEl.addEventListener("mouseup", () => {
-            if (btn.enabled) btnEl.style.background = "#2a2a4e";
         });
 
         // Populate label with styled spans for hotkey chars
@@ -231,19 +254,12 @@ export function renderBottomBarButtons(buttons: BottomBarButtonData[]): void {
             const sp = document.createElement("span");
             sp.textContent = seg.text;
             if (seg.isHotkey) {
-                sp.style.cssText = [
-                    `color:${seg.cssColor}`,
-                    "font-weight:bold",
-                ].join(";");
+                sp.style.cssText = "color:" + seg.cssColor + ";font-weight:bold";
+            } else {
+                sp.style.color = seg.cssColor;
             }
             btnEl.appendChild(sp);
         }
-
-        btnEl.addEventListener("click", (e) => {
-            e.preventDefault();
-            if (!btn.enabled) return;
-            _onButtonClick?.(btn.index);
-        });
 
         buttonRowEl.appendChild(btnEl);
     }
@@ -266,12 +282,6 @@ export function updateFlavorTextDOM(rawText: string): void {
 
     if (!rawText) return;
 
-    const segs = _parseButtonLabel(rawText);
-    for (const seg of segs) {
-        if (!seg.text) continue;
-        const sp = document.createElement("span");
-        sp.textContent = seg.text;
-        sp.style.color = seg.isHotkey ? seg.cssColor : "#9d9d9d";
-        flavorTextEl.appendChild(sp);
-    }
+    const text = _stripEscapes(rawText);
+    flavorTextEl.textContent = text;
 }

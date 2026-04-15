@@ -13,6 +13,7 @@
 
 import { getGameState } from "../core.js";
 import { waitForEvent, commitDraws } from "../platform.js";
+import { isDOMModalEnabled, showInputModal } from "../platform/ui-modal.js";
 import { inscribeItem } from "./item-call.js";
 import { itemCanBeCalled } from "./item-utils.js";
 import { itemName as itemNameFn } from "./item-naming.js";
@@ -156,9 +157,16 @@ export function buildCallCommandFn(
             monsterClassName: (_classId: number) => "creature",
         };
 
+        // In DOM modal mode, use the native <input> modal instead of the
+        // raw waitForEvent() loop, which conflicts with open modal event listeners.
+        const domGetInputText = isDOMModalEnabled()
+            ? (prompt: string, maxLength: number, defaultEntry: string) =>
+                  showInputModal(prompt, defaultEntry, maxLength, false)
+            : asyncGetInputTextString;
+
         const confirmed = await inscribeItem(item, {
             itemName: (i, details, article) => itemNameFn(i, details, article, namingCtx),
-            getInputTextString: asyncGetInputTextString,
+            getInputTextString: domGetInputText,
             confirmMessages: deps.confirmMessages,
             messageWithColor: (msg, color: Readonly<Color> | null, flags) =>
                 deps.messageWithColor(msg, color, flags),
