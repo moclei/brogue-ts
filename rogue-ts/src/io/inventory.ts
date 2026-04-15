@@ -162,14 +162,14 @@ export interface InventoryContext {
 // DOM helpers
 // =============================================================================
 
-const COLOR_ESCAPE_BYTE = 6;
+import { COLOR_ESCAPE } from "../types/constants.js";
 
 /** Strip Brogue color escape sequences from a button label for DOM display. */
 export function stripColorEscapes(s: string): string {
     let out = "";
     let i = 0;
     while (i < s.length) {
-        if (s.charCodeAt(i) === COLOR_ESCAPE_BYTE) {
+        if (s.charCodeAt(i) === COLOR_ESCAPE) {
             i += 4; // skip escape + 3 color bytes
         } else {
             out += s[i];
